@@ -1,4 +1,4 @@
-name: C++ CI (vitavision calibration)
+name: C++ CI (calibration)
 
 on:
   push:
@@ -17,44 +17,43 @@ jobs:
 
     env:
       BUILD_DIR: build
-      # Used only on Windows when configuring with vcpkg:
-      VCPKG_ROOT: ${{ runner.temp }}\\vcpkg
-      VCPKG_TRIPLET: x64-windows
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # ===== Dependencies =====
+      # ---------- Linux deps ----------
       - name: Install deps (Ubuntu)
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libeigen3-dev libceres-dev
+          sudo apt-get install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev
 
+      # ---------- macOS deps ----------
       - name: Install deps (macOS)
         if: startsWith(matrix.os, 'macos')
         run: |
           brew update
-          brew install cmake ninja eigen ceres-solver
+          brew install cmake ninja eigen ceres-solver nlohmann-json
 
-      - name: Install deps (Windows via vcpkg)
+      # ---------- Windows deps via vcpkg ----------
+      - name: Set VCPKG_ROOT (Windows)
         if: startsWith(matrix.os, 'windows')
         shell: pwsh
         run: |
-          git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
-          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
-          # Install packages (ceres pulls suitesparse; eigen3 is header-only)
-          & "$env:VCPKG_ROOT\vcpkg.exe" install ceres eigen3 --triplet $env:VCPKG_TRIPLET
+          # Put vcpkg inside the workspace (avoids runner.temp context)
+          $vcpkgRoot = "${{ github.workspace }}\vcpkg"
+          echo "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "VCPKG_TRIPLET=x64-windows" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      # ===== Configure & Build =====
-      - name: Configure (CMake)
+      - name: Bootstrap vcpkg (Windows)
+        if: startsWith(matrix.os, 'windows')
+        shell: pwsh
         run: |
-          cmake -S . -B "$BUILD_DIR" -G Ninja \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            $([[ "$RUNNER_OS" == "Windows" ]] && echo "-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake")
-        shell: bash
+          if (-not (Test-Path $env:VCPKG_ROOT)) {
+            git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+          }
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
 
-      - name: Build
-        run: cmake --build "$BUILD_DIR" --config ${{ matrix.build_type }} -j 2
-        shell: bash
+      - name: Install pkgs (Windows)
+        if: start
