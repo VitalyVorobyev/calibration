@@ -14,9 +14,14 @@ target_include_directories(${TARGET} PUBLIC
 target_link_libraries(${TARGET} PUBLIC Eigen3::Eigen)
 target_link_libraries(${TARGET} PRIVATE Ceres::ceres)
 
-# set max warning level if unix
+# set max warning level if unix, warnings as errors
 if(UNIX)
-    target_compile_options(${TARGET} PRIVATE -Wall -Wextra -Wpedantic)
+    target_compile_options(${TARGET} PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()
+
+if (MSVC)
+    # Only for cl.exe:
+    target_compile_options(${TARGET} PUBLIC /Zc:__cplusplus)
 endif()
 
 # install
