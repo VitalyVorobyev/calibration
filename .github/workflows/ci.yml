@@ -1,8 +1,8 @@
-name: C++ CI (Ceres homography)
+name: C++ CI (calibration)
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
 
 jobs:
@@ -80,7 +80,7 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
-          "$BUILD_DIR/homography_opt" << 'EOF'
+          "$BUILD_DIR/examples/homography" << 'EOF'
           4
           0   0    10 20
           100 0    110 18
@@ -92,7 +92,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          "$BUILD_DIR/homography_opt.exe" << 'EOF'
+          "$BUILD_DIR/examples/homography.exe" << 'EOF'
           4
           0   0    10 20
           100 0    110 18
