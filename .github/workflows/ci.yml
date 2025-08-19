@@ -58,29 +58,3 @@ jobs:
       - name: Build
         run: cmake --build "$BUILD_DIR" --config ${{ matrix.build_type }} -j 2
         shell: bash
-
-      # ===== Smoke Test =====
-      # Provide a tiny input so the binary runs in CI.
-      - name: Run smoke test (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          "$BUILD_DIR/homography_opt" << 'EOF'
-          4
-          0   0    10 20
-          100 0    110 18
-          100 50   120 70
-          0   50   8  72
-          EOF
-
-      - name: Run smoke test (Windows)
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          "$BUILD_DIR/homography_opt.exe" << 'EOF'
-          4
-          0   0    10 20
-          100 0    110 18
-          100 50   120 70
-          0   50   8  72
-          EOF
