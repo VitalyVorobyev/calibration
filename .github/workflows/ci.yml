@@ -1,0 +1,86 @@
+name: C++ CI (vitavision calibration)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build:
+    name: ${{ matrix.os }} • ${{ matrix.build_type }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04]
+        build_type: [Release, Debug]
+
+    env:
+      BUILD_DIR: build
+      # Used only on Windows when configuring with vcpkg:
+      VCPKG_ROOT: ${{ runner.temp }}\\vcpkg
+      VCPKG_TRIPLET: x64-windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ===== Dependencies =====
+      - name: Install deps (Ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libeigen3-dev libceres-dev
+
+      - name: Install deps (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew update
+          brew install cmake ninja eigen ceres-solver
+
+      - name: Install deps (Windows via vcpkg)
+        if: startsWith(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
+          # Install packages (ceres pulls suitesparse; eigen3 is header-only)
+          & "$env:VCPKG_ROOT\vcpkg.exe" install ceres eigen3 --triplet $env:VCPKG_TRIPLET
+
+      # ===== Configure & Build =====
+      - name: Configure (CMake)
+        run: |
+          cmake -S . -B "$BUILD_DIR" -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            $([[ "$RUNNER_OS" == "Windows" ]] && echo "-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake")
+        shell: bash
+
+      - name: Build
+        run: cmake --build "$BUILD_DIR" --config ${{ matrix.build_type }} -j 2
+        shell: bash
+
+      # ===== Smoke Test =====
+      # Provide a tiny input so the binary runs in CI.
+      - name: Run smoke test (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          "$BUILD_DIR/homography_opt" << 'EOF'
+          4
+          0   0    10 20
+          100 0    110 18
+          100 50   120 70
+          0   50   8  72
+          EOF
+
+      - name: Run smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          "$BUILD_DIR/homography_opt.exe" << 'EOF'
+          4
+          0   0    10 20
+          100 0    110 18
+          100 50   120 70
+          0   50   8  72
+          EOF
