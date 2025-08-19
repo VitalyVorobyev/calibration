@@ -1,8 +1,8 @@
-name: C++ CI (calibration)
+name: C++ CI (Ceres homography)
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04]
+        os: [ubuntu-24.04, macos-14, windows-2022]
         build_type: [Release, Debug]
 
     env:
@@ -56,4 +56,46 @@ jobs:
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
 
       - name: Install pkgs (Windows)
-        if: start
+        if: startsWith(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          & "$env:VCPKG_ROOT\vcpkg.exe" install `
+            ceres eigen3 nlohmann-json `
+            --triplet $env:VCPKG_TRIPLET
+
+      # ---------- Configure & build ----------
+      - name: Configure (CMake)
+        run: |
+          cmake -S . -B "$BUILD_DIR" -G Ninja \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            $([[ "$RUNNER_OS" == "Windows" ]] && echo "-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake")
+        shell: bash
+
+      - name: Build
+        run: cmake --build "$BUILD_DIR" --config ${{ matrix.build_type }} -j 2
+        shell: bash
+
+      # ---------- Smoke tests ----------
+      - name: Run smoke test (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          "$BUILD_DIR/homography_opt" << 'EOF'
+          4
+          0   0    10 20
+          100 0    110 18
+          100 50   120 70
+          0   50   8  72
+          EOF
+
+      - name: Run smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          "$BUILD_DIR/homography_opt.exe" << 'EOF'
+          4
+          0   0    10 20
+          100 0    110 18
+          100 50   120 70
+          0   50   8  72
+          EOF
