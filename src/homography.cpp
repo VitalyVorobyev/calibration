@@ -62,8 +62,8 @@ static void normalize_points(const std::vector<Vec2>& pts,
 }
 
 // DLT initial estimate with normalization
-static Mat3 homography_dlt(const std::vector<Vec2>& src,
-                           const std::vector<Vec2>& dst)
+Mat3 estimate_homography_dlt(const std::vector<Vec2>& src,
+                             const std::vector<Vec2>& dst)
 {
     const int N = static_cast<int>(src.size());
     std::vector<Vec2> src_n, dst_n;
@@ -86,7 +86,9 @@ static Mat3 homography_dlt(const std::vector<Vec2>& src,
         A(2*i, 3) = -x;
         A(2*i, 4) = -y;
         A(2*i, 5) = -1.0;
-        A(2*i, 6) = v*x; A(2*i, 7) = v*y; A(2*i, 8) = v;
+        A(2*i, 6) = v*x;
+        A(2*i, 7) = v*y;
+        A(2*i, 8) = v;
 
         // Row 2i+1
         A(2*i+1, 0) = x;
@@ -157,7 +159,7 @@ Mat3 fit_homography(const std::vector<Vec2>& src,
     }
 
     // Initial estimate via (normalized) DLT
-    Mat3 H0 = homography_dlt(src, dst);
+    Mat3 H0 = estimate_homography_dlt(src, dst);
     // Convert to 8-parameter vector with H22 fixed to 1
     Params h = {
         H0(0,0), H0(0,1), H0(0,2),
