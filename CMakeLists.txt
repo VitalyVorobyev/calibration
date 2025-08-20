@@ -7,6 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Ceres CONFIG REQUIRED)
 find_package(Eigen3 CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
+find_package(GTest CONFIG REQUIRED)
+
+enable_testing()
 
 add_subdirectory(src)
 add_subdirectory(examples)
+add_subdirectory(test)
