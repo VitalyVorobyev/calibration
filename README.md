@@ -17,13 +17,22 @@ A C++ library for camera calibration and vision-related geometric transformation
 - Eigen3: Linear algebra library
 - Ceres: Non-linear optimization
 - nlohmann-json: JSON parsing and serialization
+- GoogleTest: Unit testing framework
 
 ## Installation
 
 ### Ubuntu
 
 ```bash
-sudo apt install libeigen3-dev libceres-dev nlohmann-json3-dev
+sudo apt install libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev
+```
+
+### Windows
+
+Use [vcpkg](https://github.com/microsoft/vcpkg) to install the dependencies:
+
+```powershell
+vcpkg install ceres eigen3 nlohmann-json gtest
 ```
 
 ### Other platforms
