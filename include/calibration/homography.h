@@ -11,6 +11,9 @@
 
 namespace vitavision {
 
+Eigen::Matrix3d estimate_homography_dlt(const std::vector<Eigen::Vector2d>& src,
+                                        const std::vector<Eigen::Vector2d>& dst);
+
 Eigen::Matrix3d fit_homography(const std::vector<Eigen::Vector2d>& src,
                                const std::vector<Eigen::Vector2d>& dst);
 

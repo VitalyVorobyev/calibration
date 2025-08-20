@@ -15,6 +15,10 @@ namespace vitavision {
 
 struct Intrinsic {
     double fx, fy, cx, cy;
+
+    Eigen::Vector2d pixel_to_norm(const Eigen::Vector2d& pix) const {
+        return Eigen::Vector2d((pix.x() - cx) / fx, (pix.y() - cy) / fy);
+    }
 };
 
 struct IntrinsicOptimizationResult {
