@@ -73,11 +73,12 @@ public:
     }
 };
 
-static Eigen::Matrix4d compute_covariance(
+static bool compute_covariance(
     size_t n_obs,
     const IntrinsicsVPResidual& vp,
     double const* intrinsics,
-    ceres::Problem& problem
+    ceres::Problem& problem,
+    IntrinsicOptimizationResult& result
 ) {
     // Recompute residuals and RMSE
     const int m = static_cast<int>(n_obs) * 2;
@@ -90,9 +91,8 @@ static Eigen::Matrix4d compute_covariance(
     double ssr = 0.0;
     for (double r : residuals) ssr += r * r;
     const int dof = m - 4; // 4 nonlinear params in this problem
-    const double rmse = std::sqrt(ssr / m);
+    result.reprojection_error = std::sqrt(ssr / m);
     const double sigma2 = ssr / std::max(1, dof);
-    std::cout << "RMSE (pixels): " << rmse << "\n";
 
     // Covariance (approximate): scale by residual variance.
     ceres::Covariance::Options cov_opts;
@@ -100,7 +100,7 @@ static Eigen::Matrix4d compute_covariance(
     std::vector<std::pair<const double*, const double*>> blocks = { {intrinsics, intrinsics} };
     if (!cov.Compute(blocks, &problem)) {
         std::cerr << "Covariance computation failed.\n";
-        return Eigen::Matrix4d::Zero();
+        return false;
     }
 
     double cov4x4[16];
@@ -109,7 +109,9 @@ static Eigen::Matrix4d compute_covariance(
     // Scale by estimated noise variance (unit weights assumption).
     Eigen::Map<Eigen::Matrix4d> covar(cov4x4);
     covar *= sigma2;
-    return covar;
+    result.covariance = covar;
+
+    return true;
 }
 
 IntrinsicOptimizationResult optimize_intrinsics(
@@ -154,60 +156,11 @@ IntrinsicOptimizationResult optimize_intrinsics(
     result.summary = summary.BriefReport();
     
     // Fix: Pass the cost function object reference instead of intrinsics array
-    result.covariance = compute_covariance(obs.size(), *costptr, intrinsics, problem);
+    if (!compute_covariance(obs.size(), *costptr, intrinsics, problem, result)) {
+        std::cerr << "Covariance computation failed.\n";
+    }
 
     return result;
 }
-
-#if 0
-// ---------- Demo / usage ----------
-int main() {
-  // Synthetic data for demonstration.
-  std::mt19937 rng(42);
-  std::uniform_real_distribution<double> uni(-0.6, 0.6);
-  std::normal_distribution<double> noise(0.0, 0.2); // pixel noise
-
-  // True intrinsics & distortion
-  const double fx_true = 800.0, fy_true = 820.0, cx_true = 640.0, cy_true = 360.0;
-  const std::vector<double> k_true = {-0.20, 0.03}; // k1, k2
-  const double p1_true = 0.0010, p2_true = -0.0005;
-
-  const int N = 300;     // points
-  const int K = 2;       // number of radial coeffs to estimate
-  std::vector<Observation> obs; obs.reserve(N);
-
-  auto distort_then_project = [&](double x, double y,
-                                  double& u, double& v) {
-    const double r2 = x*x + y*y;
-    double radial = 1.0;
-    double rpow = r2;
-    for (double kj : k_true) { radial += kj * rpow; rpow *= r2; }
-
-    double x_t = x * radial + 2.0 * p1_true * x * y + p2_true * (r2 + 2.0 * x * x);
-    double y_t = y * radial + p1_true * (r2 + 2.0 * y * y) + 2.0 * p2_true * x * y;
-
-    u = fx_true * x_t + cx_true;
-    v = fy_true * y_t + cy_true;
-  };
-
-  for (int i = 0; i < N; ++i) {
-    double x = uni(rng), y = uni(rng);
-    double u, v; distort_then_project(x, y, u, v);
-    obs.push_back({x, y, u + noise(rng), v + noise(rng)});
-  }
-
-  // Initial guess (slightly off)
-  double intrinsics[4] = {780.0, 800.0, 630.0, 350.0};
-
-  auto result = optimize_intrinsics(obs, K, intrinsics, true);
-
-  std::cout << "Std. deviations (1-sigma):\n";
-  for (int i = 0; i < 4; ++i) {
-    double s = std::sqrt(std::max(0.0, result.covariance(i,i)));
-    std::cout << "  param[" << i << "] = " << s << "\n";
-  }
-  return 0;
-}
-#endif
 
 }  // namespace vitavision

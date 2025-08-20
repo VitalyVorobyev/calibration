@@ -21,7 +21,7 @@ Eigen::VectorXd fit_distortion(
     double fx, double fy, double cx, double cy,
     size_t num_radial = 2);
 
-
+// TODO: make it implementation detail in cpp
 struct LSDesign {
     // Build A * alpha ≈ b, where alpha = [k1..kK, p1, p2]^T
     static void build(const std::vector<Observation>& obs,

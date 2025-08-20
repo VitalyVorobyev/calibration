@@ -24,8 +24,9 @@ struct Intrinsic {
 struct IntrinsicOptimizationResult {
     Intrinsic intrinsics;
     Eigen::VectorXd distortion;
-    std::string summary; // Summary of optimization results
-    Eigen::Matrix4d covariance; // Covariance matrix of intrinsics
+    Eigen::Matrix4d covariance;  // Covariance matrix of intrinsics
+    double reprojection_error;   // Reprojection error after optimization (pix)
+    std::string summary;         // Summary of optimization results
 };
 
 IntrinsicOptimizationResult optimize_intrinsics(
