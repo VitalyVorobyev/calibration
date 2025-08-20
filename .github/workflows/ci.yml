@@ -72,13 +72,15 @@ jobs:
         run: |
           # Setup MSVC environment
           $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $vcpkgRoot = $env:VCPKG_ROOT
           Import-Module "$vsPath\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64"
+          $env:VCPKG_ROOT = $vcpkgRoot
           
           # Configure with MSVC
           cmake -S . -B "$env:BUILD_DIR" -G "Ninja" `
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
-            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake"
+            -DCMAKE_TOOLCHAIN_FILE="$vcpkgRoot\scripts\buildsystems\vcpkg.cmake"
 
       - name: Build (Windows)
         if: runner.os == 'Windows'
@@ -86,9 +88,11 @@ jobs:
         run: |
           # Setup MSVC environment again
           $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $vcpkgRoot = $env:VCPKG_ROOT
           Import-Module "$vsPath\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64"
-          
+          $env:VCPKG_ROOT = $vcpkgRoot
+
           # Build with MSVC
           cmake --build "$env:BUILD_DIR" --config ${{ matrix.build_type }} -j 2
 
