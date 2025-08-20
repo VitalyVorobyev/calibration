@@ -97,7 +97,7 @@ TEST(PlanarPoseTest, DLTEstimation) {
 }
 
 // Temporarily disable this test while we investigate segmentation fault
-TEST(PlanarPoseTest, DISABLED_OptimizePlanarPose) {
+TEST(PlanarPoseTest, OptimizePlanarPose) {
     // Create synthetic camera intrinsics
     Intrinsic intrinsics;
     intrinsics.fx = 1000;
@@ -167,7 +167,7 @@ TEST(PlanarPoseTest, DISABLED_OptimizePlanarPose) {
 }
 
 // Temporarily disable this test while we investigate segmentation fault
-TEST(PlanarPoseTest, DISABLED_OptimizePlanarPoseWithDistortion) {
+TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
     // Create synthetic camera intrinsics
     Intrinsic intrinsics;
     intrinsics.fx = 1000;
@@ -252,7 +252,7 @@ TEST(PlanarPoseTest, DISABLED_OptimizePlanarPoseWithDistortion) {
 
 // TODO: Fix the segmentation fault in optimize_planar_pose
 // The issue is likely in the implementation of optimize_planar_pose or in the way it's being used
-TEST(PlanarPoseTest, DISABLED_BasicOptimizePlanarPoseTest) {
+TEST(PlanarPoseTest, BasicOptimizePlanarPoseTest) {
     // Create synthetic camera intrinsics
     Intrinsic intrinsics;
     intrinsics.fx = 1000;

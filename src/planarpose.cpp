@@ -239,7 +239,10 @@ PlanarPoseFitResult optimize_planar_pose(
     // Residual stats & covariance (6x6 on pose)
     const int m = static_cast<int>(view.size()) * 2;
     std::vector<double> r(m);
-    cost->Evaluate(reinterpret_cast<double const* const*>(pose6.data()), r.data(), nullptr);
+
+    const double* parameter_blocks[] = {pose6.data()};
+    cost->Evaluate(parameter_blocks, r.data(), nullptr);
+
     double ssr = 0.0;
     for (double e : r) ssr += e*e;
     const int dof = std::max(1, m - 6);
