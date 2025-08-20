@@ -19,19 +19,6 @@ A C++ library for camera calibration and vision-related geometric transformation
 - nlohmann-json: JSON parsing and serialization
 - GoogleTest & GoogleMock: Unit testing frameworks
 
-## Installation
-
-### Ubuntu
-
-```bash
-sudo apt install libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev
-```
-These packages install both GoogleTest and GoogleMock, which are needed to build and run the unit tests.
-
-### Other platforms
-
-For other platforms, please install the equivalent dependencies using your system's package manager.
-
 ## Build
 
 ### Linux and macOS
@@ -41,15 +28,15 @@ Install the build dependencies using your system package manager.
 #### Ubuntu
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev
+sudo apt update
+sudo apt install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev
 ```
 
 #### macOS
 
 ```bash
 brew update
-brew install cmake ninja eigen ceres-solver nlohmann-json
+brew install cmake ninja eigen ceres-solver nlohmann-json googletest
 ```
 
 Configure and build:
@@ -78,7 +65,7 @@ Install dependencies with [vcpkg](https://github.com/microsoft/vcpkg):
 ```powershell
 git clone https://github.com/microsoft/vcpkg $env:USERPROFILE\vcpkg
 & $env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat
-& $env:USERPROFILE\vcpkg\vcpkg.exe install ceres eigen3 nlohmann-json --triplet x64-windows
+& $env:USERPROFILE\vcpkg\vcpkg.exe install ceres eigen3 nlohmann-json gtest --triplet x64-windows
 ```
 
 Configure and build:
@@ -92,7 +79,7 @@ cmake --build build --config Release -j2
 Run a smoke test:
 
 ```powershell
-build\examples\homography.exe <<'EOF'
+build\examples\homography.exe <<EOF
 4
 0   0    10 20
 100 0    110 18
@@ -103,11 +90,7 @@ EOF
 
 ## Usage
 
-```cpp
-#include <calib/camera.h>
-
-// Example code will go here
-```
+TODO
 
 ## Documentation
 
