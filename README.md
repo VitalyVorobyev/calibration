@@ -17,14 +17,16 @@ A C++ library for camera calibration and vision-related geometric transformation
 - Eigen3: Linear algebra library
 - Ceres: Non-linear optimization
 - nlohmann-json: JSON parsing and serialization
+- GoogleTest & GoogleMock: Unit testing frameworks
 
 ## Installation
 
 ### Ubuntu
 
 ```bash
-sudo apt install libeigen3-dev libceres-dev nlohmann-json3-dev
+sudo apt install libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev
 ```
+These packages install both GoogleTest and GoogleMock, which are needed to build and run the unit tests.
 
 ### Other platforms
 
