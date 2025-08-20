@@ -1,0 +1,34 @@
+/** @brief Optimization of camera intrinsics parameters */
+
+#pragma once
+
+// std
+#include <optional>
+
+// eigen
+#include <Eigen/Core>
+#include <Eigen/Dense>
+
+#include "calibration/distortion.h"  // Observation
+
+namespace vitavision {
+
+struct Intrinsic {
+    double fx, fy, cx, cy;
+};
+
+struct IntrinsicOptimizationResult {
+    Intrinsic intrinsics;
+    Eigen::VectorXd distortion;
+    std::string summary; // Summary of optimization results
+    Eigen::Matrix4d covariance; // Covariance matrix of intrinsics
+};
+
+IntrinsicOptimizationResult optimize_intrinsics(
+    const std::vector<Observation>& obs,
+    int num_radial,
+    const Intrinsic& initial_guess,
+    bool verb=false
+);
+
+}  // namespace vitavision

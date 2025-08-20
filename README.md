@@ -1,6 +1,6 @@
 # Calibration Library
 
-[![Build Status](https://github.com/VitalyVorobyev/calibration/actions/workflows/build.yml/badge.svg)](https://github.com/VitalyVorobyev/calibration/actions/workflows/build.yml)
+[![Build Status](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml/badge.svg)](https://github.com/VitalyVorobyev/calibration/actions/ci/build.yml)
 
 A C++ library for camera calibration and vision-related geometric transformations.
 
