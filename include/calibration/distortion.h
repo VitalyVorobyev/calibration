@@ -32,12 +32,23 @@ DistortionWithResiduals<T> fit_distortion_full(
     T fx, T fy, T cx, T cy,
     int num_radial = 2
 ) {
+    if (obs.size() < 8) {
+        // Return empty result instead of throwing exception
+        // This is safer with automatic differentiation
+        Eigen::Matrix<T, Eigen::Dynamic, 1> empty_vec(1);
+        empty_vec(0) = T(0);
+        return {empty_vec, empty_vec};
+    }
+
     const int M = num_radial + 2;  // radial + tangential coeffs
     const int N = static_cast<int>(obs.size());
     const int rows = N * 2;
 
     Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> A(rows, M);
     Eigen::Matrix<T, Eigen::Dynamic, 1> b(rows);
+
+    A.setZero();
+    b.setZero();
 
     const int idx_p1 = num_radial;
     const int idx_p2 = num_radial + 1;
@@ -74,7 +85,16 @@ DistortionWithResiduals<T> fit_distortion_full(
         b(rv) = dv;
     }
 
+    #if 0
     auto alpha = A.colPivHouseholderQr().solve(b);
+    #elif 0
+    Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(
+        A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    auto alpha = svd.solve(b);
+    #else
+    Eigen::Matrix<T, Eigen::Dynamic, 1> alpha = (A.transpose() * A).ldlt().solve(A.transpose() * b);
+    #endif
+
     Eigen::Matrix<T, Eigen::Dynamic, 1> r = A * alpha - b;
 
     return {alpha, r};

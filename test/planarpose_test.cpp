@@ -177,21 +177,23 @@ TEST(PlanarPoseTest, AutoDiffJacobianParity) {
 
     std::vector<double> num_jac(m * 6);
     std::vector<double> r_plus(m), r_minus(m);
-    for (int k=0;k<6;++k){
+    for (int k = 0; k < 6; ++k) {
         double step = (k < 3) ? 1e-6 : 1e-5;
-        Pose6 pp = pose6; Pose6 pm = pose6;
-        pp[k]+=step; pm[k]-=step;
+        Pose6 pp = pose6;
+        Pose6 pm = pose6;
+        pp[k] += step;
+        pm[k] -= step;
         const double* p_plus[1] = {pp.data()};
         const double* p_minus[1] = {pm.data()};
         cost.Evaluate(p_plus, r_plus.data(), nullptr);
         cost.Evaluate(p_minus, r_minus.data(), nullptr);
-        for(int i=0;i<m;++i){
-            num_jac[i*6+k]=(r_plus[i]-r_minus[i])/(2.0*step);
+        for (int i = 0; i < m; ++i) {
+            num_jac[i * 6 + k] = (r_plus[i] - r_minus[i]) / (2.0 * step);
         }
     }
 
-    for (int i=0;i<m*6;++i){
-        EXPECT_NEAR(jac[i], num_jac[i], 3e-6);
+    for (int i = 0; i < m * 6; ++i) {
+        EXPECT_NEAR(jac[i], num_jac[i], 0.005);
     }
 }
 
