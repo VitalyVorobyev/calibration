@@ -10,61 +10,38 @@
 
 namespace vitavision {
 
+Eigen::Vector2d CameraMatrix::normalize(const Eigen::Vector2d& pix) const {
+    return {
+        (pix.x() - cx) / fx,
+        (pix.y() - cy) / fy
+    };
+}
+
+Eigen::Vector2d CameraMatrix::denormalize(const Eigen::Vector2d& xy) const {
+    return {
+        fx * xy.x() + cx,
+        fy * xy.y() + cy
+    };
+}
+
 // Residual functor used with AutoDiffCostFunction. The functor performs
 // variable projection by solving a linear least squares problem for the
 // distortion coefficients for each set of intrinsics.
 struct IntrinsicsVPResidual {
-    std::vector<Observation> obs_;
+    std::vector<Observation<double>> obs_;
     int num_radial_;
 
-    IntrinsicsVPResidual(std::vector<Observation> obs, int num_radial)
+    IntrinsicsVPResidual(std::vector<Observation<double>> obs, int num_radial)
         : obs_(std::move(obs)), num_radial_(num_radial) {}
 
     template <typename T>
     bool operator()(const T* intr, T* residuals) const {
-        const int M = num_radial_ + 2;               // radial + tangential coeffs
-        const int rows = static_cast<int>(obs_.size()) * 2;
+        std::vector<Observation<T>> o(obs_.size());
+        std::transform(obs_.begin(), obs_.end(), o.begin(), [](const Observation<double>& obs) {
+            return Observation<T>{T(obs.x), T(obs.y), T(obs.u), T(obs.v)};
+        });
 
-        Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> A(rows, M);
-        Eigen::Matrix<T, Eigen::Dynamic, 1> b(rows);
-
-        for (int i = 0, n = static_cast<int>(obs_.size()); i < n; ++i) {
-            const T x = T(obs_[i].x);
-            const T y = T(obs_[i].y);
-            const T r2 = x * x + y * y;
-
-            const T u0 = intr[0] * x + intr[2];
-            const T v0 = intr[1] * y + intr[3];
-
-            const T du = T(obs_[i].u) - u0;
-            const T dv = T(obs_[i].v) - v0;
-
-            const int ru = 2 * i;
-            const int rv = ru + 1;
-
-            // Radial terms
-            T rpow = r2;  // r^(2*1)
-            for (int j = 0; j < num_radial_; ++j) {
-                A(ru, j) = intr[0] * x * rpow;
-                A(rv, j) = intr[1] * y * rpow;
-                rpow *= r2;
-            }
-
-            // Tangential terms
-            const int idx_p1 = num_radial_;
-            const int idx_p2 = num_radial_ + 1;
-            A(ru, idx_p1) = intr[0] * (T(2.0) * x * y);
-            A(ru, idx_p2) = intr[0] * (r2 + T(2.0) * x * x);
-            A(rv, idx_p1) = intr[1] * (r2 + T(2.0) * y * y);
-            A(rv, idx_p2) = intr[1] * (T(2.0) * x * y);
-
-            b(ru) = du;
-            b(rv) = dv;
-        }
-
-        Eigen::Matrix<T, Eigen::Dynamic, 1> alpha =
-            (A.transpose() * A).ldlt().solve(A.transpose() * b);
-        Eigen::Matrix<T, Eigen::Dynamic, 1> r = A * alpha - b;
+        auto [_, r] = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], num_radial_);
         for (int i = 0; i < r.size(); ++i) {
             residuals[i] = r[i];
         }
@@ -120,9 +97,9 @@ static bool compute_covariance(
 }
 
 IntrinsicOptimizationResult optimize_intrinsics(
-    const std::vector<Observation>& obs,
+    const std::vector<Observation<double>>& obs,
     int num_radial,
-    const Intrinsic& initial_guess,
+    const CameraMatrix& initial_guess,
     bool verb
 ) {
     double intrinsics[4] = {

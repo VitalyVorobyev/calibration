@@ -27,15 +27,17 @@ target_link_libraries(intrinsics_test
     PRIVATE GTest::gtest_main
     PRIVATE GTest::gmock_main
     PRIVATE Eigen3::Eigen
+    PRIVATE Ceres::ceres
 )
 gtest_discover_tests(intrinsics_test)
 
 # Test for planar pose estimation
 add_executable(planarpose_test planarpose_test.cpp)
-target_link_libraries(planarpose_test 
-    PRIVATE calibration
-    PRIVATE GTest::gtest_main
-    PRIVATE GTest::gmock_main
-    PRIVATE Eigen3::Eigen
+target_link_libraries(planarpose_test PRIVATE
+    calibration
+    GTest::gtest_main
+    GTest::gmock_main
+    Eigen3::Eigen
+    Ceres::ceres
 )
 gtest_discover_tests(planarpose_test)

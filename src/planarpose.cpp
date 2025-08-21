@@ -53,7 +53,7 @@ Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
 // Returns true on success; outputs R (world->cam) and t
 Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj_xy,
                                          const std::vector<Eigen::Vector2d>& img_uv,
-                                         const Intrinsic& intrinsics) {
+                                         const CameraMatrix& intrinsics) {
     if (obj_xy.size() < 4 || obj_xy.size() != img_uv.size()) {
         return Eigen::Affine3d::Identity();
     }
@@ -61,7 +61,7 @@ Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj
     std::vector<Eigen::Vector2d> img_norm(img_uv.size());
     std::transform(img_uv.begin(), img_uv.end(), img_norm.begin(),
         [&intrinsics](const Eigen::Vector2d& pix) {
-            return intrinsics.pixel_to_norm(pix);
+            return intrinsics.normalize(pix);
         });
 
     Eigen::Matrix3d H = estimate_homography_dlt(obj_xy, img_norm);
@@ -85,70 +85,20 @@ struct PlanarPoseVPResidual {
 
     PlanarPoseVPResidual(std::vector<PlanarObs> obs,
                          int num_radial,
-                         const Intrinsic& intrinsics)
+                         const CameraMatrix& intrinsics)
         : obs_(std::move(obs)),
           K_{intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy},
           num_radial_(num_radial) {}
 
     template <typename T>
     bool operator()(const T* pose6, T* residuals) const {
-        const int M = num_radial_ + 2;
-        const int rows = static_cast<int>(obs_.size()) * 2;
+        const T fx = T(K_[0]);
+        const T fy = T(K_[1]);
+        const T cx = T(K_[2]);
+        const T cy = T(K_[3]);
 
-        Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> A(rows, M);
-        Eigen::Matrix<T, Eigen::Dynamic, 1> b(rows);
-
-        for (int i = 0, n = static_cast<int>(obs_.size()); i < n; ++i) {
-            // World point (planar Z=0)
-            const T P[3] = {T(obs_[i].XY.x()), T(obs_[i].XY.y()), T(0.0)};
-            T Pc[3];
-            ceres::AngleAxisRotatePoint(pose6, P, Pc);
-            Pc[0] += pose6[3];
-            Pc[1] += pose6[4];
-            Pc[2] += pose6[5];
-
-            const T invZ = T(1.0) / Pc[2];
-            const T x = Pc[0] * invZ;
-            const T y = Pc[1] * invZ;
-
-            const T fx = T(K_[0]);
-            const T fy = T(K_[1]);
-            const T cx = T(K_[2]);
-            const T cy = T(K_[3]);
-
-            const T u0 = fx * x + cx;
-            const T v0 = fy * y + cy;
-
-            const T du = T(obs_[i].uv.x()) - u0;
-            const T dv = T(obs_[i].uv.y()) - v0;
-
-            const int ru = 2 * i;
-            const int rv = ru + 1;
-
-            // Radial components
-            T r2 = x * x + y * y;
-            T rpow = r2;
-            for (int j = 0; j < num_radial_; ++j) {
-                A(ru, j) = fx * x * rpow;
-                A(rv, j) = fy * y * rpow;
-                rpow *= r2;
-            }
-
-            // Tangential components
-            const int idx_p1 = num_radial_;
-            const int idx_p2 = num_radial_ + 1;
-            A(ru, idx_p1) = fx * (T(2.0) * x * y);
-            A(ru, idx_p2) = fx * (r2 + T(2.0) * x * x);
-            A(rv, idx_p1) = fy * (r2 + T(2.0) * y * y);
-            A(rv, idx_p2) = fy * (T(2.0) * x * y);
-
-            b(ru) = du;
-            b(rv) = dv;
-        }
-
-        Eigen::Matrix<T, Eigen::Dynamic, 1> alpha =
-            (A.transpose() * A).ldlt().solve(A.transpose() * b);
-        Eigen::Matrix<T, Eigen::Dynamic, 1> r = A * alpha - b;
+        auto obs = buildObs(pose6);
+        auto [_, r] = fit_distortion_full(obs, fx, fy, cx, cy, num_radial_);
         for (int i = 0; i < r.size(); ++i) {
             residuals[i] = r[i];
         }
@@ -157,29 +107,30 @@ struct PlanarPoseVPResidual {
 
     // Helper used after optimization to compute best distortion coefficients.
     Eigen::VectorXd SolveDistortionFor(const Pose6& pose6) const {
-        std::vector<Observation> o = buildObs(pose6);
+        std::vector<Observation<double>> o = buildObs(pose6.data());
         return fit_distortion(o, K_[0], K_[1], K_[2], K_[3], num_radial_);
     }
 
 private:
     // Build observations (x,y,u,v) for a given pose using double precision.
-    std::vector<Observation> buildObs(const Pose6& pose6) const {
-        const double* aa = pose6.data();              // angle-axis
-        const double* t  = pose6.data() + 3;          // translation
+    template<typename T>
+    std::vector<Observation<T>> buildObs(const T* pose6) const {
+        const T* aa = pose6;              // angle-axis
+        const T* t  = pose6 + 3;          // translation
 
-        std::vector<Observation> o(obs_.size());
+        std::vector<Observation<T>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(),
             [aa, t](const PlanarObs& s) {
-                Eigen::Vector3d P(s.XY.x(), s.XY.y(), 0.0);
-                Eigen::Vector3d Pc;
+                Eigen::Matrix<T, 3, 1> P {T(s.XY.x()), T(s.XY.y()), T(0.0)};
+                Eigen::Matrix<T, 3, 1> Pc;
                 ceres::AngleAxisRotatePoint(aa, P.data(), Pc.data());
-                Pc += Eigen::Vector3d(t[0], t[1], t[2]);
-                double invZ = 1.0 / Pc.z();
-                Observation ob;
+                Pc += Eigen::Matrix<T, 3, 1>(t[0], t[1], t[2]);
+                T invZ = T(1.0) / Pc.z();
+                Observation<T> ob;
                 ob.x = Pc.x() * invZ;
                 ob.y = Pc.y() * invZ;
-                ob.u = s.uv.x();
-                ob.v = s.uv.y();
+                ob.u = T(s.uv.x());
+                ob.v = T(s.uv.y());
                 return ob;
             });
 
@@ -201,7 +152,7 @@ static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
 PlanarPoseFitResult optimize_planar_pose(
     const std::vector<Eigen::Vector2d>& obj_xy,
     const std::vector<Eigen::Vector2d>& img_uv,
-    const Intrinsic& intrinsics,
+    const CameraMatrix& intrinsics,
     int num_radial,
     bool verbose
 ) {
@@ -227,7 +178,7 @@ PlanarPoseFitResult optimize_planar_pose(
     auto* functor = new PlanarPoseVPResidual(view, num_radial, intrinsics);
     auto* cost = new ceres::AutoDiffCostFunction<PlanarPoseVPResidual,
                                                  ceres::DYNAMIC, 6>(functor,
-                                                                      static_cast<int>(view.size()) * 2);
+                                                                    static_cast<int>(view.size()) * 2);
     p.AddResidualBlock(cost, /*loss=*/nullptr, pose6.data());
 
     ceres::Solver::Options opts;
