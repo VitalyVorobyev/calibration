@@ -58,7 +58,7 @@ using Pose6 = Eigen::Matrix<double, 6, 1>;
 // Functor mirroring the production PlanarPoseVPResidual for testing Jacobians.
 struct PlanarPoseVPResidualTestFunctor {
     std::vector<PlanarObs> obs;
-    double K[4];
+    std::array<double, 4> K;
     int num_radial;
 
     template <typename T>
@@ -160,10 +160,10 @@ TEST(PlanarPoseTest, AutoDiffJacobianParity) {
     std::vector<PlanarObs> obs(obj_pts.size());
     for (size_t i=0;i<obj_pts.size();++i) obs[i] = {obj_pts[i], img_pts[i]};
 
-    auto functor = new PlanarPoseVPResidualTestFunctor(obs, {intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy}, 0);
-    ceres::AutoDiffCostFunction<PlanarPoseVPResidualTestFunctor,
-                                ceres::DYNAMIC, 6> cost(functor,
-                                                        static_cast<int>(obs.size()) * 2);
+    const std::array<double, 4> K = {intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy};
+    auto functor = new PlanarPoseVPResidualTestFunctor{obs, K, 0};
+    ceres::AutoDiffCostFunction<PlanarPoseVPResidualTestFunctor, ceres::DYNAMIC, 6> cost(
+        functor, static_cast<int>(obs.size()) * 2);
 
     Pose6 pose6; ceres::RotationMatrixToAngleAxis(pose.linear().data(), pose6.data());
     pose6[3] = pose.translation().x(); pose6[4] = pose.translation().y(); pose6[5] = pose.translation().z();

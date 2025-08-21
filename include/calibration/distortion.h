@@ -87,7 +87,7 @@ DistortionWithResiduals<T> fit_distortion_full(
 
     #if 0
     auto alpha = A.colPivHouseholderQr().solve(b);
-    #elif 0
+    #elif 1
     Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(
         A, Eigen::ComputeThinU | Eigen::ComputeThinV);
     auto alpha = svd.solve(b);
