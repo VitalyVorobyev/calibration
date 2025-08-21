@@ -119,6 +119,45 @@ TEST(IntrinsicsTest, LinearInitialGuess) {
     EXPECT_NEAR(guess.cy, intr_true.cy, 25.0);
 }
 
+// Verify that alternating linear estimation of intrinsics and distortion
+// yields a better initialization than a single linear solve.
+TEST(IntrinsicsTest, IterativeLinearInitialization) {
+    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
+    std::vector<double> k_radial = {-0.20, 0.03};
+    double p1 = 0.001, p2 = -0.0005;
+
+    auto observations = generate_synthetic_data(
+        intr_true, k_radial, p1, p2, 300, 0.2);
+
+    auto simple_guess = estimate_intrinsics_linear(observations);
+    ASSERT_TRUE(simple_guess.has_value());
+
+    auto refined_opt = estimate_intrinsics_linear_iterative(observations, 2, 5);
+    ASSERT_TRUE(refined_opt.has_value());
+
+    auto refined = refined_opt->intrinsics;
+    auto simple = *simple_guess;
+
+    double err_simple = std::abs(simple.fx - intr_true.fx) +
+                        std::abs(simple.fy - intr_true.fy) +
+                        std::abs(simple.cx - intr_true.cx) +
+                        std::abs(simple.cy - intr_true.cy);
+
+    double err_refined = std::abs(refined.fx - intr_true.fx) +
+                         std::abs(refined.fy - intr_true.fy) +
+                         std::abs(refined.cx - intr_true.cx) +
+                         std::abs(refined.cy - intr_true.cy);
+
+    EXPECT_LT(err_refined, err_simple);
+
+    // Distortion parameters should also be close to the ground truth
+    ASSERT_EQ(refined_opt->distortion.size(), 4);
+    EXPECT_NEAR(refined_opt->distortion[0], k_radial[0], 0.5);
+    EXPECT_NEAR(refined_opt->distortion[1], k_radial[1], 0.5);
+    EXPECT_NEAR(refined_opt->distortion[2], p1, 0.001);
+    EXPECT_NEAR(refined_opt->distortion[3], p2, 0.001);
+}
+
 TEST(IntrinsicsTest, OptimizeExact) {
     // True intrinsics
     CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
@@ -132,10 +171,11 @@ TEST(IntrinsicsTest, OptimizeExact) {
         intr_true, k_radial, p1, p2, 300, 0.0);
 
     // Initial guess (slightly off)
-    CameraMatrix initial_guess{780.0, 800.0, 630.0, 350.0};
+    auto initial_guess = estimate_intrinsics_linear_iterative(observations, 2, 5);
+    ASSERT_TRUE(initial_guess.has_value());
 
     // Optimize
-    auto result = optimize_intrinsics(observations, 2, initial_guess, false);
+    auto result = optimize_intrinsics(observations, 2, initial_guess->intrinsics, false);
 
     // Check results
     EXPECT_NEAR(result.intrinsics.fx, intr_true.fx, 1e-6);
@@ -149,8 +189,7 @@ TEST(IntrinsicsTest, OptimizeExact) {
     EXPECT_NEAR(result.distortion[3], p2, 1e-6);
 }
 
-// TODO: Fix memory corruption issue
-TEST(IntrinsicsTest, DISABLED_AutoDiffJacobianParity) {
+TEST(IntrinsicsTest, AutoDiffJacobianParity) {
     CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
     std::vector<double> k_radial = {-0.2, 0.03};
     double p1 = 0.001, p2 = -0.0005;
