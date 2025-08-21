@@ -18,50 +18,57 @@ using Pose6 = Eigen::Matrix<double, 6, 1>;
 
 // Variable projection residual for full camera calibration.
 struct CalibVPResidual {
-    using ObsBuffer = std::vector<Observation<double>>;
-
     std::vector<std::vector<PlanarObservation>> views_;  // observations per view
     int num_radial_;
     size_t total_obs_;
-    mutable ObsBuffer obs_;
 
     CalibVPResidual(std::vector<std::vector<PlanarObservation>> views, int num_radial)
         : views_(std::move(views)), num_radial_(num_radial) {
         total_obs_ = 0;
         for (const auto& v : views_) total_obs_ += v.size();
-        obs_.resize(total_obs_);
     }
 
     template<typename T>
     bool operator()(T const* const* params, T* residuals) const {
         const T* intr = params[0];
-        if (obs_.size() != total_obs_) obs_.resize(total_obs_);
+
+        static thread_local std::vector<Observation<T>> obs;
+        if (obs.size() != total_obs_) obs.resize(total_obs_);
 
         size_t obs_idx = 0;
         for (size_t i = 0; i < views_.size(); ++i) {
             const T* pose6 = params[1 + i];
             for (const auto& ob : views_[i]) {
-                obs_[obs_idx++] = to_observation(ob, pose6);
+                obs[obs_idx++] = to_observation(ob, pose6);
             }
         }
-        auto [_, r] = fit_distortion_full(obs_, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        auto [_, r] = fit_distortion_full(obs, intr[0], intr[1], intr[2], intr[3], num_radial_);
         for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
         return true;
     }
-
-    DistortionWithResiduals<double> solve_full(const double* intr, const std::vector<const double*>& pose_ptrs) const {
-        if (obs_.size() != total_obs_) obs_.resize(total_obs_);
-
-        size_t obs_idx = 0;
-        for (size_t i = 0; i < views_.size(); ++i) {
-            const double* pose6 = pose_ptrs[i];
-            for (const auto& ob : views_[i]) {
-                obs_[obs_idx++] = to_observation(ob, pose6);
-            }
-        }
-        return fit_distortion_full(obs_, intr[0], intr[1], intr[2], intr[3], num_radial_);
-    }
 };
+
+static DistortionWithResiduals<double> solve_full(
+        const std::vector<std::vector<PlanarObservation>>& views,
+        int num_radial,
+        const double* intr,
+        const std::vector<const double*>& pose_ptrs
+) {
+    const size_t total_obs = std::accumulate(views.begin(), views.end(), 0,
+        [](size_t sum, const std::vector<PlanarObservation>& v) {
+            return sum + v.size();
+        });
+
+    std::vector<Observation<double>> obs(total_obs);
+    size_t obs_idx = 0;
+    for (size_t i = 0; i < views.size(); ++i) {
+        const double* pose6 = pose_ptrs[i];
+        for (const auto& ob : views[i]) {
+            obs[obs_idx++] = to_observation(ob, pose6);
+        }
+    }
+    return fit_distortion_full(obs, intr[0], intr[1], intr[2], intr[3], num_radial);
+}
 
 static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
     Eigen::Matrix3d R;
@@ -129,7 +136,7 @@ static void setup_optimization_problem(
     ceres::Problem& problem
 ) {
     auto* functor = new CalibVPResidual(obs_views, num_radial);
-    auto* cost = new ceres::DynamicAutoDiffCostFunction<CalibVPResidual>(functor);
+    auto* cost = new ceres::DynamicAutoDiffCostFunction(functor);
     cost->AddParameterBlock(4);  // Intrinsics
     for (size_t i = 0; i < poses.size(); ++i) {
         cost->AddParameterBlock(6);  // Pose for each view
@@ -155,11 +162,11 @@ static void compute_reprojection_errors(
     int total_residuals = static_cast<int>(total_obs * 2);
     double sum_squared_residuals = residuals.squaredNorm();
     result.reprojection_error = std::sqrt(sum_squared_residuals / total_residuals);
-    
+
     const size_t num_views = obs_views.size();
     result.view_errors.resize(num_views);
     int residual_idx = 0;
-    
+
     for (size_t i = 0; i < num_views; ++i) {
         int view_points = static_cast<int>(obs_views[i].size());
         double view_error_sum = 0.0;
@@ -181,7 +188,7 @@ static void populate_result_parameters(
     result.intrinsics.fy = intrinsics[1];
     result.intrinsics.cx = intrinsics[2];
     result.intrinsics.cy = intrinsics[3];
-    
+
     result.poses.resize(poses.size());
     for (size_t i = 0; i < poses.size(); ++i) {
         result.poses[i] = axisangle_to_pose(poses[i]);
@@ -203,11 +210,11 @@ static bool compute_covariance(
     for (const auto* ptr : param_blocks) {
         const_param_blocks.push_back(ptr);
     }
-    
+
     ceres::Covariance::Options cov_options;
     ceres::Covariance covariance(cov_options);
     std::vector<std::pair<const double*, const double*>> cov_blocks;
-    
+
     for (size_t i = 0; i < const_param_blocks.size(); ++i) {
         for (size_t j = 0; j <= i; ++j) {
             cov_blocks.emplace_back(const_param_blocks[i], const_param_blocks[j]);
@@ -220,17 +227,17 @@ static bool compute_covariance(
 
     Eigen::MatrixXd cov_matrix = Eigen::MatrixXd::Zero(total_params, total_params);
     size_t row_offset = 0;
-    
+
     for (size_t i = 0; i < const_param_blocks.size(); ++i) {
         int block_i_size = block_sizes[i];
         size_t col_offset = 0;
-        
+
         for (size_t j = 0; j <= i; ++j) {
             int block_j_size = block_sizes[j];
             std::vector<double> block_cov(block_i_size * block_j_size);
-            
+
             covariance.GetCovarianceBlock(const_param_blocks[i], const_param_blocks[j], block_cov.data());
-            
+
             for (int r = 0; r < block_i_size; ++r) {
                 for (int c = 0; c < block_j_size; ++c) {
                     double value = block_cov[r * block_j_size + c];
@@ -321,8 +328,7 @@ CameraCalibrationResult calibrate_camera_planar(
         pose_ptrs[i] = poses[i].data();
     }
 
-    CalibVPResidual functor(obs_views, num_radial);
-    auto dr = functor.solve_full(intrinsics, pose_ptrs);
+    auto dr = solve_full(obs_views, num_radial, intrinsics, pose_ptrs);
     result.distortion = dr.distortion;
 
     // Process results
