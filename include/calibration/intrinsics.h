@@ -28,6 +28,13 @@ struct IntrinsicOptimizationResult {
     std::string summary;         // Summary of optimization results
 };
 
+// Result of an iterative linear initialization that alternates between
+// estimating camera intrinsics and lens distortion parameters.
+struct LinearInitResult {
+    CameraMatrix intrinsics;     // Estimated camera matrix
+    Eigen::VectorXd distortion;  // Estimated distortion coefficients
+};
+
 // Estimate camera intrinsics (fx, fy, cx, cy) by solving a linear
 // least-squares system that ignores lens distortion.  The input
 // observations contain normalized coordinates (x,y) for an undistorted
@@ -36,6 +43,16 @@ struct IntrinsicOptimizationResult {
 // enough observations or the linear system is degenerate.
 std::optional<CameraMatrix> estimate_intrinsics_linear(
     const std::vector<Observation<double>>& obs);
+
+// Improved linear initialization that alternates between estimating
+// distortion coefficients (fit_distortion) and re-solving for camera
+// intrinsics (estimate_intrinsics_linear).  Returns std::nullopt if the
+// initial linear estimation fails.  The number of radial distortion
+// coefficients and the number of refinement iterations can be specified.
+std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
+    const std::vector<Observation<double>>& obs,
+    int num_radial,
+    int max_iterations = 5);
 
 IntrinsicOptimizationResult optimize_intrinsics(
     const std::vector<Observation<double>>& obs,

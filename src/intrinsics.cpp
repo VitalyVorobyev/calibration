@@ -88,6 +88,60 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(
     return K;
 }
 
+// Alternate between fitting distortion coefficients and re-estimating
+// the camera matrix.  This provides a better linear initialization for
+// subsequent non-linear optimization when moderate distortion is
+// present.  If the initial linear estimate fails, std::nullopt is
+// returned.
+std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
+    const std::vector<Observation<double>>& obs,
+    int num_radial,
+    int max_iterations) {
+    // Start with the simple linear estimate that ignores distortion.
+    auto K_opt = estimate_intrinsics_linear(obs);
+    if (!K_opt) {
+        return std::nullopt;
+    }
+    CameraMatrix K = *K_opt;
+
+    Eigen::VectorXd dist;
+    std::vector<Observation<double>> corrected(obs.size());
+
+    for (int iter = 0; iter < max_iterations; ++iter) {
+        // Estimate distortion for current intrinsics using original observations.
+        dist = fit_distortion(obs, K.fx, K.fy, K.cx, K.cy, num_radial);
+
+        // Remove the estimated distortion from the measurements and
+        // re-estimate the intrinsics.
+        for (size_t i = 0; i < obs.size(); ++i) {
+            Eigen::Vector2d norm(obs[i].x, obs[i].y);
+            Eigen::Vector2d distorted = apply_distortion(norm, dist);
+            Eigen::Vector2d delta = distorted - norm;
+            double u_corr = obs[i].u - K.fx * delta.x();
+            double v_corr = obs[i].v - K.fy * delta.y();
+            corrected[i] = {obs[i].x, obs[i].y, u_corr, v_corr};
+        }
+
+        auto K_new_opt = estimate_intrinsics_linear(corrected);
+        if (!K_new_opt) {
+            break;
+        }
+        CameraMatrix K_new = *K_new_opt;
+
+        double diff = std::abs(K_new.fx - K.fx) + std::abs(K_new.fy - K.fy) +
+                      std::abs(K_new.cx - K.cx) + std::abs(K_new.cy - K.cy);
+        K = K_new;
+        if (diff < 1e-6) {
+            break;  // Converged
+        }
+    }
+
+    // Final distortion estimate using refined intrinsics.
+    dist = fit_distortion(obs, K.fx, K.fy, K.cx, K.cy, num_radial);
+
+    return LinearInitResult{K, dist};
+}
+
 // Residual functor used with AutoDiffCostFunction. The functor performs
 // variable projection by solving a linear least squares problem for the
 // distortion coefficients for each set of intrinsics.
