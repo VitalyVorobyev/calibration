@@ -21,7 +21,7 @@ endif()
 
 if (MSVC)
     # Only for cl.exe:
-    target_compile_options(${TARGET} PUBLIC /Zc:__cplusplus)
+    target_compile_options(${TARGET} PUBLIC /Zc:__cplusplus /bigobj)
 endif()
 
 # install

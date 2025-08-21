@@ -13,16 +13,15 @@
 
 namespace vitavision {
 
-struct Intrinsic {
+struct CameraMatrix {
     double fx, fy, cx, cy;
 
-    Eigen::Vector2d pixel_to_norm(const Eigen::Vector2d& pix) const {
-        return Eigen::Vector2d((pix.x() - cx) / fx, (pix.y() - cy) / fy);
-    }
+    Eigen::Vector2d normalize(const Eigen::Vector2d& pix) const;
+    Eigen::Vector2d denormalize(const Eigen::Vector2d& xy) const;
 };
 
 struct IntrinsicOptimizationResult {
-    Intrinsic intrinsics;
+    CameraMatrix intrinsics;
     Eigen::VectorXd distortion;
     Eigen::Matrix4d covariance;  // Covariance matrix of intrinsics
     double reprojection_error;   // Reprojection error after optimization (pix)
@@ -30,9 +29,9 @@ struct IntrinsicOptimizationResult {
 };
 
 IntrinsicOptimizationResult optimize_intrinsics(
-    const std::vector<Observation>& obs,
+    const std::vector<Observation<double>>& obs,
     int num_radial,
-    const Intrinsic& initial_guess,
+    const CameraMatrix& initial_guess,
     bool verb=false
 );
 

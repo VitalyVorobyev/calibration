@@ -1,12 +1,22 @@
+// std
+#include <algorithm>
+
+// gtest
+#include <gtest/gtest.h>
+
+// eigen
+#include <Eigen/Geometry>
+
+// ceres
+#include <ceres/ceres.h>
+#include <ceres/rotation.h>
+
 #include "calibration/planarpose.h"
 #include "calibration/intrinsics.h"
 
-#include <gtest/gtest.h>
-#include <Eigen/Geometry>
-
 // Helper function to create a simple synthetic planar target
 std::pair<std::vector<Eigen::Vector2d>, std::vector<Eigen::Vector2d>> 
-createSyntheticPlanarData(const Eigen::Affine3d& pose, const vitavision::Intrinsic& intrinsics) {
+createSyntheticPlanarData(const Eigen::Affine3d& pose, const vitavision::CameraMatrix& intrinsics) {
     // Create a grid of points on the plane Z=0
     std::vector<Eigen::Vector2d> obj_points;
     std::vector<Eigen::Vector2d> img_points;
@@ -38,6 +48,50 @@ createSyntheticPlanarData(const Eigen::Affine3d& pose, const vitavision::Intrins
 
 namespace vitavision {
 
+struct PlanarObs {
+    Eigen::Vector2d XY;
+    Eigen::Vector2d uv;
+};
+
+using Pose6 = Eigen::Matrix<double, 6, 1>;
+
+// Functor mirroring the production PlanarPoseVPResidual for testing Jacobians.
+struct PlanarPoseVPResidualTestFunctor {
+    std::vector<PlanarObs> obs;
+    std::array<double, 4> K;
+    int num_radial;
+
+    template <typename T>
+    bool operator()(const T* pose6, T* residuals) const {
+        std::vector<Observation<T>> o(obs.size());
+        std::transform(obs.begin(), obs.end(), o.begin(),
+            [pose6, this](const PlanarObs& s) -> Observation<T> {
+                Eigen::Matrix<T, 3, 1> P(T(s.XY.x()), T(s.XY.y()), T(0.0));
+                Eigen::Matrix<T, 3, 1> Pc;
+                ceres::AngleAxisRotatePoint(pose6, P.data(), Pc.data());
+                Pc += Eigen::Matrix<T, 3, 1>(pose6[3], pose6[4], pose6[5]);
+                T invZ = T(1.0) / Pc.z();
+                return {
+                    .x = Pc.x() * invZ,
+                    .y = Pc.y() * invZ,
+                    .u = T(s.uv.x()) * T(K[0]) + T(K[2]),
+                    .v = T(s.uv.y()) * T(K[1]) + T(K[3])
+                };
+            }
+        );
+
+        const T fx = T(K[0]);
+        const T fy = T(K[1]);
+        const T cx = T(K[2]);
+        const T cy = T(K[3]);
+        auto [_, r] = fit_distortion_full(o, fx, fy, cx, cy, num_radial);
+        for (int i = 0; i < r.size(); ++i) {
+            residuals[i] = r[i];
+        }
+        return true;
+    }
+};
+
 TEST(PlanarPoseTest, HomographyDecomposition) {
     // Create a known homography matrix
     Eigen::Matrix3d R = Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitX()).toRotationMatrix();
@@ -63,7 +117,7 @@ TEST(PlanarPoseTest, HomographyDecomposition) {
 
 TEST(PlanarPoseTest, DLTEstimation) {
     // Create synthetic camera intrinsics
-    Intrinsic intrinsics;
+    CameraMatrix intrinsics;
     intrinsics.fx = 1000;
     intrinsics.fy = 1000;
     intrinsics.cx = 500;
@@ -96,10 +150,57 @@ TEST(PlanarPoseTest, DLTEstimation) {
     EXPECT_GT(std::abs(cosine_similarity), 0.9); // Vectors should point in similar directions
 }
 
+TEST(PlanarPoseTest, AutoDiffJacobianParity) {
+    CameraMatrix intrinsics; intrinsics.fx = intrinsics.fy = 1000; intrinsics.cx = intrinsics.cy = 500;
+    Eigen::Affine3d pose = Eigen::Affine3d::Identity();
+    pose.linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d(1,1,1).normalized()).toRotationMatrix();
+    pose.translation() = Eigen::Vector3d(0.1,0.2,2.0);
+
+    auto [obj_pts, img_pts] = createSyntheticPlanarData(pose, intrinsics);
+    std::vector<PlanarObs> obs(obj_pts.size());
+    for (size_t i=0;i<obj_pts.size();++i) obs[i] = {obj_pts[i], img_pts[i]};
+
+    const std::array<double, 4> K = {intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy};
+    auto functor = new PlanarPoseVPResidualTestFunctor{obs, K, 0};
+    ceres::AutoDiffCostFunction<PlanarPoseVPResidualTestFunctor, ceres::DYNAMIC, 6> cost(
+        functor, static_cast<int>(obs.size()) * 2);
+
+    Pose6 pose6; ceres::RotationMatrixToAngleAxis(pose.linear().data(), pose6.data());
+    pose6[3] = pose.translation().x(); pose6[4] = pose.translation().y(); pose6[5] = pose.translation().z();
+
+    const int m = static_cast<int>(obs.size()) * 2;
+    std::vector<double> residuals(m);
+    std::vector<double> jac(m * 6);
+    double* jac_blocks[1] = {jac.data()};
+    const double* params[1] = {pose6.data()};
+    cost.Evaluate(params, residuals.data(), jac_blocks);
+
+    std::vector<double> num_jac(m * 6);
+    std::vector<double> r_plus(m), r_minus(m);
+    for (int k = 0; k < 6; ++k) {
+        double step = (k < 3) ? 1e-6 : 1e-5;
+        Pose6 pp = pose6;
+        Pose6 pm = pose6;
+        pp[k] += step;
+        pm[k] -= step;
+        const double* p_plus[1] = {pp.data()};
+        const double* p_minus[1] = {pm.data()};
+        cost.Evaluate(p_plus, r_plus.data(), nullptr);
+        cost.Evaluate(p_minus, r_minus.data(), nullptr);
+        for (int i = 0; i < m; ++i) {
+            num_jac[i * 6 + k] = (r_plus[i] - r_minus[i]) / (2.0 * step);
+        }
+    }
+
+    for (int i = 0; i < m * 6; ++i) {
+        EXPECT_NEAR(jac[i], num_jac[i], 0.005);
+    }
+}
+
 // Temporarily disable this test while we investigate segmentation fault
 TEST(PlanarPoseTest, OptimizePlanarPose) {
     // Create synthetic camera intrinsics
-    Intrinsic intrinsics;
+    CameraMatrix intrinsics;
     intrinsics.fx = 1000;
     intrinsics.fy = 1000;
     intrinsics.cx = 500;
@@ -169,7 +270,7 @@ TEST(PlanarPoseTest, OptimizePlanarPose) {
 // Temporarily disable this test while we investigate segmentation fault
 TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
     // Create synthetic camera intrinsics
-    Intrinsic intrinsics;
+    CameraMatrix intrinsics;
     intrinsics.fx = 1000;
     intrinsics.fy = 1000;
     intrinsics.cx = 500;
@@ -254,7 +355,7 @@ TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
 // The issue is likely in the implementation of optimize_planar_pose or in the way it's being used
 TEST(PlanarPoseTest, BasicOptimizePlanarPoseTest) {
     // Create synthetic camera intrinsics
-    Intrinsic intrinsics;
+    CameraMatrix intrinsics;
     intrinsics.fx = 1000;
     intrinsics.fy = 1000;
     intrinsics.cx = 500;

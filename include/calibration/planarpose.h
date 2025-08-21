@@ -15,7 +15,7 @@ Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H);
 // Convenience: one-shot planar pose from pixels & K
 Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj_xy,
                                          const std::vector<Eigen::Vector2d>& img_uv,
-                                         const Intrinsic& intrinsics);
+                                         const CameraMatrix& intrinsics);
 
 struct PlanarPoseFitResult {
     Eigen::Affine3d pose;
@@ -28,7 +28,7 @@ struct PlanarPoseFitResult {
 PlanarPoseFitResult optimize_planar_pose(
     const std::vector<Eigen::Vector2d>& obj_xy,
     const std::vector<Eigen::Vector2d>& img_uv,
-    const Intrinsic& intrinsics,
+    const CameraMatrix& intrinsics,
     int num_radial = 2,
     bool verbose = false
 );
