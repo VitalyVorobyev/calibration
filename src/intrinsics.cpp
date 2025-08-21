@@ -24,6 +24,42 @@ Eigen::Vector2d CameraMatrix::denormalize(const Eigen::Vector2d& xy) const {
     };
 }
 
+// Compute a linear least-squares estimate of the camera intrinsics
+// (fx, fy, cx, cy) from normalized correspondences.  This ignores lens
+// distortion and solves two independent systems:
+//   u = fx * x + cx
+//   v = fy * y + cy
+// If there are insufficient observations or the design matrix is
+// degenerate, std::nullopt is returned.
+std::optional<CameraMatrix> estimate_intrinsics_linear(
+    const std::vector<Observation<double>>& obs) {
+    if (obs.size() < 2) {
+        return std::nullopt;
+    }
+
+    Eigen::MatrixXd A(obs.size(), 2);
+    Eigen::VectorXd bu(obs.size());
+    Eigen::VectorXd bv(obs.size());
+    for (size_t i = 0; i < obs.size(); ++i) {
+        A(static_cast<int>(i), 0) = obs[i].x;
+        A(static_cast<int>(i), 1) = 1.0;
+        bu(static_cast<int>(i)) = obs[i].u;
+        bv(static_cast<int>(i)) = obs[i].v;
+    }
+
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    // Detect degenerate configuration
+    if (svd.singularValues().minCoeff() < 1e-12) {
+        return std::nullopt;
+    }
+
+    Eigen::Vector2d xu = svd.solve(bu);
+    Eigen::Vector2d xv = svd.solve(bv);
+
+    CameraMatrix K{xu[0], xv[0], xu[1], xv[1]};
+    return K;
+}
+
 // Residual functor used with AutoDiffCostFunction. The functor performs
 // variable projection by solving a linear least squares problem for the
 // distortion coefficients for each set of intrinsics.

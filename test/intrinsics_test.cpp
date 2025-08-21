@@ -99,6 +99,26 @@ struct IntrinsicsVPResidualTestFunctor {
     }
 };
 
+// Verify that the linear intrinsics estimation provides a reasonable
+// initial guess even in the presence of moderate distortion and noise.
+TEST(IntrinsicsTest, LinearInitialGuess) {
+    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
+    std::vector<double> k_radial = {-0.20, 0.03};
+    double p1 = 0.001, p2 = -0.0005;
+
+    auto observations = generate_synthetic_data(
+        intr_true, k_radial, p1, p2, 300, 0.2);
+
+    auto guess_opt = estimate_intrinsics_linear(observations);
+    ASSERT_TRUE(guess_opt.has_value());
+    CameraMatrix guess = *guess_opt;
+
+    EXPECT_NEAR(guess.fx, intr_true.fx, 40.0);
+    EXPECT_NEAR(guess.fy, intr_true.fy, 40.0);
+    EXPECT_NEAR(guess.cx, intr_true.cx, 25.0);
+    EXPECT_NEAR(guess.cy, intr_true.cy, 25.0);
+}
+
 TEST(IntrinsicsTest, OptimizeExact) {
     // True intrinsics
     CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
@@ -181,12 +201,13 @@ TEST(IntrinsicsTest, OptimizeNoisy) {
     // Generate synthetic data with noise
     auto observations = generate_synthetic_data(
         intr_true, k_radial, p1, p2, 500, 0.5);
-    
-    // Initial guess (slightly off)
-    CameraMatrix initial_guess{780.0, 800.0, 630.0, 350.0};
-    
+
+    // Obtain an initial guess from the linear estimator
+    auto initial_guess = estimate_intrinsics_linear(observations);
+    ASSERT_TRUE(initial_guess.has_value());
+
     // Optimize
-    auto result = optimize_intrinsics(observations, 2, initial_guess, false);
+    auto result = optimize_intrinsics(observations, 2, *initial_guess, false);
     
     // Check results (with tolerance for noise)
     EXPECT_NEAR(result.intrinsics.fx, intr_true.fx, 10.0);
