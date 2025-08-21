@@ -13,6 +13,30 @@
 
 namespace vitavision {
 
+struct PlanarObs {
+    Eigen::Vector2d XY;   // target coords (Z=0)
+    Eigen::Vector2d uv;   // observed pixel coords
+
+    template<typename T>
+    Observation<T> to_observation(const T* pose6) const {
+        const T* aa = pose6;              // angle-axis
+        const T* t  = pose6 + 3;          // translation
+
+        Eigen::Matrix<T, 3, 1> P {T(XY.x()), T(XY.y()), T(0.0)};
+        Eigen::Matrix<T, 3, 1> Pc;
+        ceres::AngleAxisRotatePoint(aa, P.data(), Pc.data());
+        Pc += Eigen::Matrix<T, 3, 1>(t[0], t[1], t[2]);
+        T invZ = T(1.0) / Pc.z();
+        Observation<T> ob;
+        ob.x = Pc.x() * invZ;
+        ob.y = Pc.y() * invZ;
+        ob.u = T(uv.x());
+        ob.v = T(uv.y());
+        return ob;
+    }
+};
+
+
 // Decompose homography in normalized camera coords: H = [r1 r2 t]
 Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
     Eigen::Vector3d h1 = H.col(0);
@@ -68,11 +92,6 @@ Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj
     return pose_from_homography_normalized(H);
 }
 
-struct PlanarObs {
-    Eigen::Vector2d XY;   // target coords (Z=0)
-    Eigen::Vector2d uv;   // observed pixel coords
-};
-
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
 // Residual functor used with AutoDiffCostFunction for planar pose
@@ -115,25 +134,9 @@ private:
     // Build observations (x,y,u,v) for a given pose using double precision.
     template<typename T>
     std::vector<Observation<T>> buildObs(const T* pose6) const {
-        const T* aa = pose6;              // angle-axis
-        const T* t  = pose6 + 3;          // translation
-
         std::vector<Observation<T>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(),
-            [aa, t](const PlanarObs& s) {
-                Eigen::Matrix<T, 3, 1> P {T(s.XY.x()), T(s.XY.y()), T(0.0)};
-                Eigen::Matrix<T, 3, 1> Pc;
-                ceres::AngleAxisRotatePoint(aa, P.data(), Pc.data());
-                Pc += Eigen::Matrix<T, 3, 1>(t[0], t[1], t[2]);
-                T invZ = T(1.0) / Pc.z();
-                Observation<T> ob;
-                ob.x = Pc.x() * invZ;
-                ob.y = Pc.y() * invZ;
-                ob.u = T(s.uv.x());
-                ob.v = T(s.uv.y());
-                return ob;
-            });
-
+            [pose6](const PlanarObs& s) { return s.to_observation<T>(pose6); });
         return o;
     }
 };

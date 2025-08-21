@@ -37,24 +37,52 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(
         return std::nullopt;
     }
 
-    Eigen::MatrixXd A(obs.size(), 2);
+    // Build separate design matrices for x and y coordinates
+    Eigen::MatrixXd Ax(obs.size(), 2);
+    Eigen::MatrixXd Ay(obs.size(), 2);
     Eigen::VectorXd bu(obs.size());
     Eigen::VectorXd bv(obs.size());
+    
     for (size_t i = 0; i < obs.size(); ++i) {
-        A(static_cast<int>(i), 0) = obs[i].x;
-        A(static_cast<int>(i), 1) = 1.0;
+        Ax(static_cast<int>(i), 0) = obs[i].x;
+        Ax(static_cast<int>(i), 1) = 1.0;
+        
+        Ay(static_cast<int>(i), 0) = obs[i].y;
+        Ay(static_cast<int>(i), 1) = 1.0;
+        
         bu(static_cast<int>(i)) = obs[i].u;
         bv(static_cast<int>(i)) = obs[i].v;
     }
 
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    // Solve for fx, cx using x coordinates
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd_x(Ax, Eigen::ComputeThinU | Eigen::ComputeThinV);
     // Detect degenerate configuration
-    if (svd.singularValues().minCoeff() < 1e-12) {
+    if (svd_x.singularValues().minCoeff() < 1e-12) {
         return std::nullopt;
     }
 
-    Eigen::Vector2d xu = svd.solve(bu);
-    Eigen::Vector2d xv = svd.solve(bv);
+    // Solve for fy, cy using y coordinates
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd_y(Ay, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    // Detect degenerate configuration
+    if (svd_y.singularValues().minCoeff() < 1e-12) {
+        return std::nullopt;
+    }
+
+    Eigen::Vector2d xu = svd_x.solve(bu);
+    Eigen::Vector2d xv = svd_y.solve(bv);
+
+    // Check for reasonably sized focal lengths
+    if (xu[0] < 100.0 || xv[0] < 100.0 || xu[0] > 3000.0 || xv[0] > 3000.0) {
+        std::cerr << "Warning: Linear calibration produced unreasonable focal lengths: fx=" 
+                  << xu[0] << ", fy=" << xv[0] << std::endl;
+        // Use reasonable defaults based on resolution
+        double avg_u = bu.sum() / obs.size();
+        double avg_v = bv.sum() / obs.size();
+        xu[0] = std::max(500.0, xu[0]);
+        xv[0] = std::max(500.0, xv[0]);
+        xu[1] = avg_u / 2.0;  // Rough estimate for cx
+        xv[1] = avg_v / 2.0;  // Rough estimate for cy
+    }
 
     CameraMatrix K{xu[0], xv[0], xu[1], xv[1]};
     return K;

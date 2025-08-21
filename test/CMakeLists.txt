@@ -41,3 +41,15 @@ target_link_libraries(planarpose_test PRIVATE
     Ceres::ceres
 )
 gtest_discover_tests(planarpose_test)
+
+# Test for full camera calibration
+add_executable(calib_test calib_test.cpp)
+target_link_libraries(calib_test
+    PRIVATE calibration
+    PRIVATE GTest::gtest_main
+    PRIVATE GTest::gmock_main
+    PRIVATE Eigen3::Eigen
+    PRIVATE Ceres::ceres
+)
+gtest_discover_tests(calib_test)
+

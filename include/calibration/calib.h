@@ -1,0 +1,38 @@
+#pragma once
+
+/** @brief Full single camera calibration from multiple planar views */
+
+// std
+#include <vector>
+#include <string>
+
+// eigen
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+
+#include "calibration/intrinsics.h"
+
+namespace vitavision {
+
+struct PlanarView {
+    std::vector<Eigen::Vector2d> object_xy;  // Planar target coordinates (Z=0)
+    std::vector<Eigen::Vector2d> image_uv;   // Corresponding pixel measurements
+};
+
+struct CameraCalibrationResult {
+    CameraMatrix intrinsics;             // Estimated camera matrix
+    Eigen::VectorXd distortion;          // Distortion coefficients [k..., p1, p2]
+    std::vector<Eigen::Affine3d> poses;  // Poses of each view (world->camera)
+    Eigen::MatrixXd covariance;          // Covariance of intrinsics and poses
+    std::vector<double> view_errors;     // Reprojection RMSE for each view
+    double reprojection_error;           // Overall reprojection RMSE
+    std::string summary;                 // Solver brief report
+};
+
+CameraCalibrationResult calibrate_camera_planar(
+    const std::vector<PlanarView>& views,
+    int num_radial,
+    const CameraMatrix& initial_guess,
+    bool verbose = false);
+
+}  // namespace vitavision
