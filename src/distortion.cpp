@@ -14,7 +14,7 @@ Eigen::Vector2d apply_distortion(
     const double y = norm_xy.y();
     const double r2 = x*x + y*y;
 
-    const int num_k_radial = coeffs.size() - 2;
+    const int num_k_radial = static_cast<int>(coeffs.size()) - 2;
     const double p1 = coeffs[num_k_radial];
     const double p2 = coeffs[num_k_radial + 1];
 

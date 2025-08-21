@@ -104,7 +104,7 @@ template<typename T>
 Eigen::VectorXd fit_distortion(
     const std::vector<Observation<T>>& obs,
     T fx, T fy, T cx, T cy,
-    size_t num_radial = 2
+    int num_radial = 2
 ) {
     return fit_distortion_full(obs, fx, fy, cx, cy, num_radial).distortion;
 }
