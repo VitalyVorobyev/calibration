@@ -136,7 +136,7 @@ TEST(IntrinsicsTest, DISABLED_AutoDiffJacobianParity) {
     double p1 = 0.001, p2 = -0.0005;
     auto observations = generate_synthetic_data(intr_true, k_radial, p1, p2, 20, 0.1);
 
-    auto functor = new IntrinsicsVPResidualTestFunctor(observations, 2);
+    auto functor = new IntrinsicsVPResidualTestFunctor{observations, 2};
     ceres::AutoDiffCostFunction<IntrinsicsVPResidualTestFunctor, ceres::DYNAMIC, 4> cost(
         functor, static_cast<int>(observations.size()) * 2);
 
