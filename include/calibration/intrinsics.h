@@ -20,6 +20,19 @@ struct CameraMatrix {
     Eigen::Vector2d denormalize(const Eigen::Vector2d& xy) const;
 };
 
+// Bounds for intrinsics parameters used during calibration. The default
+// values roughly correspond to a 1280x720 image.
+struct CalibrationBounds {
+    double fx_min = 100.0;
+    double fx_max = 2000.0;
+    double fy_min = 100.0;
+    double fy_max = 2000.0;
+    double cx_min = 10.0;
+    double cx_max = 1280.0;
+    double cy_min = 10.0;
+    double cy_max = 720.0;
+};
+
 struct IntrinsicOptimizationResult {
     CameraMatrix intrinsics;
     Eigen::VectorXd distortion;
@@ -42,7 +55,8 @@ struct LinearInitResult {
 // an optional CameraMatrix: std::nullopt is returned if there are not
 // enough observations or the linear system is degenerate.
 std::optional<CameraMatrix> estimate_intrinsics_linear(
-    const std::vector<Observation<double>>& obs);
+    const std::vector<Observation<double>>& obs,
+    std::optional<CalibrationBounds> bounds = std::nullopt);
 
 // Improved linear initialization that alternates between estimating
 // distortion coefficients (fit_distortion) and re-solving for camera
@@ -58,7 +72,8 @@ IntrinsicOptimizationResult optimize_intrinsics(
     const std::vector<Observation<double>>& obs,
     int num_radial,
     const CameraMatrix& initial_guess,
-    bool verb=false
+    bool verb=false,
+    std::optional<CalibrationBounds> bounds = std::nullopt
 );
 
 }  // namespace vitavision

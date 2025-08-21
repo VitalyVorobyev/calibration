@@ -4,6 +4,7 @@
 #include <iostream>
 #include <random>
 #include <cmath>
+#include <algorithm>
 
 // ceres
 #include <ceres/ceres.h>
@@ -32,7 +33,8 @@ Eigen::Vector2d CameraMatrix::denormalize(const Eigen::Vector2d& xy) const {
 // If there are insufficient observations or the design matrix is
 // degenerate, std::nullopt is returned.
 std::optional<CameraMatrix> estimate_intrinsics_linear(
-    const std::vector<Observation<double>>& obs) {
+    const std::vector<Observation<double>>& obs,
+    std::optional<CalibrationBounds> bounds_opt) {
     if (obs.size() < 2) {
         return std::nullopt;
     }
@@ -71,17 +73,23 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(
     Eigen::Vector2d xu = svd_x.solve(bu);
     Eigen::Vector2d xv = svd_y.solve(bv);
 
-    // Check for reasonably sized focal lengths
-    if (xu[0] < 100.0 || xv[0] < 100.0 || xu[0] > 3000.0 || xv[0] > 3000.0) {
-        std::cerr << "Warning: Linear calibration produced unreasonable focal lengths: fx="
-                  << xu[0] << ", fy=" << xv[0] << std::endl;
+    CalibrationBounds bounds = bounds_opt.value_or(CalibrationBounds{});
+
+    // Check for reasonably sized intrinsics
+    if (xu[0] < bounds.fx_min || xv[0] < bounds.fy_min ||
+        xu[0] > bounds.fx_max || xv[0] > bounds.fy_max ||
+        xu[1] < bounds.cx_min || xv[1] < bounds.cy_min ||
+        xu[1] > bounds.cx_max || xv[1] > bounds.cy_max) {
+        std::cerr << "Warning: Linear calibration produced unreasonable intrinsics: fx="
+                  << xu[0] << ", fy=" << xv[0] << ", cx=" << xu[1]
+                  << ", cy=" << xv[1] << std::endl;
         // Use reasonable defaults based on resolution
         double avg_u = bu.sum() / obs.size();
         double avg_v = bv.sum() / obs.size();
-        xu[0] = std::max(500.0, xu[0]);
-        xv[0] = std::max(500.0, xv[0]);
-        xu[1] = avg_u / 2.0;  // Rough estimate for cx
-        xv[1] = avg_v / 2.0;  // Rough estimate for cy
+        xu[0] = std::clamp(std::max(500.0, xu[0]), bounds.fx_min, bounds.fx_max);
+        xv[0] = std::clamp(std::max(500.0, xv[0]), bounds.fy_min, bounds.fy_max);
+        xu[1] = std::clamp(avg_u / 2.0, bounds.cx_min, bounds.cx_max);
+        xv[1] = std::clamp(avg_v / 2.0, bounds.cy_min, bounds.cy_max);
     }
 
     CameraMatrix K{xu[0], xv[0], xu[1], xv[1]};
@@ -218,7 +226,8 @@ IntrinsicOptimizationResult optimize_intrinsics(
     const std::vector<Observation<double>>& obs,
     int num_radial,
     const CameraMatrix& initial_guess,
-    bool verb
+    bool verb,
+    std::optional<CalibrationBounds> bounds_opt
 ) {
     double intrinsics[4] = {
         initial_guess.fx,
@@ -234,6 +243,17 @@ IntrinsicOptimizationResult optimize_intrinsics(
                                                                       static_cast<int>(obs.size()) * 2);
 
     problem.AddResidualBlock(cost, /*loss=*/nullptr, intrinsics);
+
+    CalibrationBounds bounds = bounds_opt.value_or(CalibrationBounds{});
+    problem.SetParameterLowerBound(intrinsics, 0, bounds.fx_min);
+    problem.SetParameterLowerBound(intrinsics, 1, bounds.fy_min);
+    problem.SetParameterLowerBound(intrinsics, 2, bounds.cx_min);
+    problem.SetParameterLowerBound(intrinsics, 3, bounds.cy_min);
+
+    problem.SetParameterUpperBound(intrinsics, 0, bounds.fx_max);
+    problem.SetParameterUpperBound(intrinsics, 1, bounds.fy_max);
+    problem.SetParameterUpperBound(intrinsics, 2, bounds.cx_max);
+    problem.SetParameterUpperBound(intrinsics, 3, bounds.cy_max);
 
     ceres::Solver::Options options;
     options.linear_solver_type = ceres::DENSE_QR;
