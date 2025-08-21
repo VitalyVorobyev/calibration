@@ -9,6 +9,11 @@
 
 namespace vitavision {
 
+struct PlanarObservation {
+    Eigen::Vector2d object_xy;  // Planar target coordinates (Z=0)
+    Eigen::Vector2d image_uv;   // Corresponding pixel measurements
+};
+
 // Decompose homography in normalized camera coords: H = [r1 r2 t]
 Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H);
 

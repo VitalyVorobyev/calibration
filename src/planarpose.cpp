@@ -11,31 +11,9 @@
 #include "calibration/homography.h"
 #include "calibration/distortion.h"
 
+#include "observationutils.h"
+
 namespace vitavision {
-
-struct PlanarObs {
-    Eigen::Vector2d XY;   // target coords (Z=0)
-    Eigen::Vector2d uv;   // observed pixel coords
-
-    template<typename T>
-    Observation<T> to_observation(const T* pose6) const {
-        const T* aa = pose6;              // angle-axis
-        const T* t  = pose6 + 3;          // translation
-
-        Eigen::Matrix<T, 3, 1> P {T(XY.x()), T(XY.y()), T(0.0)};
-        Eigen::Matrix<T, 3, 1> Pc;
-        ceres::AngleAxisRotatePoint(aa, P.data(), Pc.data());
-        Pc += Eigen::Matrix<T, 3, 1>(t[0], t[1], t[2]);
-        T invZ = T(1.0) / Pc.z();
-        Observation<T> ob;
-        ob.x = Pc.x() * invZ;
-        ob.y = Pc.y() * invZ;
-        ob.u = T(uv.x());
-        ob.v = T(uv.y());
-        return ob;
-    }
-};
-
 
 // Decompose homography in normalized camera coords: H = [r1 r2 t]
 Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
@@ -98,11 +76,11 @@ using Pose6 = Eigen::Matrix<double, 6, 1>;
 // estimation.  For a given pose (angle-axis + translation) it builds the
 // variable projection system to eliminate distortion coefficients.
 struct PlanarPoseVPResidual {
-    std::vector<PlanarObs> obs_;
+    std::vector<PlanarObservation> obs_;
     double K_[4]; // fx, fy, cx, cy
     int num_radial_;
 
-    PlanarPoseVPResidual(std::vector<PlanarObs> obs,
+    PlanarPoseVPResidual(std::vector<PlanarObservation> obs,
                          int num_radial,
                          const CameraMatrix& intrinsics)
         : obs_(std::move(obs)),
@@ -136,7 +114,7 @@ private:
     std::vector<Observation<T>> buildObs(const T* pose6) const {
         std::vector<Observation<T>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(),
-            [pose6](const PlanarObs& s) { return s.to_observation<T>(pose6); });
+            [pose6](const PlanarObservation& s) { return to_observation(s, pose6); });
         return o;
     }
 };
@@ -144,11 +122,11 @@ private:
 static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
     Eigen::Matrix3d rotation_matrix;
     ceres::AngleAxisToRotationMatrix(pose6.head<3>().data(), rotation_matrix.data());
-    
+
     Eigen::Affine3d transform = Eigen::Affine3d::Identity();
     transform.linear() = rotation_matrix;
     transform.translation() = pose6.tail<3>();
-    
+
     return transform;
 }
 
@@ -171,10 +149,10 @@ PlanarPoseFitResult optimize_planar_pose(
     pose6[4] = init_pose.translation().y();
     pose6[5] = init_pose.translation().z();
 
-    std::vector<PlanarObs> view(obj_xy.size());
+    std::vector<PlanarObservation> view(obj_xy.size());
     std::transform(obj_xy.begin(), obj_xy.end(), img_uv.begin(), view.begin(),
         [](const Eigen::Vector2d& xy, const Eigen::Vector2d& uv) {
-            return PlanarObs{xy, uv};
+            return PlanarObservation{xy, uv};
         });
 
     ceres::Problem p;

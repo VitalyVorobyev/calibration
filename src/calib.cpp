@@ -10,40 +10,19 @@
 #include "calibration/distortion.h"
 #include "calibration/planarpose.h"  // for estimate_planar_pose_dlt
 
+#include "observationutils.h"
+
 namespace vitavision {
-
-struct CalibObs {
-    Eigen::Vector2d XY;
-    Eigen::Vector2d uv;
-
-    template<typename T>
-    Observation<T> to_observation(const T* pose6) const {
-        const T* aa = pose6;              // angle-axis
-        const T* t  = pose6 + 3;          // translation
-
-        Eigen::Matrix<T, 3, 1> P {T(XY.x()), T(XY.y()), T(0.0)};
-        Eigen::Matrix<T, 3, 1> Pc;
-        ceres::AngleAxisRotatePoint(aa, P.data(), Pc.data());
-        Pc += Eigen::Matrix<T, 3, 1>(t[0], t[1], t[2]);
-        T invZ = T(1.0) / Pc.z();
-        Observation<T> ob;
-        ob.x = Pc.x() * invZ;
-        ob.y = Pc.y() * invZ;
-        ob.u = T(uv.x());
-        ob.v = T(uv.y());
-        return ob;
-    }
-};
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
 // Variable projection residual for full camera calibration.
 struct CalibVPResidual {
-    std::vector<std::vector<CalibObs>> views_;  // observations per view
+    std::vector<std::vector<PlanarObservation>> views_;  // observations per view
     int num_radial_;
     size_t total_obs_;
 
-    CalibVPResidual(std::vector<std::vector<CalibObs>> views, int num_radial)
+    CalibVPResidual(std::vector<std::vector<PlanarObservation>> views, int num_radial)
         : views_(std::move(views)), num_radial_(num_radial) {
         total_obs_ = 0;
         for (const auto& v : views_) total_obs_ += v.size();
@@ -58,7 +37,7 @@ struct CalibVPResidual {
         for (size_t i = 0; i < views_.size(); ++i) {
             const T* pose6 = params[1 + i];
             for (const auto& ob : views_[i]) {
-                obs[obs_idx++] = ob.to_observation(pose6);
+                obs[obs_idx++] = to_observation(ob, pose6);
             }
         }
         auto [_, r] = fit_distortion_full(obs, intr[0], intr[1], intr[2], intr[3], num_radial_);
@@ -73,7 +52,7 @@ struct CalibVPResidual {
         for (size_t i = 0; i < views_.size(); ++i) {
             const double* pose6 = pose_ptrs[i];
             for (const auto& ob : views_[i]) {
-                obs[obs_idx++] = ob.to_observation(pose6);
+                obs[obs_idx++] = to_observation(ob, pose6);
             }
         }
         return fit_distortion_full(obs, intr[0], intr[1], intr[2], intr[3], num_radial_);
@@ -89,15 +68,15 @@ static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
     return T;
 }
 
-static std::pair<size_t, std::vector<std::vector<CalibObs>>> prepare_observations(const std::vector<PlanarView>& views) {
-    std::vector<std::vector<CalibObs>> obs_views;
+static std::pair<size_t, std::vector<std::vector<PlanarObservation>>> prepare_observations(const std::vector<PlanarView>& views) {
+    std::vector<std::vector<PlanarObservation>> obs_views;
     size_t total_obs = 0;
     obs_views.reserve(views.size());
 
     size_t i = 0;
     for (const auto& view : views) {
         ++i;
-        std::vector<CalibObs> view_observations;
+        std::vector<PlanarObservation> view_observations;
         const auto& obj = view.object_xy;
         const auto& img = view.image_uv;
 
@@ -138,7 +117,7 @@ static void initialize_poses(
 
 // Set up the Ceres optimization problem
 static void setup_optimization_problem(
-    const std::vector<std::vector<CalibObs>>& obs_views,
+    const std::vector<std::vector<PlanarObservation>>& obs_views,
     size_t total_obs,
     int num_radial,
     double* intrinsics,
@@ -164,7 +143,7 @@ static void setup_optimization_problem(
 
 // Calculate reprojection errors overall and per view
 static void compute_reprojection_errors(
-    const std::vector<std::vector<CalibObs>>& obs_views,
+    const std::vector<std::vector<PlanarObservation>>& obs_views,
     size_t total_obs,
     const Eigen::VectorXd& residuals,
     CameraCalibrationResult& result
@@ -261,12 +240,12 @@ static bool compute_covariance(
         }
         row_offset += block_i_size;
     }
-    
+
     // Scale covariance by variance factor
     int degrees_of_freedom = std::max(1, static_cast<int>(total_residuals) - static_cast<int>(total_params));
     double variance_factor = sum_squared_residuals / degrees_of_freedom;
     cov_matrix *= variance_factor;
-    
+
     result.covariance = cov_matrix;
     return true;
 }
@@ -315,6 +294,7 @@ CameraCalibrationResult calibrate_camera_planar(
     opts.max_num_iterations = 1000;
 
     #if 1
+    // TODO: make it dependent on the image size
     // Add parameter bounds to prevent divergence
     problem.SetParameterLowerBound(intrinsics, 0, 100.0);  // fx > 100
     problem.SetParameterLowerBound(intrinsics, 1, 100.0);  // fy > 100
@@ -355,7 +335,7 @@ CameraCalibrationResult calibrate_camera_planar(
 
     double sum_squared_residuals = dr.residuals.squaredNorm();
     size_t total_residuals = total_obs * 2;
-    compute_covariance(param_blocks, block_sizes, total_params, total_residuals, 
+    compute_covariance(param_blocks, block_sizes, total_params, total_residuals,
                        sum_squared_residuals, problem, result);
 
     return result;

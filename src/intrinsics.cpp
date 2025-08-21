@@ -42,14 +42,14 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(
     Eigen::MatrixXd Ay(obs.size(), 2);
     Eigen::VectorXd bu(obs.size());
     Eigen::VectorXd bv(obs.size());
-    
+
     for (size_t i = 0; i < obs.size(); ++i) {
         Ax(static_cast<int>(i), 0) = obs[i].x;
         Ax(static_cast<int>(i), 1) = 1.0;
-        
+
         Ay(static_cast<int>(i), 0) = obs[i].y;
         Ay(static_cast<int>(i), 1) = 1.0;
-        
+
         bu(static_cast<int>(i)) = obs[i].u;
         bv(static_cast<int>(i)) = obs[i].v;
     }
@@ -73,7 +73,7 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(
 
     // Check for reasonably sized focal lengths
     if (xu[0] < 100.0 || xv[0] < 100.0 || xu[0] > 3000.0 || xv[0] > 3000.0) {
-        std::cerr << "Warning: Linear calibration produced unreasonable focal lengths: fx=" 
+        std::cerr << "Warning: Linear calibration produced unreasonable focal lengths: fx="
                   << xu[0] << ", fy=" << xv[0] << std::endl;
         // Use reasonable defaults based on resolution
         double avg_u = bu.sum() / obs.size();
