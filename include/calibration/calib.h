@@ -20,13 +20,13 @@ struct PlanarView {
 };
 
 struct CameraCalibrationResult {
-    CameraMatrix intrinsics;                     // Estimated camera matrix
-    Eigen::VectorXd distortion;                  // Distortion coefficients [k..., p1, p2]
-    std::vector<Eigen::Affine3d> poses;          // Poses of each view (world->camera)
-    Eigen::MatrixXd covariance;                  // Covariance of intrinsics and poses
-    std::vector<double> view_errors;             // Reprojection RMSE for each view
-    double reprojection_error;                   // Overall reprojection RMSE
-    std::string summary;                         // Solver brief report
+    CameraMatrix intrinsics;             // Estimated camera matrix
+    Eigen::VectorXd distortion;          // Distortion coefficients [k..., p1, p2]
+    std::vector<Eigen::Affine3d> poses;  // Poses of each view (world->camera)
+    Eigen::MatrixXd covariance;          // Covariance of intrinsics and poses
+    std::vector<double> view_errors;     // Reprojection RMSE for each view
+    double reprojection_error;           // Overall reprojection RMSE
+    std::string summary;                 // Solver brief report
 };
 
 CameraCalibrationResult calibrate_camera_planar(
@@ -36,4 +36,3 @@ CameraCalibrationResult calibrate_camera_planar(
     bool verbose = false);
 
 }  // namespace vitavision
-
