@@ -79,7 +79,11 @@ struct PlanarPoseVPResidualTestFunctor {
         const T fy = T(K[1]);
         const T cx = T(K[2]);
         const T cy = T(K[3]);
-        auto [_, r] = fit_distortion_full(o, fx, fy, cx, cy, num_radial);
+        auto dr = fit_distortion_full(o, fx, fy, cx, cy, num_radial);
+        if (!dr) {
+            return false;
+        }
+        const auto& r = dr->residuals;
         for (int i = 0; i < r.size(); ++i) {
             residuals[i] = r[i];
         }

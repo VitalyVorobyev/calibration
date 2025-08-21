@@ -3,6 +3,7 @@
 #pragma once
 
 // std
+#include <optional>
 #include <vector>
 
 // eigen
@@ -27,17 +28,13 @@ struct DistortionWithResiduals {
 };
 
 template<typename T>
-DistortionWithResiduals<T> fit_distortion_full(
+std::optional<DistortionWithResiduals<T>> fit_distortion_full(
     const std::vector<Observation<T>>& obs,
     T fx, T fy, T cx, T cy,
     int num_radial = 2
 ) {
     if (obs.size() < 8) {
-        // Return empty result instead of throwing exception
-        // This is safer with automatic differentiation
-        Eigen::Matrix<T, Eigen::Dynamic, 1> empty_vec(1);
-        empty_vec(0) = T(0);
-        return {empty_vec, empty_vec};
+        return std::nullopt;
     }
 
     const int M = num_radial + 2;  // radial + tangential coeffs
@@ -97,16 +94,16 @@ DistortionWithResiduals<T> fit_distortion_full(
 
     Eigen::Matrix<T, Eigen::Dynamic, 1> r = A * alpha - b;
 
-    return {alpha, r};
+    return DistortionWithResiduals<T>{alpha, r};
 }
 
 template<typename T>
-Eigen::VectorXd fit_distortion(
+std::optional<DistortionWithResiduals<T>> fit_distortion(
     const std::vector<Observation<T>>& obs,
     T fx, T fy, T cx, T cy,
     int num_radial = 2
 ) {
-    return fit_distortion_full(obs, fx, fy, cx, cy, num_radial).distortion;
+    return fit_distortion_full(obs, fx, fy, cx, cy, num_radial);
 }
 
 }  // namespace vitavision

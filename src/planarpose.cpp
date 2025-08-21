@@ -95,7 +95,11 @@ struct PlanarPoseVPResidual {
         const T cy = T(K_[3]);
 
         auto obs = buildObs(pose6);
-        auto [_, r] = fit_distortion_full(obs, fx, fy, cx, cy, num_radial_);
+        auto dr = fit_distortion_full(obs, fx, fy, cx, cy, num_radial_);
+        if (!dr) {
+            return false;
+        }
+        const auto& r = dr->residuals;
         for (int i = 0; i < r.size(); ++i) {
             residuals[i] = r[i];
         }
@@ -105,7 +109,8 @@ struct PlanarPoseVPResidual {
     // Helper used after optimization to compute best distortion coefficients.
     Eigen::VectorXd SolveDistortionFor(const Pose6& pose6) const {
         std::vector<Observation<double>> o = buildObs(pose6.data());
-        return fit_distortion(o, K_[0], K_[1], K_[2], K_[3], num_radial_);
+        auto d = fit_distortion(o, K_[0], K_[1], K_[2], K_[3], num_radial_);
+        return d ? d->distortion : Eigen::VectorXd{};
     }
 
 private:

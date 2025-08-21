@@ -2,6 +2,7 @@
 
 // std
 #include <numeric>
+#include <optional>
 
 // ceres
 #include <ceres/ceres.h>
@@ -42,13 +43,17 @@ struct CalibVPResidual {
                 obs[obs_idx++] = to_observation(ob, pose6);
             }
         }
-        auto [_, r] = fit_distortion_full(obs, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        auto dr = fit_distortion_full(obs, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        if (!dr) {
+            return false;
+        }
+        const auto& r = dr->residuals;
         for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
         return true;
     }
 };
 
-static DistortionWithResiduals<double> solve_full(
+static std::optional<DistortionWithResiduals<double>> solve_full(
         const std::vector<std::vector<PlanarObservation>>& views,
         int num_radial,
         const double* intr,
@@ -326,25 +331,30 @@ CameraCalibrationResult calibrate_camera_planar(
         pose_ptrs[i] = poses[i].data();
     }
 
-    auto dr = solve_full(obs_views, num_radial, intrinsics, pose_ptrs);
-    result.distortion = dr.distortion;
+    auto dr_opt = solve_full(obs_views, num_radial, intrinsics, pose_ptrs);
+    if (dr_opt) {
+        result.distortion = dr_opt->distortion;
 
-    // Process results
-    compute_reprojection_errors(obs_views, total_obs, dr.residuals, result);
-    populate_result_parameters(intrinsics, poses, result);
+        // Process results
+        compute_reprojection_errors(obs_views, total_obs, dr_opt->residuals, result);
+        populate_result_parameters(intrinsics, poses, result);
 
-    // Compute covariance matrix
-    const size_t total_params = 4 + 6 * num_views;
-    std::vector<int> block_sizes;
-    block_sizes.push_back(4);  // Intrinsics block
-    for (size_t i = 0; i < num_views; ++i) {
-        block_sizes.push_back(6);  // Pose blocks
+        // Compute covariance matrix
+        const size_t total_params = 4 + 6 * num_views;
+        std::vector<int> block_sizes;
+        block_sizes.push_back(4);  // Intrinsics block
+        for (size_t i = 0; i < num_views; ++i) {
+            block_sizes.push_back(6);  // Pose blocks
+        }
+
+        double sum_squared_residuals = dr_opt->residuals.squaredNorm();
+        size_t total_residuals = total_obs * 2;
+        compute_covariance(param_blocks, block_sizes, total_params, total_residuals,
+                           sum_squared_residuals, problem, result);
+    } else {
+        result.distortion = Eigen::VectorXd{};
+        populate_result_parameters(intrinsics, poses, result);
     }
-
-    double sum_squared_residuals = dr.residuals.squaredNorm();
-    size_t total_residuals = total_obs * 2;
-    compute_covariance(param_blocks, block_sizes, total_params, total_residuals,
-                       sum_squared_residuals, problem, result);
 
     return result;
 }
