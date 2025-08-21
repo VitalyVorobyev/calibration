@@ -33,20 +33,19 @@ struct CalibVPResidual {
     bool operator()(T const* const* params, T* residuals) const {
         const T* intr = params[0];
 
-        static thread_local std::vector<Observation<T>> obs;
-        if (obs.size() != total_obs_) obs.resize(total_obs_);
+        static thread_local std::vector<Observation<T>> o;
+        if (o.size() != total_obs_) o.resize(total_obs_);
 
         size_t obs_idx = 0;
         for (size_t i = 0; i < views_.size(); ++i) {
             const T* pose6 = params[1 + i];
             for (const auto& ob : views_[i]) {
-                obs[obs_idx++] = to_observation(ob, pose6);
+                o[obs_idx++] = to_observation(ob, pose6);
             }
         }
-        auto dr = fit_distortion_full(obs, intr[0], intr[1], intr[2], intr[3], num_radial_);
-        if (!dr) {
-            return false;
-        }
+
+        auto dr = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        if (!dr) return false;
         const auto& r = dr->residuals;
         for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
         return true;

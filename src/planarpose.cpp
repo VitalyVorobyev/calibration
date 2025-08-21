@@ -59,7 +59,7 @@ Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj
     if (obj_xy.size() < 4 || obj_xy.size() != img_uv.size()) {
         return Eigen::Affine3d::Identity();
     }
-    
+
     std::vector<Eigen::Vector2d> img_norm(img_uv.size());
     std::transform(img_uv.begin(), img_uv.end(), img_norm.begin(),
         [&intrinsics](const Eigen::Vector2d& pix) {
@@ -94,33 +94,27 @@ struct PlanarPoseVPResidual {
         const T cx = T(K_[2]);
         const T cy = T(K_[3]);
 
-        auto obs = buildObs(pose6);
-        auto dr = fit_distortion_full(obs, fx, fy, cx, cy, num_radial_);
-        if (!dr) {
-            return false;
-        }
+        static thread_local std::vector<Observation<T>> o;
+        if (o.size() != obs_.size()) o.resize(obs_.size());
+
+        std::transform(obs_.begin(), obs_.end(), o.begin(),
+            [pose6](const PlanarObservation& s) { return to_observation(s, pose6); });
+
+        auto dr = fit_distortion_full(o, fx, fy, cx, cy, num_radial_);
+        if (!dr) return false;
         const auto& r = dr->residuals;
-        for (int i = 0; i < r.size(); ++i) {
-            residuals[i] = r[i];
-        }
+        for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
         return true;
     }
 
     // Helper used after optimization to compute best distortion coefficients.
     Eigen::VectorXd SolveDistortionFor(const Pose6& pose6) const {
-        std::vector<Observation<double>> o = buildObs(pose6.data());
+        std::vector<Observation<double>> o(obs_.size());
+        std::transform(obs_.begin(), obs_.end(), o.begin(),
+            [pose6](const PlanarObservation& s) { return to_observation(s, pose6.data()); });
+
         auto d = fit_distortion(o, K_[0], K_[1], K_[2], K_[3], num_radial_);
         return d ? d->distortion : Eigen::VectorXd{};
-    }
-
-private:
-    // Build observations (x,y,u,v) for a given pose using double precision.
-    template<typename T>
-    std::vector<Observation<T>> buildObs(const T* pose6) const {
-        std::vector<Observation<T>> o(obs_.size());
-        std::transform(obs_.begin(), obs_.end(), o.begin(),
-            [pose6](const PlanarObservation& s) { return to_observation(s, pose6); });
-        return o;
     }
 };
 
