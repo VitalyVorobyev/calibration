@@ -18,44 +18,48 @@ using Pose6 = Eigen::Matrix<double, 6, 1>;
 
 // Variable projection residual for full camera calibration.
 struct CalibVPResidual {
+    using ObsBuffer = std::vector<Observation<double>>;
+
     std::vector<std::vector<PlanarObservation>> views_;  // observations per view
     int num_radial_;
     size_t total_obs_;
+    mutable ObsBuffer obs_;
 
     CalibVPResidual(std::vector<std::vector<PlanarObservation>> views, int num_radial)
         : views_(std::move(views)), num_radial_(num_radial) {
         total_obs_ = 0;
         for (const auto& v : views_) total_obs_ += v.size();
+        obs_.resize(total_obs_);
     }
 
     template<typename T>
     bool operator()(T const* const* params, T* residuals) const {
         const T* intr = params[0];
-        static std::vector<Observation<T>> obs(total_obs_);
+        if (obs_.size() != total_obs_) obs_.resize(total_obs_);
 
         size_t obs_idx = 0;
         for (size_t i = 0; i < views_.size(); ++i) {
             const T* pose6 = params[1 + i];
             for (const auto& ob : views_[i]) {
-                obs[obs_idx++] = to_observation(ob, pose6);
+                obs_[obs_idx++] = to_observation(ob, pose6);
             }
         }
-        auto [_, r] = fit_distortion_full(obs, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        auto [_, r] = fit_distortion_full(obs_, intr[0], intr[1], intr[2], intr[3], num_radial_);
         for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
         return true;
     }
 
     DistortionWithResiduals<double> solve_full(const double* intr, const std::vector<const double*>& pose_ptrs) const {
-        static std::vector<Observation<double>> obs(total_obs_);
+        if (obs_.size() != total_obs_) obs_.resize(total_obs_);
 
         size_t obs_idx = 0;
         for (size_t i = 0; i < views_.size(); ++i) {
             const double* pose6 = pose_ptrs[i];
             for (const auto& ob : views_[i]) {
-                obs[obs_idx++] = to_observation(ob, pose6);
+                obs_[obs_idx++] = to_observation(ob, pose6);
             }
         }
-        return fit_distortion_full(obs, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        return fit_distortion_full(obs_, intr[0], intr[1], intr[2], intr[3], num_radial_);
     }
 };
 
