@@ -310,6 +310,20 @@ CameraCalibrationResult calibrate_camera_planar(
     opts.function_tolerance = 1e-12;
     opts.gradient_tolerance = 1e-12;
     opts.parameter_tolerance = 1e-12;
+    opts.max_num_iterations = 1000;
+
+    #if 1
+    // Add parameter bounds to prevent divergence
+    problem.SetParameterLowerBound(intrinsics, 0, 100.0);  // fx > 100
+    problem.SetParameterLowerBound(intrinsics, 1, 100.0);  // fy > 100
+    problem.SetParameterLowerBound(intrinsics, 2, 10.0);   // cx > 10
+    problem.SetParameterLowerBound(intrinsics, 3, 10.0);   // cy > 10
+
+    problem.SetParameterUpperBound(intrinsics, 0, 2000.0); // fx < 2000
+    problem.SetParameterUpperBound(intrinsics, 1, 2000.0); // fy < 2000
+    problem.SetParameterUpperBound(intrinsics, 2, 1280.0); // cx < 1280
+    problem.SetParameterUpperBound(intrinsics, 3, 720.0);  // cy < 720
+    #endif
 
     ceres::Solver::Summary summary;
     ceres::Solve(opts, &problem, &summary);
@@ -320,7 +334,7 @@ CameraCalibrationResult calibrate_camera_planar(
     for (size_t i = 0; i < num_views; ++i) {
         pose_ptrs[i] = poses[i].data();
     }
-    
+
     CalibVPResidual functor(obs_views, num_radial);
     auto dr = functor.solve_full(intrinsics, pose_ptrs);
     result.distortion = dr.distortion;
@@ -336,7 +350,7 @@ CameraCalibrationResult calibrate_camera_planar(
     for (size_t i = 0; i < num_views; ++i) {
         block_sizes.push_back(6);  // Pose blocks
     }
-    
+
     double sum_squared_residuals = dr.residuals.squaredNorm();
     size_t total_residuals = total_obs * 2;
     compute_covariance(param_blocks, block_sizes, total_params, total_residuals, 

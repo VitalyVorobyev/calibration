@@ -38,13 +38,15 @@ TEST(CameraCalibrationTest, PlanarViewsExact) {
 
     // Planar grid points
     std::vector<Eigen::Vector2d> obj_xy;
-    for (int i=-5;i<=5;i+=2)
-        for (int j=-5;j<=5;j+=2)
+    for (int i=-5;i<=5;i+=2) {
+        for (int j=-5;j<=5;j+=2) {
             obj_xy.emplace_back(0.04*i, 0.04*j);
+        }
+    }
 
     // Generate several poses
-    std::vector<PlanarView> views(3);
-    std::vector<Eigen::Affine3d> poses_true(3);
+    std::vector<PlanarView> views(4);
+    std::vector<Eigen::Affine3d> poses_true(4);
     poses_true[0] = Eigen::Affine3d::Identity();
     poses_true[0].translation() = Eigen::Vector3d(0.1, -0.1, 2.0);
     poses_true[1] = Eigen::Affine3d::Identity();
@@ -53,18 +55,21 @@ TEST(CameraCalibrationTest, PlanarViewsExact) {
     poses_true[2] = Eigen::Affine3d::Identity();
     poses_true[2].linear() = Eigen::AngleAxisd(-0.15, Eigen::Vector3d::UnitX()).toRotationMatrix();
     poses_true[2].translation() = Eigen::Vector3d(0.05, 0.2, 2.2);
+    poses_true[3] = Eigen::Affine3d::Identity();
+    poses_true[3].linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    poses_true[3].translation() = Eigen::Vector3d(-0.1, -0.15, 1.9);
 
-    for (size_t v=0; v<views.size(); ++v) {
+    for (size_t v = 0; v < views.size(); ++v) {
         views[v].object_xy = obj_xy;
         views[v].image_uv.resize(obj_xy.size());
-        for (size_t i=0;i<obj_xy.size();++i) {
+        for (size_t i = 0; i < obj_xy.size(); ++i) {
             Eigen::Vector3d P(obj_xy[i].x(), obj_xy[i].y(), 0.0);
             distort_and_project(P, poses_true[v], intr_true, k_rad, p1, p2, views[v].image_uv[i]);
         }
     }
 
     CameraMatrix guess{780.0, 800.0, 630.0, 350.0};
-    auto res = calibrate_camera_planar(views, 2, guess, false);
+    auto res = calibrate_camera_planar(views, 2, guess, true);
 
     EXPECT_NEAR(res.intrinsics.fx, intr_true.fx, 1e-6);
     EXPECT_NEAR(res.intrinsics.fy, intr_true.fy, 1e-6);
@@ -80,4 +85,3 @@ TEST(CameraCalibrationTest, PlanarViewsExact) {
     for (double e : res.view_errors) EXPECT_NEAR(e, 0.0, 1e-9);
     EXPECT_NEAR(res.reprojection_error, 0.0, 1e-9);
 }
-
