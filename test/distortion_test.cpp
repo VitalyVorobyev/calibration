@@ -93,7 +93,9 @@ TEST(DistortionTest, ExactFit) {
         k_true, p1_true, p2_true, fx, fy, cx, cy, 500, 0.0);
     
     // Fit distortion parameters
-    Eigen::VectorXd distortion = fit_distortion(observations, fx, fy, cx, cy, 2);
+    auto distortion_opt = fit_distortion(observations, fx, fy, cx, cy, 2);
+    ASSERT_TRUE(distortion_opt.has_value());
+    Eigen::VectorXd distortion = distortion_opt->distortion;
     
     // Check results
     EXPECT_NEAR(distortion[0], k_true[0], 1e-10);
@@ -115,7 +117,9 @@ TEST(DistortionTest, NoisyFit) {
         k_true, p1_true, p2_true, fx, fy, cx, cy, 1000, 0.5);
     
     // Fit distortion parameters
-    Eigen::VectorXd distortion = fit_distortion(observations, fx, fy, cx, cy, 2);
+    auto distortion_opt = fit_distortion(observations, fx, fy, cx, cy, 2);
+    ASSERT_TRUE(distortion_opt.has_value());
+    Eigen::VectorXd distortion = distortion_opt->distortion;
     
     // Results should be close but not exact due to noise
     EXPECT_NEAR(distortion[0], k_true[0], 0.01);

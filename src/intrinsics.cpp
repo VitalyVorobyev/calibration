@@ -117,7 +117,11 @@ std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
 
     for (int iter = 0; iter < max_iterations; ++iter) {
         // Estimate distortion for current intrinsics using original observations.
-        dist = fit_distortion(obs, K.fx, K.fy, K.cx, K.cy, num_radial);
+        auto dist_opt = fit_distortion(obs, K.fx, K.fy, K.cx, K.cy, num_radial);
+        if (!dist_opt) {
+            return std::nullopt;
+        }
+        dist = dist_opt->distortion;
 
         // Remove the estimated distortion from the measurements and
         // re-estimate the intrinsics.
@@ -145,7 +149,11 @@ std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
     }
 
     // Final distortion estimate using refined intrinsics.
-    dist = fit_distortion(obs, K.fx, K.fy, K.cx, K.cy, num_radial);
+    auto dist_opt = fit_distortion(obs, K.fx, K.fy, K.cx, K.cy, num_radial);
+    if (!dist_opt) {
+        return std::nullopt;
+    }
+    dist = dist_opt->distortion;
 
     return LinearInitResult{K, dist};
 }
@@ -167,7 +175,11 @@ struct IntrinsicsVPResidual {
             return Observation<T>{T(obs.x), T(obs.y), T(obs.u), T(obs.v)};
         });
 
-        auto [_, r] = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        auto dr = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        if (!dr) {
+            return false;
+        }
+        const auto& r = dr->residuals;
         for (int i = 0; i < r.size(); ++i) {
             residuals[i] = r[i];
         }
@@ -177,7 +189,8 @@ struct IntrinsicsVPResidual {
     // Compute optimal distortion coeffs for given intrinsics (useful after
     // Solve).  This is still used by the API after the optimization.
     Eigen::VectorXd SolveDistortionFor(const double intr[4]) const {
-        return fit_distortion(obs_, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        auto d = fit_distortion(obs_, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        return d ? d->distortion : Eigen::VectorXd{};
     }
 };
 
@@ -270,8 +283,11 @@ IntrinsicOptimizationResult optimize_intrinsics(
     result.intrinsics.fy = intrinsics[1];
     result.intrinsics.cx = intrinsics[2];
     result.intrinsics.cy = intrinsics[3];
-    result.distortion = fit_distortion(
+    auto final_dist = fit_distortion(
         obs, intrinsics[0], intrinsics[1], intrinsics[2], intrinsics[3], num_radial);
+    if (final_dist) {
+        result.distortion = final_dist->distortion;
+    }
     result.summary = summary.BriefReport();
 
     // Compute covariance using the optimized cost function

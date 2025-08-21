@@ -92,8 +92,12 @@ struct IntrinsicsVPResidualTestFunctor {
             return Observation<T>{static_cast<T>(obs.x), static_cast<T>(obs.y),
                                   static_cast<T>(obs.u), static_cast<T>(obs.v)};
         });
-        auto [_, r] = fit_distortion_full(
+        auto dr = fit_distortion_full(
             o, intr[0], intr[1], intr[2], intr[3], num_radial);
+        if (!dr) {
+            return false;
+        }
+        const auto& r = dr->residuals;
         for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
         return true;
     }
