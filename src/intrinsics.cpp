@@ -183,7 +183,7 @@ static bool compute_covariance(
     // Recompute residuals and RMSE
     const int m = static_cast<int>(n_obs) * 2;
     std::vector<double> residuals(2 * n_obs);
-    
+
     // Evaluate residuals at the optimum
     const double* params[1] = {intrinsics};
     cost.Evaluate(params, residuals.data(), nullptr);
