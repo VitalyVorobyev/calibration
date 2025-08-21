@@ -307,9 +307,11 @@ CameraCalibrationResult calibrate_camera_planar(
     ceres::Solver::Options opts;
     opts.linear_solver_type = ceres::DENSE_QR;
     opts.minimizer_progress_to_stdout = verbose;
-    opts.function_tolerance = 1e-12;
-    opts.gradient_tolerance = 1e-12;
-    opts.parameter_tolerance = 1e-12;
+
+    constexpr double eps = 1e-6;
+    opts.function_tolerance = eps;
+    opts.gradient_tolerance = eps;
+    opts.parameter_tolerance = eps;
     opts.max_num_iterations = 1000;
 
     #if 1

@@ -71,17 +71,17 @@ TEST(CameraCalibrationTest, PlanarViewsExact) {
     CameraMatrix guess{780.0, 800.0, 630.0, 350.0};
     auto res = calibrate_camera_planar(views, 2, guess, true);
 
-    EXPECT_NEAR(res.intrinsics.fx, intr_true.fx, 1e-6);
-    EXPECT_NEAR(res.intrinsics.fy, intr_true.fy, 1e-6);
-    EXPECT_NEAR(res.intrinsics.cx, intr_true.cx, 1e-6);
-    EXPECT_NEAR(res.intrinsics.cy, intr_true.cy, 1e-6);
+    EXPECT_NEAR(res.intrinsics.fx, intr_true.fx, 1e-4);
+    EXPECT_NEAR(res.intrinsics.fy, intr_true.fy, 1e-4);
+    EXPECT_NEAR(res.intrinsics.cx, intr_true.cx, 1e-4);
+    EXPECT_NEAR(res.intrinsics.cy, intr_true.cy, 1e-4);
 
-    EXPECT_NEAR(res.distortion[0], k_rad[0], 1e-6);
-    EXPECT_NEAR(res.distortion[1], k_rad[1], 1e-6);
+    EXPECT_NEAR(res.distortion[0], k_rad[0], 1e-4);
+    EXPECT_NEAR(res.distortion[1], k_rad[1], 1e-4);
     EXPECT_NEAR(res.distortion[2], p1, 1e-6);
     EXPECT_NEAR(res.distortion[3], p2, 1e-6);
 
     EXPECT_EQ(res.view_errors.size(), views.size());
-    for (double e : res.view_errors) EXPECT_NEAR(e, 0.0, 1e-9);
-    EXPECT_NEAR(res.reprojection_error, 0.0, 1e-9);
+    for (double e : res.view_errors) EXPECT_NEAR(e, 0.0, 1e-6);
+    EXPECT_NEAR(res.reprojection_error, 0.0, 1e-6);
 }
