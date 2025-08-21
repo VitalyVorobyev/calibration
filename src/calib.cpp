@@ -265,7 +265,8 @@ CameraCalibrationResult calibrate_camera_planar(
     const std::vector<PlanarView>& views,
     int num_radial,
     const CameraMatrix& initial_guess,
-    bool verbose
+    bool verbose,
+    std::optional<CalibrationBounds> bounds_opt
 ) {
     CameraCalibrationResult result;
 
@@ -304,19 +305,16 @@ CameraCalibrationResult calibrate_camera_planar(
     opts.parameter_tolerance = eps;
     opts.max_num_iterations = 1000;
 
-    #if 1
-    // TODO: make it dependent on the image size
-    // Add parameter bounds to prevent divergence
-    problem.SetParameterLowerBound(intrinsics, 0, 100.0);  // fx > 100
-    problem.SetParameterLowerBound(intrinsics, 1, 100.0);  // fy > 100
-    problem.SetParameterLowerBound(intrinsics, 2, 10.0);   // cx > 10
-    problem.SetParameterLowerBound(intrinsics, 3, 10.0);   // cy > 10
+    CalibrationBounds bounds = bounds_opt.value_or(CalibrationBounds{});
+    problem.SetParameterLowerBound(intrinsics, 0, bounds.fx_min);
+    problem.SetParameterLowerBound(intrinsics, 1, bounds.fy_min);
+    problem.SetParameterLowerBound(intrinsics, 2, bounds.cx_min);
+    problem.SetParameterLowerBound(intrinsics, 3, bounds.cy_min);
 
-    problem.SetParameterUpperBound(intrinsics, 0, 2000.0); // fx < 2000
-    problem.SetParameterUpperBound(intrinsics, 1, 2000.0); // fy < 2000
-    problem.SetParameterUpperBound(intrinsics, 2, 1280.0); // cx < 1280
-    problem.SetParameterUpperBound(intrinsics, 3, 720.0);  // cy < 720
-    #endif
+    problem.SetParameterUpperBound(intrinsics, 0, bounds.fx_max);
+    problem.SetParameterUpperBound(intrinsics, 1, bounds.fy_max);
+    problem.SetParameterUpperBound(intrinsics, 2, bounds.cx_max);
+    problem.SetParameterUpperBound(intrinsics, 3, bounds.cy_max);
 
     ceres::Solver::Summary summary;
     ceres::Solve(opts, &problem, &summary);

@@ -5,6 +5,7 @@
 // std
 #include <vector>
 #include <string>
+#include <optional>
 
 // eigen
 #include <Eigen/Core>
@@ -33,6 +34,7 @@ CameraCalibrationResult calibrate_camera_planar(
     const std::vector<PlanarView>& views,
     int num_radial,
     const CameraMatrix& initial_guess,
-    bool verbose = false);
+    bool verbose = false,
+    std::optional<CalibrationBounds> bounds = std::nullopt);
 
 }  // namespace vitavision
