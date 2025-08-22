@@ -64,3 +64,14 @@ target_link_libraries(extrinsics_test
 )
 gtest_discover_tests(extrinsics_test)
 
+# Test for joint intrinsics/extrinsics optimization
+add_executable(joint_test joint_test.cpp)
+target_link_libraries(joint_test
+    PRIVATE calibration
+    PRIVATE GTest::gtest_main
+    PRIVATE GTest::gmock_main
+    PRIVATE Eigen3::Eigen
+    PRIVATE Ceres::ceres
+)
+gtest_discover_tests(joint_test)
+
