@@ -12,8 +12,7 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     Eigen::VectorXd dist(2);
     dist << 0.0, 0.0; // no distortion
 
-    std::vector<CameraMatrix> intrinsics = {K, K};
-    std::vector<Eigen::VectorXd> dists = {dist, dist};
+    std::vector<Camera> cameras = {Camera{K, dist}, Camera{K, dist}};
 
     // Ground-truth camera poses (reference camera is identity)
     Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
@@ -53,17 +52,20 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
-                Eigen::Vector2d pix = intrinsics[c].denormalize(norm);
+                Eigen::Vector2d pix = cameras[c].intrinsics.denormalize(norm);
                 view.observations[c].push_back({xy, pix});
             }
         }
         views.push_back(std::move(view));
     }
 
-    auto result = optimize_extrinsic_poses(views, intrinsics, dists, cam_init, target_init);
+    auto result = optimize_extrinsic_poses(views, cameras, cam_init, target_init);
 
     EXPECT_LT(result.reprojection_error, 1e-6);
     ASSERT_EQ(result.camera_poses.size(), static_cast<size_t>(kCams));
+    ASSERT_EQ(result.camera_covariances.size(), static_cast<size_t>(kCams));
+    ASSERT_EQ(result.target_covariances.size(), target_gt.size());
+    EXPECT_GT(result.target_covariances[0].trace(), 0.0);
     EXPECT_TRUE(result.camera_poses[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
     EXPECT_TRUE(result.camera_poses[1].linear().isApprox(cam_gt[1].linear(), 1e-3));
     for (size_t v = 0; v < target_gt.size(); ++v) {
