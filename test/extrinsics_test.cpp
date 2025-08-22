@@ -62,7 +62,7 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
 
     auto result = optimize_extrinsic_poses(views, intrinsics, dists, cam_init, target_init);
 
-    EXPECT_LT(result.reprojection_error, 1e-9);
+    EXPECT_LT(result.reprojection_error, 1e-6);
     ASSERT_EQ(result.camera_poses.size(), static_cast<size_t>(kCams));
     EXPECT_TRUE(result.camera_poses[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
     EXPECT_TRUE(result.camera_poses[1].linear().isApprox(cam_gt[1].linear(), 1e-3));

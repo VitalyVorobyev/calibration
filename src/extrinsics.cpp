@@ -11,61 +11,41 @@ namespace vitavision {
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
-template<typename T>
-static Eigen::Matrix<T, 2, 1> distort_point(T x, T y, const Eigen::VectorXd& coeffs) {
-    if (coeffs.size() < 2) {
-        return {x, y};
-    }
-    const int num_k = static_cast<int>(coeffs.size()) - 2;
-    T r2 = x * x + y * y;
-    T radial = T(1);
-    T rpow = r2;
-    for (int i = 0; i < num_k; ++i) {
-        radial += T(coeffs[i]) * rpow;
-        rpow *= r2;
-    }
-    T p1 = T(coeffs[num_k]);
-    T p2 = T(coeffs[num_k + 1]);
-    T xt = x * radial + T(2) * p1 * x * y + p2 * (r2 + T(2) * x * x);
-    T yt = y * radial + p1 * (r2 + T(2) * y * y) + T(2) * p2 * x * y;
-    return {xt, yt};
-}
-
 struct ExtrinsicResidual {
     std::vector<PlanarObservation> obs_;
-    double K_[4];
+    const CameraMatrix kmtx_;
     Eigen::VectorXd dist_;
 
     ExtrinsicResidual(std::vector<PlanarObservation> obs,
                       const CameraMatrix& intr,
                       const Eigen::VectorXd& dist)
         : obs_(std::move(obs)),
-          K_{intr.fx, intr.fy, intr.cx, intr.cy},
+          kmtx_(intr),
           dist_(dist) {}
 
     template<typename T>
     bool operator()(const T* cam_pose6, const T* target_pose6, T* residuals) const {
-        Eigen::Matrix<T,3,3> R_cam, R_target;
+        Eigen::Matrix<T, 3, 3> R_cam, R_target;
         ceres::AngleAxisToRotationMatrix(cam_pose6, R_cam.data());
         ceres::AngleAxisToRotationMatrix(target_pose6, R_target.data());
-        Eigen::Matrix<T,3,1> t_cam{cam_pose6[3], cam_pose6[4], cam_pose6[5]};
-        Eigen::Matrix<T,3,1> t_target{target_pose6[3], target_pose6[4], target_pose6[5]};
+        Eigen::Matrix<T, 3, 1> t_cam{cam_pose6[3], cam_pose6[4], cam_pose6[5]};
+        Eigen::Matrix<T, 3, 1> t_target{target_pose6[3], target_pose6[4], target_pose6[5]};
 
-        Eigen::Matrix<T,3,3> R = R_cam * R_target;
-        Eigen::Matrix<T,3,1> t = R_cam * t_target + t_cam;
+        Eigen::Matrix<T, 3, 3> R = R_cam * R_target;
+        Eigen::Matrix<T, 3, 1> t = R_cam * t_target + t_cam;
 
         const int N = static_cast<int>(obs_.size());
         for (int i = 0; i < N; ++i) {
             const auto& ob = obs_[i];
-            Eigen::Matrix<T,3,1> P{T(ob.object_xy.x()), T(ob.object_xy.y()), T(0)};
-            Eigen::Matrix<T,3,1> Pc = R * P + t;
+            Eigen::Matrix<T, 3, 1> P{T(ob.object_xy.x()), T(ob.object_xy.y()), T(0)};
+            Eigen::Matrix<T, 3, 1> Pc = R * P + t;
             T xn = Pc.x() / Pc.z();
             T yn = Pc.y() / Pc.z();
-            Eigen::Matrix<T,2,1> d = distort_point(xn, yn, dist_);
-            T u = T(K_[0]) * d.x() + T(K_[2]);
-            T v = T(K_[1]) * d.y() + T(K_[3]);
-            residuals[2*i]   = u - T(ob.image_uv.x());
-            residuals[2*i+1] = v - T(ob.image_uv.y());
+            Eigen::Matrix<T, 2, 1> xyn {xn, yn};
+            Eigen::Matrix<T, 2, 1> d = apply_distortion(xyn, dist_);
+            auto uv = kmtx_.denormalize(d);
+            residuals[2*i]   = uv.x() - T(ob.image_uv.x());
+            residuals[2*i+1] = uv.y() - T(ob.image_uv.y());
         }
         return true;
     }
@@ -86,25 +66,9 @@ static Eigen::Vector2d project_point(const Eigen::Vector2d& obj,
                                      const CameraMatrix& K,
                                      const Eigen::VectorXd& dist) {
     Eigen::Vector3d P = cam_pose * target_pose * Eigen::Vector3d(obj.x(), obj.y(), 0.0);
-    double xn = P.x() / P.z();
-    double yn = P.y() / P.z();
-    if (dist.size() >= 2) {
-        int num_k = static_cast<int>(dist.size()) - 2;
-        double r2 = xn * xn + yn * yn;
-        double radial = 1.0;
-        double rpow = r2;
-        for (int i = 0; i < num_k; ++i) {
-            radial += dist[i] * rpow;
-            rpow *= r2;
-        }
-        double p1 = dist[num_k];
-        double p2 = dist[num_k + 1];
-        double xt = xn * radial + 2.0 * p1 * xn * yn + p2 * (r2 + 2.0 * xn * xn);
-        double yt = yn * radial + p1 * (r2 + 2.0 * yn * yn) + 2.0 * p2 * xn * yn;
-        xn = xt;
-        yn = yt;
-    }
-    return {K.fx * xn + K.cx, K.fy * yn + K.cy};
+    Eigen::Vector2d xyn { P.x() / P.z(), P.y() / P.z() };
+    xyn = apply_distortion(xyn, dist);
+    return K.denormalize(xyn);
 }
 
 ExtrinsicOptimizationResult optimize_extrinsic_poses(
@@ -113,8 +77,8 @@ ExtrinsicOptimizationResult optimize_extrinsic_poses(
     const std::vector<Eigen::VectorXd>& distortions,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
-    bool verbose) {
-
+    bool verbose
+) {
     ExtrinsicOptimizationResult result;
     const size_t num_cams = intrinsics.size();
     const size_t num_views = views.size();
@@ -169,6 +133,12 @@ ExtrinsicOptimizationResult optimize_extrinsic_poses(
     ceres::Solver::Options opts;
     opts.linear_solver_type = ceres::DENSE_QR;
     opts.minimizer_progress_to_stdout = verbose;
+    constexpr double eps = 1e-6;
+    opts.function_tolerance = eps;
+    opts.gradient_tolerance = eps;
+    opts.parameter_tolerance = eps;
+    opts.max_num_iterations = 1000;
+
     ceres::Solver::Summary summary;
     ceres::Solve(opts, &problem, &summary);
     result.summary = summary.BriefReport();
@@ -209,4 +179,3 @@ ExtrinsicOptimizationResult optimize_extrinsic_poses(
 }
 
 } // namespace vitavision
-

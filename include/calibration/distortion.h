@@ -13,16 +13,39 @@
 namespace vitavision {
 
 template<typename T>
-struct Observation {
+struct Observation final {
     T x, y;   // normalized undistorted coords
     T u, v;   // observed distorted pixel coords
 };
 
-Eigen::Vector2d apply_distortion(const Eigen::Vector2d& norm_xy,
-                                 const Eigen::VectorXd& coeffs);
+template<typename T>
+Eigen::Matrix<T, 2, 1> apply_distortion(
+    const Eigen::Matrix<T, 2, 1>& norm_xy,
+    const Eigen::VectorXd& coeffs
+) {
+    if (coeffs.size() < 2) {
+        throw std::runtime_error("Insufficient distortion coefficients");
+    }
+
+    const int num_k = static_cast<int>(coeffs.size()) - 2;
+    const T x = norm_xy.x();
+    const T y = norm_xy.y();
+    T r2 = x * x + y * y;
+    T radial = T(1);
+    T rpow = r2;
+    for (int i = 0; i < num_k; ++i) {
+        radial += T(coeffs[i]) * rpow;
+        rpow *= r2;
+    }
+    T p1 = T(coeffs[num_k]);
+    T p2 = T(coeffs[num_k + 1]);
+    T xt = x * radial + T(2) * p1 * x * y + p2 * (r2 + T(2) * x * x);
+    T yt = y * radial + p1 * (r2 + T(2) * y * y) + T(2) * p2 * x * y;
+    return {xt, yt};
+}
 
 template<typename T>
-struct DistortionWithResiduals {
+struct DistortionWithResiduals final {
     Eigen::Matrix<T, Eigen::Dynamic, 1> distortion;
     Eigen::Matrix<T, Eigen::Dynamic, 1> residuals;
 };
@@ -82,16 +105,9 @@ std::optional<DistortionWithResiduals<T>> fit_distortion_full(
         b(rv) = dv;
     }
 
-    #if 0
-    auto alpha = A.colPivHouseholderQr().solve(b);
-    #elif 1
     Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(
         A, Eigen::ComputeThinU | Eigen::ComputeThinV);
     auto alpha = svd.solve(b);
-    #else
-    Eigen::Matrix<T, Eigen::Dynamic, 1> alpha = (A.transpose() * A).ldlt().solve(A.transpose() * b);
-    #endif
-
     Eigen::Matrix<T, Eigen::Dynamic, 1> r = A * alpha - b;
 
     return DistortionWithResiduals<T>{alpha, r};
