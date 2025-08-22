@@ -11,20 +11,6 @@
 
 namespace vitavision {
 
-Eigen::Vector2d CameraMatrix::normalize(const Eigen::Vector2d& pix) const {
-    return {
-        (pix.x() - cx) / fx,
-        (pix.y() - cy) / fy
-    };
-}
-
-Eigen::Vector2d CameraMatrix::denormalize(const Eigen::Vector2d& xy) const {
-    return {
-        fx * xy.x() + cx,
-        fy * xy.y() + cy
-    };
-}
-
 // Compute a linear least-squares estimate of the camera intrinsics
 // (fx, fy, cx, cy) from normalized correspondences.  This ignores lens
 // distortion and solves two independent systems:

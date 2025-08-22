@@ -13,11 +13,24 @@
 
 namespace vitavision {
 
-struct CameraMatrix {
+struct CameraMatrix final {
     double fx, fy, cx, cy;
 
-    Eigen::Vector2d normalize(const Eigen::Vector2d& pix) const;
-    Eigen::Vector2d denormalize(const Eigen::Vector2d& xy) const;
+    template<typename T>
+    Eigen::Matrix<T, 2, 1> normalize(const Eigen::Matrix<T, 2, 1>& pix) const {
+        return {
+            (pix.x() - T(cx)) / T(fx),
+            (pix.y() - T(cy)) / T(fy)
+        };
+    }
+
+    template<typename T>
+    Eigen::Matrix<T, 2, 1> denormalize(const Eigen::Matrix<T, 2, 1>& xy) const {
+        return {
+            T(fx) * xy.x() + T(cx),
+            T(fy) * xy.y() + T(cy)
+        };
+    }
 };
 
 // Bounds for intrinsics parameters used during calibration. The default

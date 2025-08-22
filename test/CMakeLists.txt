@@ -53,3 +53,14 @@ target_link_libraries(calib_test
 )
 gtest_discover_tests(calib_test)
 
+# Test for extrinsic pose optimization
+add_executable(extrinsics_test extrinsics_test.cpp)
+target_link_libraries(extrinsics_test
+    PRIVATE calibration
+    PRIVATE GTest::gtest_main
+    PRIVATE GTest::gmock_main
+    PRIVATE Eigen3::Eigen
+    PRIVATE Ceres::ceres
+)
+gtest_discover_tests(extrinsics_test)
+
