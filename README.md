@@ -6,9 +6,9 @@ A C++ library for camera calibration and vision-related geometric transformation
 
 ## Features
 
-- Camera intrinsic and extrinsic calibration
-- Distortion correction
-- Stereo camera calibration
+- Camera intrinsic and extrinsic calibration from planar targets
+- Distortion correction utilities
+- Hand-eye calibration with bundle adjustment (single or multi-camera)
 - Support for various camera models
 - JSON configuration import/export
 
@@ -90,7 +90,25 @@ EOF
 
 ## Usage
 
-TODO
+The library exposes lightweight C++ APIs.  The most common entry points are:
+
+- `calibrate_camera_planar` – full camera calibration from several planar views.
+- `optimize_planar_pose` – single planar pose refinement.
+- `calibrate_hand_eye` – bundle adjustment for hand‑eye calibration.
+
+Example for hand‑eye calibration:
+
+```cpp
+#include <calibration/handeye.h>
+using namespace vitavision;
+
+std::vector<HandEyeObservation> observations = ...; // fill with data
+std::vector<CameraMatrix> intrinsics = ...;         // initial intrinsics
+std::vector<Eigen::Affine3d> hand_eye_guess = ...;  // initial gripper->camera
+
+HandEyeOptions opts; // customise which parameters to optimise
+HandEyeResult result = calibrate_hand_eye(observations, intrinsics, hand_eye_guess, opts);
+```
 
 ## Documentation
 
