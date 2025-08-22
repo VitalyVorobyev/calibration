@@ -37,7 +37,7 @@ struct ExtrinsicResidual {
             T xn = Pc.x() / Pc.z();
             T yn = Pc.y() / Pc.z();
             Eigen::Matrix<T,2,1> xyn{xn, yn};
-            auto uv = cam_.projectNormalized(xyn);
+            auto uv = cam_.project_normalized(xyn);
             residuals[2*i]   = uv.x() - T(ob.image_uv.x());
             residuals[2*i+1] = uv.y() - T(ob.image_uv.y());
         }
@@ -135,7 +135,7 @@ static std::pair<double, size_t> compute_residual_stats(
                 Eigen::Vector3d P = result.camera_poses[c] * result.target_poses[v]
                                     * Eigen::Vector3d(ob.object_xy.x(), ob.object_xy.y(), 0.0);
                 Eigen::Vector2d xyn{P.x()/P.z(), P.y()/P.z()};
-                Eigen::Vector2d pred = cameras[c].projectNormalized(xyn);
+                Eigen::Vector2d pred = cameras[c].project_normalized(xyn);
                 Eigen::Vector2d diff = pred - ob.image_uv;
                 ssr += diff.squaredNorm();
                 count += 2;
@@ -189,13 +189,19 @@ ExtrinsicOptimizationResult optimize_extrinsic_poses(
     const std::vector<Camera>& cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
-    bool verbose) {
+    bool verbose
+) {
     ExtrinsicOptimizationResult result;
     const size_t num_cams = cameras.size();
     const size_t num_views = views.size();
     if (initial_camera_poses.size() != num_cams ||
         initial_target_poses.size() != num_views) {
-        return result;
+        throw std::invalid_argument("Incompatible pose vector sizes: "
+                                    "cameras: " + std::to_string(num_cams) +
+                                    ", views: " + std::to_string(num_views) +
+                                    ", initial_camera_poses: " + std::to_string(initial_camera_poses.size()) +
+                                    ", initial_target_poses: " + std::to_string(initial_target_poses.size()) +
+                                    " are not compatible.");
     }
 
     std::vector<Pose6> cam_poses(num_cams);
