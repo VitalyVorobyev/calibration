@@ -96,27 +96,14 @@ jobs:
           # Build with MSVC
           cmake --build "$env:BUILD_DIR" --config ${{ matrix.build_type }} -j 2
 
-      # ---------- Smoke tests ----------
-      - name: Run smoke test (Unix)
+      # ---------- Unit tests ----------
+      - name: Run unit tests (Unix)
         if: runner.os != 'Windows'
-        shell: bash
         run: |
-          "$BUILD_DIR/examples/homography" << 'EOF'
-          4
-          0   0    10 20
-          100 0    110 18
-          100 50   120 70
-          0   50   8  72
-          EOF
+          ctest --test-dir "$BUILD_DIR" --output-on-failure
 
-      - name: Run smoke test (Windows)
+      - name: Run unit tests (Windows)
         if: runner.os == 'Windows'
-        shell: bash
+        shell: pwsh
         run: |
-          "$BUILD_DIR/examples/homography.exe" << 'EOF'
-          4
-          0   0    10 20
-          100 0    110 18
-          100 50   120 70
-          0   50   8  72
-          EOF
+          ctest --test-dir "$env:BUILD_DIR" -C ${{ matrix.build_type }} --output-on-failure
