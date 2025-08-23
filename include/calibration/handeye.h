@@ -18,14 +18,14 @@ namespace vitavision {
  * cameras when the robot end-effector is in a known pose relative to the base
  * frame.
  */
-struct HandEyeObservation {
+struct HandEyeObservation final {
     PlanarView view;                ///< Planar target observations
     Eigen::Affine3d base_T_gripper; ///< Pose of the gripper in the base frame
     size_t camera_index = 0;        ///< Which camera acquired this view
 };
 
 /** Options controlling the hand-eye calibration optimisation. */
-struct HandEyeOptions {
+struct HandEyeOptions final {
     bool optimize_intrinsics = false;    ///< Solve for camera intrinsics
     bool optimize_target_pose = true;    ///< Solve for base->target pose
     bool optimize_hand_eye = true;       ///< Solve for gripper->camera pose
@@ -34,7 +34,7 @@ struct HandEyeOptions {
 };
 
 /** Result returned by hand-eye calibration. */
-struct HandEyeResult {
+struct HandEyeResult final {
     std::vector<CameraMatrix> intrinsics;          ///< Estimated intrinsics per camera
     std::vector<Eigen::Affine3d> hand_eye;         ///< Estimated gripper->camera transforms
     std::vector<Eigen::Affine3d> extrinsics;       ///< Estimated reference->camera extrinsics

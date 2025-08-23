@@ -159,7 +159,7 @@ struct HandEyeReprojResidual {
     }
 };
 
-struct HEParameterBlocks {
+struct HEParameterBlocks final {
     std::array<double,6> base_target6{};
     std::array<double,6> he_ref6{};
     std::vector<std::array<double,6>> ext6;
@@ -235,7 +235,6 @@ static void build_problem(const std::vector<HandEyeObservation>& observations,
                           HEParameterBlocks& blocks,
                           ceres::Problem& p) {
     double identity_ext6[6] = {0,0,0,0,0,0};
-    const size_t num_cams = blocks.K.size();
     for (const auto& obs : observations) {
         const size_t cam = obs.camera_index;
         bool use_ext = cam > 0;
