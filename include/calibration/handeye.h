@@ -60,6 +60,7 @@ HandEyeResult calibrate_hand_eye(
     const std::vector<HandEyeObservation>& observations,
     const std::vector<CameraMatrix>& initial_intrinsics,
     const std::vector<Eigen::Affine3d>& initial_hand_eye,
+    const Eigen::Affine3d& initial_base_target = Eigen::Affine3d::Identity(),
     const HandEyeOptions& opts = {});
 
 } // namespace vitavision

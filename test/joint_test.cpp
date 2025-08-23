@@ -62,4 +62,3 @@ TEST(JointCalibration, RecoverAllParameters) {
     ASSERT_EQ(res.intrinsic_covariances.size(), static_cast<size_t>(kCams));
     EXPECT_GT(res.intrinsic_covariances[0].trace(), 0.0);
 }
-

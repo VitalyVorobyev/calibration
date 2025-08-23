@@ -107,7 +107,8 @@ std::vector<CameraMatrix> intrinsics = ...;         // initial intrinsics
 std::vector<Eigen::Affine3d> hand_eye_guess = ...;  // initial gripper->camera
 
 HandEyeOptions opts; // customise which parameters to optimise
-HandEyeResult result = calibrate_hand_eye(observations, intrinsics, hand_eye_guess, opts);
+HandEyeResult result = calibrate_hand_eye(observations, intrinsics, hand_eye_guess,
+                                          Eigen::Affine3d::Identity(), opts);
 ```
 
 ## Documentation
