@@ -8,7 +8,7 @@ using namespace vitavision;
 
 TEST(JointCalibration, RecoverAllParameters) {
     const int kCams = 2;
-    CameraMatrix K{100.0, 100.0, 30.0, 30.0};
+    CameraMatrix K{100.0, 100.0, 0.0, 0.0};
     Eigen::VectorXd dist(2);
     dist << 0.0, 0.0;
 
@@ -23,8 +23,10 @@ TEST(JointCalibration, RecoverAllParameters) {
         Eigen::Translation3d(0.5, -0.2, 4.0) * Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitY()),
     };
 
+    // need at least 8 points to fit distortions
     std::vector<Eigen::Vector2d> points = {
-        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}
+        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0},
+        {0.5, 0.5}, {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5}
     };
 
     std::vector<ExtrinsicPlanarView> views;

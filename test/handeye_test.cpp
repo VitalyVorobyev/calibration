@@ -19,8 +19,10 @@ TEST(HandEye, SingleCameraOptimization) {
     Eigen::Affine3d base_T_target = Eigen::Affine3d::Identity();
     base_T_target.translation() = Eigen::Vector3d(0.2, 0.0, 0.0);
 
+    // need at least 8 points to fit distortions
     std::vector<Eigen::Vector2d> obj{
-        {-0.1, -0.1}, {0.1, -0.1}, {0.1, 0.1}, {-0.1, 0.1}
+        {-0.1, -0.1}, {0.1, -0.1}, {0.1, 0.1}, {-0.1, 0.1},
+        {0.5, 0.5}, {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5}
     };
 
     std::vector<HandEyeObservation> observations;
@@ -53,6 +55,6 @@ TEST(HandEye, SingleCameraOptimization) {
     HandEyeOptions opts; opts.optimize_intrinsics = false; opts.optimize_target_pose = true;
     HandEyeResult res = calibrate_hand_eye(observations, {K}, initX, {}, Eigen::Affine3d::Identity(), opts);
 
-    EXPECT_NEAR(0.0, (res.hand_eye[0].translation() - X.translation()).norm(), 0.2);
-    EXPECT_NEAR(0.0, (res.base_T_target.translation() - base_T_target.translation()).norm(), 0.1);
+    EXPECT_NEAR(0.0, (res.hand_eye[0].translation() - X.translation()).norm(), 0.001);
+    EXPECT_NEAR(0.0, (res.base_T_target.translation() - base_T_target.translation()).norm(), 0.001);
 }

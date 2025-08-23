@@ -162,9 +162,17 @@ struct JointResidual {
         }
 
         auto dr = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], num_radial_);
-        if (!dr) return false;
-        const auto& r = dr->residuals;
-        for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
+        if (!dr) {
+            std::cerr << "Failed to fit distortion" << std::endl;
+            for (int i = 0; i < N; ++i) {
+                const auto& ob = o[i];
+                residuals[2*i]   = ob.x - ob.u;
+                residuals[2*i+1] = ob.y - ob.v;
+            }
+        } else {
+            const auto& r = dr->residuals;
+            for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
+        }
         return true;
     }
 };
