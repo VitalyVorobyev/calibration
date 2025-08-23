@@ -51,7 +51,7 @@ TEST(HandEye, SingleCameraOptimization) {
 
     Eigen::Affine3d initX = estimate_hand_eye_initial(base_T_gripper_list, target_T_camera_list);
     HandEyeOptions opts; opts.optimize_intrinsics = false; opts.optimize_target_pose = true;
-    HandEyeResult res = calibrate_hand_eye(observations, {K}, {initX}, Eigen::Affine3d::Identity(), opts);
+    HandEyeResult res = calibrate_hand_eye(observations, {K}, initX, {}, Eigen::Affine3d::Identity(), opts);
 
     EXPECT_NEAR(0.0, (res.hand_eye[0].translation() - X.translation()).norm(), 1e-3);
     EXPECT_NEAR(0.0, (res.base_T_target.translation() - base_T_target.translation()).norm(), 1e-3);
