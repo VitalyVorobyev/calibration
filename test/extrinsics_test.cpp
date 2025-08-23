@@ -12,7 +12,7 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     Eigen::VectorXd dist(2);
     dist << 0.0, 0.0; // no distortion
 
-    std::vector<Camera> cameras = {Camera{K, dist}, Camera{K, dist}};
+    std::vector<Camera<double>> cameras = {Camera{K, dist}, Camera{K, dist}};
 
     // Ground-truth camera poses (reference camera is identity)
     Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
@@ -73,4 +73,3 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
         EXPECT_TRUE(result.target_poses[v].linear().isApprox(target_gt[v].linear(), 1e-3));
     }
 }
-

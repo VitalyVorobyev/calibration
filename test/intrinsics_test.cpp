@@ -18,7 +18,7 @@ namespace {
 
 // Helper function to distort a point with given intrinsics and distortion
 static void distort_and_project(double x, double y,
-                         const CameraMatrix& intr,
+                         const CameraMatrix<double>& intr,
                          const std::vector<double>& k_radial,
                          double p1, double p2,
                          double& u, double& v) {
@@ -43,7 +43,7 @@ static void distort_and_project(double x, double y,
 
 // Generate synthetic observations with known intrinsics and distortion
 std::vector<Observation<double>> generate_synthetic_data(
-    const CameraMatrix& intr_true,
+    const CameraMatrix<double>& intr_true,
     const std::vector<double>& k_radial,
     double p1, double p2,
     int n_points = 300,
@@ -106,7 +106,7 @@ struct IntrinsicsVPResidualTestFunctor {
 // Verify that the linear intrinsics estimation provides a reasonable
 // initial guess even in the presence of moderate distortion and noise.
 TEST(IntrinsicsTest, LinearInitialGuess) {
-    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
+    CameraMatrix<double> intr_true{800.0, 820.0, 640.0, 360.0};
     std::vector<double> k_radial = {-0.20, 0.03};
     double p1 = 0.001, p2 = -0.0005;
 
@@ -115,7 +115,7 @@ TEST(IntrinsicsTest, LinearInitialGuess) {
 
     auto guess_opt = estimate_intrinsics_linear(observations);
     ASSERT_TRUE(guess_opt.has_value());
-    CameraMatrix guess = *guess_opt;
+    CameraMatrix<double> guess = *guess_opt;
 
     EXPECT_NEAR(guess.fx, intr_true.fx, 60.0);
     EXPECT_NEAR(guess.fy, intr_true.fy, 60.0);
@@ -126,7 +126,7 @@ TEST(IntrinsicsTest, LinearInitialGuess) {
 // Verify that alternating linear estimation of intrinsics and distortion
 // yields a better initialization than a single linear solve.
 TEST(IntrinsicsTest, IterativeLinearInitialization) {
-    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
+    CameraMatrix<double> intr_true{800.0, 820.0, 640.0, 360.0};
     std::vector<double> k_radial = {-0.20, 0.03};
     double p1 = 0.001, p2 = -0.0005;
 
@@ -164,7 +164,7 @@ TEST(IntrinsicsTest, IterativeLinearInitialization) {
 
 TEST(IntrinsicsTest, OptimizeExact) {
     // True intrinsics
-    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
+    CameraMatrix<double> intr_true{800.0, 820.0, 640.0, 360.0};
 
     // True distortion
     std::vector<double> k_radial = {-0.20, 0.03};
@@ -194,7 +194,7 @@ TEST(IntrinsicsTest, OptimizeExact) {
 }
 
 TEST(IntrinsicsTest, AutoDiffJacobianParity) {
-    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
+    CameraMatrix<double> intr_true{800.0, 820.0, 640.0, 360.0};
     std::vector<double> k_radial = {-0.2, 0.03};
     double p1 = 0.001, p2 = -0.0005;
     auto observations = generate_synthetic_data(intr_true, k_radial, p1, p2, 20, 0.1);
@@ -235,7 +235,7 @@ TEST(IntrinsicsTest, AutoDiffJacobianParity) {
 
 TEST(IntrinsicsTest, OptimizeNoisy) {
     // True intrinsics
-    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
+    CameraMatrix<double> intr_true{800.0, 820.0, 640.0, 360.0};
 
     // True distortion
     std::vector<double> k_radial = {-0.20, 0.03};
@@ -270,7 +270,7 @@ TEST(IntrinsicsTest, OptimizeNoisy) {
 
 TEST(IntrinsicsTest, DifferentRadialCoeffs) {
     // Test with different numbers of radial coefficients
-    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
+    CameraMatrix<double> intr_true{800.0, 820.0, 640.0, 360.0};
 
     // True distortion with 3 radial terms
     std::vector<double> k_radial = {-0.20, 0.03, 0.01};
@@ -281,7 +281,7 @@ TEST(IntrinsicsTest, DifferentRadialCoeffs) {
         intr_true, k_radial, p1, p2, 300, 0.1);
 
     // Initial guess
-    CameraMatrix initial_guess{780.0, 800.0, 630.0, 350.0};
+    CameraMatrix<double> initial_guess{780.0, 800.0, 630.0, 350.0};
 
     // Optimize with 1, 2, and 3 radial coefficients
     auto result1 = optimize_intrinsics(observations, 1, initial_guess, false);
@@ -301,7 +301,7 @@ TEST(IntrinsicsTest, DifferentRadialCoeffs) {
 
 TEST(IntrinsicsTest, OptimizationSummary) {
     // True intrinsics
-    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
+    CameraMatrix<double> intr_true{800.0, 820.0, 640.0, 360.0};
 
     // True distortion
     std::vector<double> k_radial = {-0.20, 0.03};
@@ -312,7 +312,7 @@ TEST(IntrinsicsTest, OptimizationSummary) {
         intr_true, k_radial, p1, p2, 100, 0.1);
 
     // Initial guess
-    CameraMatrix initial_guess{780.0, 800.0, 630.0, 350.0};
+    CameraMatrix<double> initial_guess{780.0, 800.0, 630.0, 350.0};
 
     // Optimize with verbose output
     auto result = optimize_intrinsics(observations, 2, initial_guess, true);

@@ -14,9 +14,11 @@
 #include "calibration/planarpose.h"
 #include "calibration/intrinsics.h"
 
+using namespace vitavision;
+
 // Helper function to create a simple synthetic planar target
 std::pair<std::vector<Eigen::Vector2d>, std::vector<Eigen::Vector2d>>
-createSyntheticPlanarData(const Eigen::Affine3d& pose, const vitavision::CameraMatrix& intrinsics) {
+createSyntheticPlanarData(const Eigen::Affine3d& pose, const CameraMatrix<double>& intrinsics) {
     // Create a grid of points on the plane Z=0
     std::vector<Eigen::Vector2d> obj_points;
     std::vector<Eigen::Vector2d> img_points;
@@ -116,7 +118,7 @@ TEST(PlanarPoseTest, HomographyDecomposition) {
 
 TEST(PlanarPoseTest, DLTEstimation) {
     // Create synthetic camera intrinsics
-    CameraMatrix intrinsics;
+    CameraMatrix<double> intrinsics;
     intrinsics.fx = 1000;
     intrinsics.fy = 1000;
     intrinsics.cx = 500;
@@ -150,7 +152,7 @@ TEST(PlanarPoseTest, DLTEstimation) {
 }
 
 TEST(PlanarPoseTest, AutoDiffJacobianParity) {
-    CameraMatrix intrinsics; intrinsics.fx = intrinsics.fy = 1000; intrinsics.cx = intrinsics.cy = 500;
+    CameraMatrix<double> intrinsics; intrinsics.fx = intrinsics.fy = 1000; intrinsics.cx = intrinsics.cy = 500;
     Eigen::Affine3d pose = Eigen::Affine3d::Identity();
     pose.linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d(1,1,1).normalized()).toRotationMatrix();
     pose.translation() = Eigen::Vector3d(0.1,0.2,2.0);
@@ -199,7 +201,7 @@ TEST(PlanarPoseTest, AutoDiffJacobianParity) {
 // Temporarily disable this test while we investigate segmentation fault
 TEST(PlanarPoseTest, OptimizePlanarPose) {
     // Create synthetic camera intrinsics
-    CameraMatrix intrinsics;
+    CameraMatrix<double> intrinsics;
     intrinsics.fx = 1000;
     intrinsics.fy = 1000;
     intrinsics.cx = 500;
@@ -269,7 +271,7 @@ TEST(PlanarPoseTest, OptimizePlanarPose) {
 // Temporarily disable this test while we investigate segmentation fault
 TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
     // Create synthetic camera intrinsics
-    CameraMatrix intrinsics;
+    CameraMatrix<double> intrinsics;
     intrinsics.fx = 1000;
     intrinsics.fy = 1000;
     intrinsics.cx = 500;
@@ -354,7 +356,7 @@ TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
 // The issue is likely in the implementation of optimize_planar_pose or in the way it's being used
 TEST(PlanarPoseTest, BasicOptimizePlanarPoseTest) {
     // Create synthetic camera intrinsics
-    CameraMatrix intrinsics;
+    CameraMatrix<double> intrinsics;
     intrinsics.fx = 1000;
     intrinsics.fy = 1000;
     intrinsics.cx = 500;

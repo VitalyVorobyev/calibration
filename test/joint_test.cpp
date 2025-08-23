@@ -2,7 +2,7 @@
 
 #include <Eigen/Geometry>
 
-#include "calibration/extrinsics.h"
+#include "calibration/jointintrextr.h"
 
 using namespace vitavision;
 
@@ -15,7 +15,7 @@ TEST(JointCalibration, RecoverAllParameters) {
     const Eigen::Affine3d cam0extr = Eigen::Affine3d::Identity();
     const Eigen::Affine3d cam1extr = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Affine3d::Identity();
 
-    std::vector<Camera> cameras_gt = {
+    std::vector<Camera<double>> cameras_gt = {
         Camera{K, dist, cam0extr},
         Camera{K, dist, cam1extr}
     };
@@ -46,7 +46,7 @@ TEST(JointCalibration, RecoverAllParameters) {
     }
 
     // Perturbed intrinsics for initialization
-    std::vector<Camera> cam_init = {
+    std::vector<Camera<double>> cam_init = {
         Camera{CameraMatrix{90.0, 95.0, 1.0, -1.0}, dist, Eigen::Affine3d::Identity()},
         Camera{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dist, Eigen::Affine3d::Identity()}
     };

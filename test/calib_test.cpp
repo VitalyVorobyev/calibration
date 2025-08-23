@@ -12,7 +12,7 @@ namespace {
 
 static void distort_and_project(const Eigen::Vector3d& P,
                                 const Eigen::Affine3d& pose,
-                                const CameraMatrix& intr,
+                                const CameraMatrix<double>& intr,
                                 const std::vector<double>& k_radial,
                                 double p1, double p2,
                                 Eigen::Vector2d& uv) {
@@ -32,7 +32,7 @@ static void distort_and_project(const Eigen::Vector3d& P,
 } // namespace
 
 TEST(CameraCalibrationTest, PlanarViewsExact) {
-    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
+    CameraMatrix<double> intr_true{800.0, 820.0, 640.0, 360.0};
     std::vector<double> k_rad = {-0.20, 0.03};
     double p1 = 0.001, p2 = -0.0005;
 
@@ -68,7 +68,7 @@ TEST(CameraCalibrationTest, PlanarViewsExact) {
         }
     }
 
-    CameraMatrix guess{780.0, 800.0, 630.0, 350.0};
+    CameraMatrix<double> guess{780.0, 800.0, 630.0, 350.0};
     auto res = calibrate_camera_planar(views, 2, guess, true);
 
     EXPECT_NEAR(res.intrinsics.fx, intr_true.fx, 1e-4);

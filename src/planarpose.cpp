@@ -70,8 +70,6 @@ Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj
     return pose_from_homography_normalized(H);
 }
 
-using Pose6 = Eigen::Matrix<double, 6, 1>;
-
 // Residual functor used with AutoDiffCostFunction for planar pose
 // estimation.  For a given pose (angle-axis + translation) it builds the
 // variable projection system to eliminate distortion coefficients.
@@ -108,7 +106,7 @@ struct PlanarPoseVPResidual {
     }
 
     // Helper used after optimization to compute best distortion coefficients.
-    Eigen::VectorXd SolveDistortionFor(const Pose6& pose6) const {
+    Eigen::VectorXd SolveDistortionFor(const Pose6<double>& pose6) const {
         std::vector<Observation<double>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(),
             [pose6](const PlanarObservation& s) { return to_observation(s, pose6.data()); });
@@ -118,7 +116,7 @@ struct PlanarPoseVPResidual {
     }
 };
 
-static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
+static Eigen::Affine3d axisangle_to_pose(const Pose6<double>& pose6) {
     Eigen::Matrix3d rotation_matrix;
     ceres::AngleAxisToRotationMatrix(pose6.head<3>().data(), rotation_matrix.data());
 
@@ -142,7 +140,7 @@ PlanarPoseFitResult optimize_planar_pose(
     auto init_pose = estimate_planar_pose_dlt(obj_xy, img_uv, intrinsics);
 
     // Step 2: Optimize pose using non-linear least squares
-    Pose6 pose6;
+    Pose6<double> pose6;
     ceres::RotationMatrixToAngleAxis(reinterpret_cast<const double*>(init_pose.rotation().data()), pose6.data());
     pose6[3] = init_pose.translation().x();
     pose6[4] = init_pose.translation().y();
