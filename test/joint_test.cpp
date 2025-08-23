@@ -8,7 +8,7 @@ using namespace vitavision;
 
 TEST(JointCalibration, RecoverAllParameters) {
     const int kCams = 2;
-    CameraMatrix K{100.0, 100.0, 30.0, 30.0};
+    CameraMatrix K{100.0, 100.0, 0.0, 0.0};
     Eigen::VectorXd dist(2);
     dist << 0.0, 0.0;
 
@@ -24,7 +24,8 @@ TEST(JointCalibration, RecoverAllParameters) {
     };
 
     std::vector<Eigen::Vector2d> points = {
-        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}
+        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0},
+        {0.5, 0.5}, {-1.0, -1.0}, {-1.0, 1.0}, {1.0, -1.0}
     };
 
     std::vector<ExtrinsicPlanarView> views;
