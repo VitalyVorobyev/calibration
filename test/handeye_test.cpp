@@ -88,3 +88,63 @@ TEST(HandEye, SingleCameraOptimization) {
     Eigen::AngleAxisd rot_diff(res.hand_eye[0].linear() * X.linear().transpose());
     EXPECT_NEAR(0.0, rot_diff.angle(), 0.01);
 }
+
+TEST(HandEye, RecoverTargetPoseWithKnownHandEye) {
+    CameraMatrix K{100.0, 100.0, 64.0, 48.0};
+
+    Eigen::Affine3d X = Eigen::Affine3d::Identity();
+    X.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
+    X.translation() = Eigen::Vector3d(0.1, 0.0, 0.05);
+
+    Eigen::Affine3d base_T_target = Eigen::Affine3d::Identity();
+    base_T_target.translation() = Eigen::Vector3d(0.2, 0.0, 0.0);
+
+    std::vector<Eigen::Vector2d> obj{
+        {-0.1, -0.1}, {0.1, -0.1}, {0.1, 0.1}, {-0.1, 0.1},
+        {0.5, 0.5}, {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5},
+        {-2.0, 1.0}, {0.5, -2.5}, {-2.5, -0.5}
+    };
+
+    std::vector<HandEyeObservation> observations;
+
+    for (int i = 0; i < 8; ++i) {
+        double angle = i * M_PI / 4.0;
+        Eigen::Affine3d base_T_gripper = Eigen::Affine3d::Identity();
+        base_T_gripper.translation() = Eigen::Vector3d(
+            0.1 * std::cos(angle),
+            0.1 * std::sin(angle),
+            0.3 + 0.05 * i);
+        Eigen::Matrix3d rot = Eigen::AngleAxisd(0.1 * i, Eigen::Vector3d(
+            std::cos(angle),
+            std::sin(angle),
+            0.5).normalized()).toRotationMatrix();
+        base_T_gripper.linear() = rot;
+
+        Eigen::Affine3d base_T_camera = base_T_gripper * X;
+        Eigen::Affine3d target_T_camera = base_T_target.inverse() * base_T_camera;
+
+        std::vector<Eigen::Vector2d> img;
+        img.reserve(obj.size());
+        for (const auto& xy : obj) {
+            Eigen::Vector3d P(xy.x(), xy.y(), 0.0);
+            Eigen::Vector3d Pc = target_T_camera.linear() * P + target_T_camera.translation();
+            double u = K.fx * (Pc.x() / Pc.z()) + K.cx;
+            double v = K.fy * (Pc.y() / Pc.z()) + K.cy;
+            img.emplace_back(u, v);
+        }
+        observations.push_back({make_view(obj, img), base_T_gripper, 0});
+    }
+
+    // Initial base->target is perturbed
+    Eigen::Affine3d init_bt = base_T_target;
+    init_bt.translation() += Eigen::Vector3d(0.01, -0.01, 0.02);
+
+    HandEyeOptions opts;
+    opts.optimize_intrinsics = false;
+    opts.optimize_target_pose = true;
+    opts.optimize_hand_eye = false; // hand-eye is assumed known
+
+    HandEyeResult res = calibrate_hand_eye(observations, {K}, X, {}, init_bt, opts);
+
+    EXPECT_NEAR(0.0, (res.base_T_target.translation() - base_T_target.translation()).norm(), 1e-3);
+}

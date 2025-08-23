@@ -265,7 +265,12 @@ static void build_problem(const std::vector<HandEyeObservation>& observations,
     // keep identity extrinsic constant
     p.SetParameterBlockConstant(identity_ext6);
 
-    if (!opts.optimize_target_pose) {
+    const bool single_cam = blocks.K.size() == 1;
+
+    // With a single camera, the hand-eye and target pose cannot be estimated
+    // simultaneously.  If both are requested, fix the target pose to the
+    // initial guess to remove the gauge freedom.
+    if (!opts.optimize_target_pose || (single_cam && opts.optimize_hand_eye)) {
         p.SetParameterBlockConstant(blocks.base_target6.data());
     }
     if (!opts.optimize_hand_eye) {

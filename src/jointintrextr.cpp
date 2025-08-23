@@ -72,6 +72,14 @@ static void setup_joint_problem(
     for (size_t v = 0; v < num_views; ++v) {
         problem.AddParameterBlock(targ_poses[v].data(), 6);
     }
+    // Fix the first target pose to remove the overall scale ambiguity between
+    // target translation and the focal length. Without anchoring one target
+    // pose, the optimisation can trade off focal length against scene scale
+    // and still achieve zero reprojection error.  Keeping the first target
+    // constant defines the world scale and allows intrinsics to be recovered.
+    if (!targ_poses.empty()) {
+        problem.SetParameterBlockConstant(targ_poses[0].data());
+    }
 
     // Residuals
     for (size_t v = 0; v < num_views; ++v) {
