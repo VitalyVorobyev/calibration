@@ -9,6 +9,36 @@
 
 namespace vitavision {
 
+using Pose6 = Eigen::Matrix<double, 6, 1>;
+
+inline Eigen::Affine3d pose6_to_affine(const Pose6& p) {
+    Eigen::Matrix3d R;
+    ceres::AngleAxisToRotationMatrix(p.head<3>().data(), R.data());
+    Eigen::Affine3d T = Eigen::Affine3d::Identity();
+    T.linear() = R;
+    T.translation() = p.tail<3>();
+    return T;
+}
+
+// Utility: average a set of affine transforms (rotation via quaternion averaging)
+inline Eigen::Affine3d average_affines(const std::vector<Eigen::Affine3d>& poses) {
+    if (poses.empty()) return Eigen::Affine3d::Identity();
+    Eigen::Vector3d t = Eigen::Vector3d::Zero();
+    Eigen::Quaterniond q_sum(0,0,0,0);
+    for (const auto& p : poses) {
+        t += p.translation();
+        Eigen::Quaterniond q(p.linear());
+        if (q_sum.coeffs().dot(q.coeffs()) < 0.0) q.coeffs() *= -1.0;
+        q_sum.coeffs() += q.coeffs();
+    }
+    t /= static_cast<double>(poses.size());
+    q_sum.normalize();
+    Eigen::Affine3d avg = Eigen::Affine3d::Identity();
+    avg.linear() = q_sum.toRotationMatrix();
+    avg.translation() = t;
+    return avg;
+}
+
 template<typename T>
 Observation<T> to_observation(const PlanarObservation& obs, const T* pose6) {
     const T* aa = pose6;      // angle-axis

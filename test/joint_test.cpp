@@ -2,7 +2,7 @@
 
 #include <Eigen/Geometry>
 
-#include "calibration/extrinsics.h"
+#include "calibration/jointintrextr.h"
 
 using namespace vitavision;
 
