@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "calibration/handeye.h"
+#include "calibration/camera.h"
 
 using namespace vitavision;
 
@@ -11,6 +12,7 @@ static PlanarView make_view(const std::vector<Eigen::Vector2d>& obj,
 
 TEST(HandEye, SingleCameraOptimization) {
     CameraMatrix K{100.0, 100.0, 64.0, 48.0};
+    Eigen::VectorXd dist(2); dist << 0.0, 0.0;
 
     Eigen::Affine3d X = Eigen::Affine3d::Identity();
     X.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
@@ -38,14 +40,12 @@ TEST(HandEye, SingleCameraOptimization) {
         Eigen::Affine3d target_T_camera = base_T_target.inverse() * base_T_camera;
         target_T_camera_list.push_back(target_T_camera);
 
+        Camera cam{K, dist, base_T_camera};
         std::vector<Eigen::Vector2d> img;
         img.reserve(obj.size());
         for (const auto& xy : obj) {
-            Eigen::Vector3d P(xy.x(), xy.y(), 0.0);
-            Eigen::Vector3d Pc = target_T_camera.linear() * P + target_T_camera.translation();
-            double u = K.fx * (Pc.x() / Pc.z()) + K.cx;
-            double v = K.fy * (Pc.y() / Pc.z()) + K.cy;
-            img.emplace_back(u, v);
+            Eigen::Vector3d Pw = base_T_target * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
+            img.emplace_back(cam.project(Pw));
         }
         HandEyeObservation ho{make_view(obj, img), base_T_gripper, 0};
         observations.push_back(ho);
