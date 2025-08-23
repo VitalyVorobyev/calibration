@@ -104,12 +104,19 @@ using namespace vitavision;
 
 std::vector<HandEyeObservation> observations = ...; // fill with data
 std::vector<CameraMatrix> intrinsics = ...;         // initial intrinsics
-std::vector<Eigen::Affine3d> hand_eye_guess = ...;  // initial gripper->camera
+Eigen::Affine3d hand_eye_guess = ...;               // gripper->reference camera
+std::vector<Eigen::Affine3d> extrinsics = ...;      // reference->camera (for cams>0)
 
 HandEyeOptions opts; // customise which parameters to optimise
-HandEyeResult result = calibrate_hand_eye(observations, intrinsics, hand_eye_guess,
+HandEyeResult result = calibrate_hand_eye(observations, intrinsics,
+                                          hand_eye_guess, extrinsics,
                                           Eigen::Affine3d::Identity(), opts);
 ```
+
+The first camera in `intrinsics` is treated as the reference camera.  The
+`hand_eye_guess` specifies the gripper pose relative to this camera.  For any
+additional cameras, provide their poses relative to the reference camera via
+`extrinsics`.
 
 ## Documentation
 
