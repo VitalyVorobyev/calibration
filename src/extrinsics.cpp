@@ -83,7 +83,8 @@ struct ExtrinsicResidual {
     ExtrinsicResidual(std::vector<PlanarObservation> obs, const Camera<double>& cam)
         : obs_(std::move(obs)), cam_(cam) {}
 
-    template <typename T>
+    #if 0
+    template<typename T>
     bool operator()(const T* cam_pose6, const T* target_pose6, T* residuals) const {
         Eigen::Transform<T, 3, Eigen::Affine> T_cam, T_target;
         ceres::AngleAxisToRotationMatrix(cam_pose6, T_cam.linear().data());
@@ -118,6 +119,40 @@ struct ExtrinsicResidual {
         }
         return true;
     }
+    #else
+    template<typename T>
+    bool operator()(const T* cam_pose6, const T* target_pose6, T* residuals) const {
+        Eigen::Matrix<T,3,1> cam_t{cam_pose6[3], cam_pose6[4], cam_pose6[5]};
+        Eigen::Matrix<T,3,1> target_t{target_pose6[3], target_pose6[4], target_pose6[5]};
+
+        Eigen::Matrix<T,3,3> cam_R, target_R;
+        ceres::AngleAxisToRotationMatrix(cam_pose6, cam_R.data());
+        ceres::AngleAxisToRotationMatrix(target_pose6, target_R.data());
+
+        Eigen::Matrix<T,3,3> R = cam_R * target_R;
+        Eigen::Matrix<T,3,1> t = cam_R * target_t + cam_t;
+
+        T fx = T(cam_.intrinsics.fx);
+        T fy = T(cam_.intrinsics.fy);
+        T cx = T(cam_.intrinsics.cx);
+        T cy = T(cam_.intrinsics.cy);
+
+        const int N = static_cast<int>(obs_.size());
+        for (int i = 0; i < N; ++i) {
+            const auto& ob = obs_[i];
+            Eigen::Matrix<T,3,1> P{T(ob.object_xy.x()), T(ob.object_xy.y()), T(0)};
+            Eigen::Matrix<T,3,1> Pc = R * P + t;
+
+            T x = Pc.x() / Pc.z();
+            T y = Pc.y() / Pc.z();
+            T u = fx * x + cx;
+            T v = fy * y + cy;
+            residuals[2*i]   = u - T(ob.image_uv.x());
+            residuals[2*i+1] = v - T(ob.image_uv.y());
+        }
+        return true;
+    }
+    #endif
 };
 
 static void initialize_pose_vectors(const std::vector<Eigen::Affine3d>& initial_camera_poses,
