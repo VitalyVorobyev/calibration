@@ -32,7 +32,7 @@ struct InitialExtrinsicGuess final {
 };
 
 struct JointOptimizationResult final {
-    std::vector<CameraMatrix> intrinsics;                       // Optimized camera matrices
+    std::vector<CameraMatrix<double>> intrinsics;                       // Optimized camera matrices
     std::vector<Eigen::VectorXd> distortions;                   // Estimated distortion coeffs
     std::vector<Eigen::Affine3d> camera_poses;                  // reference->camera
     std::vector<Eigen::Affine3d> target_poses;                  // target->reference
@@ -45,18 +45,18 @@ struct JointOptimizationResult final {
 
 InitialExtrinsicGuess make_initial_extrinsic_guess(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras);
+    const std::vector<Camera<double>>& cameras);
 
 JointOptimizationResult optimize_joint_intrinsics_extrinsics(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& initial_cameras,
+    const std::vector<Camera<double>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
     bool verbose = false);
 
 ExtrinsicOptimizationResult optimize_extrinsic_poses(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras,
+    const std::vector<Camera<double>>& cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
     bool verbose = false);

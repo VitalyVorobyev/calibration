@@ -10,35 +10,9 @@
 
 #include "calibration/planarpose.h"
 
+#include "observationutils.h"
+
 namespace vitavision {
-
-// Utility: average a set of affine transforms (rotation via quaternion averaging)
-static Eigen::Affine3d average_affines(const std::vector<Eigen::Affine3d>& poses) {
-    if (poses.empty()) return Eigen::Affine3d::Identity();
-    Eigen::Vector3d t = Eigen::Vector3d::Zero();
-    Eigen::Quaterniond q_sum(0,0,0,0);
-    for (const auto& p : poses) {
-        t += p.translation();
-        Eigen::Quaterniond q(p.linear());
-        if (q_sum.coeffs().dot(q.coeffs()) < 0.0) q.coeffs() *= -1.0;
-        q_sum.coeffs() += q.coeffs();
-    }
-    t /= static_cast<double>(poses.size());
-    q_sum.normalize();
-    Eigen::Affine3d avg = Eigen::Affine3d::Identity();
-    avg.linear() = q_sum.toRotationMatrix();
-    avg.translation() = t;
-    return avg;
-}
-
-// Utility: skew-symmetric matrix from vector
-static Eigen::Matrix3d skew(const Eigen::Vector3d& v) {
-    Eigen::Matrix3d m;
-    m <<    0, -v.z(),  v.y(),
-         v.z(),     0, -v.x(),
-        -v.y(),  v.x(),    0;
-    return m;
-}
 
 static Eigen::Vector3d log_rot(const Eigen::Matrix3d& R) {
     Eigen::AngleAxisd aa(R);
@@ -181,7 +155,7 @@ struct HEParameterBlocks final {
 
 static HEParameterBlocks initialise_blocks(
     const std::vector<HandEyeObservation>& observations,
-    const std::vector<CameraMatrix>& initial_intrinsics,
+    const std::vector<CameraMatrix<double>>& initial_intrinsics,
     const Eigen::Affine3d& initial_hand_eye,
     const std::vector<Eigen::Affine3d>& initial_extrinsics,
     const Eigen::Affine3d& initial_base_target,
@@ -379,7 +353,7 @@ static Eigen::MatrixXd compute_covariance(ceres::Problem& p,
 
 HandEyeResult calibrate_hand_eye(
     const std::vector<HandEyeObservation>& observations,
-    const std::vector<CameraMatrix>& initial_intrinsics,
+    const std::vector<CameraMatrix<double>>& initial_intrinsics,
     const Eigen::Affine3d& initial_hand_eye,
     const std::vector<Eigen::Affine3d>& initial_extrinsics,
     const Eigen::Affine3d& initial_base_target,

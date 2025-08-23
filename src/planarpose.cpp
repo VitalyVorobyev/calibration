@@ -55,7 +55,7 @@ Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
 // Returns true on success; outputs R (world->cam) and t
 Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj_xy,
                                          const std::vector<Eigen::Vector2d>& img_uv,
-                                         const CameraMatrix& intrinsics) {
+                                         const CameraMatrix<double>& intrinsics) {
     if (obj_xy.size() < 4 || obj_xy.size() != img_uv.size()) {
         return Eigen::Affine3d::Identity();
     }
@@ -82,7 +82,7 @@ struct PlanarPoseVPResidual {
 
     PlanarPoseVPResidual(std::vector<PlanarObservation> obs,
                          int num_radial,
-                         const CameraMatrix& intrinsics)
+                         const CameraMatrix<double>& intrinsics)
         : obs_(std::move(obs)),
           K_{intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy},
           num_radial_(num_radial) {}
@@ -132,7 +132,7 @@ static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
 PlanarPoseFitResult optimize_planar_pose(
     const std::vector<Eigen::Vector2d>& obj_xy,
     const std::vector<Eigen::Vector2d>& img_uv,
-    const CameraMatrix& intrinsics,
+    const CameraMatrix<double>& intrinsics,
     int num_radial,
     bool verbose
 ) {

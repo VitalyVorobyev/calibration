@@ -21,7 +21,7 @@ struct PlanarView {
 };
 
 struct CameraCalibrationResult {
-    CameraMatrix intrinsics;             // Estimated camera matrix
+    CameraMatrix<double> intrinsics;             // Estimated camera matrix
     Eigen::VectorXd distortion;          // Distortion coefficients [k..., p1, p2]
     std::vector<Eigen::Affine3d> poses;  // Poses of each view (world->camera)
     Eigen::MatrixXd covariance;          // Covariance of intrinsics and poses
@@ -33,7 +33,7 @@ struct CameraCalibrationResult {
 CameraCalibrationResult calibrate_camera_planar(
     const std::vector<PlanarView>& views,
     int num_radial,
-    const CameraMatrix& initial_guess,
+    const CameraMatrix<double>& initial_guess,
     bool verbose = false,
     std::optional<CalibrationBounds> bounds = std::nullopt);
 

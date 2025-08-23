@@ -18,7 +18,7 @@ namespace vitavision {
 //   v = fy * y + cy
 // If there are insufficient observations or the design matrix is
 // degenerate, std::nullopt is returned.
-std::optional<CameraMatrix> estimate_intrinsics_linear(
+std::optional<CameraMatrix<double>> estimate_intrinsics_linear(
     const std::vector<Observation<double>>& obs,
     std::optional<CalibrationBounds> bounds_opt) {
     if (obs.size() < 2) {
@@ -222,7 +222,7 @@ static bool compute_covariance(
 IntrinsicOptimizationResult optimize_intrinsics(
     const std::vector<Observation<double>>& obs,
     int num_radial,
-    const CameraMatrix& initial_guess,
+    const CameraMatrix<double>& initial_guess,
     bool verb,
     std::optional<CalibrationBounds> bounds_opt
 ) {

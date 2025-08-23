@@ -12,13 +12,12 @@ TEST(JointCalibration, RecoverAllParameters) {
     Eigen::VectorXd dist(2);
     dist << 0.0, 0.0;
 
-    Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
-    Eigen::Affine3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Affine3d::Identity();
-    std::vector<Eigen::Affine3d> cam_gt = {cam0, cam1};
+    const Eigen::Affine3d cam0extr = Eigen::Affine3d::Identity();
+    const Eigen::Affine3d cam1extr = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Affine3d::Identity();
 
     std::vector<Camera> cameras_gt = {
-        Camera{K, dist, cam_gt[0]},
-        Camera{K, dist, cam_gt[1]}
+        Camera{K, dist, cam0extr},
+        Camera{K, dist, cam1extr}
     };
 
     std::vector<Eigen::Affine3d> target_gt = {
@@ -60,9 +59,11 @@ TEST(JointCalibration, RecoverAllParameters) {
 
     EXPECT_LT(res.reprojection_error, 1e-6);
     ASSERT_EQ(res.intrinsics.size(), static_cast<size_t>(kCams));
-    EXPECT_NEAR(res.intrinsics[0].fx, 100.0, 1e-3);
-    EXPECT_NEAR(res.intrinsics[0].fy, 100.0, 1e-3);
-    EXPECT_TRUE(res.camera_poses[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
+    EXPECT_NEAR(res.intrinsics[0].fx, K.fx, 1e-3);
+    EXPECT_NEAR(res.intrinsics[0].fy, K.fy, 1e-3);
+    EXPECT_NEAR(res.intrinsics[0].cx, K.cx, 1e-3);
+    EXPECT_NEAR(res.intrinsics[0].cy, K.cy, 1e-3);
+    EXPECT_TRUE(res.camera_poses[1].translation().isApprox(cam1extr.translation(), 1e-3));
     EXPECT_TRUE(res.target_poses[0].translation().isApprox(target_gt[0].translation(), 1e-3));
     ASSERT_EQ(res.intrinsic_covariances.size(), static_cast<size_t>(kCams));
     EXPECT_GT(res.intrinsic_covariances[0].trace(), 0.0);

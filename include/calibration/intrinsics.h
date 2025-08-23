@@ -13,10 +13,10 @@
 
 namespace vitavision {
 
+template<typename T>
 struct CameraMatrix final {
-    double fx, fy, cx, cy;
+    T fx, fy, cx, cy;
 
-    template<typename T>
     Eigen::Matrix<T, 2, 1> normalize(const Eigen::Matrix<T, 2, 1>& pix) const {
         return {
             (pix.x() - T(cx)) / T(fx),
@@ -24,7 +24,6 @@ struct CameraMatrix final {
         };
     }
 
-    template<typename T>
     Eigen::Matrix<T, 2, 1> denormalize(const Eigen::Matrix<T, 2, 1>& xy) const {
         return {
             T(fx) * xy.x() + T(cx),
@@ -47,7 +46,7 @@ struct CalibrationBounds {
 };
 
 struct IntrinsicOptimizationResult {
-    CameraMatrix intrinsics;
+    CameraMatrix<double> intrinsics;
     Eigen::VectorXd distortion;
     Eigen::Matrix4d covariance;  // Covariance matrix of intrinsics
     double reprojection_error;   // Reprojection error after optimization (pix)
@@ -57,7 +56,7 @@ struct IntrinsicOptimizationResult {
 // Result of an iterative linear initialization that alternates between
 // estimating camera intrinsics and lens distortion parameters.
 struct LinearInitResult {
-    CameraMatrix intrinsics;     // Estimated camera matrix
+    CameraMatrix<double> intrinsics;     // Estimated camera matrix
     Eigen::VectorXd distortion;  // Estimated distortion coefficients
 };
 
@@ -67,7 +66,7 @@ struct LinearInitResult {
 // point and the observed pixel coordinates (u,v).  The function returns
 // an optional CameraMatrix: std::nullopt is returned if there are not
 // enough observations or the linear system is degenerate.
-std::optional<CameraMatrix> estimate_intrinsics_linear(
+std::optional<CameraMatrix<double>> estimate_intrinsics_linear(
     const std::vector<Observation<double>>& obs,
     std::optional<CalibrationBounds> bounds = std::nullopt);
 
@@ -84,7 +83,7 @@ std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
 IntrinsicOptimizationResult optimize_intrinsics(
     const std::vector<Observation<double>>& obs,
     int num_radial,
-    const CameraMatrix& initial_guess,
+    const CameraMatrix<double>& initial_guess,
     bool verb=false,
     std::optional<CalibrationBounds> bounds = std::nullopt
 );

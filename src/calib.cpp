@@ -120,7 +120,7 @@ static std::pair<size_t, std::vector<std::vector<PlanarObservation>>> prepare_ob
 // Initialize camera poses from views
 static void initialize_poses(
     const std::vector<PlanarView>& views,
-    const CameraMatrix& initial_guess,
+    const CameraMatrix<double>& initial_guess,
     std::vector<Pose6>& poses
 ) {
     for (size_t i = 0; i < views.size(); ++i) {
@@ -268,7 +268,7 @@ static bool compute_covariance(
 CameraCalibrationResult calibrate_camera_planar(
     const std::vector<PlanarView>& views,
     int num_radial,
-    const CameraMatrix& initial_guess,
+    const CameraMatrix<double>& initial_guess,
     bool verbose,
     std::optional<CalibrationBounds> bounds_opt
 ) {

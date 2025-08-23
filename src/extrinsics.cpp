@@ -9,32 +9,16 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
+#include "observationutils.h"
+
 namespace vitavision {
 
-using Pose6 = Eigen::Matrix<double, 6, 1>;
-
-// Utility: average a set of affine transforms (rotation via quaternion averaging)
-static Eigen::Affine3d average_affines(const std::vector<Eigen::Affine3d>& poses) {
-    if (poses.empty()) return Eigen::Affine3d::Identity();
-    Eigen::Vector3d t = Eigen::Vector3d::Zero();
-    Eigen::Quaterniond q_sum(0,0,0,0);
-    for (const auto& p : poses) {
-        t += p.translation();
-        Eigen::Quaterniond q(p.linear());
-        if (q_sum.coeffs().dot(q.coeffs()) < 0.0) q.coeffs() *= -1.0;
-        q_sum.coeffs() += q.coeffs();
-    }
-    t /= static_cast<double>(poses.size());
-    q_sum.normalize();
-    Eigen::Affine3d avg = Eigen::Affine3d::Identity();
-    avg.linear() = q_sum.toRotationMatrix();
-    avg.translation() = t;
-    return avg;
-}
+template<typename T>
+using Pose6 = Eigen::Matrix<T, 6, 1>;
 
 InitialExtrinsicGuess make_initial_extrinsic_guess(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras
+    const std::vector<Camera<double>>& cameras
 ) {
     const size_t num_cams = cameras.size();
     const size_t num_views = views.size();
@@ -97,31 +81,46 @@ InitialExtrinsicGuess make_initial_extrinsic_guess(
 
 struct ExtrinsicResidual {
     std::vector<PlanarObservation> obs_;
-    Camera cam_;
+    Camera<double> cam_;
+    std::vector<double> dist_;
 
-    ExtrinsicResidual(std::vector<PlanarObservation> obs, const Camera& cam)
-        : obs_(std::move(obs)), cam_(cam) {}
+    ExtrinsicResidual(std::vector<PlanarObservation> obs, const Camera<double>& cam)
+        : obs_(std::move(obs)), cam_(cam), dist_(cam_.distortion.size()) {
+            for (int i = 0; i < cam_.distortion.size(); ++i) {
+                dist_[static_cast<size_t>(i)] = cam_.distortion[i];
+            }
+        }
 
     template <typename T>
     bool operator()(const T* cam_pose6, const T* target_pose6, T* residuals) const {
-        Eigen::Matrix<T,3,3> R_cam, R_target;
-        ceres::AngleAxisToRotationMatrix(cam_pose6, R_cam.data());
-        ceres::AngleAxisToRotationMatrix(target_pose6, R_target.data());
-        Eigen::Matrix<T,3,1> t_cam{cam_pose6[3], cam_pose6[4], cam_pose6[5]};
-        Eigen::Matrix<T,3,1> t_target{target_pose6[3], target_pose6[4], target_pose6[5]};
+        Eigen::Transform<T, 3, Eigen::Affine> T_cam, T_target;
+        ceres::AngleAxisToRotationMatrix(cam_pose6, T_cam.linear().data());
+        ceres::AngleAxisToRotationMatrix(target_pose6, T_target.linear().data());
+        T_cam.translation() << cam_pose6[3], cam_pose6[4], cam_pose6[5];
+        T_target.translation() << target_pose6[3], target_pose6[4], target_pose6[5];
 
-        Eigen::Matrix<T,3,3> R = R_cam * R_target;
-        Eigen::Matrix<T,3,1> t = R_cam * t_target + t_cam;
+        Eigen::Matrix<T,Eigen::Dynamic,1> dist(dist_.size());
+        for (size_t i = 0; i < dist_.size(); ++i) {
+            dist(static_cast<int>(i)) = T(dist_[i]);
+        }
+
+        Camera<T> cam {
+            CameraMatrix<T> {
+                T(cam_.intrinsics.fx),
+                T(cam_.intrinsics.fy),
+                T(cam_.intrinsics.cx),
+                T(cam_.intrinsics.cy)
+            },
+            dist,
+            T_cam
+        };
 
         const int N = static_cast<int>(obs_.size());
         for (int i = 0; i < N; ++i) {
             const auto& ob = obs_[i];
             Eigen::Matrix<T,3,1> P{T(ob.object_xy.x()), T(ob.object_xy.y()), T(0)};
-            Eigen::Matrix<T,3,1> Pc = R * P + t;
-            T xn = Pc.x() / Pc.z();
-            T yn = Pc.y() / Pc.z();
-            Eigen::Matrix<T,2,1> xyn{xn, yn};
-            auto uv = cam_.project_normalized(xyn);
+            P = T_target * P;
+            auto uv = cam.project(P);
             residuals[2*i]   = uv.x() - T(ob.image_uv.x());
             residuals[2*i+1] = uv.y() - T(ob.image_uv.y());
         }
@@ -131,27 +130,50 @@ struct ExtrinsicResidual {
 
 struct JointResidual {
     std::vector<PlanarObservation> obs_;
+    std::vector<double> dist_;
     int num_radial_;
 
     JointResidual(std::vector<PlanarObservation> obs, const Eigen::VectorXd& dist)
         : obs_(std::move(obs)),
-          num_radial_(std::max<int>(0, static_cast<int>(dist.size()) - 2)) {}
+          dist_(static_cast<size_t>(dist.size())),
+          num_radial_(std::max<int>(0, static_cast<int>(dist.size()) - 2)) {
+            for (int i = 0; i < dist.size(); ++i) {
+                dist_[static_cast<size_t>(i)] = dist(i);
+            }
+          }
 
     template <typename T>
     bool operator()(const T* intr, const T* cam_pose6, const T* target_pose6, T* residuals) const {
-        Eigen::Matrix<T,3,3> R_cam, R_target;
-        ceres::AngleAxisToRotationMatrix(cam_pose6, R_cam.data());
-        ceres::AngleAxisToRotationMatrix(target_pose6, R_target.data());
-        Eigen::Matrix<T,3,1> t_cam{cam_pose6[3], cam_pose6[4], cam_pose6[5]};
-        Eigen::Matrix<T,3,1> t_target{target_pose6[3], target_pose6[4], target_pose6[5]};
+        Eigen::Transform<T, 3, Eigen::Affine> T_cam, T_target;
+        ceres::AngleAxisToRotationMatrix(cam_pose6, T_cam.linear().data());
+        ceres::AngleAxisToRotationMatrix(target_pose6, T_target.linear().data());
+        T_cam.translation() << cam_pose6[3], cam_pose6[4], cam_pose6[5];
+        T_target.translation() << target_pose6[3], target_pose6[4], target_pose6[5];
 
-        Eigen::Matrix<T,3,3> R = R_cam * R_target;
-        Eigen::Matrix<T,3,1> t = R_cam * t_target + t_cam;
+        Eigen::Matrix<T,Eigen::Dynamic,1> dist(dist_.size());
+        for (size_t i = 0; i < dist_.size(); ++i) {
+            dist(static_cast<int>(i)) = T(dist_[i]);
+        }
+
+        Camera<T> cam {
+            CameraMatrix<T> {intr[0], intr[1], intr[2], intr[3]},
+            dist,
+            T_cam
+        };
 
         const int N = static_cast<int>(obs_.size());
+        #if 1
+        for (int i = 0; i < N; ++i) {
+            const auto& ob = obs_[i];
+            Eigen::Matrix<T,3,1> P{T(ob.object_xy.x()), T(ob.object_xy.y()), T(0)};
+            P = T_target * P;
+            auto uv = cam.project(P);
+            residuals[2*i]   = uv.x() - T(ob.image_uv.x());
+            residuals[2*i+1] = uv.y() - T(ob.image_uv.y());
+        }
+        #else
         static thread_local std::vector<Observation<T>> o;
         if (o.size() != static_cast<size_t>(N)) o.resize(N);
-
         for (int i = 0; i < N; ++i) {
             const auto& ob = obs_[i];
             Eigen::Matrix<T,3,1> P{T(ob.object_xy.x()), T(ob.object_xy.y()), T(0)};
@@ -163,33 +185,28 @@ struct JointResidual {
 
         auto dr = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], num_radial_);
         if (!dr) {
-            std::cerr << "Failed to fit distortion" << std::endl;
-            for (int i = 0; i < N; ++i) {
-                const auto& ob = o[i];
-                residuals[2*i]   = ob.x - ob.u;
-                residuals[2*i+1] = ob.y - ob.v;
-            }
+            throw std::runtime_error("Failed to fit distortion");
         } else {
             const auto& r = dr->residuals;
             for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
         }
+        #endif
         return true;
     }
 };
 
-static Eigen::Affine3d pose6_to_affine(const Pose6& p) {
-    Eigen::Matrix3d R;
-    ceres::AngleAxisToRotationMatrix(p.head<3>().data(), R.data());
-    Eigen::Affine3d T = Eigen::Affine3d::Identity();
-    T.linear() = R;
-    T.translation() = p.tail<3>();
-    return T;
+template<typename T>
+static Eigen::Transform<T, 3, Eigen::Affine> pose6_to_affine(const Pose6<T>& p) {
+    Eigen::Transform<T, 3, Eigen::Affine> pose = Eigen::Transform<T, 3, Eigen::Affine>::Identity();
+    ceres::AngleAxisToRotationMatrix(p.template head<3>().data(), pose.linear().data());
+    pose.translation() = p.template tail<3>();
+    return pose;
 }
 
 static void initialize_pose_vectors(const std::vector<Eigen::Affine3d>& initial_camera_poses,
                                     const std::vector<Eigen::Affine3d>& initial_target_poses,
-                                    std::vector<Pose6>& cam_poses,
-                                    std::vector<Pose6>& targ_poses) {
+                                    std::vector<Pose6<double>>& cam_poses,
+                                    std::vector<Pose6<double>>& targ_poses) {
     for (size_t i = 0; i < initial_camera_poses.size(); ++i) {
         ceres::RotationMatrixToAngleAxis(initial_camera_poses[i].rotation().data(), cam_poses[i].data());
         cam_poses[i][3] = initial_camera_poses[i].translation().x();
@@ -204,10 +221,25 @@ static void initialize_pose_vectors(const std::vector<Eigen::Affine3d>& initial_
     }
 }
 
+static void initialize_joint_vectors(const std::vector<Camera<double>>& initial_cameras,
+                                     const std::vector<Eigen::Affine3d>& initial_camera_poses,
+                                     const std::vector<Eigen::Affine3d>& initial_target_poses,
+                                     std::vector<std::array<double,4>>& intr,
+                                     std::vector<Pose6<double>>& cam_poses,
+                                     std::vector<Pose6<double>>& targ_poses) {
+    for (size_t i = 0; i < initial_cameras.size(); ++i) {
+        intr[i] = {initial_cameras[i].intrinsics.fx,
+                   initial_cameras[i].intrinsics.fy,
+                   initial_cameras[i].intrinsics.cx,
+                   initial_cameras[i].intrinsics.cy};
+    }
+    initialize_pose_vectors(initial_camera_poses, initial_target_poses, cam_poses, targ_poses);
+}
+
 static void setup_problem(const std::vector<ExtrinsicPlanarView>& views,
-                          const std::vector<Camera>& cameras,
-                          std::vector<Pose6>& cam_poses,
-                          std::vector<Pose6>& targ_poses,
+                          const std::vector<Camera<double>>& cameras,
+                          std::vector<Pose6<double>>& cam_poses,
+                          std::vector<Pose6<double>>& targ_poses,
                           ceres::Problem& problem) {
     const size_t num_cams = cameras.size();
     const size_t num_views = views.size();
@@ -237,8 +269,8 @@ static void setup_problem(const std::vector<ExtrinsicPlanarView>& views,
     }
 }
 
-static void extract_solution(const std::vector<Pose6>& cam_poses,
-                             const std::vector<Pose6>& targ_poses,
+static void extract_solution(const std::vector<Pose6<double>>& cam_poses,
+                             const std::vector<Pose6<double>>& targ_poses,
                              ExtrinsicOptimizationResult& result) {
     result.camera_poses.resize(cam_poses.size());
     for (size_t i = 0; i < cam_poses.size(); ++i) {
@@ -252,7 +284,7 @@ static void extract_solution(const std::vector<Pose6>& cam_poses,
 
 static std::pair<double, size_t> compute_residual_stats(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras,
+    const std::vector<Camera<double>>& cameras,
     const ExtrinsicOptimizationResult& result) {
     double ssr = 0.0;
     size_t count = 0;
@@ -278,8 +310,8 @@ static std::pair<double, size_t> compute_residual_stats(
 }
 
 static void compute_covariances(ceres::Problem& problem,
-                                const std::vector<Pose6>& cam_poses,
-                                const std::vector<Pose6>& targ_poses,
+                                const std::vector<Pose6<double>>& cam_poses,
+                                const std::vector<Pose6<double>>& targ_poses,
                                 double sigma2,
                                 ExtrinsicOptimizationResult& result) {
     const size_t num_cams = cam_poses.size();
@@ -318,7 +350,7 @@ static void compute_covariances(ceres::Problem& problem,
 
 ExtrinsicOptimizationResult optimize_extrinsic_poses(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras,
+    const std::vector<Camera<double>>& cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
     bool verbose
@@ -336,8 +368,8 @@ ExtrinsicOptimizationResult optimize_extrinsic_poses(
                                     " are not compatible.");
     }
 
-    std::vector<Pose6> cam_poses(num_cams);
-    std::vector<Pose6> targ_poses(num_views);
+    std::vector<Pose6<double>> cam_poses(num_cams);
+    std::vector<Pose6<double>> targ_poses(num_views);
     initialize_pose_vectors(initial_camera_poses, initial_target_poses, cam_poses, targ_poses);
 
     ceres::Problem problem;
@@ -374,10 +406,10 @@ ExtrinsicOptimizationResult optimize_extrinsic_poses(
 
 static void setup_joint_problem(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& initial_cameras,
+    const std::vector<Camera<double>>& initial_cameras,
     std::vector<std::array<double, 4>>& intr,
-    std::vector<Pose6>& cam_poses,
-    std::vector<Pose6>& targ_poses,
+    std::vector<Pose6<double>>& cam_poses,
+    std::vector<Pose6<double>>& targ_poses,
     ceres::Problem& problem
 ) {
     const size_t num_cams = initial_cameras.size();
@@ -413,8 +445,8 @@ static void setup_joint_problem(
 
 static void extract_joint_solution(
     const std::vector<std::array<double, 4>>& intr,
-    const std::vector<Pose6>& cam_poses,
-    const std::vector<Pose6>& targ_poses,
+    const std::vector<Pose6<double>>& cam_poses,
+    const std::vector<Pose6<double>>& targ_poses,
     JointOptimizationResult& result
 ) {
     const size_t num_cams = cam_poses.size();
@@ -434,7 +466,7 @@ static void extract_joint_solution(
 
 static std::pair<double, size_t> compute_joint_residual_stats(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras,
+    const std::vector<Camera<double>>& cameras,
     JointOptimizationResult& result
 ) {
     const size_t num_views = views.size();
@@ -481,8 +513,8 @@ static std::pair<double, size_t> compute_joint_residual_stats(
 static void compute_joint_covariance(
     ceres::Problem& problem,
     const std::vector<std::array<double, 4>>& intr,
-    const std::vector<Pose6>& cam_poses,
-    const std::vector<Pose6>& targ_poses,
+    const std::vector<Pose6<double>>& cam_poses,
+    const std::vector<Pose6<double>>& targ_poses,
     double sigma2,
     JointOptimizationResult& result
 ) {
@@ -530,7 +562,7 @@ static void compute_joint_covariance(
 // Joint optimization of camera intrinsics, extrinsic poses and target poses
 JointOptimizationResult optimize_joint_intrinsics_extrinsics(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& initial_cameras,
+    const std::vector<Camera<double>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
     bool verbose
@@ -545,15 +577,10 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
 
     // Parameter arrays
     std::vector<std::array<double,4>> intr(num_cams);
-    for (size_t i = 0; i < num_cams; ++i) {
-        intr[i] = {initial_cameras[i].intrinsics.fx,
-                   initial_cameras[i].intrinsics.fy,
-                   initial_cameras[i].intrinsics.cx,
-                   initial_cameras[i].intrinsics.cy};
-    }
-    std::vector<Pose6> cam_poses(num_cams);
-    std::vector<Pose6> targ_poses(num_views);
-    initialize_pose_vectors(initial_camera_poses, initial_target_poses, cam_poses, targ_poses);
+    std::vector<Pose6<double>> cam_poses(num_cams);
+    std::vector<Pose6<double>> targ_poses(num_views);
+    initialize_joint_vectors(
+        initial_cameras, initial_camera_poses, initial_target_poses, intr, cam_poses, targ_poses);
 
     ceres::Problem problem;
     setup_joint_problem(views, initial_cameras, intr, cam_poses, targ_poses, problem);
