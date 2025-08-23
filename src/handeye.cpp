@@ -11,6 +11,25 @@
 
 namespace vitavision {
 
+// Utility: average a set of affine transforms (rotation via quaternion averaging)
+static Eigen::Affine3d average_affines(const std::vector<Eigen::Affine3d>& poses) {
+    if (poses.empty()) return Eigen::Affine3d::Identity();
+    Eigen::Vector3d t = Eigen::Vector3d::Zero();
+    Eigen::Quaterniond q_sum(0,0,0,0);
+    for (const auto& p : poses) {
+        t += p.translation();
+        Eigen::Quaterniond q(p.linear());
+        if (q_sum.coeffs().dot(q.coeffs()) < 0.0) q.coeffs() *= -1.0;
+        q_sum.coeffs() += q.coeffs();
+    }
+    t /= static_cast<double>(poses.size());
+    q_sum.normalize();
+    Eigen::Affine3d avg = Eigen::Affine3d::Identity();
+    avg.linear() = q_sum.toRotationMatrix();
+    avg.translation() = t;
+    return avg;
+}
+
 // Utility: skew-symmetric matrix from vector
 static Eigen::Matrix3d skew(const Eigen::Vector3d& v) {
     Eigen::Matrix3d m;
@@ -127,6 +146,7 @@ HandEyeResult calibrate_hand_eye(
     const std::vector<HandEyeObservation>& observations,
     const std::vector<CameraMatrix>& initial_intrinsics,
     const std::vector<Eigen::Affine3d>& initial_hand_eye,
+    const Eigen::Affine3d& initial_base_target,
     const HandEyeOptions& opts) {
 
     HandEyeResult result;
@@ -155,6 +175,27 @@ HandEyeResult calibrate_hand_eye(
         K[c][2] = result.intrinsics[c].cx;
         K[c][3] = result.intrinsics[c].cy;
     }
+
+    // Initial base->target estimate
+    Eigen::Affine3d bt_init = initial_base_target;
+    std::vector<Eigen::Affine3d> bt_estimates;
+    bt_estimates.reserve(observations.size());
+    for (const auto& obs : observations) {
+        const size_t cam = obs.camera_index;
+        if (obs.view.object_xy.size() < 4) continue;
+        Eigen::Affine3d cam_T_target = estimate_planar_pose_dlt(
+            obs.view.object_xy, obs.view.image_uv, result.intrinsics[cam]);
+        bt_estimates.push_back(obs.base_T_gripper * result.hand_eye[cam] * cam_T_target);
+    }
+    if (!bt_estimates.empty()) bt_init = average_affines(bt_estimates);
+
+    Eigen::AngleAxisd aa_bt(bt_init.rotation());
+    base_target6[0] = aa_bt.axis().x()*aa_bt.angle();
+    base_target6[1] = aa_bt.axis().y()*aa_bt.angle();
+    base_target6[2] = aa_bt.axis().z()*aa_bt.angle();
+    base_target6[3] = bt_init.translation().x();
+    base_target6[4] = bt_init.translation().y();
+    base_target6[5] = bt_init.translation().z();
 
     ceres::Problem p;
     for (const auto& obs : observations) {
