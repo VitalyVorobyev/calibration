@@ -75,3 +75,13 @@ target_link_libraries(joint_test
 )
 gtest_discover_tests(joint_test)
 
+# Test for hand-eye calibration
+add_executable(handeye_test handeye_test.cpp)
+target_link_libraries(handeye_test
+    PRIVATE calibration
+    PRIVATE GTest::gtest_main
+    PRIVATE Eigen3::Eigen
+    PRIVATE Ceres::ceres
+)
+gtest_discover_tests(handeye_test)
+

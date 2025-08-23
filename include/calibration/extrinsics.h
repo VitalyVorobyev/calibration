@@ -33,6 +33,7 @@ struct InitialExtrinsicGuess final {
 
 struct JointOptimizationResult final {
     std::vector<CameraMatrix> intrinsics;                       // Optimized camera matrices
+    std::vector<Eigen::VectorXd> distortions;                   // Estimated distortion coeffs
     std::vector<Eigen::Affine3d> camera_poses;                  // reference->camera
     std::vector<Eigen::Affine3d> target_poses;                  // target->reference
     std::vector<Eigen::Matrix4d> intrinsic_covariances;         // Covariance of intrinsics

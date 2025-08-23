@@ -23,8 +23,10 @@ TEST(JointCalibration, RecoverAllParameters) {
         Eigen::Translation3d(0.5, -0.2, 4.0) * Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitY()),
     };
 
+    // need at least 8 points to fit distortions
     std::vector<Eigen::Vector2d> points = {
-        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}
+        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0},
+        {0.5, 0.5}, {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5}
     };
 
     std::vector<ExtrinsicPlanarView> views;
@@ -50,8 +52,10 @@ TEST(JointCalibration, RecoverAllParameters) {
     };
 
     auto guess = make_initial_extrinsic_guess(views, cam_init);
+    ASSERT_TRUE(guess.camera_poses.front().isApprox(Eigen::Affine3d::Identity()));
 
     auto res = optimize_joint_intrinsics_extrinsics(views, cam_init, guess.camera_poses, guess.target_poses);
+    std::cout << res.summary << std::endl;
 
     EXPECT_LT(res.reprojection_error, 1e-6);
     ASSERT_EQ(res.intrinsics.size(), static_cast<size_t>(kCams));
@@ -62,4 +66,3 @@ TEST(JointCalibration, RecoverAllParameters) {
     ASSERT_EQ(res.intrinsic_covariances.size(), static_cast<size_t>(kCams));
     EXPECT_GT(res.intrinsic_covariances[0].trace(), 0.0);
 }
-
