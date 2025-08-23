@@ -15,8 +15,6 @@
 
 namespace vitavision {
 
-using Pose6 = Eigen::Matrix<double, 6, 1>;
-
 // Variable projection residual for full camera calibration.
 struct CalibVPResidual {
     std::vector<std::vector<PlanarObservation>> views_;  // observations per view
@@ -74,7 +72,7 @@ static std::optional<DistortionWithResiduals<double>> solve_full(
     return fit_distortion_full(obs, intr[0], intr[1], intr[2], intr[3], num_radial);
 }
 
-static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
+static Eigen::Affine3d axisangle_to_pose(const Pose6<double>& pose6) {
     Eigen::Matrix3d R;
     ceres::AngleAxisToRotationMatrix(pose6.head<3>().data(), R.data());
     Eigen::Affine3d T = Eigen::Affine3d::Identity();
@@ -121,7 +119,7 @@ static std::pair<size_t, std::vector<std::vector<PlanarObservation>>> prepare_ob
 static void initialize_poses(
     const std::vector<PlanarView>& views,
     const CameraMatrix<double>& initial_guess,
-    std::vector<Pose6>& poses
+    std::vector<Pose6<double>>& poses
 ) {
     for (size_t i = 0; i < views.size(); ++i) {
         Eigen::Affine3d pose = estimate_planar_pose_dlt(views[i].object_xy, views[i].image_uv, initial_guess);
@@ -136,7 +134,7 @@ static void setup_optimization_problem(
     size_t total_obs,
     int num_radial,
     double* intrinsics,
-    std::vector<Pose6>& poses,
+    std::vector<Pose6<double>>& poses,
     ceres::Problem& problem
 ) {
     auto* functor = new CalibVPResidual(obs_views, num_radial);
@@ -185,7 +183,7 @@ static void compute_reprojection_errors(
 // Populate the result with intrinsics and poses
 static void populate_result_parameters(
     const double* intrinsics,
-    const std::vector<Pose6>& poses,
+    const std::vector<Pose6<double>>& poses,
     CameraCalibrationResult& result
 ) {
     result.intrinsics.fx = intrinsics[0];
@@ -284,7 +282,7 @@ CameraCalibrationResult calibrate_camera_planar(
 
     // Initialize intrinsics and poses
     double intrinsics[4] = {initial_guess.fx, initial_guess.fy, initial_guess.cx, initial_guess.cy};
-    std::vector<Pose6> poses(num_views);
+    std::vector<Pose6<double>> poses(num_views);
     initialize_poses(views, initial_guess, poses);
 
     // Set up and solve the optimization problem

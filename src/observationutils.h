@@ -2,12 +2,26 @@
 
 #pragma once
 
+// eigen
+#include <Eigen/Geometry>
+
 // ceres
-#include "ceres/rotation.h"
+#include <ceres/rotation.h>
 
 #include "calibration/planarpose.h"
 
 namespace vitavision {
+
+template<typename T>
+using Pose6 = Eigen::Matrix<T, 6, 1>;
+
+template<typename T>
+Eigen::Transform<T, 3, Eigen::Affine> pose6_to_affine(const Pose6<T>& p) {
+    Eigen::Transform<T, 3, Eigen::Affine> pose = Eigen::Transform<T, 3, Eigen::Affine>::Identity();
+    ceres::AngleAxisToRotationMatrix(p.template head<3>().data(), pose.linear().data());
+    pose.translation() = p.template tail<3>();
+    return pose;
+}
 
 template<typename T>
 Observation<T> to_observation(const PlanarObservation& obs, const T* pose6) {
