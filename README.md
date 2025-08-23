@@ -11,6 +11,7 @@ A C++ library for camera calibration and vision-related geometric transformation
 - Stereo camera calibration
 - Support for various camera models
 - JSON configuration import/export
+- Hand-eye calibration with reference camera support
 
 ## Dependencies
 
@@ -90,7 +91,24 @@ EOF
 
 ## Usage
 
-TODO
+### Hand-Eye Calibration
+
+The library models hand-eye calibration around a *reference camera*.  The
+reference camera uses the optimized hand–eye pose directly, while additional
+cameras are expressed via extrinsic transforms relative to this reference.  A
+simple call looks like:
+
+```cpp
+#include "calibration/handeye.h"
+
+using namespace vitavision;
+
+HandEyeOptions opts;
+opts.optimize_extrinsics = true;            // also refine per-camera extrinsics
+std::vector<Eigen::Affine3d> initial_ext;    // size = num_cams - 1
+HandEyeResult res = calibrate_hand_eye(initial_ext, opts);
+// res.extrinsics[0] is identity for the reference camera
+```
 
 ## Documentation
 
