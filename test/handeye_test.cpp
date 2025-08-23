@@ -22,16 +22,33 @@ TEST(HandEye, SingleCameraOptimization) {
     // need at least 8 points to fit distortions
     std::vector<Eigen::Vector2d> obj{
         {-0.1, -0.1}, {0.1, -0.1}, {0.1, 0.1}, {-0.1, 0.1},
-        {0.5, 0.5}, {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5}
+        {0.5, 0.5}, {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5},
+        {-2.0, 1.0}, {0.5, -2.5}, {-2.5, -0.5}
     };
 
     std::vector<HandEyeObservation> observations;
     std::vector<Eigen::Affine3d> base_T_gripper_list;
     std::vector<Eigen::Affine3d> target_T_camera_list;
 
-    for (int i = 0; i < 4; ++i) {
+    // Create diverse motion patterns - rotations and translations in different directions
+    for (int i = 0; i < 8; ++i) {  // Increased number of poses
         Eigen::Affine3d base_T_gripper = Eigen::Affine3d::Identity();
-        base_T_gripper.translation() = Eigen::Vector3d(0.0, 0.0, 0.3 + 0.1 * i);
+
+        // Add translation in all 3 dimensions
+        double angle = i * M_PI / 4.0;  // Rotate around in a circle
+        base_T_gripper.translation() = Eigen::Vector3d(
+            0.1 * std::cos(angle),      // X varies in a circle
+            0.1 * std::sin(angle),      // Y varies in a circle
+            0.3 + 0.05 * i              // Z still increases
+        );
+
+        // Add rotation around different axes
+        Eigen::Matrix3d rot = Eigen::AngleAxisd(0.1 * i, Eigen::Vector3d(
+            std::cos(angle),
+            std::sin(angle),
+            0.5).normalized()).toRotationMatrix();
+
+        base_T_gripper.linear() = rot;
         base_T_gripper_list.push_back(base_T_gripper);
 
         Eigen::Affine3d base_T_camera = base_T_gripper * X;
@@ -52,9 +69,22 @@ TEST(HandEye, SingleCameraOptimization) {
     }
 
     Eigen::Affine3d initX = estimate_hand_eye_initial(base_T_gripper_list, target_T_camera_list);
-    HandEyeOptions opts; opts.optimize_intrinsics = false; opts.optimize_target_pose = true;
+
+    // Configure options - consider fixing some parameters if needed
+    HandEyeOptions opts;
+    opts.optimize_intrinsics = false;
+    opts.optimize_target_pose = true;
+
+    // Add small perturbation to initial estimate to test convergence
+    initX.translation() += Eigen::Vector3d(0.01, 0.01, 0.01);
+    initX.linear() = initX.linear() * Eigen::AngleAxisd(0.02, Eigen::Vector3d::UnitX()).toRotationMatrix();
+
     HandEyeResult res = calibrate_hand_eye(observations, {K}, initX, {}, Eigen::Affine3d::Identity(), opts);
 
     EXPECT_NEAR(0.0, (res.hand_eye[0].translation() - X.translation()).norm(), 0.001);
     EXPECT_NEAR(0.0, (res.base_T_target.translation() - base_T_target.translation()).norm(), 0.001);
+
+    // Also test rotation accuracy
+    Eigen::AngleAxisd rot_diff(res.hand_eye[0].linear() * X.linear().transpose());
+    EXPECT_NEAR(0.0, rot_diff.angle(), 0.01);
 }
