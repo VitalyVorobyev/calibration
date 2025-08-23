@@ -63,4 +63,3 @@ HandEyeResult calibrate_hand_eye(
     const HandEyeOptions& opts = {});
 
 } // namespace vitavision
-

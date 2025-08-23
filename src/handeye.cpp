@@ -111,7 +111,7 @@ struct HandEyeReprojResidual {
         Eigen::Matrix<T,3,1> t_tc = R_bt.transpose() * (t_bc - t_bt);
 
         // point on plane in target frame
-        Eigen::Matrix<T,3,1> P(obj_xy.x(), obj_xy.y(), T(0));
+        Eigen::Matrix<T,3,1> P(T(obj_xy.x()), T(obj_xy.y()), T(0));
         Eigen::Matrix<T,3,1> Pc = R_tc * P + t_tc;
 
         T u = intrinsics[0] * (Pc.x() / Pc.z()) + intrinsics[2];
@@ -127,8 +127,8 @@ HandEyeResult calibrate_hand_eye(
     const std::vector<HandEyeObservation>& observations,
     const std::vector<CameraMatrix>& initial_intrinsics,
     const std::vector<Eigen::Affine3d>& initial_hand_eye,
-    const HandEyeOptions& opts) {
-
+    const HandEyeOptions& opts
+) {
     HandEyeResult result;
     const size_t num_cams = initial_intrinsics.size();
     if (num_cams == 0) return result;
@@ -185,6 +185,13 @@ HandEyeResult calibrate_hand_eye(
     ceres::Solver::Options sopts;
     sopts.linear_solver_type = ceres::DENSE_QR;
     sopts.minimizer_progress_to_stdout = opts.verbose;
+
+    constexpr double eps = 1e-6;
+    sopts.function_tolerance = eps;
+    sopts.gradient_tolerance = eps;
+    sopts.parameter_tolerance = eps;
+    sopts.max_num_iterations = 1000;
+
     ceres::Solver::Summary summary;
     ceres::Solve(sopts, &p, &summary);
     result.summary = summary.BriefReport();
