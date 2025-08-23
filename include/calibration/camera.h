@@ -47,8 +47,8 @@ struct Camera final {
      */
     Eigen::Matrix<T,3,4> projection_matrix() const {
         Eigen::Matrix<T,3,4> Rt;
-        Rt.template block<3,3>(0,0) = extrinsic.linear().template cast<T>();
-        Rt.col(3) = extrinsic.translation().template cast<T>();
+        Rt.template block<3,3>(0,0) = extrinsic.linear();
+        Rt.col(3) = extrinsic.translation();
 
         Eigen::Matrix<T,3,3> K;
         K << T(intrinsics.fx), T(0), T(intrinsics.cx),
@@ -64,8 +64,7 @@ struct Camera final {
      * pose and then projected with the camera intrinsics and distortion model.
      */
     Eigen::Matrix<T,2,1> project(const Eigen::Matrix<T,3,1>& Pw) const {
-        Eigen::Transform<T,3,Eigen::Affine> E = extrinsic.template cast<T>();
-        Eigen::Matrix<T,3,1> Pc = E * Pw;
+        Eigen::Matrix<T,3,1> Pc = extrinsic * Pw;
         Eigen::Matrix<T,2,1> xyn{Pc.x()/Pc.z(), Pc.y()/Pc.z()};
         return project_normalized(xyn);
     }

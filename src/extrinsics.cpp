@@ -79,14 +79,9 @@ InitialExtrinsicGuess make_initial_extrinsic_guess(
 struct ExtrinsicResidual {
     std::vector<PlanarObservation> obs_;
     Camera<double> cam_;
-    std::vector<double> dist_;
 
     ExtrinsicResidual(std::vector<PlanarObservation> obs, const Camera<double>& cam)
-        : obs_(std::move(obs)), cam_(cam), dist_(cam_.distortion.size()) {
-            for (int i = 0; i < cam_.distortion.size(); ++i) {
-                dist_[static_cast<size_t>(i)] = cam_.distortion[i];
-            }
-        }
+        : obs_(std::move(obs)), cam_(cam) {}
 
     template <typename T>
     bool operator()(const T* cam_pose6, const T* target_pose6, T* residuals) const {
@@ -96,9 +91,9 @@ struct ExtrinsicResidual {
         T_cam.translation() << cam_pose6[3], cam_pose6[4], cam_pose6[5];
         T_target.translation() << target_pose6[3], target_pose6[4], target_pose6[5];
 
-        Eigen::Matrix<T,Eigen::Dynamic,1> dist(dist_.size());
-        for (size_t i = 0; i < dist_.size(); ++i) {
-            dist(static_cast<int>(i)) = T(dist_[i]);
+        Eigen::Matrix<T,Eigen::Dynamic,1> dist(cam_.distortion.size());
+        for (int i = 0; i < cam_.distortion.size(); ++i) {
+            dist(i) = T(cam_.distortion[i]);
         }
 
         Camera<T> cam {
