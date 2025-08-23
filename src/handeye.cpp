@@ -143,8 +143,9 @@ struct HandEyeReprojResidual {
         Eigen::Matrix<T,3,1> t_bc = R_bg * t_gc + t_bg;
 
         // target -> camera
-        Eigen::Matrix<T,3,3> R_tc = R_bt.transpose() * R_bc;
-        Eigen::Matrix<T,3,1> t_tc = R_bt.transpose() * (t_bc - t_bt);
+        Eigen::Matrix<T,3,3> R_tb = R_bt.transpose();
+        Eigen::Matrix<T,3,3> R_tc = R_bc * R_tb;
+        Eigen::Matrix<T,3,1> t_tc = t_bc - R_tc * t_bt;
 
         // point on plane in target frame
         Eigen::Matrix<T,3,1> P(T(obj_xy.x()), T(obj_xy.y()), T(0));
@@ -218,7 +219,7 @@ static HEParameterBlocks initialise_blocks(
         if (obs.view.object_xy.size() < 4) continue;
         Eigen::Affine3d cam_T_target = estimate_planar_pose_dlt(
             obs.view.object_xy, obs.view.image_uv, initial_intrinsics[cam]);
-        bt_estimates.push_back(obs.base_T_gripper * result.hand_eye[cam] * cam_T_target);
+        bt_estimates.push_back(obs.base_T_gripper * result.hand_eye[cam] * cam_T_target.inverse());
     }
     if (!bt_estimates.empty()) bt_init = average_affines(bt_estimates);
 
@@ -314,8 +315,9 @@ static double compute_reprojection_error(const std::vector<HandEyeObservation>& 
         Eigen::Vector3d t_gc = result.hand_eye[cam].translation();
         Eigen::Matrix3d R_bc = R_bg * R_gc;
         Eigen::Vector3d t_bc = R_bg * t_gc + t_bg;
-        Eigen::Matrix3d R_tc = R_bt.transpose() * R_bc;
-        Eigen::Vector3d t_tc = R_bt.transpose() * (t_bc - t_bt);
+        Eigen::Matrix3d R_tb = R_bt.transpose();
+        Eigen::Matrix3d R_tc = R_bc * R_tb;
+        Eigen::Vector3d t_tc = t_bc - R_tc * t_bt;
         for (size_t i = 0; i < obs.view.object_xy.size(); ++i) {
             const auto& xy = obs.view.object_xy[i];
             const auto& uv = obs.view.image_uv[i];

@@ -211,6 +211,9 @@ static void setup_problem(const std::vector<ExtrinsicPlanarView>& views,
     for (size_t j = 0; j < num_views; ++j) {
         problem.AddParameterBlock(targ_poses[j].data(), 6);
     }
+    if (!targ_poses.empty()) {
+        problem.SetParameterBlockConstant(targ_poses[0].data());
+    }
 
     for (size_t v = 0; v < num_views; ++v) {
         const auto& view = views[v];
@@ -399,6 +402,9 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
     }
     for (size_t v = 0; v < num_views; ++v) {
         problem.AddParameterBlock(targ_poses[v].data(), 6);
+    }
+    if (!targ_poses.empty()) {
+        problem.SetParameterBlockConstant(targ_poses[0].data());
     }
 
     // Residuals
