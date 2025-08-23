@@ -36,6 +36,7 @@ struct HandEyeOptions final {
 /** Result returned by hand-eye calibration. */
 struct HandEyeResult final {
     std::vector<CameraMatrix> intrinsics;          ///< Estimated intrinsics per camera
+    std::vector<Eigen::VectorXd> distortions;      ///< Estimated distortion coefficients
     std::vector<Eigen::Affine3d> hand_eye;         ///< Estimated gripper->camera transforms
     std::vector<Eigen::Affine3d> extrinsics;       ///< Estimated reference->camera extrinsics
     Eigen::Affine3d base_T_target = Eigen::Affine3d::Identity(); ///< Pose of target in base frame
