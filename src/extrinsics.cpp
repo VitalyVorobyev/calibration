@@ -9,6 +9,7 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
+#include "calibration/distortion.h"
 namespace vitavision {
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
@@ -132,9 +133,11 @@ struct ExtrinsicResidual {
 struct JointResidual {
     std::vector<PlanarObservation> obs_;
     Eigen::VectorXd distortion_;
+    int num_radial_;
 
     JointResidual(std::vector<PlanarObservation> obs, const Eigen::VectorXd& dist)
-        : obs_(std::move(obs)), distortion_(dist) {}
+        : obs_(std::move(obs)), distortion_(dist),
+          num_radial_(static_cast<int>(dist.size()) - 2) {}
 
     template <typename T>
     bool operator()(const T* intr, const T* cam_pose6, const T* target_pose6, T* residuals) const {
@@ -148,22 +151,36 @@ struct JointResidual {
         Eigen::Matrix<T,3,1> t = R_cam * t_target + t_cam;
 
         const int N = static_cast<int>(obs_.size());
+        static thread_local std::vector<Observation<T>> o;
+        if (o.size() != static_cast<size_t>(N)) o.resize(N);
+
         for (int i = 0; i < N; ++i) {
             const auto& ob = obs_[i];
             Eigen::Matrix<T,3,1> P{T(ob.object_xy.x()), T(ob.object_xy.y()), T(0)};
             Eigen::Matrix<T,3,1> Pc = R * P + t;
             T xn = Pc.x() / Pc.z();
             T yn = Pc.y() / Pc.z();
-            Eigen::Matrix<T,2,1> xyn{xn, yn};
-            Eigen::Matrix<T,2,1> d = apply_distortion(xyn, distortion_);
-            T fx = intr[0];
-            T fy = intr[1];
-            T cx = intr[2];
-            T cy = intr[3];
-            T u = fx * d.x() + cx;
-            T v = fy * d.y() + cy;
-            residuals[2*i]   = u - T(ob.image_uv.x());
-            residuals[2*i+1] = v - T(ob.image_uv.y());
+            o[i] = Observation<T>{xn, yn, T(ob.image_uv.x()), T(ob.image_uv.y())};
+        }
+
+        auto dr = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        if (dr) {
+            const auto& r = dr->residuals;
+            for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
+        } else {
+            for (int i = 0; i < N; ++i) {
+                const auto& ob = obs_[i];
+                Eigen::Matrix<T,3,1> P{T(ob.object_xy.x()), T(ob.object_xy.y()), T(0)};
+                Eigen::Matrix<T,3,1> Pc = R * P + t;
+                T xn = Pc.x() / Pc.z();
+                T yn = Pc.y() / Pc.z();
+                Eigen::Matrix<T,2,1> xyn{xn, yn};
+                Eigen::Matrix<T,2,1> d = apply_distortion(xyn, distortion_);
+                T u = intr[0] * d.x() + intr[2];
+                T v = intr[1] * d.y() + intr[3];
+                residuals[2*i]   = u - T(ob.image_uv.x());
+                residuals[2*i+1] = v - T(ob.image_uv.y());
+            }
         }
         return true;
     }
@@ -427,10 +444,26 @@ static void extract_joint_solution(
 static std::pair<double, size_t> compute_joint_residual_stats(
     const std::vector<ExtrinsicPlanarView>& views,
     const std::vector<Camera>& cameras,
-    JointOptimizationResult result
+    const JointOptimizationResult& result
 ) {
     const size_t num_views = views.size();
     const size_t num_cams = cameras.size();
+    std::vector<Eigen::VectorXd> dists(num_cams);
+    for (size_t c = 0; c < num_cams; ++c) {
+        std::vector<Observation<double>> o;
+        for (size_t v = 0; v < num_views && c < views[v].observations.size(); ++v) {
+            const auto& obs = views[v].observations[c];
+            for (const auto& ob : obs) {
+                Eigen::Vector3d P = result.camera_poses[c] * result.target_poses[v]
+                                    * Eigen::Vector3d(ob.object_xy.x(), ob.object_xy.y(), 0.0);
+                o.push_back(Observation<double>{P.x()/P.z(), P.y()/P.z(), ob.image_uv.x(), ob.image_uv.y()});
+            }
+        }
+        int num_radial = static_cast<int>(cameras[c].distortion.size()) - 2;
+        auto dr = fit_distortion(o, result.intrinsics[c].fx, result.intrinsics[c].fy,
+                                 result.intrinsics[c].cx, result.intrinsics[c].cy, num_radial);
+        dists[c] = dr ? dr->distortion : cameras[c].distortion;
+    }
 
     double ssr = 0.0; size_t count = 0;
     for (size_t v = 0; v < num_views; ++v) {
@@ -441,7 +474,7 @@ static std::pair<double, size_t> compute_joint_residual_stats(
                 Eigen::Vector3d P = result.camera_poses[c] * result.target_poses[v]
                                     * Eigen::Vector3d(ob.object_xy.x(), ob.object_xy.y(), 0.0);
                 Eigen::Vector2d xyn{P.x()/P.z(), P.y()/P.z()};
-                Eigen::Vector2d d = apply_distortion(xyn, cameras[c].distortion);
+                Eigen::Vector2d d = apply_distortion(xyn, dists[c]);
                 Eigen::Vector2d pred = result.intrinsics[c].denormalize(d);
                 Eigen::Vector2d diff = pred - ob.image_uv;
                 ssr += diff.squaredNorm();
