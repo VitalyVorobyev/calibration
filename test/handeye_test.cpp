@@ -56,4 +56,3 @@ TEST(HandEye, SingleCameraOptimization) {
     EXPECT_NEAR(0.0, (res.hand_eye[0].translation() - X.translation()).norm(), 0.2);
     EXPECT_NEAR(0.0, (res.base_T_target.translation() - base_T_target.translation()).norm(), 0.1);
 }
-

@@ -8,7 +8,7 @@ using namespace vitavision;
 
 TEST(JointCalibration, RecoverAllParameters) {
     const int kCams = 2;
-    CameraMatrix K{100.0, 100.0, 0.0, 0.0};
+    CameraMatrix K{100.0, 100.0, 30.0, 30.0};
     Eigen::VectorXd dist(2);
     dist << 0.0, 0.0;
 
@@ -50,8 +50,10 @@ TEST(JointCalibration, RecoverAllParameters) {
     };
 
     auto guess = make_initial_extrinsic_guess(views, cam_init);
+    ASSERT_TRUE(guess.camera_poses.front().isApprox(Eigen::Affine3d::Identity()));
 
     auto res = optimize_joint_intrinsics_extrinsics(views, cam_init, guess.camera_poses, guess.target_poses);
+    std::cout << res.summary << std::endl;
 
     EXPECT_LT(res.reprojection_error, 1e-6);
     ASSERT_EQ(res.intrinsics.size(), static_cast<size_t>(kCams));

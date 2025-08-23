@@ -34,10 +34,12 @@ static Eigen::Affine3d average_affines(const std::vector<Eigen::Affine3d>& poses
 
 InitialExtrinsicGuess make_initial_extrinsic_guess(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras) {
+    const std::vector<Camera>& cameras
+) {
     const size_t num_cams = cameras.size();
     const size_t num_views = views.size();
-    std::vector<std::vector<Eigen::Affine3d>> cam_to_target(num_views, std::vector<Eigen::Affine3d>(num_cams, Eigen::Affine3d::Identity()));
+    std::vector<std::vector<Eigen::Affine3d>> cam_to_target(
+        num_views, std::vector<Eigen::Affine3d>(num_cams, Eigen::Affine3d::Identity()));
 
     // Estimate per-camera target poses via DLT
     for (size_t v = 0; v < num_views; ++v) {
@@ -362,34 +364,17 @@ ExtrinsicOptimizationResult optimize_extrinsic_poses(
     return result;
 }
 
-// Joint optimization of camera intrinsics, extrinsic poses and target poses
-JointOptimizationResult optimize_joint_intrinsics_extrinsics(
+static void setup_joint_problem(
     const std::vector<ExtrinsicPlanarView>& views,
     const std::vector<Camera>& initial_cameras,
-    const std::vector<Eigen::Affine3d>& initial_camera_poses,
-    const std::vector<Eigen::Affine3d>& initial_target_poses,
-    bool verbose) {
-    JointOptimizationResult result;
+    std::vector<std::array<double, 4>>& intr,
+    std::vector<Pose6>& cam_poses,
+    std::vector<Pose6>& targ_poses,
+    ceres::Problem& problem
+) {
     const size_t num_cams = initial_cameras.size();
     const size_t num_views = views.size();
-    if (initial_camera_poses.size() != num_cams ||
-        initial_target_poses.size() != num_views) {
-        throw std::invalid_argument("Incompatible pose vector sizes for joint optimization");
-    }
 
-    // Parameter arrays
-    std::vector<std::array<double,4>> intr(num_cams);
-    for (size_t i = 0; i < num_cams; ++i) {
-        intr[i] = {initial_cameras[i].intrinsics.fx,
-                   initial_cameras[i].intrinsics.fy,
-                   initial_cameras[i].intrinsics.cx,
-                   initial_cameras[i].intrinsics.cy};
-    }
-    std::vector<Pose6> cam_poses(num_cams);
-    std::vector<Pose6> targ_poses(num_views);
-    initialize_pose_vectors(initial_camera_poses, initial_target_poses, cam_poses, targ_poses);
-
-    ceres::Problem problem;
     for (size_t i = 0; i < num_cams; ++i) {
         problem.AddParameterBlock(intr[i].data(), 4);
         problem.AddParameterBlock(cam_poses[i].data(), 6);
@@ -416,21 +401,17 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
                                      intr[c].data(), cam_poses[c].data(), targ_poses[v].data());
         }
     }
+}
 
-    ceres::Solver::Options opts;
-    opts.linear_solver_type = ceres::DENSE_QR;
-    opts.minimizer_progress_to_stdout = verbose;
-    constexpr double eps = 1e-6;
-    opts.function_tolerance = eps;
-    opts.gradient_tolerance = eps;
-    opts.parameter_tolerance = eps;
-    opts.max_num_iterations = 1000;
+static void extract_joint_solution(
+    const std::vector<std::array<double, 4>>& intr,
+    const std::vector<Pose6>& cam_poses,
+    const std::vector<Pose6>& targ_poses,
+    JointOptimizationResult& result
+) {
+    const size_t num_cams = cam_poses.size();
+    const size_t num_views = targ_poses.size();
 
-    ceres::Solver::Summary summary;
-    ceres::Solve(opts, &problem, &summary);
-    result.summary = summary.BriefReport();
-
-    // Extract solution
     result.intrinsics.resize(num_cams);
     result.camera_poses.resize(num_cams);
     for (size_t i = 0; i < num_cams; ++i) {
@@ -441,8 +422,16 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
     for (size_t v = 0; v < num_views; ++v) {
         result.target_poses[v] = pose6_to_affine(targ_poses[v]);
     }
+}
 
-    // Residual statistics
+static std::pair<double, size_t> compute_joint_residual_stats(
+    const std::vector<ExtrinsicPlanarView>& views,
+    const std::vector<Camera>& cameras,
+    JointOptimizationResult result
+) {
+    const size_t num_views = views.size();
+    const size_t num_cams = cameras.size();
+
     double ssr = 0.0; size_t count = 0;
     for (size_t v = 0; v < num_views; ++v) {
         const auto& view = views[v];
@@ -452,7 +441,7 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
                 Eigen::Vector3d P = result.camera_poses[c] * result.target_poses[v]
                                     * Eigen::Vector3d(ob.object_xy.x(), ob.object_xy.y(), 0.0);
                 Eigen::Vector2d xyn{P.x()/P.z(), P.y()/P.z()};
-                Eigen::Vector2d d = apply_distortion(xyn, initial_cameras[c].distortion);
+                Eigen::Vector2d d = apply_distortion(xyn, cameras[c].distortion);
                 Eigen::Vector2d pred = result.intrinsics[c].denormalize(d);
                 Eigen::Vector2d diff = pred - ob.image_uv;
                 ssr += diff.squaredNorm();
@@ -460,15 +449,20 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
             }
         }
     }
-    if (count > 0) {
-        result.reprojection_error = std::sqrt(ssr / count);
-    }
+    return { ssr, count };
+}
 
-    const int num_params = static_cast<int>(4*num_cams + ((num_cams?num_cams-1:0)+num_views)*6);
-    const int dof = std::max(1, static_cast<int>(count) - num_params);
-    const double sigma2 = ssr / dof;
+static void compute_joint_covariance(
+    ceres::Problem& problem,
+    const std::vector<std::array<double, 4>>& intr,
+    const std::vector<Pose6>& cam_poses,
+    const std::vector<Pose6>& targ_poses,
+    double sigma2,
+    JointOptimizationResult& result
+) {
+    const size_t num_views = targ_poses.size();
+    const size_t num_cams = cam_poses.size();
 
-    // Covariances
     result.intrinsic_covariances.assign(num_cams, Eigen::Matrix4d::Zero());
     result.camera_covariances.assign(num_cams, Eigen::Matrix<double,6,6>::Zero());
     result.target_covariances.assign(num_views, Eigen::Matrix<double,6,6>::Zero());
@@ -505,9 +499,69 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
             result.target_covariances[v] = sigma2 * C6;
         }
     }
+}
 
+// Joint optimization of camera intrinsics, extrinsic poses and target poses
+JointOptimizationResult optimize_joint_intrinsics_extrinsics(
+    const std::vector<ExtrinsicPlanarView>& views,
+    const std::vector<Camera>& initial_cameras,
+    const std::vector<Eigen::Affine3d>& initial_camera_poses,
+    const std::vector<Eigen::Affine3d>& initial_target_poses,
+    bool verbose
+) {
+    JointOptimizationResult result;
+    const size_t num_cams = initial_cameras.size();
+    const size_t num_views = views.size();
+    if (initial_camera_poses.size() != num_cams ||
+        initial_target_poses.size() != num_views) {
+        throw std::invalid_argument("Incompatible pose vector sizes for joint optimization");
+    }
+
+    // Parameter arrays
+    std::vector<std::array<double,4>> intr(num_cams);
+    for (size_t i = 0; i < num_cams; ++i) {
+        intr[i] = {initial_cameras[i].intrinsics.fx,
+                   initial_cameras[i].intrinsics.fy,
+                   initial_cameras[i].intrinsics.cx,
+                   initial_cameras[i].intrinsics.cy};
+    }
+    std::vector<Pose6> cam_poses(num_cams);
+    std::vector<Pose6> targ_poses(num_views);
+    initialize_pose_vectors(initial_camera_poses, initial_target_poses, cam_poses, targ_poses);
+
+    ceres::Problem problem;
+    setup_joint_problem(views, initial_cameras, intr, cam_poses, targ_poses, problem);
+
+    ceres::Solver::Options opts;
+    opts.linear_solver_type = ceres::DENSE_QR;
+    opts.minimizer_progress_to_stdout = verbose;
+    constexpr double eps = 1e-6;
+    opts.function_tolerance = eps;
+    opts.gradient_tolerance = eps;
+    opts.parameter_tolerance = eps;
+    opts.max_num_iterations = 1000;
+
+    ceres::Solver::Summary summary;
+    ceres::Solve(opts, &problem, &summary);
+    result.summary = summary.BriefReport();
+
+    // Extract solution
+    extract_joint_solution(intr, cam_poses, targ_poses, result);
+
+    // Residual statistics
+    // TODO: update distortions based on the fit result! Do not use initial_cameras!
+    const auto [ssr, count] = compute_joint_residual_stats(views, initial_cameras, result);
+    if (count > 0) {
+        result.reprojection_error = std::sqrt(ssr / count);
+    }
+
+    const int num_params = static_cast<int>(4*num_cams + ((num_cams?num_cams-1:0)+num_views)*6);
+    const int dof = std::max(1, static_cast<int>(count) - num_params);
+    const double sigma2 = ssr / dof;
+
+    // Covariances
+    compute_joint_covariance(problem, intr, cam_poses, targ_poses, sigma2, result);
     return result;
 }
 
 } // namespace vitavision
-
