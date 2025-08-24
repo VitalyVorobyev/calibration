@@ -8,6 +8,22 @@
 
 namespace vitavision {
 
+template<typename T>
+static void planar_observables_to_observables(const std::vector<PlanarObservation>& po,
+                                              std::vector<Observation<T>>& o,
+                                              const Eigen::Transform<T, 3, Eigen::Affine>& pose) {
+    if (o.size() != po.size()) o.resize(po.size());
+    for (size_t i = 0; i < po.size(); ++i) {
+        const auto& p = po[i];
+        // Convert pixel coordinates to normalized image coordinates
+        Eigen::Matrix<T,3,1> P{T(p.object_xy.x()), T(p.object_xy.y()), T(0)};
+        P = pose * P;
+        const T xn = P.x() / P.z();
+        const T yn = P.y() / P.z();
+        o[i] = Observation<T>{xn, yn, T(p.image_uv.x()), T(p.image_uv.y())};
+    }
+}
+
 struct JointResidual {
     std::vector<PlanarObservation> obs_;
     int num_radial_;
@@ -18,35 +34,16 @@ struct JointResidual {
 
     template <typename T>
     bool operator()(const T* intr, const T* cam_pose6, const T* target_pose6, T* residuals) const {
-        Eigen::Matrix<T,3,3> R_cam, R_target;
-        ceres::AngleAxisToRotationMatrix(cam_pose6, R_cam.data());
-        ceres::AngleAxisToRotationMatrix(target_pose6, R_target.data());
-        Eigen::Matrix<T,3,1> t_cam{cam_pose6[3], cam_pose6[4], cam_pose6[5]};
-        Eigen::Matrix<T,3,1> t_target{target_pose6[3], target_pose6[4], target_pose6[5]};
-
-        Eigen::Matrix<T,3,3> R = R_cam * R_target;
-        Eigen::Matrix<T,3,1> t = R_cam * t_target + t_cam;
-
-        const int N = static_cast<int>(obs_.size());
         static thread_local std::vector<Observation<T>> o;
-        if (o.size() != static_cast<size_t>(N)) o.resize(N);
 
-        for (int i = 0; i < N; ++i) {
-            const auto& ob = obs_[i];
-            Eigen::Matrix<T,3,1> P{T(ob.object_xy.x()), T(ob.object_xy.y()), T(0)};
-            Eigen::Matrix<T,3,1> Pc = R * P + t;
-            T xn = Pc.x() / Pc.z();
-            T yn = Pc.y() / Pc.z();
-            o[i] = Observation<T>{xn, yn, T(ob.image_uv.x()), T(ob.image_uv.y())};
-        }
+        auto pose_cam = pose2affine(cam_pose6);
+        auto pose_target = pose2affine(target_pose6);
+        planar_observables_to_observables(obs_, o, pose_cam * pose_target);
 
-        for (int i = 0; i < N; ++i) {
-            const auto& ob = o[i];
-            T u = intr[0] * ob.x + intr[2];
-            T v = intr[1] * ob.y + intr[3];
-            residuals[2*i]   = u - ob.u;
-            residuals[2*i+1] = v - ob.v;
-        }
+        auto dr = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        if (!dr.has_value()) throw std::runtime_error("Distortion fitting failed");
+        const auto& r = dr->residuals;
+        for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
         return true;
     }
 };
@@ -113,11 +110,11 @@ static void extract_joint_solution(
     result.camera_poses.resize(num_cams);
     for (size_t i = 0; i < num_cams; ++i) {
         result.intrinsics[i] = {intr[i][0], intr[i][1], intr[i][2], intr[i][3]};
-        result.camera_poses[i] = pose6_to_affine(cam_poses[i]);
+        result.camera_poses[i] = pose2affine(cam_poses[i].data());
     }
     result.target_poses.resize(num_views);
     for (size_t v = 0; v < num_views; ++v) {
-        result.target_poses[v] = pose6_to_affine(targ_poses[v]);
+        result.target_poses[v] = pose2affine(targ_poses[v].data());
     }
 }
 

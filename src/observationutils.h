@@ -11,6 +11,14 @@ namespace vitavision {
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
+template<typename T>
+Eigen::Transform<T, 3, Eigen::Affine> pose2affine(const T* pose) {
+    Eigen::Matrix<T, 3, 3> R;
+    ceres::AngleAxisToRotationMatrix(pose, R.data());
+    Eigen::Matrix<T, 3, 1> t{pose[3], pose[4], pose[5]};
+    return Eigen::Translation<T, 3>(t) * R;
+}
+
 // Utility: skew-symmetric matrix from vector
 inline Eigen::Matrix3d skew(const Eigen::Vector3d& v) {
     Eigen::Matrix3d m;

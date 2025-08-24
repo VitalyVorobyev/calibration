@@ -76,31 +76,26 @@ InitialExtrinsicGuess make_initial_extrinsic_guess(
     return guess;
 }
 
-struct ExtrinsicResidual {
+struct ExtrinsicResidual final {
     std::vector<PlanarObservation> obs_;
-    Camera cam_;
+    const Camera cam_;
 
     ExtrinsicResidual(std::vector<PlanarObservation> obs, const Camera& cam)
         : obs_(std::move(obs)), cam_(cam) {}
 
     template <typename T>
     bool operator()(const T* cam_pose6, const T* target_pose6, T* residuals) const {
-        Eigen::Matrix<T,3,3> R_cam, R_target;
-        ceres::AngleAxisToRotationMatrix(cam_pose6, R_cam.data());
-        ceres::AngleAxisToRotationMatrix(target_pose6, R_target.data());
-        Eigen::Matrix<T,3,1> t_cam{cam_pose6[3], cam_pose6[4], cam_pose6[5]};
-        Eigen::Matrix<T,3,1> t_target{target_pose6[3], target_pose6[4], target_pose6[5]};
-
-        Eigen::Matrix<T,3,3> R = R_cam * R_target;
-        Eigen::Matrix<T,3,1> t = R_cam * t_target + t_cam;
+        auto pose_cam = pose2affine(cam_pose6);
+        auto pose_target = pose2affine(target_pose6);
+        Eigen::Transform<T, 3, Eigen::Affine> pose = pose_cam * pose_target;
 
         const int N = static_cast<int>(obs_.size());
         for (int i = 0; i < N; ++i) {
             const auto& ob = obs_[i];
             Eigen::Matrix<T,3,1> P{T(ob.object_xy.x()), T(ob.object_xy.y()), T(0)};
-            Eigen::Matrix<T,3,1> Pc = R * P + t;
-            T xn = Pc.x() / Pc.z();
-            T yn = Pc.y() / Pc.z();
+            P = pose * P;
+            T xn = P.x() / P.z();
+            T yn = P.y() / P.z();
             Eigen::Matrix<T,2,1> xyn{xn, yn};
             auto uv = cam_.project_normalized(xyn);
             residuals[2*i]   = uv.x() - T(ob.image_uv.x());
