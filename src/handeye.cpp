@@ -10,10 +10,16 @@
 // ceres
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
+#include <ceres/manifold.h>
+#include <ceres/sphere_manifold.h>
 
 #include "calibration/planarpose.h"
 
 #include "observationutils.h"
+
+constexpr int DEFAULT_NUM_RADIAL_DISTORTION_PARAMS = 2;
+constexpr double CONVERGENCE_TOLERANCE = 1e-6;
+constexpr int MAX_ITERATIONS = 1000;
 
 namespace vitavision {
 
@@ -107,53 +113,13 @@ struct HandEyeReprojResidual final {
                     const T* intrinsics,
                     const T* dist,
                     T* residuals) const {
-        // base -> target
-        auto pose_bt = pose2affine(base_target6);
-        #if 0
-        Eigen::Matrix<T,3,3> R_bt;
-        ceres::AngleAxisToRotationMatrix(base_target6, R_bt.data());
-        Eigen::Matrix<T,3,1> t_bt(base_target6[3], base_target6[4], base_target6[5]);
-        #endif
-
-        // gripper -> reference camera
-        auto pose_gr = pose2affine(he_ref6);
-        #if 0
-        Eigen::Matrix<T,3,3> R_gr;
-        ceres::AngleAxisToRotationMatrix(he_ref6, R_gr.data());
-        Eigen::Matrix<T,3,1> t_gr(he_ref6[3], he_ref6[4], he_ref6[5]);
-        #endif
-
+        auto pose_bt = pose2affine(base_target6);  // base -> target
+        auto pose_gr = pose2affine(he_ref6);       // gripper -> reference camera
         // reference -> camera extrinsic (optional)
         auto pose_rc = use_ext ? pose2affine(ext6) : Eigen::Transform<T, 3, Eigen::Affine>::Identity();
-        #if 0
-        Eigen::Matrix<T,3,3> R_rc = Eigen::Matrix<T,3,3>::Identity();
-        Eigen::Matrix<T,3,1> t_rc(T(0), T(0), T(0));
-        if (use_ext) {
-            ceres::AngleAxisToRotationMatrix(ext6, R_rc.data());
-            t_rc = Eigen::Matrix<T,3,1>(ext6[3], ext6[4], ext6[5]);
-        }
-        #endif
-
-        // gripper -> camera
-        auto pose_gc = pose_gr * pose_rc;
-        #if 0
-        Eigen::Matrix<T,3,3> R_gc = R_gr * R_rc;
-        Eigen::Matrix<T,3,1> t_gc = R_gr * t_rc + t_gr;
-        #endif
-
-        // base -> camera
-        auto pose_bc = base_to_gripper.template cast<T>() * pose_gc;
-
-        #if 0
-        Eigen::Matrix<T,3,3> R_bg = base_R_gripper.cast<T>();
-        Eigen::Matrix<T,3,1> t_bg = base_t_gripper.cast<T>();
-
-        Eigen::Matrix<T,3,3> R_bc = R_bg * R_gc;
-        Eigen::Matrix<T,3,1> t_bc = R_bg * t_gc + t_bg;
-        #endif
-
-        // target -> camera
-        auto pose_tc = pose_bc * pose_bt.inverse();
+        auto pose_gc = pose_gr * pose_rc;  // gripper -> camera
+        auto pose_bc = base_to_gripper.template cast<T>() * pose_gc;  // base -> camera
+        auto pose_tc = pose_bc * pose_bt.inverse();  // target -> camera
 
         std::vector<Observation<T>> o(view.size());
         planar_observables_to_observables(view, o, pose_tc);
@@ -167,7 +133,7 @@ struct HandEyeReprojResidual final {
         int idx = 0;
         for (const auto& ob : o) {
             Eigen::Matrix<T,2,1> norm_xy(ob.x, ob.y);
-            Eigen::Matrix<T,2,1> distorted = apply_distortion(norm_xy, d);
+            Eigen::Matrix<T,2,1> distorted = apply_distortion<T>(norm_xy, d);
             T u = fx * distorted.x() + cx;
             T v = fy * distorted.y() + cy;
             residuals[idx++] = u - ob.u;
@@ -308,7 +274,7 @@ static void build_problem(const std::vector<HandEyeObservation>& observations,
         }
         // Anchor scale by fixing fx, fy for reference camera
         std::vector<int> fixed = {0,1};
-        p.SetParameterization(blocks.K[0].data(), new ceres::SubsetParameterization(4, fixed));
+        p.SetManifold(blocks.K[0].data(), new ceres::SubsetManifold(4, fixed));
     }
 }
 
@@ -319,7 +285,8 @@ static void recover_parameters(const HEParameterBlocks& blocks,
     Eigen::Matrix3d R_bt;
     ceres::AngleAxisToRotationMatrix(blocks.base_target6.data(), R_bt.data());
     result.base_T_target.linear() = R_bt;
-    result.base_T_target.translation() = Eigen::Vector3d(blocks.base_target6[3], blocks.base_target6[4], blocks.base_target6[5]);
+    result.base_T_target.translation() = Eigen::Vector3d(
+        blocks.base_target6[3], blocks.base_target6[4], blocks.base_target6[5]);
 
     Eigen::Matrix3d R_hr;
     ceres::AngleAxisToRotationMatrix(blocks.he_ref6.data(), R_hr.data());
@@ -434,18 +401,18 @@ HandEyeResult calibrate_hand_eye(
     build_problem(observations, opts, blocks, p);
 
     ceres::Solver::Options sopts;
-    if (ceres::IsSparseLinearAlgebraLibraryAvailable()) {
-        sopts.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-    } else {
-        sopts.linear_solver_type = ceres::DENSE_SCHUR;
-    }
+    #if 0
+    sopts.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+    #else
+    sopts.linear_solver_type = ceres::DENSE_SCHUR;
+    #endif
     sopts.minimizer_progress_to_stdout = opts.verbose;
 
-    constexpr double eps = 1e-6;
+    constexpr double eps = CONVERGENCE_TOLERANCE;
     sopts.function_tolerance = eps;
     sopts.gradient_tolerance = eps;
     sopts.parameter_tolerance = eps;
-    sopts.max_num_iterations = 1000;
+    sopts.max_num_iterations = MAX_ITERATIONS;
 
     ceres::Solver::Summary summary;
     ceres::Solve(sopts, &p, &summary);

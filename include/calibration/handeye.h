@@ -59,6 +59,13 @@ Eigen::Affine3d estimate_hand_eye_initial(
  * Perform bundle-adjustment style optimisation of the hand-eye calibration
  * problem.  Supports single or multiple cameras and optional optimisation of
  * intrinsics and the target pose.
+ * @param observations Set of observations with robot poses and target detections
+ * @param initial_intrinsics Initial camera intrinsic parameters
+ * @param initial_hand_eye Initial estimate of hand-eye transformation
+ * @param initial_extrinsics Initial estimates of extrinsic transformations between cameras
+ * @param initial_base_target Initial estimate of base-to-target transformation
+ * @param opts Optimization options
+ * @return Calibration result containing optimized parameters and error metrics
  */
 HandEyeResult calibrate_hand_eye(
     const std::vector<HandEyeObservation>& observations,
