@@ -17,11 +17,12 @@ static PlanarView make_view(const std::vector<Eigen::Vector2d>& obj,
 TEST(HandEye, SingleCamera_HandEyeWithFixedTarget) {
     CameraMatrix K{100.0, 100.0, 64.0, 48.0};
 
+    // reference -> gripper (refcam_T_gripper)
     Eigen::Affine3d X = Eigen::Affine3d::Identity();
     X.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
     X.translation() = Eigen::Vector3d(0.1, 0.0, 0.05);
 
-    Eigen::Affine3d base_T_target = Eigen::Affine3d::Identity();
+    Eigen::Affine3d base_T_target = Eigen::Affine3d::Identity();  // target -> base
     base_T_target.translation() = Eigen::Vector3d(0.2, 0.0, 0.0);
 
     // need at least 8 points to fit distortions
@@ -33,7 +34,7 @@ TEST(HandEye, SingleCamera_HandEyeWithFixedTarget) {
 
     std::vector<HandEyeObservation> observations;
     std::vector<Eigen::Affine3d> base_T_gripper_list;
-    std::vector<Eigen::Affine3d> target_T_camera_list;
+    std::vector<Eigen::Affine3d> camera_T_target_list;
 
     // Create diverse motion patterns - rotations and translations in different directions
     for (int i = 0; i < 8; ++i) {  // Increased number of poses
@@ -56,9 +57,10 @@ TEST(HandEye, SingleCamera_HandEyeWithFixedTarget) {
         base_T_gripper.linear() = rot;
         base_T_gripper_list.push_back(base_T_gripper);
 
-        Eigen::Affine3d base_T_camera = base_T_gripper * X;
-        Eigen::Affine3d target_T_camera = base_T_camera * base_T_target.inverse();
-        target_T_camera_list.push_back(target_T_camera);
+        Eigen::Affine3d base_T_camera = base_T_gripper * X.inverse();
+        Eigen::Affine3d target_T_camera = base_T_target.inverse() * base_T_camera;
+        Eigen::Affine3d camera_T_target = target_T_camera.inverse();
+        camera_T_target_list.push_back(camera_T_target);
 
         std::vector<Eigen::Vector2d> img;
         img.reserve(obj.size());
@@ -73,7 +75,7 @@ TEST(HandEye, SingleCamera_HandEyeWithFixedTarget) {
         observations.push_back(ho);
     }
 
-    Eigen::Affine3d initX = estimate_hand_eye_initial(base_T_gripper_list, target_T_camera_list);
+    Eigen::Affine3d initX = estimate_hand_eye_initial(base_T_gripper_list, camera_T_target_list);
 
     // Configure options - consider fixing some parameters if needed
     HandEyeOptions opts;
@@ -84,21 +86,22 @@ TEST(HandEye, SingleCamera_HandEyeWithFixedTarget) {
     initX.translation() += Eigen::Vector3d(0.01, 0.01, 0.01);
     initX.linear() = initX.linear() * Eigen::AngleAxisd(0.02, Eigen::Vector3d::UnitX()).toRotationMatrix();
 
-    HandEyeResult res = calibrate_hand_eye(observations, {K}, initX, {}, base_T_target, opts);
+    HandEyeResult res = calibrate_hand_eye(
+        observations, {K}, initX, {Eigen::Affine3d::Identity()}, base_T_target, opts);
     std::cout << res.summary << std::endl;
 
-    EXPECT_NEAR(0.0, (res.hand_eye[0].translation() - X.translation()).norm(), 0.001);
+    EXPECT_NEAR(0.0, (res.hand_eye.translation() - X.translation()).norm(), 0.001);
     EXPECT_NEAR(0.0, (res.base_T_target.translation() - base_T_target.translation()).norm(), 0.001);
 
     // Also test rotation accuracy
-    Eigen::AngleAxisd rot_diff(res.hand_eye[0].linear() * X.linear().transpose());
+    Eigen::AngleAxisd rot_diff(res.hand_eye.linear() * X.linear().transpose());
     EXPECT_NEAR(0.0, rot_diff.angle(), 0.01);
 }
 
 TEST(HandEye, SingleCamera_TargetPoseWithKnownHandEye) {
     CameraMatrix K{100.0, 100.0, 64.0, 48.0};
 
-    Eigen::Affine3d X = Eigen::Affine3d::Identity();
+    Eigen::Affine3d X = Eigen::Affine3d::Identity();  // gripper_T_camera
     X.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
     X.translation() = Eigen::Vector3d(0.1, 0.0, 0.05);
 
@@ -126,14 +129,15 @@ TEST(HandEye, SingleCamera_TargetPoseWithKnownHandEye) {
             0.5).normalized()).toRotationMatrix();
         base_T_gripper.linear() = rot;
 
-        Eigen::Affine3d base_T_camera = base_T_gripper * X;
-        Eigen::Affine3d target_T_camera = base_T_camera * base_T_target.inverse();
+        Eigen::Affine3d base_T_camera = base_T_gripper * X.inverse();
+        Eigen::Affine3d target_T_camera = base_T_target.inverse() * base_T_camera;
+        Eigen::Affine3d camera_T_target = target_T_camera.inverse();
 
         std::vector<Eigen::Vector2d> img;
         img.reserve(obj.size());
         for (const auto& xy : obj) {
             Eigen::Vector3d P(xy.x(), xy.y(), 0.0);
-            P = target_T_camera * P;
+            P = camera_T_target * P;
             double u = K.fx * (P.x() / P.z()) + K.cx;
             double v = K.fy * (P.y() / P.z()) + K.cy;
             img.emplace_back(u, v);
@@ -142,15 +146,16 @@ TEST(HandEye, SingleCamera_TargetPoseWithKnownHandEye) {
     }
 
     // Initial base->target is perturbed
-    Eigen::Affine3d init_bt = base_T_target;
-    init_bt.translation() += Eigen::Vector3d(0.01, -0.01, 0.02);
+    Eigen::Affine3d init_base_T_target = base_T_target;
+    init_base_T_target.translation() += Eigen::Vector3d(0.01, -0.01, 0.02);
 
     HandEyeOptions opts;
     opts.optimize_intrinsics = false;
     opts.optimize_target_pose = true;
     opts.optimize_hand_eye = false; // hand-eye is assumed known
 
-    HandEyeResult res = calibrate_hand_eye(observations, {K}, X, {}, init_bt, opts);
+    HandEyeResult res = calibrate_hand_eye(
+        observations, {K}, X, {Eigen::Affine3d::Identity()}, init_base_T_target, opts);
     std::cout << res.summary << std::endl;
 
     EXPECT_NEAR(0.0, (res.base_T_target.translation() - base_T_target.translation()).norm(), 1e-3);
