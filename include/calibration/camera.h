@@ -30,7 +30,8 @@ struct Camera final {
      */
     template <typename T>
     Eigen::Matrix<T,2,1> project_normalized(const Eigen::Matrix<T,2,1>& xyn) const {
-        Eigen::Matrix<T,2,1> d = apply_distortion(xyn, distortion);
+        Eigen::Matrix<T, Eigen::Dynamic, 1> distT = distortion.template cast<T>();
+        Eigen::Matrix<T,2,1> d = apply_distortion(xyn, distT);
         return intrinsics.denormalize(d);
     }
 };

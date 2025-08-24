@@ -12,15 +12,11 @@
 #include <Eigen/Geometry>
 
 #include "calibration/intrinsics.h"
+#include "calibration/planarpose.h"  // PlanarObservation
 
 namespace vitavision {
 
-struct PlanarView {
-    std::vector<Eigen::Vector2d> object_xy;  // Planar target coordinates (Z=0)
-    std::vector<Eigen::Vector2d> image_uv;   // Corresponding pixel measurements
-};
-
-struct CameraCalibrationResult {
+struct CameraCalibrationResult final {
     CameraMatrix intrinsics;             // Estimated camera matrix
     Eigen::VectorXd distortion;          // Distortion coefficients [k..., p1, p2]
     std::vector<Eigen::Affine3d> poses;  // Poses of each view (world->camera)

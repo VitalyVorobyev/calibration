@@ -52,7 +52,7 @@ using Pose6 = Eigen::Matrix<double, 6, 1>;
 
 // Functor mirroring the production PlanarPoseVPResidual for testing Jacobians.
 struct PlanarPoseVPResidualTestFunctor {
-    std::vector<PlanarObservation> obs;
+    PlanarView obs;
     std::array<double, 4> K;
     int num_radial;
 
@@ -156,7 +156,7 @@ TEST(PlanarPoseTest, AutoDiffJacobianParity) {
     pose.translation() = Eigen::Vector3d(0.1,0.2,2.0);
 
     auto [obj_pts, img_pts] = createSyntheticPlanarData(pose, intrinsics);
-    std::vector<PlanarObservation> obs(obj_pts.size());
+    PlanarView obs(obj_pts.size());
     for (size_t i=0;i<obj_pts.size();++i) obs[i] = {obj_pts[i], img_pts[i]};
 
     const std::array<double, 4> K = {intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy};

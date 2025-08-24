@@ -6,8 +6,8 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calibration/calib.h" // for PlanarView
 #include "calibration/intrinsics.h"
+#include "calibration/planarpose.h"  // PlanarObservation
 
 namespace vitavision {
 
@@ -19,9 +19,9 @@ namespace vitavision {
  * frame.
  */
 struct HandEyeObservation final {
-    PlanarView view;                ///< Planar target observations
-    Eigen::Affine3d base_T_gripper; ///< Pose of the gripper in the base frame
-    size_t camera_index = 0;        ///< Which camera acquired this view
+    PlanarView view;  ///< Planar target observations
+    Eigen::Affine3d base_T_gripper;       ///< Pose of the gripper in the base frame
+    size_t camera_index = 0;              ///< Which camera acquired this view
 };
 
 /** Options controlling the hand-eye calibration optimisation. */
@@ -37,7 +37,7 @@ struct HandEyeOptions final {
 struct HandEyeResult final {
     std::vector<CameraMatrix> intrinsics;          ///< Estimated intrinsics per camera
     std::vector<Eigen::VectorXd> distortions;      ///< Estimated distortion coefficients
-    std::vector<Eigen::Affine3d> hand_eye;         ///< Estimated gripper->camera transforms
+    Eigen::Affine3d hand_eye;                      ///< Estimated gripper->reference camera transforms
     std::vector<Eigen::Affine3d> extrinsics;       ///< Estimated reference->camera extrinsics
     Eigen::Affine3d base_T_target = Eigen::Affine3d::Identity(); ///< Pose of target in base frame
     double reprojection_error = 0.0;               ///< RMSE of reprojection
@@ -53,12 +53,19 @@ struct HandEyeResult final {
  */
 Eigen::Affine3d estimate_hand_eye_initial(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
-    const std::vector<Eigen::Affine3d>& target_T_camera);
+    const std::vector<Eigen::Affine3d>& camera_T_target);
 
 /**
  * Perform bundle-adjustment style optimisation of the hand-eye calibration
  * problem.  Supports single or multiple cameras and optional optimisation of
  * intrinsics and the target pose.
+ * @param observations Set of observations with robot poses and target detections
+ * @param initial_intrinsics Initial camera intrinsic parameters
+ * @param initial_hand_eye Initial estimate of hand-eye transformation
+ * @param initial_extrinsics Initial estimates of extrinsic transformations between cameras
+ * @param initial_base_target Initial estimate of base-to-target transformation
+ * @param opts Optimization options
+ * @return Calibration result containing optimized parameters and error metrics
  */
 HandEyeResult calibrate_hand_eye(
     const std::vector<HandEyeObservation>& observations,

@@ -12,10 +12,8 @@
 
 namespace vitavision {
 
-struct ExtrinsicPlanarView final {
-    // observations[camera][feature]
-    std::vector<std::vector<PlanarObservation>> observations;
-};
+// [camera]
+using ExtrinsicPlanarView = std::vector<PlanarView>;
 
 struct ExtrinsicOptimizationResult final {
     std::vector<Eigen::Affine3d> camera_poses;   // reference->camera
