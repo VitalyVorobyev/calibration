@@ -85,3 +85,14 @@ target_link_libraries(handeye_test
 )
 gtest_discover_tests(handeye_test)
 
+# Test for line scan calibration
+add_executable(linescan_test linescan_test.cpp)
+target_link_libraries(linescan_test
+    PRIVATE calibration
+    PRIVATE GTest::gtest_main
+    PRIVATE GTest::gmock_main
+    PRIVATE Eigen3::Eigen
+    PRIVATE Ceres::ceres
+)
+gtest_discover_tests(linescan_test)
+
