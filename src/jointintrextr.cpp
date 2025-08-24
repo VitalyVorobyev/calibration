@@ -18,7 +18,7 @@ struct JointResidual {
 
     template <typename T>
     bool operator()(const T* intr, const T* cam_pose6, const T* target_pose6, T* residuals) const {
-        static thread_local std::vector<Observation<T>> o;
+        std::vector<Observation<T>> o(obs_.size());
 
         auto pose_cam = pose2affine(cam_pose6);
         auto pose_target = pose2affine(target_pose6);

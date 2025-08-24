@@ -109,9 +109,7 @@ struct PlanarPoseVPResidual {
         const T cx = T(K_[2]);
         const T cy = T(K_[3]);
 
-        static thread_local std::vector<Observation<T>> o;
-        if (o.size() != obs_.size()) o.resize(obs_.size());
-
+        std::vector<Observation<T>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(),
             [pose6](const PlanarObservation& s) { return to_observation(s, pose6); });
 

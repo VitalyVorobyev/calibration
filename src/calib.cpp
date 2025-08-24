@@ -33,8 +33,7 @@ struct CalibVPResidual {
     bool operator()(T const* const* params, T* residuals) const {
         const T* intr = params[0];
 
-        static thread_local std::vector<Observation<T>> o;
-        if (o.size() != total_obs_) o.resize(total_obs_);
+        std::vector<Observation<T>> o(total_obs_);
 
         size_t obs_idx = 0;
         for (size_t i = 0; i < views_.size(); ++i) {
