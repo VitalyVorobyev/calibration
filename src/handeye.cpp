@@ -93,22 +93,19 @@ struct HandEyeReprojResidual final {
     PlanarView view;
     Eigen::Affine3d base_to_gripper;
     bool use_ext;
-    int num_radial;
-
     HandEyeReprojResidual(PlanarView v,
                           const Eigen::Affine3d& base_T_gripper,
-                          bool use_ext_,
-                          int num_radial_=2)
+                          bool use_ext_)
         : view(std::move(v)),
           base_to_gripper(base_T_gripper),
-          use_ext(use_ext_),
-          num_radial(num_radial_) {}
+          use_ext(use_ext_) {}
 
     template <typename T>
     bool operator()(const T* base_target6,
                     const T* he_ref6,
                     const T* ext6,
                     const T* intrinsics,
+                    const T* dist,
                     T* residuals) const {
         // base -> target
         auto pose_bt = pose2affine(base_target6);
@@ -158,44 +155,34 @@ struct HandEyeReprojResidual final {
         // target -> camera
         auto pose_tc = pose_bc * pose_bt.inverse();
 
-        #if 0
-        Eigen::Matrix<T,3,3> R_tb = R_bt.transpose();
-        Eigen::Matrix<T,3,3> R_tc = R_bc * R_tb;
-        Eigen::Matrix<T,3,1> t_tc = t_bc - R_tc * t_bt;
-        #endif
-
-        static thread_local std::vector<Observation<T>> o;
-        #if 1
+        std::vector<Observation<T>> o(view.size());
         planar_observables_to_observables(view, o, pose_tc);
-        #else
-        const int N = static_cast<int>(view.size());
-        if (o.size() != static_cast<size_t>(N)) o.resize(N);
-        for (int i = 0; i < N; ++i) {
-            Eigen::Matrix<T,3,1> P{T(view.object_xy[i].x()), T(view.object_xy[i].y()), T(0)};
-            Eigen::Matrix<T,3,1> Pc = R_tc * P + t_tc;
-            T xn = Pc.x() / Pc.z();
-            T yn = Pc.y() / Pc.z();
-            o[i] = Observation<T>{xn, yn,
-                                  T(view.image_uv[i].x()),
-                                  T(view.image_uv[i].y())};
-        }
-        #endif
 
-        auto dr = fit_distortion_full(o, intrinsics[0], intrinsics[1],
-                                      intrinsics[2], intrinsics[3],
-                                      num_radial);
-        if (!dr) return false;
-        const auto& r = dr->residuals;
-        for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
+        const T fx = intrinsics[0];
+        const T fy = intrinsics[1];
+        const T cx = intrinsics[2];
+        const T cy = intrinsics[3];
+        Eigen::Map<const Eigen::Matrix<T,Eigen::Dynamic,1>> d(dist, 4);
+
+        int idx = 0;
+        for (const auto& ob : o) {
+            Eigen::Matrix<T,2,1> norm_xy(ob.x, ob.y);
+            Eigen::Matrix<T,2,1> distorted = apply_distortion(norm_xy, d);
+            T u = fx * distorted.x() + cx;
+            T v = fy * distorted.y() + cy;
+            residuals[idx++] = u - ob.u;
+            residuals[idx++] = v - ob.v;
+        }
         return true;
     }
 
     static auto* create(PlanarView v,
                         const Eigen::Affine3d& base_T_gripper,
-                        bool use_ext,
-                        int num_radial=2) {
-        auto* cost = new ceres::AutoDiffCostFunction<HandEyeReprojResidual, ceres::DYNAMIC,6,6,6,4>(
-            new HandEyeReprojResidual(v, base_T_gripper, use_ext, num_radial),
+                        bool use_ext) {
+        auto* cost = new ceres::AutoDiffCostFunction<HandEyeReprojResidual,
+                                                     ceres::DYNAMIC,
+                                                     6,6,6,4,4>(
+            new HandEyeReprojResidual(v, base_T_gripper, use_ext),
             static_cast<int>(v.size()) * 2);
         return cost;
     }
@@ -204,8 +191,10 @@ struct HandEyeReprojResidual final {
 struct HEParameterBlocks final {
     std::array<double,6> base_target6{};
     std::array<double,6> he_ref6{};
+    std::array<double,6> identity_ext6{};
     std::vector<std::array<double,6>> ext6;
     std::vector<std::array<double,4>> K;
+    std::vector<std::array<double,4>> dist;
 };
 
 static HEParameterBlocks initialise_blocks(
@@ -220,6 +209,7 @@ static HEParameterBlocks initialise_blocks(
     HEParameterBlocks blocks;
     blocks.ext6.resize(num_cams > 0 ? num_cams - 1 : 0);
     blocks.K.resize(num_cams);
+    blocks.dist.resize(num_cams);
 
     result.hand_eye.resize(num_cams);
     result.extrinsics.resize(num_cams > 0 ? num_cams - 1 : 0);
@@ -246,10 +236,11 @@ static HEParameterBlocks initialise_blocks(
                             ext.translation().x(), ext.translation().y(), ext.translation().z()};
     }
 
-    // Intrinsics
+    // Intrinsics and distortion
     for (size_t c = 0; c < num_cams; ++c) {
         blocks.K[c] = {initial_intrinsics[c].fx, initial_intrinsics[c].fy,
                        initial_intrinsics[c].cx, initial_intrinsics[c].cy};
+        blocks.dist[c] = {0,0,0,0};
     }
 
     // Initial base->target estimate
@@ -276,20 +267,20 @@ static void build_problem(const std::vector<HandEyeObservation>& observations,
                           const HandEyeOptions& opts,
                           HEParameterBlocks& blocks,
                           ceres::Problem& p) {
-    double identity_ext6[6] = {0,0,0,0,0,0};
     for (const auto& obs : observations) {
         const size_t cam = obs.camera_index;
         bool use_ext = cam > 0;
-        double* ext_ptr = use_ext ? blocks.ext6[cam-1].data() : identity_ext6;
+        double* ext_ptr = use_ext ? blocks.ext6[cam-1].data() : blocks.identity_ext6.data();
         auto* cost = HandEyeReprojResidual::create(obs.view, obs.base_T_gripper, use_ext);
-        p.AddResidualBlock(cost, nullptr,
+        p.AddResidualBlock(cost, new ceres::HuberLoss(1.0),
                            blocks.base_target6.data(),
                            blocks.he_ref6.data(),
                            ext_ptr,
-                           blocks.K[cam].data());
+                           blocks.K[cam].data(),
+                           blocks.dist[cam].data());
     }
     // keep identity extrinsic constant
-    p.SetParameterBlockConstant(identity_ext6);
+    p.SetParameterBlockConstant(blocks.identity_ext6.data());
 
     const bool single_cam = blocks.K.size() == 1;
 
@@ -306,7 +297,18 @@ static void build_problem(const std::vector<HandEyeObservation>& observations,
         for (auto& e : blocks.ext6) p.SetParameterBlockConstant(e.data());
     }
     if (!opts.optimize_intrinsics) {
-        for (auto& k : blocks.K) p.SetParameterBlockConstant(k.data());
+        for (size_t c = 0; c < blocks.K.size(); ++c) {
+            p.SetParameterBlockConstant(blocks.K[c].data());
+            p.SetParameterBlockConstant(blocks.dist[c].data());
+        }
+    } else {
+        for (size_t c = 0; c < blocks.K.size(); ++c) {
+            p.SetParameterLowerBound(blocks.K[c].data(), 0, 0.0);
+            p.SetParameterLowerBound(blocks.K[c].data(), 1, 0.0);
+        }
+        // Anchor scale by fixing fx, fy for reference camera
+        std::vector<int> fixed = {0,1};
+        p.SetParameterization(blocks.K[0].data(), new ceres::SubsetParameterization(4, fixed));
     }
 }
 
@@ -340,16 +342,21 @@ static void recover_parameters(const HEParameterBlocks& blocks,
 
     for (size_t c = 0; c < num_cams; ++c) {
         result.intrinsics[c] = {blocks.K[c][0], blocks.K[c][1], blocks.K[c][2], blocks.K[c][3]};
+        Eigen::VectorXd d(4);
+        for (int i = 0; i < 4; ++i) d[i] = blocks.dist[c][i];
+        result.distortions[c] = d;
     }
 }
 
 static double compute_reprojection_error(const std::vector<HandEyeObservation>& observations,
                                          HandEyeResult& result) {
-    const size_t num_cams = result.intrinsics.size();
-    std::vector<std::vector<Observation<double>>> per_cam_obs(num_cams);
+    double ssr = 0.0; size_t total = 0;
 
     for (const auto& obs : observations) {
         const size_t cam = obs.camera_index;
+        const auto& intr = result.intrinsics[cam];
+        const Eigen::VectorXd& dist = result.distortions[cam];
+
         Eigen::Matrix3d R_bt = result.base_T_target.rotation();
         Eigen::Vector3d t_bt = result.base_T_target.translation();
         Eigen::Matrix3d R_bg = obs.base_T_gripper.rotation();
@@ -361,32 +368,20 @@ static double compute_reprojection_error(const std::vector<HandEyeObservation>& 
         Eigen::Matrix3d R_tb = R_bt.transpose();
         Eigen::Matrix3d R_tc = R_bc * R_tb;
         Eigen::Vector3d t_tc = t_bc - R_tc * t_bt;
-        for (size_t i = 0; i < obs.view.size(); ++i) {
-            const auto& xy = obs.view[i].object_xy;
-            const auto& uv = obs.view[i].image_uv;
-            Eigen::Vector3d P(xy.x(), xy.y(), 0.0);
+
+        for (const auto& ob : obs.view) {
+            Eigen::Vector3d P(ob.object_xy.x(), ob.object_xy.y(), 0.0);
             Eigen::Vector3d Pc = R_tc * P + t_tc;
             double xn = Pc.x() / Pc.z();
             double yn = Pc.y() / Pc.z();
-            per_cam_obs[cam].push_back(Observation<double>{xn, yn, uv.x(), uv.y()});
-        }
-    }
-
-    result.distortions.assign(num_cams, Eigen::VectorXd());
-    double ssr = 0.0; size_t total = 0;
-    const int num_radial = 2;
-    for (size_t c = 0; c < num_cams; ++c) {
-        if (per_cam_obs[c].empty()) continue;
-        auto dr = fit_distortion_full(per_cam_obs[c],
-                                      result.intrinsics[c].fx,
-                                      result.intrinsics[c].fy,
-                                      result.intrinsics[c].cx,
-                                      result.intrinsics[c].cy,
-                                      num_radial);
-        if (dr) {
-            result.distortions[c] = dr->distortion;
-            ssr += dr->residuals.squaredNorm();
-            total += dr->residuals.size();
+            Eigen::Vector2d norm_xy(xn, yn);
+            Eigen::Vector2d d = apply_distortion(norm_xy, dist);
+            double u = intr.fx * d.x() + intr.cx;
+            double v = intr.fy * d.y() + intr.cy;
+            double du = u - ob.image_uv.x();
+            double dv = v - ob.image_uv.y();
+            ssr += du * du + dv * dv;
+            total += 2;
         }
     }
 
@@ -399,10 +394,19 @@ static Eigen::MatrixXd compute_covariance(ceres::Problem& p,
     blocks_list.push_back(blocks.base_target6.data());
     blocks_list.push_back(blocks.he_ref6.data());
     for (auto& e : blocks.ext6) blocks_list.push_back(e.data());
+    for (auto& k : blocks.K) blocks_list.push_back(k.data());
+    for (auto& d : blocks.dist) blocks_list.push_back(d.data());
+
     ceres::Covariance::Options cov_opts;
     ceres::Covariance cov(cov_opts);
     if (!cov.Compute(blocks_list, &p)) return Eigen::MatrixXd();
-    const size_t dim = blocks_list.size() * 6;
+
+    std::vector<int> sizes(blocks_list.size());
+    for (size_t i = 0; i < blocks_list.size(); ++i) {
+        sizes[i] = p.ParameterBlockSize(blocks_list[i]);
+    }
+    int dim = 0; for (int s : sizes) dim += s;
+
     Eigen::MatrixXd cov_mat = Eigen::MatrixXd::Zero(dim, dim);
     cov.GetCovarianceMatrix(blocks_list, cov_mat.data());
     return cov_mat;
@@ -430,7 +434,11 @@ HandEyeResult calibrate_hand_eye(
     build_problem(observations, opts, blocks, p);
 
     ceres::Solver::Options sopts;
-    sopts.linear_solver_type = ceres::DENSE_QR;
+    if (ceres::IsSparseLinearAlgebraLibraryAvailable()) {
+        sopts.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+    } else {
+        sopts.linear_solver_type = ceres::DENSE_SCHUR;
+    }
     sopts.minimizer_progress_to_stdout = opts.verbose;
 
     constexpr double eps = 1e-6;
