@@ -85,6 +85,7 @@ TEST(HandEye, SingleCameraOptimization) {
     initX.linear() = initX.linear() * Eigen::AngleAxisd(0.02, Eigen::Vector3d::UnitX()).toRotationMatrix();
 
     HandEyeResult res = calibrate_hand_eye(observations, {K}, initX, {}, Eigen::Affine3d::Identity(), opts);
+    std::cout << res.summary << std::endl;
 
     EXPECT_NEAR(0.0, (res.hand_eye[0].translation() - X.translation()).norm(), 0.001);
     EXPECT_NEAR(0.0, (res.base_T_target.translation() - base_T_target.translation()).norm(), 0.001);
@@ -150,6 +151,7 @@ TEST(HandEye, RecoverTargetPoseWithKnownHandEye) {
     opts.optimize_hand_eye = false; // hand-eye is assumed known
 
     HandEyeResult res = calibrate_hand_eye(observations, {K}, X, {}, init_bt, opts);
+    std::cout << res.summary << std::endl;
 
     EXPECT_NEAR(0.0, (res.base_T_target.translation() - base_T_target.translation()).norm(), 1e-3);
 }

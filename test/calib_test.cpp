@@ -8,8 +8,6 @@
 
 using namespace vitavision;
 
-namespace {
-
 static void distort_and_project(const Eigen::Vector3d& P,
                                 const Eigen::Affine3d& pose,
                                 const CameraMatrix& intr,
@@ -28,8 +26,6 @@ static void distort_and_project(const Eigen::Vector3d& P,
     uv.x() = intr.fx * x_t + intr.cx;
     uv.y() = intr.fy * y_t + intr.cy;
 }
-
-} // namespace
 
 TEST(CameraCalibrationTest, PlanarViewsExact) {
     CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
