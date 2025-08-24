@@ -19,11 +19,11 @@ using Pose6 = Eigen::Matrix<double, 6, 1>;
 
 // Variable projection residual for full camera calibration.
 struct CalibVPResidual {
-    std::vector<std::vector<PlanarObservation>> views_;  // observations per view
+    std::vector<PlanarView> views_;  // observations per view
     int num_radial_;
     size_t total_obs_;
 
-    CalibVPResidual(std::vector<std::vector<PlanarObservation>> views, int num_radial)
+    CalibVPResidual(std::vector<PlanarView> views, int num_radial)
         : views_(std::move(views)), num_radial_(num_radial) {
         total_obs_ = 0;
         for (const auto& v : views_) total_obs_ += v.size();
@@ -53,15 +53,13 @@ struct CalibVPResidual {
 };
 
 static std::optional<DistortionWithResiduals<double>> solve_full(
-        const std::vector<std::vector<PlanarObservation>>& views,
+        const std::vector<PlanarView>& views,
         int num_radial,
         const double* intr,
         const std::vector<const double*>& pose_ptrs
 ) {
     const size_t total_obs = std::accumulate(views.begin(), views.end(), 0,
-        [](size_t sum, const std::vector<PlanarObservation>& v) {
-            return sum + v.size();
-        });
+        [](size_t sum, const PlanarView& v) { return sum + v.size(); });
 
     std::vector<Observation<double>> obs(total_obs);
     size_t obs_idx = 0;
@@ -83,38 +81,12 @@ static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
     return T;
 }
 
-static std::pair<size_t, std::vector<std::vector<PlanarObservation>>> prepare_observations(const std::vector<PlanarView>& views) {
-    std::vector<std::vector<PlanarObservation>> obs_views;
+static size_t count_total_observations(const std::vector<PlanarView>& views) {
     size_t total_obs = 0;
-    obs_views.reserve(views.size());
-
-    size_t i = 0;
     for (const auto& view : views) {
-        ++i;
-        std::vector<PlanarObservation> view_observations;
-        const auto& obj = view.object_xy;
-        const auto& img = view.image_uv;
-
-        if (obj.size() != img.size()) {
-            std::cerr << "Object and image coordinates must have the same size in view " << i - 1 << "." << std::endl;
-            continue;
-        }
-
-        const size_t n = obj.size();
-        if (n < 8) {
-            std::cerr << "Insufficient points for calibration in view " << i - 1 << "." << std::endl;
-            continue;
-        }
-
-        view_observations.reserve(n);
-        for (size_t j = 0; j < n; ++j) {
-            view_observations.push_back({obj[j], img[j]});
-        }
-        total_obs += n;
-        obs_views.emplace_back(std::move(view_observations));
+        total_obs += view.size();
     }
-
-    return {total_obs, obs_views};
+    return total_obs;
 }
 
 // Initialize camera poses from views
@@ -123,8 +95,11 @@ static void initialize_poses(
     const CameraMatrix& initial_guess,
     std::vector<Pose6>& poses
 ) {
+    if (poses.size() != views.size()) {
+        throw std::invalid_argument("Mismatched sizes between views and poses");
+    }
     for (size_t i = 0; i < views.size(); ++i) {
-        Eigen::Affine3d pose = estimate_planar_pose_dlt(views[i].object_xy, views[i].image_uv, initial_guess);
+        Eigen::Affine3d pose = estimate_planar_pose_dlt(views[i], initial_guess);
         ceres::RotationMatrixToAngleAxis(pose.linear().data(), poses[i].data());
         poses[i].tail<3>() = pose.translation();
     }
@@ -132,7 +107,7 @@ static void initialize_poses(
 
 // Set up the Ceres optimization problem
 static void setup_optimization_problem(
-    const std::vector<std::vector<PlanarObservation>>& obs_views,
+    const std::vector<PlanarView>& obs_views,
     size_t total_obs,
     int num_radial,
     double* intrinsics,
@@ -158,7 +133,7 @@ static void setup_optimization_problem(
 
 // Calculate reprojection errors overall and per view
 static void compute_reprojection_errors(
-    const std::vector<std::vector<PlanarObservation>>& obs_views,
+    const std::vector<PlanarView>& obs_views,
     size_t total_obs,
     const Eigen::VectorXd& residuals,
     CameraCalibrationResult& result
@@ -275,8 +250,8 @@ CameraCalibrationResult calibrate_camera_planar(
     CameraCalibrationResult result;
 
     // Prepare observations per view
-    auto [total_obs, obs_views] = prepare_observations(views);
-    const size_t num_views = obs_views.size();
+    const size_t total_obs = count_total_observations(views);
+    const size_t num_views = views.size();
     if (num_views < 4) {
         std::cerr << "Insufficient views for calibration (at least 4 required)." << std::endl;
         return result;
@@ -289,7 +264,7 @@ CameraCalibrationResult calibrate_camera_planar(
 
     // Set up and solve the optimization problem
     ceres::Problem problem;
-    setup_optimization_problem(obs_views, total_obs, num_radial, intrinsics, poses, problem);
+    setup_optimization_problem(views, total_obs, num_radial, intrinsics, poses, problem);
 
     // Collect parameter blocks for later use
     std::vector<double*> param_blocks;
@@ -330,12 +305,12 @@ CameraCalibrationResult calibrate_camera_planar(
         pose_ptrs[i] = poses[i].data();
     }
 
-    auto dr_opt = solve_full(obs_views, num_radial, intrinsics, pose_ptrs);
+    auto dr_opt = solve_full(views, num_radial, intrinsics, pose_ptrs);
     if (dr_opt) {
         result.distortion = dr_opt->distortion;
 
         // Process results
-        compute_reprojection_errors(obs_views, total_obs, dr_opt->residuals, result);
+        compute_reprojection_errors(views, total_obs, dr_opt->residuals, result);
         populate_result_parameters(intrinsics, poses, result);
 
         // Compute covariance matrix

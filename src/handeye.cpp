@@ -4,6 +4,9 @@
 #include <numeric>
 #include <array>
 
+// eigen
+#include <Eigen/Geometry>
+
 // ceres
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
@@ -19,16 +22,12 @@ static Eigen::Vector3d log_rot(const Eigen::Matrix3d& R) {
     return aa.axis() * aa.angle();
 }
 
-Eigen::Affine3d estimate_hand_eye_initial(
+static Eigen::Matrix3d estimate_hand_eye_rotation(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
-    const std::vector<Eigen::Affine3d>& target_T_camera) {
-
+    const std::vector<Eigen::Affine3d>& target_T_camera
+) {
     const size_t n = base_T_gripper.size();
-    if (n < 2 || n != target_T_camera.size()) {
-        return Eigen::Affine3d::Identity();
-    }
-
-    const size_t m = n - 1; // number of motion pairs
+    const size_t m = n - 1;  // number of motion pairs
     Eigen::MatrixXd M(3*m, 3);
     Eigen::VectorXd d(3*m);
 
@@ -49,6 +48,17 @@ Eigen::Affine3d estimate_hand_eye_initial(
         R = Eigen::AngleAxisd(angle, r.normalized()).toRotationMatrix();
     }
 
+    return R;
+}
+
+static Eigen::Vector3d estimate_hand_eye_translation(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<Eigen::Affine3d>& target_T_camera,
+    const Eigen::Matrix3d& R
+) {
+    const size_t n = base_T_gripper.size();
+    const size_t m = n - 1;  // number of motion pairs
+
     Eigen::MatrixXd C(3*m,3);
     Eigen::VectorXd w(3*m);
     for (size_t i = 0; i < m; ++i) {
@@ -58,6 +68,20 @@ Eigen::Affine3d estimate_hand_eye_initial(
         w.segment<3>(3*i) = R * B.translation() - A.translation();
     }
     Eigen::Vector3d t = C.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(w);
+    return t;
+}
+
+Eigen::Affine3d estimate_hand_eye_initial(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<Eigen::Affine3d>& target_T_camera) {
+
+    const size_t n = base_T_gripper.size();
+    if (n < 2 || n != target_T_camera.size()) {
+        std::cerr << "Insufficient data for initial hand-eye estimate\n";
+        return Eigen::Affine3d::Identity();
+    }
+    auto R = estimate_hand_eye_rotation(base_T_gripper, target_T_camera);
+    auto t = estimate_hand_eye_translation(base_T_gripper, target_T_camera, R);
 
     Eigen::Affine3d X = Eigen::Affine3d::Identity();
     X.linear() = R;
@@ -67,8 +91,7 @@ Eigen::Affine3d estimate_hand_eye_initial(
 
 struct HandEyeReprojResidual final {
     PlanarView view;
-    Eigen::Matrix3d base_R_gripper;
-    Eigen::Vector3d base_t_gripper;
+    Eigen::Affine3d base_to_gripper;
     bool use_ext;
     int num_radial;
 
@@ -77,8 +100,7 @@ struct HandEyeReprojResidual final {
                           bool use_ext_,
                           int num_radial_=2)
         : view(std::move(v)),
-          base_R_gripper(base_T_gripper.rotation()),
-          base_t_gripper(base_T_gripper.translation()),
+          base_to_gripper(base_T_gripper),
           use_ext(use_ext_),
           num_radial(num_radial_) {}
 
@@ -89,43 +111,65 @@ struct HandEyeReprojResidual final {
                     const T* intrinsics,
                     T* residuals) const {
         // base -> target
+        auto pose_bt = pose2affine(base_target6);
+        #if 0
         Eigen::Matrix<T,3,3> R_bt;
         ceres::AngleAxisToRotationMatrix(base_target6, R_bt.data());
         Eigen::Matrix<T,3,1> t_bt(base_target6[3], base_target6[4], base_target6[5]);
+        #endif
 
         // gripper -> reference camera
+        auto pose_gr = pose2affine(he_ref6);
+        #if 0
         Eigen::Matrix<T,3,3> R_gr;
         ceres::AngleAxisToRotationMatrix(he_ref6, R_gr.data());
         Eigen::Matrix<T,3,1> t_gr(he_ref6[3], he_ref6[4], he_ref6[5]);
+        #endif
 
         // reference -> camera extrinsic (optional)
+        auto pose_rc = use_ext ? pose2affine(ext6) : Eigen::Transform<T, 3, Eigen::Affine>::Identity();
+        #if 0
         Eigen::Matrix<T,3,3> R_rc = Eigen::Matrix<T,3,3>::Identity();
         Eigen::Matrix<T,3,1> t_rc(T(0), T(0), T(0));
         if (use_ext) {
             ceres::AngleAxisToRotationMatrix(ext6, R_rc.data());
             t_rc = Eigen::Matrix<T,3,1>(ext6[3], ext6[4], ext6[5]);
         }
+        #endif
 
         // gripper -> camera
+        auto pose_gc = pose_gr * pose_rc;
+        #if 0
         Eigen::Matrix<T,3,3> R_gc = R_gr * R_rc;
         Eigen::Matrix<T,3,1> t_gc = R_gr * t_rc + t_gr;
+        #endif
 
         // base -> camera
+        auto pose_bc = base_to_gripper.template cast<T>() * pose_gc;
+
+        #if 0
         Eigen::Matrix<T,3,3> R_bg = base_R_gripper.cast<T>();
         Eigen::Matrix<T,3,1> t_bg = base_t_gripper.cast<T>();
 
         Eigen::Matrix<T,3,3> R_bc = R_bg * R_gc;
         Eigen::Matrix<T,3,1> t_bc = R_bg * t_gc + t_bg;
+        #endif
 
         // target -> camera
+        auto pose_tc = pose_bc * pose_bt.inverse();
+
+        #if 0
         Eigen::Matrix<T,3,3> R_tb = R_bt.transpose();
         Eigen::Matrix<T,3,3> R_tc = R_bc * R_tb;
         Eigen::Matrix<T,3,1> t_tc = t_bc - R_tc * t_bt;
+        #endif
 
         const int N = static_cast<int>(view.object_xy.size());
         static thread_local std::vector<Observation<T>> o;
+        #if 1
+        planar_observables_to_observables(view.observations, o, pose_tc);
+        #else
         if (o.size() != static_cast<size_t>(N)) o.resize(N);
-
         for (int i = 0; i < N; ++i) {
             Eigen::Matrix<T,3,1> P{T(view.object_xy[i].x()), T(view.object_xy[i].y()), T(0)};
             Eigen::Matrix<T,3,1> Pc = R_tc * P + t_tc;
@@ -135,6 +179,7 @@ struct HandEyeReprojResidual final {
                                   T(view.image_uv[i].x()),
                                   T(view.image_uv[i].y())};
         }
+        #endif
 
         auto dr = fit_distortion_full(o, intrinsics[0], intrinsics[1],
                                       intrinsics[2], intrinsics[3],

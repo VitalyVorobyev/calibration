@@ -8,27 +8,11 @@
 
 namespace vitavision {
 
-template<typename T>
-static void planar_observables_to_observables(const std::vector<PlanarObservation>& po,
-                                              std::vector<Observation<T>>& o,
-                                              const Eigen::Transform<T, 3, Eigen::Affine>& pose) {
-    if (o.size() != po.size()) o.resize(po.size());
-    for (size_t i = 0; i < po.size(); ++i) {
-        const auto& p = po[i];
-        // Convert pixel coordinates to normalized image coordinates
-        Eigen::Matrix<T,3,1> P{T(p.object_xy.x()), T(p.object_xy.y()), T(0)};
-        P = pose * P;
-        const T xn = P.x() / P.z();
-        const T yn = P.y() / P.z();
-        o[i] = Observation<T>{xn, yn, T(p.image_uv.x()), T(p.image_uv.y())};
-    }
-}
-
 struct JointResidual {
-    std::vector<PlanarObservation> obs_;
+    PlanarView obs_;
     int num_radial_;
 
-    JointResidual(std::vector<PlanarObservation> obs, const Eigen::VectorXd& dist)
+    JointResidual(PlanarView obs, const Eigen::VectorXd& dist)
         : obs_(std::move(obs)),
           num_radial_(std::max<int>(0, static_cast<int>(dist.size()) - 2)) {}
 

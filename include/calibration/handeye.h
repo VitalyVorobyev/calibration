@@ -6,8 +6,8 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calibration/calib.h" // for PlanarView
 #include "calibration/intrinsics.h"
+#include "calibration/planarpose.h"  // PlanarObservation
 
 namespace vitavision {
 
@@ -19,9 +19,9 @@ namespace vitavision {
  * frame.
  */
 struct HandEyeObservation final {
-    PlanarView view;                ///< Planar target observations
-    Eigen::Affine3d base_T_gripper; ///< Pose of the gripper in the base frame
-    size_t camera_index = 0;        ///< Which camera acquired this view
+    PlanarView view;  ///< Planar target observations
+    Eigen::Affine3d base_T_gripper;       ///< Pose of the gripper in the base frame
+    size_t camera_index = 0;              ///< Which camera acquired this view
 };
 
 /** Options controlling the hand-eye calibration optimisation. */

@@ -77,10 +77,10 @@ InitialExtrinsicGuess make_initial_extrinsic_guess(
 }
 
 struct ExtrinsicResidual final {
-    std::vector<PlanarObservation> obs_;
+    PlanarView obs_;
     const Camera cam_;
 
-    ExtrinsicResidual(std::vector<PlanarObservation> obs, const Camera& cam)
+    ExtrinsicResidual(PlanarView obs, const Camera& cam)
         : obs_(std::move(obs)), cam_(cam) {}
 
     template <typename T>
