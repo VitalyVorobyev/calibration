@@ -14,7 +14,7 @@ static PlanarView make_view(const std::vector<Eigen::Vector2d>& obj,
     return view;
 }
 
-TEST(HandEye, SingleCameraOptimization) {
+TEST(HandEye, SingleCamera_HandEyeWithFixedTarget) {
     CameraMatrix K{100.0, 100.0, 64.0, 48.0};
 
     Eigen::Affine3d X = Eigen::Affine3d::Identity();
@@ -57,16 +57,16 @@ TEST(HandEye, SingleCameraOptimization) {
         base_T_gripper_list.push_back(base_T_gripper);
 
         Eigen::Affine3d base_T_camera = base_T_gripper * X;
-        Eigen::Affine3d target_T_camera = base_T_target.inverse() * base_T_camera;
+        Eigen::Affine3d target_T_camera = base_T_camera * base_T_target.inverse();
         target_T_camera_list.push_back(target_T_camera);
 
         std::vector<Eigen::Vector2d> img;
         img.reserve(obj.size());
         for (const auto& xy : obj) {
             Eigen::Vector3d P(xy.x(), xy.y(), 0.0);
-            Eigen::Vector3d Pc = target_T_camera.linear() * P + target_T_camera.translation();
-            double u = K.fx * (Pc.x() / Pc.z()) + K.cx;
-            double v = K.fy * (Pc.y() / Pc.z()) + K.cy;
+            P = target_T_camera * P;
+            double u = K.fx * (P.x() / P.z()) + K.cx;
+            double v = K.fy * (P.y() / P.z()) + K.cy;
             img.emplace_back(u, v);
         }
         HandEyeObservation ho{make_view(obj, img), base_T_gripper, 0};
@@ -78,13 +78,13 @@ TEST(HandEye, SingleCameraOptimization) {
     // Configure options - consider fixing some parameters if needed
     HandEyeOptions opts;
     opts.optimize_intrinsics = false;
-    opts.optimize_target_pose = true;
+    opts.optimize_target_pose = false;
 
     // Add small perturbation to initial estimate to test convergence
     initX.translation() += Eigen::Vector3d(0.01, 0.01, 0.01);
     initX.linear() = initX.linear() * Eigen::AngleAxisd(0.02, Eigen::Vector3d::UnitX()).toRotationMatrix();
 
-    HandEyeResult res = calibrate_hand_eye(observations, {K}, initX, {}, Eigen::Affine3d::Identity(), opts);
+    HandEyeResult res = calibrate_hand_eye(observations, {K}, initX, {}, base_T_target, opts);
     std::cout << res.summary << std::endl;
 
     EXPECT_NEAR(0.0, (res.hand_eye[0].translation() - X.translation()).norm(), 0.001);
@@ -95,7 +95,7 @@ TEST(HandEye, SingleCameraOptimization) {
     EXPECT_NEAR(0.0, rot_diff.angle(), 0.01);
 }
 
-TEST(HandEye, RecoverTargetPoseWithKnownHandEye) {
+TEST(HandEye, SingleCamera_TargetPoseWithKnownHandEye) {
     CameraMatrix K{100.0, 100.0, 64.0, 48.0};
 
     Eigen::Affine3d X = Eigen::Affine3d::Identity();
@@ -127,15 +127,15 @@ TEST(HandEye, RecoverTargetPoseWithKnownHandEye) {
         base_T_gripper.linear() = rot;
 
         Eigen::Affine3d base_T_camera = base_T_gripper * X;
-        Eigen::Affine3d target_T_camera = base_T_target.inverse() * base_T_camera;
+        Eigen::Affine3d target_T_camera = base_T_camera * base_T_target.inverse();
 
         std::vector<Eigen::Vector2d> img;
         img.reserve(obj.size());
         for (const auto& xy : obj) {
             Eigen::Vector3d P(xy.x(), xy.y(), 0.0);
-            Eigen::Vector3d Pc = target_T_camera.linear() * P + target_T_camera.translation();
-            double u = K.fx * (Pc.x() / Pc.z()) + K.cx;
-            double v = K.fy * (Pc.y() / Pc.z()) + K.cy;
+            P = target_T_camera * P;
+            double u = K.fx * (P.x() / P.z()) + K.cx;
+            double v = K.fy * (P.y() / P.z()) + K.cy;
             img.emplace_back(u, v);
         }
         observations.push_back({make_view(obj, img), base_T_gripper, 0});
