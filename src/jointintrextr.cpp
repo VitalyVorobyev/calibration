@@ -30,6 +30,15 @@ struct JointResidual {
         for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
         return true;
     }
+
+    static auto* create(PlanarView obs, const Eigen::VectorXd& dist) {
+        auto* functor = new JointResidual(obs, dist);
+        auto* cost = new ceres::AutoDiffCostFunction<JointResidual,
+                                                     ceres::DYNAMIC,
+                                                     4,6,6>(functor,
+                                                            static_cast<int>(obs.size())*2);
+        return cost;
+    }
 };
 
 static void setup_joint_problem(
@@ -67,14 +76,10 @@ static void setup_joint_problem(
     // Residuals
     for (size_t v = 0; v < num_views; ++v) {
         const auto& view = views[v];
-        for (size_t c = 0; c < num_cams && c < view.observations.size(); ++c) {
-            const auto& obs = view.observations[c];
+        for (size_t c = 0; c < num_cams && c < view.size(); ++c) {
+            const auto& obs = view[c];
             if (obs.empty()) continue;
-            auto* functor = new JointResidual(obs, initial_cameras[c].distortion);
-            auto* cost = new ceres::AutoDiffCostFunction<JointResidual,
-                                                         ceres::DYNAMIC,
-                                                         4,6,6>(functor,
-                                                                static_cast<int>(obs.size())*2);
+            auto* cost = JointResidual::create(obs, initial_cameras[c].distortion);
             problem.AddResidualBlock(cost, nullptr,
                                      intr[c].data(), cam_poses[c].data(), targ_poses[v].data());
         }
@@ -113,8 +118,8 @@ static std::pair<double, size_t> compute_joint_residual_stats(
     std::vector<std::vector<Observation<double>>> per_cam_obs(num_cams);
     for (size_t v = 0; v < num_views; ++v) {
         const auto& view = views[v];
-        for (size_t c = 0; c < num_cams && c < view.observations.size(); ++c) {
-            const auto& obs = view.observations[c];
+        for (size_t c = 0; c < num_cams && c < view.size(); ++c) {
+            const auto& obs = view[c];
             for (const auto& ob : obs) {
                 Eigen::Vector3d P = result.camera_poses[c] * result.target_poses[v]
                                     * Eigen::Vector3d(ob.object_xy.x(), ob.object_xy.y(), 0.0);

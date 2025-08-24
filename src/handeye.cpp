@@ -164,11 +164,11 @@ struct HandEyeReprojResidual final {
         Eigen::Matrix<T,3,1> t_tc = t_bc - R_tc * t_bt;
         #endif
 
-        const int N = static_cast<int>(view.object_xy.size());
         static thread_local std::vector<Observation<T>> o;
         #if 1
-        planar_observables_to_observables(view.observations, o, pose_tc);
+        planar_observables_to_observables(view, o, pose_tc);
         #else
+        const int N = static_cast<int>(view.size());
         if (o.size() != static_cast<size_t>(N)) o.resize(N);
         for (int i = 0; i < N; ++i) {
             Eigen::Matrix<T,3,1> P{T(view.object_xy[i].x()), T(view.object_xy[i].y()), T(0)};
@@ -188,6 +188,16 @@ struct HandEyeReprojResidual final {
         const auto& r = dr->residuals;
         for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
         return true;
+    }
+
+    static auto* create(PlanarView v,
+                        const Eigen::Affine3d& base_T_gripper,
+                        bool use_ext,
+                        int num_radial=2) {
+        auto* cost = new ceres::AutoDiffCostFunction<HandEyeReprojResidual, ceres::DYNAMIC,6,6,6,4>(
+            new HandEyeReprojResidual(v, base_T_gripper, use_ext, num_radial),
+            static_cast<int>(v.size()) * 2);
+        return cost;
     }
 };
 
@@ -248,9 +258,8 @@ static HEParameterBlocks initialise_blocks(
     bt_estimates.reserve(observations.size());
     for (const auto& obs : observations) {
         const size_t cam = obs.camera_index;
-        if (obs.view.object_xy.size() < 4) continue;
-        Eigen::Affine3d cam_T_target = estimate_planar_pose_dlt(
-            obs.view.object_xy, obs.view.image_uv, initial_intrinsics[cam]);
+        if (obs.view.size() < 4) continue;
+        Eigen::Affine3d cam_T_target = estimate_planar_pose_dlt(obs.view, initial_intrinsics[cam]);
         bt_estimates.push_back(obs.base_T_gripper * result.hand_eye[cam] * cam_T_target.inverse());
     }
     if (!bt_estimates.empty()) bt_init = average_affines(bt_estimates);
@@ -272,9 +281,7 @@ static void build_problem(const std::vector<HandEyeObservation>& observations,
         const size_t cam = obs.camera_index;
         bool use_ext = cam > 0;
         double* ext_ptr = use_ext ? blocks.ext6[cam-1].data() : identity_ext6;
-        auto* cost = new ceres::AutoDiffCostFunction<HandEyeReprojResidual, ceres::DYNAMIC,6,6,6,4>(
-            new HandEyeReprojResidual(obs.view, obs.base_T_gripper, use_ext),
-            static_cast<int>(obs.view.object_xy.size())*2);
+        auto* cost = HandEyeReprojResidual::create(obs.view, obs.base_T_gripper, use_ext);
         p.AddResidualBlock(cost, nullptr,
                            blocks.base_target6.data(),
                            blocks.he_ref6.data(),
@@ -354,9 +361,9 @@ static double compute_reprojection_error(const std::vector<HandEyeObservation>& 
         Eigen::Matrix3d R_tb = R_bt.transpose();
         Eigen::Matrix3d R_tc = R_bc * R_tb;
         Eigen::Vector3d t_tc = t_bc - R_tc * t_bt;
-        for (size_t i = 0; i < obs.view.object_xy.size(); ++i) {
-            const auto& xy = obs.view.object_xy[i];
-            const auto& uv = obs.view.image_uv[i];
+        for (size_t i = 0; i < obs.view.size(); ++i) {
+            const auto& xy = obs.view[i].object_xy;
+            const auto& uv = obs.view[i].image_uv;
             Eigen::Vector3d P(xy.x(), xy.y(), 0.0);
             Eigen::Vector3d Pc = R_tc * P + t_tc;
             double xn = Pc.x() / Pc.z();

@@ -32,14 +32,14 @@ TEST(JointCalibration, RecoverAllParameters) {
     std::vector<ExtrinsicPlanarView> views;
     for (size_t v = 0; v < target_gt.size(); ++v) {
         ExtrinsicPlanarView view;
-        view.observations.resize(kCams);
+        view.resize(kCams);
         for (int c = 0; c < kCams; ++c) {
             Eigen::Affine3d T = cam_gt[c] * target_gt[v];
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x()/P.z(), P.y()/P.z());
                 Eigen::Vector2d pix = cameras_gt[c].intrinsics.denormalize(norm);
-                view.observations[c].push_back({xy, pix});
+                view[c].push_back({xy, pix});
             }
         }
         views.push_back(std::move(view));
@@ -94,14 +94,14 @@ TEST(JointCalibration, FirstTargetPoseFixed) {
     std::vector<ExtrinsicPlanarView> views;
     for (size_t v = 0; v < target_gt.size(); ++v) {
         ExtrinsicPlanarView view;
-        view.observations.resize(kCams);
+        view.resize(kCams);
         for (int c = 0; c < kCams; ++c) {
             Eigen::Affine3d T = (c==0?cam0:cam1) * target_gt[v];
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x()/P.z(), P.y()/P.z());
                 Eigen::Vector2d pix = cameras_gt[c].intrinsics.denormalize(norm);
-                view.observations[c].push_back({xy, pix});
+                view[c].push_back({xy, pix});
             }
         }
         views.push_back(std::move(view));

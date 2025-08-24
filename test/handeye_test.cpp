@@ -6,7 +6,12 @@ using namespace vitavision;
 
 static PlanarView make_view(const std::vector<Eigen::Vector2d>& obj,
                             const std::vector<Eigen::Vector2d>& img) {
-    return PlanarView{obj, img};
+    PlanarView view(obj.size());
+    for (size_t i = 0; i < obj.size(); ++i) {
+        view[i].object_xy = obj[i];
+        view[i].image_uv = img[i];
+    }
+    return view;
 }
 
 TEST(HandEye, SingleCameraOptimization) {

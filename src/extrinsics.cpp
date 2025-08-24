@@ -25,7 +25,7 @@ InitialExtrinsicGuess make_initial_extrinsic_guess(
     // Estimate per-camera target poses via DLT
     for (size_t v = 0; v < num_views; ++v) {
         for (size_t c = 0; c < num_cams; ++c) {
-            const auto& obs = views[v].observations;
+            const auto& obs = views[v];
             if (c >= obs.size()) continue;
             const auto& ob_c = obs[c];
             if (ob_c.size() < 4) continue;
@@ -48,9 +48,9 @@ InitialExtrinsicGuess make_initial_extrinsic_guess(
     for (size_t c = 1; c < num_cams; ++c) {
         std::vector<Eigen::Affine3d> rels;
         for (size_t v = 0; v < num_views; ++v) {
-            if (c >= views[v].observations.size()) continue;
-            const auto& obs0 = views[v].observations[0];
-            const auto& obsC = views[v].observations[c];
+            if (c >= views[v].size()) continue;
+            const auto& obs0 = views[v][0];
+            const auto& obsC = views[v][c];
             if (obs0.size() < 4 || obsC.size() < 4) continue;
             rels.push_back(cam_to_target[v][c] * cam_to_target[v][0].inverse());
         }
@@ -63,8 +63,8 @@ InitialExtrinsicGuess make_initial_extrinsic_guess(
     for (size_t v = 0; v < num_views; ++v) {
         std::vector<Eigen::Affine3d> tposes;
         for (size_t c = 0; c < num_cams; ++c) {
-            if (c >= views[v].observations.size()) continue;
-            const auto& ob_c = views[v].observations[c];
+            if (c >= views[v].size()) continue;
+            const auto& ob_c = views[v][c];
             if (ob_c.size() < 4) continue;
             tposes.push_back(guess.camera_poses[c].inverse() * cam_to_target[v][c]);
         }
@@ -102,6 +102,15 @@ struct ExtrinsicResidual final {
             residuals[2*i+1] = uv.y() - T(ob.image_uv.y());
         }
         return true;
+    }
+
+    static auto* create(const PlanarView& obs, const Camera cam) {
+        auto* functor = new ExtrinsicResidual(obs, cam);
+        auto* cost = new ceres::AutoDiffCostFunction<ExtrinsicResidual,
+            ceres::DYNAMIC, 6, 6>(
+        functor, static_cast<int>(obs.size()) * 2);
+
+        return cost;
     }
 };
 
@@ -143,14 +152,11 @@ static void setup_problem(const std::vector<ExtrinsicPlanarView>& views,
 
     for (size_t v = 0; v < num_views; ++v) {
         const auto& view = views[v];
-        if (view.observations.size() != num_cams) continue;
+        if (view.size() != num_cams) continue;
         for (size_t c = 0; c < num_cams; ++c) {
-            const auto& obs = view.observations[c];
+            const auto& obs = view[c];
             if (obs.empty()) continue;
-            auto* functor = new ExtrinsicResidual(obs, cameras[c]);
-            auto* cost = new ceres::AutoDiffCostFunction<ExtrinsicResidual,
-                                                         ceres::DYNAMIC, 6, 6>(
-                functor, static_cast<int>(obs.size()) * 2);
+            auto* cost = ExtrinsicResidual::create(obs, cameras[c]);
             problem.AddResidualBlock(cost, nullptr, cam_poses[c].data(), targ_poses[v].data());
         }
     }
@@ -179,9 +185,9 @@ static std::pair<double, size_t> compute_residual_stats(
     const size_t num_views = views.size();
     for (size_t v = 0; v < num_views; ++v) {
         const auto& view = views[v];
-        if (view.observations.size() != num_cams) continue;
+        if (view.size() != num_cams) continue;
         for (size_t c = 0; c < num_cams; ++c) {
-            const auto& obs = view.observations[c];
+            const auto& obs = view[c];
             for (const auto& ob : obs) {
                 Eigen::Vector3d P = result.camera_poses[c] * result.target_poses[v]
                                     * Eigen::Vector3d(ob.object_xy.x(), ob.object_xy.y(), 0.0);

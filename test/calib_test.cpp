@@ -60,11 +60,11 @@ TEST(CameraCalibrationTest, PlanarViewsExact) {
     poses_true[3].translation() = Eigen::Vector3d(-0.1, -0.15, 1.9);
 
     for (size_t v = 0; v < views.size(); ++v) {
-        views[v].object_xy = obj_xy;
-        views[v].image_uv.resize(obj_xy.size());
+        views[v].resize(obj_xy.size());
         for (size_t i = 0; i < obj_xy.size(); ++i) {
             Eigen::Vector3d P(obj_xy[i].x(), obj_xy[i].y(), 0.0);
-            distort_and_project(P, poses_true[v], intr_true, k_rad, p1, p2, views[v].image_uv[i]);
+            views[v][i].object_xy = obj_xy[i];
+            distort_and_project(P, poses_true[v], intr_true, k_rad, p1, p2, views[v][i].image_uv);
         }
     }
 
