@@ -66,6 +66,8 @@ static void setup_joint_problem(
         problem.AddParameterBlock(intr[i].data(), 4);
         problem.AddParameterBlock(cam_poses[i].data(), 6);
     }
+
+    // fix SE(3) gauge ambiguity
     if (!cam_poses.empty()) {
         problem.SetParameterBlockConstant(cam_poses[0].data());
     }
