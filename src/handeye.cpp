@@ -42,7 +42,7 @@ static std::vector<MotionPair> build_all_pairs(
     for (size_t i = 0; i+1 < n; ++i) {
         for (size_t j = i+1; j < n; ++j) {
             const Eigen::Affine3d A = base_T_gripper[i].inverse() * base_T_gripper[j];
-            const Eigen::Affine3d B = camera_T_target[i] * camera_T_target[j].inverse();
+            const Eigen::Affine3d B = camera_T_target[i].inverse() * camera_T_target[j];
 
             MotionPair mp;
             mp.RA = projectToSO3(A.linear());
@@ -107,7 +107,6 @@ static Eigen::Vector3d estimate_translation_allpairs_weighted(
 
     for (int k = 0; k < m; ++k) {
         const Eigen::Matrix3d& RA = pairs[k].RA;
-        const Eigen::Matrix3d& RB = pairs[k].RB;
         const Eigen::Vector3d& tA = pairs[k].tA;
         const Eigen::Vector3d& tB = pairs[k].tB;
         const double s = pairs[k].sqrt_weight;
@@ -179,7 +178,7 @@ Eigen::Affine3d refine_hand_eye(
 Eigen::Affine3d estimate_and_refine_hand_eye(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
     const std::vector<Eigen::Affine3d>& camera_T_target,
-    double min_angle_deg = 1.0,
+    double min_angle_deg,
     const RefinementOptions& ro)
 {
     auto X0 = estimate_hand_eye_tsai_lenz_allpairs_weighted(base_T_gripper, camera_T_target, min_angle_deg);
@@ -187,33 +186,30 @@ Eigen::Affine3d estimate_and_refine_hand_eye(
 }
 
 struct HandEyeRepParamBlocks final {
-    std::array<double, 4> qX;   // ^gT_c
+    std::array<double, 4> qX;   // g_T_c (camera to gripper)
     std::array<double, 3> tX;
-    std::array<double, 4> qBt;  // ^bT_t
+    std::array<double, 4> qBt;  // b_T_t (target to base)
     std::array<double, 3> tBt;
     std::array<double, 9> intr9; // fx,fy,cx,cy,k1,k2,p1,p2,k3
 };
 
-HandEyeRepParamBlocks init_hand_eye_reprojection_param_blocks(
-    const std::vector<Eigen::Affine3d>& base_T_gripper,
+static HandEyeRepParamBlocks init_hand_eye_reprojection_param_blocks(
     const Intrinsics& intr,
     const Eigen::Affine3d& gripper_T_ref
 ) {
     // Parameters: qX,tX, qBt,tBt, intr9
-    Eigen::Quaterniond qX0(gripper_T_ref.linear());
-    std::array<double, 4> qX = { qX0.w(), qX0.x(), qX0.y(), qX0.z() };
-    std::array<double, 3> tX = {
-        gripper_T_ref.translation().x(),
-        gripper_T_ref.translation().y(),
-        gripper_T_ref.translation().z()
-    };
+    std::array<double, 4> qX;
+    std::array<double, 3> tX;
+    populate_quat_tran(gripper_T_ref, qX, tX);
 
-    // Initialize ^bT_t roughly from frame 0 chain:  ^bT_t ≈ ^bT_g * X * ^cT_t0  (take ^cT_t0 ≈ identity if unknown)
-    // If you already know ^cT_t for a frame, plug it here. Otherwise start near base origin.
-    Eigen::Quaterniond qBt0 = Eigen::Quaterniond::Identity();
-    Eigen::Vector3d tBt0 = Eigen::Vector3d::Zero();
-    std::array<double, 4> qBt = { qBt0.w(), qBt0.x(), qBt0.y(), qBt0.z() };
-    std::array<double, 3> tBt = { tBt0.x(), tBt0.y(), tBt0.z() };
+    // TODO: address that!
+    // Initialize b_T_t roughly from frame 0 chain:  b_T_t ≈ b_T_g * X * c_T_t0
+    // (take c_T_t0 ≈ identity if unknown)
+    // If you already know c_T_t for a frame, plug it here. Otherwise start near base origin.
+    std::array<double, 4> qBt;
+    std::array<double, 3> tBt;
+    populate_quat_tran(Eigen::Affine3d::Identity(), qBt, tBt);
+
     std::array<double, 9> intr9 = {
         intr.fx, intr.fy, intr.cx, intr.cy,
         intr.k1, intr.k2, intr.p1, intr.p2, intr.k3 };
@@ -221,13 +217,11 @@ HandEyeRepParamBlocks init_hand_eye_reprojection_param_blocks(
     return { qX, tX, qBt, tBt, intr9 };
 }
 
-ceres::Problem build_hand_eye_reprojection_problem(
+static ceres::Problem build_hand_eye_reprojection_problem(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
-    const std::vector<Eigen::Vector3d>& object_points,
-    const std::vector<std::vector<Eigen::Vector2d>>& image_points,
-    const Intrinsics& intr,
+    const std::vector<PlanarView> observations,
     const ReprojRefineOptions& options,
-    HandEyeRepParamBlocks &param_blocks
+    HandEyeRepParamBlocks &blocks
 ) {
     ceres::Problem problem;
     const size_t nviews = base_T_gripper.size();
@@ -235,58 +229,36 @@ ceres::Problem build_hand_eye_reprojection_problem(
     // Add reprojection residuals
     for (size_t k = 0; k < nviews; ++k) {
         const auto& b_T_g = base_T_gripper[k];
-        for (size_t i = 0; i < object_points.size(); ++i) {
-            auto* cost = HandEyeReprojResidual::create(
-                b_T_g, object_points[i], image_points[k][i], 1.0, options.use_distortion);
-            ceres::LossFunction* loss = options.huber_delta_px > 0
-                ? static_cast<ceres::LossFunction*>(new ceres::HuberLoss(options.huber_delta_px))
-                : nullptr;
-            problem.AddResidualBlock(
-                cost,
-                loss,
-                param_blocks.qX.data(),
-                param_blocks.tX.data(),
-                param_blocks.qBt.data(),
-                param_blocks.tBt.data(),
-                param_blocks.intr9.data()
-            );
-        }
+        auto* cost = HandEyeViewReprojResidual::create(
+            b_T_g, observations[k], 1.0, options.use_distortion);
+        ceres::LossFunction* loss = options.huber_delta_px > 0
+            ? static_cast<ceres::LossFunction*>(new ceres::HuberLoss(options.huber_delta_px))
+            : nullptr;
+        problem.AddResidualBlock(
+            cost,
+            loss,
+            blocks.qX.data(),
+            blocks.tX.data(),
+            blocks.qBt.data(),
+            blocks.tBt.data(),
+            blocks.intr9.data()
+        );
     }
 
     // Manifolds
-    problem.SetManifold(param_blocks.qX.data(), new ceres::QuaternionManifold());
-    problem.SetManifold(param_blocks.qBt.data(), new ceres::QuaternionManifold());
+    problem.SetManifold(blocks.qX.data(), new ceres::QuaternionManifold());
+    problem.SetManifold(blocks.qBt.data(), new ceres::QuaternionManifold());
 
     // Freeze or free intrinsics as requested
     if (!options.refine_intrinsics) {
-        problem.SetParameterBlockConstant(param_blocks.intr9.data());
-    } else if (!options.refine_distortion) {
-        // Only fx,fy,cx,cy optimize; freeze distortion
-        problem.SetParameterBlockVariable(param_blocks.intr9.data());
-        problem.SetParameterLowerBound(param_blocks.intr9.data(), 0, 1e-6); // fx>0
-        problem.SetParameterLowerBound(param_blocks.intr9.data(), 1, 1e-6); // fy>0
-        for (int j=4;j<9;++j) problem.SetParameterLowerBound(param_blocks.intr9.data(), j, param_blocks.intr9[j]); // lock by tying lower=upper
-        for (int j=4;j<9;++j) problem.SetParameterUpperBound(param_blocks.intr9.data(), j, param_blocks.intr9[j]);
+        problem.SetParameterBlockConstant(blocks.intr9.data());
     } else {
-        // full intrinsics incl. distortion
-        problem.SetParameterBlockVariable(param_blocks.intr9.data());
-        problem.SetParameterLowerBound(param_blocks.intr9.data(), 0, 1e-6);
-        problem.SetParameterLowerBound(param_blocks.intr9.data(), 1, 1e-6);
-    }
-
-    // Optional soft AX=XB prior (helps when target points geometry is weak)
-    if (options.lambda_axxb > 0.0 && nviews >= 2) {
-        for (size_t i = 0; i + 1 < nviews; ++i) {
-            for (size_t j = i + 1; j < nviews; ++j) {
-                Eigen::Affine3d A = base_T_gripper[i].inverse() * base_T_gripper[j];
-                // If you also have camera_T_target estimates, you can build B here.
-                // If not, skip B and rely solely on reprojection.
-                // For completeness we set B=Identity (no effect). Replace with your ^cT_t estimates if available.
-                Eigen::Affine3d B = Eigen::Affine3d::Identity();
-                auto* cost = AXXBResidualSoft::create(
-                    A.linear(), B.linear(), A.translation(), B.translation(), options.lambda_axxb);
-                problem.AddResidualBlock(cost, nullptr, param_blocks.qX.data(), param_blocks.tX.data());
-            }
+        problem.SetParameterLowerBound(blocks.intr9.data(), 0, 1e-6); // fx > 0
+        problem.SetParameterLowerBound(blocks.intr9.data(), 1, 1e-6); // fy > 0
+        if (!options.refine_distortion) {
+            // Only fx,fy,cx,cy optimize; freeze distortion
+            problem.SetManifold(
+                blocks.intr9.data(), new ceres::SubsetManifold(9, {4, 5, 6, 7, 8}));
         }
     }
 
@@ -307,27 +279,15 @@ std::string solve_hand_eye_reprojection(
     return summary.BriefReport();
 }
 
-static Eigen::Quaterniond array_to_norm_quat(const std::array<double, 4>& arr) {
-    Eigen::Quaterniond quat(arr[0], arr[1], arr[2], arr[3]);
-    quat.normalize();
-    return quat;
-}
-
-HandEyeReprojectionResult compose_results(
-    const ceres::Problem& problem,
-    const HandEyeRepParamBlocks& blocks
+static HandEyeReprojectionResult compose_results(
+    const HandEyeRepParamBlocks& blocks,
+    const std::string report
 ) {
     HandEyeReprojectionResult result;
+    result.report = report;
 
-    Eigen::Affine3d r_T_g = Eigen::Affine3d::Identity();
-    r_T_g.linear() = array_to_norm_quat(blocks.qX).toRotationMatrix();
-    r_T_g.translation() << blocks.tX[0], blocks.tX[1], blocks.tX[2];
-    result.r_T_g = r_T_g;
-
-    Eigen::Affine3d b_T_t = Eigen::Affine3d::Identity();
-    b_T_t.linear() = array_to_norm_quat(blocks.qBt).toRotationMatrix();
-    b_T_t.translation() << blocks.tBt[0], blocks.tBt[1], blocks.tBt[2];
-    result.b_T_t = b_T_t;
+    result.g_T_r = restore_pose(blocks.qX, blocks.tX);  // ref camera to gripper
+    result.b_T_t = restore_pose(blocks.qBt, blocks.tBt);  // target to base
 
     result.intr.fx = blocks.intr9[0];
     result.intr.fy = blocks.intr9[1];
@@ -357,11 +317,12 @@ HandEyeReprojectionResult refine_hand_eye_reprojection(
     }
 
     HandEyeRepParamBlocks blocks = init_hand_eye_reprojection_param_blocks(
-        base_T_gripper, init_intr, init_gripper_T_ref);
-    ceres::Problem problem = build_hand_eye_reprojection_problem();
+        init_intr, init_gripper_T_ref);
+    ceres::Problem problem = build_hand_eye_reprojection_problem(
+        base_T_gripper, observables, options, blocks);
     const std::string report = solve_hand_eye_reprojection(problem, options.max_iterations, options.verbose);
-    auto result = compose_results(problem, blocks);
-    result.report = report;
+    auto result = compose_results(blocks, report);
+
     return result;
 }
 

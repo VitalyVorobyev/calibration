@@ -8,6 +8,8 @@
 
 namespace vitavision {
 
+using Pose6 = Eigen::Matrix<double, 6, 1>;
+
 struct JointResidual {
     PlanarView obs_;
     int num_radial_;

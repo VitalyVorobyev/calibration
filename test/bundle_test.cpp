@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
-#include "calibration/handeyedlt.h"
 #include "calibration/handeye.h"
+#include "calibration/bundle.h"
 
 using namespace vitavision;
 

@@ -9,7 +9,67 @@
 
 namespace vitavision {
 
-using Pose6 = Eigen::Matrix<double, 6, 1>;
+// templated for autodiff
+template<typename T>
+static Eigen::Matrix<T,3,1> array_to_translation(const T* const arr) {
+    return Eigen::Matrix<T,3,1>(arr[0], arr[1], arr[2]);
+}
+
+template<typename T>
+static Eigen::Matrix<T,3,3> quat_array_to_rotmat(const T* const arr) {
+    Eigen::Quaternion<T> q(arr[0], arr[1], arr[2], arr[3]);
+    return q.toRotationMatrix();
+}
+
+template<typename T>
+std::pair<Eigen::Matrix<T,3,3>, Eigen::Matrix<T,3,1>> invert_transform(
+    const Eigen::Matrix<T,3,3>& R,
+    const Eigen::Matrix<T,3,1>& t
+) {
+    Eigen::Matrix<T,3,3> Rt = R.transpose();
+    Eigen::Matrix<T,3,1> ti = -Rt * t;
+    return {Rt, ti};
+}
+
+template<typename T>
+std::pair<Eigen::Matrix<T,3,3>, Eigen::Matrix<T,3,1>> product(
+    const Eigen::Matrix<T,3,3>& R1, const Eigen::Matrix<T,3,1>& t1,
+    const Eigen::Matrix<T,3,3>& R2, const Eigen::Matrix<T,3,1>& t2
+) {
+    Eigen::Matrix<T,3,3> R = R1 * R2;
+    Eigen::Matrix<T,3,1> t = R1 * t2 + t1;
+    return {R, t};
+}
+
+inline void populate_quat_tran(
+    const Eigen::Affine3d& pose,
+    std::array<double, 4>& q,
+    std::array<double, 3>& t
+) {
+    Eigen::Quaterniond q0(pose.linear());
+    q = { q0.w(), q0.x(), q0.y(), q0.z() };
+    t = {
+        pose.translation().x(),
+        pose.translation().y(),
+        pose.translation().z()
+    };
+}
+
+inline Eigen::Quaterniond array_to_norm_quat(const std::array<double, 4>& arr) {
+    Eigen::Quaterniond quat(arr[0], arr[1], arr[2], arr[3]);
+    quat.normalize();
+    return quat;
+}
+
+inline Eigen::Affine3d restore_pose(
+    const std::array<double, 4>& q,
+    const std::array<double, 3>& t
+) {
+    auto pose = Eigen::Affine3d::Identity();
+    pose.linear() = array_to_norm_quat(q).toRotationMatrix();
+    pose.translation() << t[0], t[1], t[2];
+    return pose;
+}
 
 // Utility: convert rotation+translation to inverse transform quickly
 inline void invertRT(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,
@@ -137,7 +197,7 @@ Eigen::Transform<T, 3, Eigen::Affine> pose2affine(const T* pose) {
     return Eigen::Translation<T, 3>(t) * R;
 }
 
-inline Eigen::Affine3d pose6_to_affine(const Pose6& p) {
+inline Eigen::Affine3d pose6_to_affine(const Eigen::VectorXd& p) {
     Eigen::Matrix3d R;
     ceres::AngleAxisToRotationMatrix(p.head<3>().data(), R.data());
     Eigen::Affine3d T = Eigen::Affine3d::Identity();

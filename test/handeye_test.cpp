@@ -30,7 +30,7 @@ static Eigen::Matrix3d axis_angle_to_R(const Eigen::Vector3d& axis, double angle
     return Eigen::AngleAxisd(angle, axis.normalized()).toRotationMatrix();
 }
 
-static Eigen::Affine3d make_pose(const Eigen::Vector3d& t, const Eigen::Vector3d& axis, double angle){
+static Eigen::Affine3d make_pose(const Eigen::Vector3d& t, const Eigen::Vector3d& axis, double angle) {
     Eigen::Affine3d T = Eigen::Affine3d::Identity();
     T.linear() = axis_angle_to_R(axis, angle);
     T.translation() = t;
@@ -72,7 +72,7 @@ static Eigen::Vector2d project_point(
 }
 
 // RNG helpers
-struct RNG {
+struct RNG final {
     std::mt19937 gen;
     explicit RNG(uint32_t seed=0xC001C0DE) : gen(seed) {}
     double uni(double a, double b) {
@@ -92,17 +92,17 @@ struct RNG {
     }
 };
 
-struct SimulatedHandEye {
+struct SimulatedHandEye final {
     // Ground truth
-    Eigen::Affine3d X_gt;        // ^gT_c
-    Eigen::Affine3d b_T_t_gt;    // ^bT_t
+    Eigen::Affine3d g_T_c_gt;  // ^gT_c
+    Eigen::Affine3d b_T_t_gt;  // ^bT_t
     Intrinsics K_gt;
 
     // Data
-    std::vector<Eigen::Affine3d> b_T_g;              // ^bT_g per frame
-    std::vector<Eigen::Affine3d> c_T_t;              // ^cT_t per frame (derived)
-    std::vector<Eigen::Vector3d> obj_pts;            // target points in t-frame
-    std::vector<std::vector<Eigen::Vector2d>> img;   // per-frame pixels
+    std::vector<Eigen::Affine3d> b_T_g;   // ^bT_g per frame
+    std::vector<Eigen::Affine3d> c_T_t;   // ^cT_t per frame (derived)
+    std::vector<Eigen::Vector3d> obj_pts; // target points in t-frame
+    std::vector<PlanarView> observations;  // per frame observations
 
     // Build a sequence with non-degenerate motions
     void make_sequence(size_t n_frames, RNG& rng) {
@@ -119,9 +119,9 @@ struct SimulatedHandEye {
             T = compose(T, d);
             b_T_g.push_back(T);
         }
-        // Derive ^cT_t from chain: ^cT_tk = X^{-1} * (^bT_gk)^{-1} * ^bT_t
+        // Derive c_T_t from chain: c_T_tk = (g_T_c)^{-1} * (b_T_gk)^{-1} * b_T_t
         for (size_t k=0; k<n_frames; ++k) {
-            c_T_t.push_back( compose( inv(X_gt), compose( inv(b_T_g[k]), b_T_t_gt ) ) );
+            c_T_t.push_back( compose( inv(g_T_c_gt), compose( inv(b_T_g[k]), b_T_t_gt ) ) );
         }
     }
 
@@ -140,10 +140,10 @@ struct SimulatedHandEye {
 
     // Render pixels with optional Gaussian noise (pixels)
     void render_pixels(double noise_px = 0.0, RNG* rng = nullptr) {
-        img.clear(); img.resize(c_T_t.size());
-        for (size_t k=0; k<c_T_t.size(); ++k) {
+        observations.clear(); observations.resize(c_T_t.size());
+        for (size_t k=0; k < c_T_t.size(); ++k) {
             const auto& Tct = c_T_t[k];
-            img[k].reserve(obj_pts.size());
+            observations[k].reserve(obj_pts.size());
             for (const auto& P : obj_pts) {
                 Eigen::Vector3d Pc = Tct.linear()*P + Tct.translation();
                 Eigen::Vector2d uv = project_point(Pc, K_gt);
@@ -151,7 +151,7 @@ struct SimulatedHandEye {
                     uv.x() += rng->gauss(noise_px);
                     uv.y() += rng->gauss(noise_px);
                 }
-                img[k].push_back(uv);
+                observations[k].push_back({ {P.x(), P.y()}, {uv.x(), uv.y()} });
             }
         }
     }
@@ -185,7 +185,8 @@ TEST(TsaiLenzAllPairsWeighted, RecoversGroundTruthWithNoise) {
     const auto& camera_T_target = sim.c_T_t;
 
     // Estimate with all-pairs weighted Tsai-Lenz
-    Eigen::Affine3d X_est = estimate_hand_eye_tsai_lenz_allpairs_weighted(base_T_gripper, camera_T_target, /*min_angle_deg*/1.0);
+    Eigen::Affine3d X_est = estimate_hand_eye_tsai_lenz_allpairs_weighted(
+        base_T_gripper, camera_T_target, /*min_angle_deg*/1.0);
 
     double rot_err = rad2deg(rotation_angle(X_est.linear().transpose() * X_gt.linear()));
     double trans_err = (X_est.translation() - X_gt.translation()).norm();
@@ -265,7 +266,7 @@ TEST(CeresAXXBRefine, ImprovesOverInitializer) {
     ro.huber_delta = 1.0;
     ro.verbose = false;
 
-    Eigen::Affine3d Xr = refine_hand_eye_ceres(base_T_gripper, camera_T_target, X0, ro);
+    Eigen::Affine3d Xr = refine_hand_eye(base_T_gripper, camera_T_target, X0, ro);
 
     double err1_rot = rad2deg(rotation_angle(Xr.linear().transpose()*X_gt.linear()));
     double err1_tr  = (Xr.translation() - X_gt.translation()).norm();
@@ -280,10 +281,22 @@ TEST(CeresAXXBRefine, ImprovesOverInitializer) {
 TEST(ReprojectionRefine, RecoversXAndIntrinsics_NoDistortion) {
     RNG rng(7);
     // GT
-    Eigen::Affine3d X_gt = make_pose(Eigen::Vector3d(0.03, 0.00, 0.12), Eigen::Vector3d(0,1,0), deg2rad(8.0));
-    Eigen::Affine3d b_T_t_gt = make_pose(Eigen::Vector3d(0.5, -0.1, 0.8), Eigen::Vector3d(1,0,0), deg2rad(14.0));
+    Eigen::Affine3d X_gt = make_pose(
+        Eigen::Vector3d(0.03, 0.00, 0.12),
+        Eigen::Vector3d(0,1,0), deg2rad(8.0)
+    );
+    Eigen::Affine3d b_T_t_gt = make_pose(
+        Eigen::Vector3d(0.5, -0.1, 0.8),
+        Eigen::Vector3d(1,0,0), deg2rad(14.0)
+    );
 
-    Intrinsics K_gt; K_gt.fx=1000; K_gt.fy=1005; K_gt.cx=640; K_gt.cy=360; K_gt.use_distortion=false;
+    Intrinsics K_gt {
+        .fx = 1000,
+        .fy = 1005,
+        .cx = 640,
+        .cy = 360,
+        .use_distortion = false
+    };
 
     // Data
     SimulatedHandEye sim{X_gt, b_T_t_gt, K_gt};
@@ -292,8 +305,13 @@ TEST(ReprojectionRefine, RecoversXAndIntrinsics_NoDistortion) {
     sim.render_pixels(0.3, &rng); // 0.3 px noise
 
     // Bad initial intrinsics and X
-    Intrinsics K0 = K_gt;
-    K0.fx *= 0.97; K0.fy *= 1.03; K0.cx += 5.0; K0.cy -= 4.0;
+    Intrinsics K0 = {
+        .fx = K_gt.fx * 0.97,
+        .fy = K_gt.fy * 1.03,
+        .cx = K_gt.cx + 5.0,
+        .cy = K_gt.cy - 4.0,
+        .use_distortion = K_gt.use_distortion
+    };
     Eigen::Affine3d X0 = X_gt;
     X0.translation() += Eigen::Vector3d(-0.01, 0.006, -0.004);
     X0.linear() = axis_angle_to_R(Eigen::Vector3d(0.3,0.7,-0.2).normalized(), deg2rad(2.0)) * X0.linear();
@@ -307,11 +325,10 @@ TEST(ReprojectionRefine, RecoversXAndIntrinsics_NoDistortion) {
     opts.max_iterations = 100;
     opts.verbose = false;
 
-    Intrinsics Kf;
-    Eigen::Affine3d b_T_t_est;
-    Eigen::Affine3d X = refine_hand_eye_reprojection(
-        sim.b_T_g, sim.obj_pts, sim.img, K0, X0, opts, Kf, b_T_t_est
-    );
+    auto result = refine_hand_eye_reprojection(sim.b_T_g, sim.observations, K0, X0, opts);
+    const auto& X = result.g_T_r;
+    const auto& Kf = result.intr;
+    const auto& b_T_t_est = result.b_T_t;
 
     // X close to GT
     double rot_err = rad2deg(rotation_angle(X.linear().transpose() * X_gt.linear()));
@@ -362,15 +379,13 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     opts.max_iterations = 120;
     opts.verbose = false;
 
-    Intrinsics Kf;
-    Eigen::Affine3d b_T_t_est;
-    Eigen::Affine3d X = refine_hand_eye_reprojection(
-        sim.b_T_g, sim.obj_pts, sim.img, K0, X0, opts, Kf, b_T_t_est
-    );
+    auto result = refine_hand_eye_reprojection(sim.b_T_g, sim.observations, K0, X0, opts);
+    const auto& X = result.g_T_r;
+    const auto& Kf = result.intr;
 
     // Check X quality
     double rot_err = rad2deg(rotation_angle(X.linear().transpose() * X_gt.linear()));
-    double tr_err  = (X.translation() - X_gt.translation()).norm();
+    double tr_err = (X.translation() - X_gt.translation()).norm();
     EXPECT_LT(rot_err, 0.12);
     EXPECT_LT(tr_err,  0.004);
 
@@ -385,15 +400,12 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
 TEST(ReprojectionRefine, InputValidation) {
     // Mismatched sizes should throw
     std::vector<Eigen::Affine3d> base_T_gripper(3, Eigen::Affine3d::Identity());
-    std::vector<Eigen::Vector3d> obj(10, Eigen::Vector3d::Zero());
-    std::vector<std::vector<Eigen::Vector2d>> img(2); // wrong (should be 3)
+    std::vector<PlanarView> observations(2); // wrong (should be 3)
     Intrinsics K; K.fx=1000; K.fy=1000; K.cx=640; K.cy=360; K.use_distortion=false;
     Eigen::Affine3d X0 = Eigen::Affine3d::Identity();
     ReprojRefineOptions opts;
 
-    Intrinsics Kf; Eigen::Affine3d bTt;
-
     EXPECT_THROW({
-        refine_hand_eye_reprojection(base_T_gripper, obj, img, K, X0, opts, Kf, bTt);
+        refine_hand_eye_reprojection(base_T_gripper, observations, K, X0, opts);
     }, std::runtime_error);
 }

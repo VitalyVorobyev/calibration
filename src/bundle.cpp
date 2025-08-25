@@ -1,4 +1,4 @@
-#include "calibration/handeye.h"
+#include "calibration/bundle.h"
 
 // std
 #include <numeric>
@@ -11,7 +11,6 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 #include <ceres/manifold.h>
-#include <ceres/sphere_manifold.h>
 
 #include "calibration/planarpose.h"
 
@@ -24,136 +23,130 @@ constexpr int MAX_ITERATIONS = 1000;
 
 namespace vitavision {
 
-// Comnutes target -> camera transform
-template<typename T>
-static Eigen::Transform<T, 3, Eigen::Affine> get_camera_T_target(
-    const Eigen::Transform<T, 3, Eigen::Affine>& base_T_target,
-    const Eigen::Transform<T, 3, Eigen::Affine>& refcam_T_gripper,
-    const Eigen::Transform<T, 3, Eigen::Affine>& camera_T_refcam,
-    const Eigen::Transform<T, 3, Eigen::Affine>& base_T_gripper
-) {
-    auto camera_T_gripper = camera_T_refcam * refcam_T_gripper;  // gripper -> camera
-    auto camera_T_base = camera_T_gripper * base_T_gripper.inverse();  // base -> camera
-    auto camera_T_target = camera_T_base * base_T_target;  // target -> camera
-    return camera_T_target;
-}
-
-struct HEParameterBlocks final {
-    std::array<double,6> base_target6{};
-    std::array<double,6> he_ref6{};
-    std::vector<std::array<double,6>> ext6;
-    std::vector<std::array<double,4>> K;
-    std::vector<std::array<double,4>> dist;
+struct BundleParamBlocks final {
+    std::array<double, 4> b_q_t{};             // target to base
+    std::array<double, 3> b_t_t{};
+    std::array<double, 4> g_q_r{};             // reference to gripper (hand-eye pose)
+    std::array<double, 3> g_t_r{};
+    std::vector<std::array<double, 4>> c_q_r;  // reference to camera (extrinsic poses)
+    std::vector<std::array<double, 3>> c_t_r;
+    std::vector<std::array<double, 9>> intr;   // camera matrices and distortions
 };
 
-static void populate_heref6_block(HEParameterBlocks& blocks,
-                        const Eigen::Affine3d& initial_hand_eye) {
-    blocks.he_ref6 = pose_to_array(initial_hand_eye);
-}
-
-static void populate_extrinsics_blocks(HEParameterBlocks& blocks,
-                           const std::vector<Eigen::Affine3d>& initial_extrinsics) {
-    blocks.ext6.resize(initial_extrinsics.size());
-    std::transform(initial_extrinsics.begin(), initial_extrinsics.end(), blocks.ext6.begin(),
-                   [](const Eigen::Affine3d& ext) { return pose_to_array(ext); });
-}
-
-static void populate_intrinsic_blocks(HEParameterBlocks& blocks,
-                                      const std::vector<CameraMatrix>& initial_intrinsics) {
-    blocks.K.resize(initial_intrinsics.size());
-    blocks.dist.resize(initial_intrinsics.size());
-    for (size_t i = 0; i < initial_intrinsics.size(); ++i) {
-        const auto& intr = initial_intrinsics[i];
-        blocks.K[i] = {intr.fx, intr.fy, intr.cx, intr.cy};
-        blocks.dist[i] = {0, 0, 0, 0};  // Initialize distortion coefficients to zero
-    }
-}
-
-static void populate_base_target_block(HEParameterBlocks& blocks,
-                                       const Eigen::Affine3d& initial_base_target) {
-    blocks.base_target6 = pose_to_array(initial_base_target);
-}
-
-static HEParameterBlocks initialize_blocks(
+static BundleParamBlocks initialize_blocks(
     const std::vector<CameraMatrix>& initial_intrinsics,
-    const Eigen::Affine3d& initial_hand_eye,
-    const std::vector<Eigen::Affine3d>& initial_extrinsics,
-    const Eigen::Affine3d& initial_base_target
+    const Eigen::Affine3d& g_T_r,
+    const std::vector<Eigen::Affine3d>& c_T_r,
+    const Eigen::Affine3d& b_T_t
 ) {
-    HEParameterBlocks blocks;
-    populate_heref6_block(blocks, initial_hand_eye);
-    populate_extrinsics_blocks(blocks, initial_extrinsics);
-    populate_intrinsic_blocks(blocks, initial_intrinsics);
-    populate_base_target_block(blocks, initial_base_target);
+    BundleParamBlocks blocks;
+    const size_t ncam = c_T_r.size();
+
+    populate_quat_tran(g_T_r, blocks.g_q_r, blocks.g_t_r);
+    populate_quat_tran(b_T_t, blocks.b_q_t, blocks.b_t_t);
+
+    blocks.c_q_r.resize(ncam);
+    blocks.c_t_r.resize(ncam);
+    blocks.intr.resize(ncam);
+    for (size_t i = 0; i < c_T_r.size(); ++i) {
+        populate_quat_tran(c_T_r[i], blocks.c_q_r[i], blocks.c_t_r[i]);
+
+        blocks.intr[i] = {
+            initial_intrinsics[i].fx,
+            initial_intrinsics[i].fy,
+            initial_intrinsics[i].cx,
+            initial_intrinsics[i].cy,
+            0, 0, 0, 0, 0
+        };
+    }
+
     return blocks;
 }
 
-static void build_problem(const std::vector<HandEyeObservation>& observations,
-                          const HandEyeOptions& opts,
-                          HEParameterBlocks& blocks,
+static void build_problem(const std::vector<BundleObservation>& observations,
+                          const BundleOptions& opts,
+                          BundleParamBlocks& blocks,
                           ceres::Problem& p) {
     for (const auto& obs : observations) {
         const size_t cam = obs.camera_index;
-        auto* cost = HandEyeReprojResidual::create(obs.view, obs.base_T_gripper);
+        auto* cost = HandEyeReprojResidual::create(obs.view, obs.b_T_g);
         p.AddResidualBlock(cost, new ceres::HuberLoss(1.0),
-                           blocks.base_target6.data(),
-                           blocks.he_ref6.data(),
-                           blocks.ext6[cam].data(),
-                           blocks.K[cam].data(),
-                           blocks.dist[cam].data());
+                           blocks.b_q_t.data(), blocks.b_t_t.data(),
+                           blocks.g_q_r.data(), blocks.g_t_r.data(),
+                           blocks.c_q_r[cam].data(), blocks.c_t_r[cam].data(),
+                           blocks.intr[cam].data());
     }
-    // keep identity extrinsic constant
-    p.SetParameterBlockConstant(blocks.ext6[0].data());
 
-    const bool single_cam = blocks.K.size() == 1;
+    // keep identity extrinsic constant
+    p.SetParameterBlockConstant(blocks.c_q_r[0].data());
+    p.SetParameterBlockConstant(blocks.c_t_r[0].data());
+    const bool single_cam = blocks.intr.size() == 1;
+
+    // set quaternions
+    p.SetManifold(blocks.b_q_t.data(), new ceres::QuaternionManifold());
+    p.SetManifold(blocks.g_q_r.data(), new ceres::QuaternionManifold());
+    for (size_t cam = 0; cam < blocks.c_q_r.size(); ++cam) {
+        p.SetManifold(blocks.c_q_r[cam].data(), new ceres::QuaternionManifold());
+    }
 
     // With a single camera, the hand-eye and target pose cannot be estimated
-    // simultaneously.  If both are requested, fix the target pose to the
+    // simultaneously. If both are requested, fix the target pose to the
     // initial guess to remove the gauge freedom.
     if (!opts.optimize_target_pose || (single_cam && opts.optimize_hand_eye)) {
-        p.SetParameterBlockConstant(blocks.base_target6.data());
+        p.SetParameterBlockConstant(blocks.b_q_t.data());
+        p.SetParameterBlockConstant(blocks.b_t_t.data());
     }
+
     if (!opts.optimize_hand_eye) {
-        p.SetParameterBlockConstant(blocks.he_ref6.data());
+        p.SetParameterBlockConstant(blocks.g_q_r.data());
+        p.SetParameterBlockConstant(blocks.g_t_r.data());
     }
+
     if (!opts.optimize_extrinsics) {
-        for (auto& e : blocks.ext6) p.SetParameterBlockConstant(e.data());
+        for (auto& e : blocks.c_q_r) p.SetParameterBlockConstant(e.data());
+        for (auto& e : blocks.c_t_r) p.SetParameterBlockConstant(e.data());
     }
+
     if (!opts.optimize_intrinsics) {
-        for (size_t c = 0; c < blocks.K.size(); ++c) {
-            p.SetParameterBlockConstant(blocks.K[c].data());
-            p.SetParameterBlockConstant(blocks.dist[c].data());
+        for (size_t c = 0; c < blocks.intr.size(); ++c) {
+            p.SetParameterBlockConstant(blocks.intr[c].data());
         }
     } else {
-        for (size_t c = 0; c < blocks.K.size(); ++c) {
-            p.SetParameterLowerBound(blocks.K[c].data(), 0, 0.0);
-            p.SetParameterLowerBound(blocks.K[c].data(), 1, 0.0);
+        // ensure fx > 0 and fy > 0
+        for (size_t c = 0; c < blocks.intr.size(); ++c) {
+            p.SetParameterLowerBound(blocks.intr[c].data(), 0, 0.0);
+            p.SetParameterLowerBound(blocks.intr[c].data(), 1, 0.0);
         }
         // Anchor scale by fixing fx, fy for reference camera
-        std::vector<int> fixed = {0, 1};
-        p.SetManifold(blocks.K[0].data(), new ceres::SubsetManifold(4, fixed));
+        p.SetManifold(blocks.intr[0].data(), new ceres::SubsetManifold(4, {0, 1}));
     }
 }
 
-static void recover_parameters(const HEParameterBlocks& blocks,
-                               HandEyeResult& result) {
-    result.hand_eye = array_to_pose(blocks.he_ref6.data());
-    result.base_T_target = array_to_pose(blocks.base_target6.data());
+static void recover_parameters(
+    const BundleParamBlocks& blocks,
+    BundleResult& result
+) {
+    result.b_T_t = restore_pose(blocks.b_q_t, blocks.b_t_t);
+    result.g_T_r = restore_pose(blocks.g_q_r, blocks.g_t_r);
 
-    const size_t num_cams = blocks.K.size();
-    result.extrinsics.resize(num_cams);
+    const size_t num_cams = blocks.intr.size();
+    result.c_T_r.resize(num_cams);
     result.distortions.resize(num_cams);
     result.intrinsics.resize(num_cams);
 
     for (size_t c = 0; c < num_cams; ++c) {
-        result.extrinsics[c] = c > 0 ? array_to_pose(blocks.ext6[c].data()) : Eigen::Affine3d::Identity();
-        result.distortions[c] = Eigen::VectorXd::Map(blocks.dist[c].data(), 4);
-        result.intrinsics[c] = {blocks.K[c][0], blocks.K[c][1], blocks.K[c][2], blocks.K[c][3]};
+        result.c_T_r[c] = restore_pose(blocks.c_q_r[c], blocks.c_t_r[c]);
+        const auto& i = blocks.intr[c];
+        result.intrinsics[c] = {i[0], i[1], i[2], i[3]};
+        result.distortions[c] = Eigen::VectorXd(5);
+        result.distortions[c] << i[4], i[5], i[6], i[7], i[8];
     }
 }
 
-static double compute_reprojection_error(const std::vector<HandEyeObservation>& observations,
-                                         HandEyeResult& result) {
+static double compute_reprojection_error(
+    const std::vector<BundleObservation>& observations,
+    BundleResult& result
+) {
     double ssr = 0.0; size_t total = 0;
 
     for (const auto& obs : observations) {
@@ -161,23 +154,21 @@ static double compute_reprojection_error(const std::vector<HandEyeObservation>& 
         const auto& intr = result.intrinsics[cam];
         const Eigen::VectorXd& dist = result.distortions[cam];
 
-        auto camera_T_target = get_camera_T_target(
-            result.base_T_target,
-            result.hand_eye,
-            result.extrinsics[cam],
-            obs.base_T_gripper
-        );
+        auto c_T_t = get_camera_T_target(
+            result.b_T_t, result.g_T_r, result.c_T_r[cam], obs.b_T_g);
 
-        std::vector<Observation<double>> o(obs.view.size());
-        planar_observables_to_observables(obs.view, o, camera_T_target);
-
-        for (const auto& ob : o) {
-            Eigen::Vector2d norm_xy(ob.x, ob.y);
-            Eigen::Vector2d distorted = apply_distortion(norm_xy, dist);
-            double u = intr.fx * distorted.x() + intr.cx;
-            double v = intr.fy * distorted.y() + intr.cy;
-            double du = u - ob.u;
-            double dv = v - ob.v;
+        double u_hat, v_hat;
+        std::array<double, 9> i {
+            intr.fx, intr.fy, intr.cx, intr.cy,
+            dist(0), dist(1), dist(2), dist(3), dist(4)
+        };
+        Eigen::Vector3d P;
+        for (const auto& ob : obs.view) {
+            P << ob.object_xy.x(), ob.object_xy.y(), 0;
+            P = c_T_t * P;
+            project_with_intrinsics(P(0), P(1), P(2), i.data(), true, u_hat, v_hat);
+            double du = u_hat - ob.image_uv.x();
+            double dv = v_hat - ob.image_uv.y();
             ssr += du * du + dv * dv;
             total += 2;
         }
@@ -187,13 +178,15 @@ static double compute_reprojection_error(const std::vector<HandEyeObservation>& 
 }
 
 static Eigen::MatrixXd compute_covariance(ceres::Problem& p,
-                                          HEParameterBlocks& blocks) {
+                                          BundleParamBlocks& blocks) {
     std::vector<const double*> blocks_list;
-    blocks_list.push_back(blocks.base_target6.data());
-    blocks_list.push_back(blocks.he_ref6.data());
-    for (auto& e : blocks.ext6) blocks_list.push_back(e.data());
-    for (auto& k : blocks.K) blocks_list.push_back(k.data());
-    for (auto& d : blocks.dist) blocks_list.push_back(d.data());
+    blocks_list.push_back(blocks.b_q_t.data());
+    blocks_list.push_back(blocks.b_t_t.data());
+    blocks_list.push_back(blocks.g_q_r.data());
+    blocks_list.push_back(blocks.g_t_r.data());
+    for (auto& e : blocks.c_q_r) blocks_list.push_back(e.data());
+    for (auto& e : blocks.c_t_r) blocks_list.push_back(e.data());
+    for (auto& e : blocks.intr) blocks_list.push_back(e.data());
 
     ceres::Covariance::Options cov_opts;
     ceres::Covariance cov(cov_opts);
@@ -212,11 +205,12 @@ static Eigen::MatrixXd compute_covariance(ceres::Problem& p,
 
 static std::string solve_problem(ceres::Problem &p, bool verbose) {
     ceres::Solver::Options sopts;
-    #if 1
-    sopts.linear_solver_type = ceres::DENSE_QR;
+    #if 0
+    sopts.linear_solver_type = ceres::SPARSE_SCHUR;
+    //  ;// ceres::DENSE_QR;
     #elif 0
-    sopts.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-    #else
+    sopts.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;  // default option
+    #elif 0
     sopts.linear_solver_type = ceres::DENSE_SCHUR;
     #endif
     sopts.minimizer_progress_to_stdout = verbose;
@@ -232,28 +226,28 @@ static std::string solve_problem(ceres::Problem &p, bool verbose) {
     return summary.BriefReport();
 }
 
-HandEyeResult calibrate_hand_eye(
-    const std::vector<HandEyeObservation>& observations,
+BundleResult calibrate_hand_eye(
+    const std::vector<BundleObservation>& observations,
     const std::vector<CameraMatrix>& initial_intrinsics,
-    const Eigen::Affine3d& initial_hand_eye,
-    const std::vector<Eigen::Affine3d>& initial_extrinsics,
-    const Eigen::Affine3d& initial_base_target,
-    const HandEyeOptions& opts
+    const Eigen::Affine3d& init_g_T_r,
+    const std::vector<Eigen::Affine3d>& init_c_T_r,
+    const Eigen::Affine3d& init_b_T_t,
+    const BundleOptions& opts
 ) {
     const size_t num_cams = initial_intrinsics.size();
     if (num_cams == 0) {
         throw std::invalid_argument("No camera intrinsics provided");
     };
 
-    HEParameterBlocks blocks = initialize_blocks(
-        initial_intrinsics, initial_hand_eye,
-        initial_extrinsics, initial_base_target);
+    BundleParamBlocks blocks = initialize_blocks(
+        initial_intrinsics, init_g_T_r,
+        init_c_T_r, init_b_T_t);
 
     ceres::Problem p;
     build_problem(observations, opts, blocks, p);
 
-    HandEyeResult result;
-    result.summary = solve_problem(p, opts.verbose);
+    BundleResult result;
+    result.report = solve_problem(p, opts.verbose);
 
     recover_parameters(blocks, result);
     result.reprojection_error = compute_reprojection_error(observations, result);
@@ -262,4 +256,4 @@ HandEyeResult calibrate_hand_eye(
     return result;
 }
 
-} // namespace vitavision
+}  // namespace vitavision

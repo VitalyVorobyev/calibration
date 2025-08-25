@@ -49,13 +49,10 @@ struct ReprojRefineOptions {
     double huber_delta_px = 1.0;        // robust loss on pixel residuals
     int max_iterations = 80;
     bool verbose = false;
-
-    // Optional soft AX=XB prior (lambda=0 -> disabled)
-    double lambda_axxb = 0.0;           // weight for AX=XB residuals
 };
 
 struct HandEyeReprojectionResult final {
-    Eigen::Affine3d r_T_g;  // reference camera to gripper (hand-eye pose)
+    Eigen::Affine3d g_T_r;  // reference camera to gripper (hand-eye pose)
     Intrinsics intr;
     Eigen::Affine3d b_T_t;  // target to base
     double reprojection_error_pix = 0;
