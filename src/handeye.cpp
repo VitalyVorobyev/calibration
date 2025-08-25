@@ -1,28 +1,32 @@
-#include "calibration/handeye.h"
+#include "calibration/handeyedlt.h"
 
 // std
-#include <numeric>
-#include <array>
-
-// eigen
-#include <Eigen/Geometry>
-
-// ceres
-#include <ceres/ceres.h>
-#include <ceres/rotation.h>
-#include <ceres/manifold.h>
-#include <ceres/sphere_manifold.h>
-
-#include "calibration/planarpose.h"
+#include <iostream>
 
 #include "observationutils.h"
-
-constexpr int DEFAULT_NUM_RADIAL_DISTORTION_PARAMS = 2;
-constexpr double CONVERGENCE_TOLERANCE = 1e-6;
-constexpr int MAX_ITERATIONS = 1000;
+#include "handeyeresidual.h"
 
 namespace vitavision {
 
+/**
+ * @brief Estimates the hand-eye rotation matrix using a set of motion pairs.
+ *
+ * This function computes the rotation matrix that aligns the motion of a
+ * gripper (base_T_gripper) with the motion of a camera (camera_T_target).
+ * It uses the logarithm of rotation matrices to calculate the relative
+ * rotations between consecutive poses and solves a least-squares problem
+ * to estimate the rotation matrix.
+ *
+ * @param base_T_gripper A vector of affine transformations representing
+ *                       the poses of the gripper relative to the base.
+ * @param camera_T_target A vector of affine transformations representing
+ *                        the poses of the target relative to the camera.
+ *
+ * @return The estimated 3x3 rotation matrix.
+ *
+ * @throws std::runtime_error If the input vectors are empty or have
+ *                            inconsistent sizes.
+ */
 static Eigen::Matrix3d estimate_hand_eye_rotation(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
     const std::vector<Eigen::Affine3d>& camera_T_target
@@ -51,6 +55,26 @@ static Eigen::Matrix3d estimate_hand_eye_rotation(
     return R;
 }
 
+/**
+ * @brief Estimates the translation component of the hand-eye calibration problem.
+ *
+ * This function computes the translation vector `t` that aligns the motion of a
+ * robotic gripper (base_T_gripper) with the motion of a camera observing a target
+ * (camera_T_target), given a known rotation matrix `R`.
+ *
+ * @param base_T_gripper A vector of affine transformations representing the poses
+ *        of the robotic gripper in the base frame. Each transformation corresponds
+ *        to a specific time step.
+ * @param camera_T_target A vector of affine transformations representing the poses
+ *        of the camera relative to the observed target. The size of this vector
+ *        must match the size of `base_T_gripper`.
+ * @param R A 3x3 rotation matrix representing the rotational component of the
+ *        hand-eye calibration.
+ * @return Eigen::Vector3d The estimated translation vector `t` that aligns the
+ *         motion of the gripper with the motion of the camera.
+ *
+ * @throws std::runtime_error If the input vectors are empty or their sizes do not match.
+ */
 static Eigen::Vector3d estimate_hand_eye_translation(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
     const std::vector<Eigen::Affine3d>& camera_T_target,
@@ -74,7 +98,18 @@ static Eigen::Vector3d estimate_hand_eye_translation(
     return t;
 }
 
-Eigen::Affine3d estimate_hand_eye_initial(
+/**
+ * Compute an initial estimate of the hand-eye transform (camera -> gripper)
+ * using the Tsai-Lenz linear method.  The input vectors must contain
+ * corresponding poses of the robot end-effector in the base frame and poses of
+ * the planar target in the camera frame for the same time instants.
+ * @param base_T_gripper A vector of affine transformations representing the poses
+ *        of the robotic gripper in the base frame.
+ * @param camera_T_target A vector of affine transformations representing the poses
+ *        of the camera relative to the observed target.
+ * @return The estimated hand-eye transform (camera -> gripper).
+ */
+Eigen::Affine3d estimate_hand_eye_tsai_lenz(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
     const std::vector<Eigen::Affine3d>& camera_T_target) {
 
@@ -92,287 +127,367 @@ Eigen::Affine3d estimate_hand_eye_initial(
     return X;
 }
 
-// Comnutes target -> camera transform
-template<typename T>
-static Eigen::Transform<T, 3, Eigen::Affine> get_camera_T_target(
-    const Eigen::Transform<T, 3, Eigen::Affine>& base_T_target,
-    const Eigen::Transform<T, 3, Eigen::Affine>& refcam_T_gripper,
-    const Eigen::Transform<T, 3, Eigen::Affine>& camera_T_refcam,
-    const Eigen::Transform<T, 3, Eigen::Affine>& base_T_gripper
+// hand_eye_tsai_lenz.hpp
+#pragma once
+
+// eigen
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+#include <Eigen/SVD>
+
+// ceres
+#include <ceres/ceres.h>
+#include <ceres/rotation.h>
+
+// std
+#include <vector>
+#include <stdexcept>
+#include <iostream>
+#include <cmath>
+#include <numbers>
+
+// ---------- motion pair packing ----------
+struct MotionPair final {
+    Eigen::Matrix3d RA, RB;
+    Eigen::Vector3d tA, tB;
+    double sqrt_weight; // sqrt of weight used to scale rows/residuals
+};
+
+static std::vector<MotionPair> build_all_pairs(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<Eigen::Affine3d>& camera_T_target,
+    double min_angle_deg = 1.0,          // discard too-small motions
+    bool reject_axis_parallel = true,    // guard against ill-conditioning
+    double axis_parallel_eps = 1e-3
 ) {
-    auto camera_T_gripper = camera_T_refcam * refcam_T_gripper;  // gripper -> camera
-    auto camera_T_base = camera_T_gripper * base_T_gripper.inverse();  // base -> camera
-    auto camera_T_target = camera_T_base * base_T_target;  // target -> camera
-    return camera_T_target;
+    if (base_T_gripper.size() < 2 || base_T_gripper.size() != camera_T_target.size()) {
+        throw std::runtime_error("Inconsistent hand-eye input sizes");
+    }
+    const size_t n = base_T_gripper.size();
+    const double min_angle = min_angle_deg * std::numbers::pi / 180.0;
+
+    std::vector<MotionPair> pairs;
+    pairs.reserve(n*(n-1)/2);
+
+    for (size_t i = 0; i+1 < n; ++i) {
+        for (size_t j = i+1; j < n; ++j) {
+            const Eigen::Affine3d A = base_T_gripper[i].inverse() * base_T_gripper[j];
+            const Eigen::Affine3d B = camera_T_target[i] * camera_T_target[j].inverse();
+
+            MotionPair mp;
+            mp.RA = projectToSO3(A.linear());
+            mp.RB = projectToSO3(B.linear());
+            mp.tA = A.translation();
+            mp.tB = B.translation();
+
+            Eigen::Vector3d alpha = logSO3(mp.RA);
+            Eigen::Vector3d beta  = logSO3(mp.RB);
+            const double a = alpha.norm();
+            const double b = beta.norm();
+
+            // weight by the smaller rotation magnitude; skip if too small
+            const double w = std::min(a, b);
+            if (w < min_angle) continue;
+
+            if (reject_axis_parallel) {
+                const double aa = (a < 1e-9) ? 0.0 : 1.0;
+                const double bb = (b < 1e-9) ? 0.0 : 1.0;
+                if (aa*bb > 0.0) {
+                    double sin_axis = (alpha.normalized().cross(beta.normalized())).norm();
+                    if (sin_axis < axis_parallel_eps) continue; // nearly same axis
+                }
+            }
+
+            mp.sqrt_weight = std::sqrt(w);
+            pairs.push_back(std::move(mp));
+        }
+    }
+    if (pairs.empty()) {
+        throw std::runtime_error("No valid motion pairs after filtering. Increase motion or relax thresholds.");
+    }
+    return pairs;
 }
 
-struct HandEyeReprojResidual final {
-    PlanarView view;
-    Eigen::Affine3d base_to_gripper;
-    HandEyeReprojResidual(PlanarView v, const Eigen::Affine3d& base_T_gripper)
-        : view(std::move(v)), base_to_gripper(base_T_gripper) {}
+// ---------- weighted Tsai–Lenz rotation over all pairs ----------
+static Eigen::Matrix3d estimate_rotation_allpairs_weighted(const std::vector<MotionPair>& pairs) {
+    const int m = static_cast<int>(pairs.size());
+    Eigen::MatrixXd M(3*m, 3);
+    Eigen::VectorXd d(3*m);
+
+    for (int k = 0; k < m; ++k) {
+        Eigen::Vector3d alpha = logSO3(pairs[k].RA);
+        Eigen::Vector3d beta  = logSO3(pairs[k].RB);
+        const double s = pairs[k].sqrt_weight;
+
+        M.block<3,3>(3*k, 0) = s * skew(alpha + beta);
+        d.segment<3>(3*k)    = s * (beta - alpha);
+    }
+
+    Eigen::Vector3d r = ridge_llsq(M, d, 1e-12);
+    return expSO3(r); // NOTE: no transpose here
+}
+
+// ---------- weighted Tsai–Lenz translation over all pairs ----------
+inline Eigen::Vector3d estimate_translation_allpairs_weighted(
+    const std::vector<MotionPair>& pairs, const Eigen::Matrix3d& RX)
+{
+    const int m = static_cast<int>(pairs.size());
+    Eigen::MatrixXd C(3*m, 3);
+    Eigen::VectorXd w(3*m);
+
+    for (int k = 0; k < m; ++k) {
+        const Eigen::Matrix3d& RA = pairs[k].RA;
+        const Eigen::Matrix3d& RB = pairs[k].RB;
+        const Eigen::Vector3d& tA = pairs[k].tA;
+        const Eigen::Vector3d& tB = pairs[k].tB;
+        const double s = pairs[k].sqrt_weight;
+
+        C.block<3,3>(3*k, 0) = s * (RA - Eigen::Matrix3d::Identity());
+        w.segment<3>(3*k)    = s * (RX * tB - tA);
+    }
+
+    return ridge_llsq(C, w, 1e-12);
+}
+
+// ---------- Ceres residual (AX = XB): rotation log + translation eq ----------
+struct AX_XBResidual {
+    Eigen::Matrix3d RA_, RB_;
+    Eigen::Vector3d tA_, tB_;
+    double sqrt_w_;
+
+    AX_XBResidual(const MotionPair& mp) : RA_(mp.RA), RB_(mp.RB), tA_(mp.tA), tB_(mp.tB), sqrt_w_(mp.sqrt_weight) {}
 
     template <typename T>
-    bool operator()(const T* base_target6, const T* he_ref6, const T* ext6,
-                    const T* intrinsics, const T* dist, T* residuals) const {
-        auto base_T_target = pose2affine(base_target6);  // target -> base
-        auto refcam_T_gripper = pose2affine(he_ref6);    // gripper -> reference camera
-        auto camera_T_refcam = pose2affine(ext6);        // reference -> camera extrinsic
-        auto camera_T_target = get_camera_T_target(
-            base_T_target, refcam_T_gripper, camera_T_refcam, base_to_gripper.template cast<T>());
-
-        std::vector<Observation<T>> o(view.size());
-        planar_observables_to_observables(view, o, camera_T_target);
-
-        const T fx = intrinsics[0];
-        const T fy = intrinsics[1];
-        const T cx = intrinsics[2];
-        const T cy = intrinsics[3];
-        Eigen::Map<const Eigen::Matrix<T,Eigen::Dynamic,1>> d(dist, 4);
-
-        int idx = 0;
-        for (const auto& ob : o) {
-            Eigen::Matrix<T,2,1> norm_xy(ob.x, ob.y);
-            Eigen::Matrix<T,2,1> distorted = apply_distortion<T>(norm_xy, d);
-            T u = fx * distorted.x() + cx;
-            T v = fy * distorted.y() + cy;
-            residuals[idx++] = u - ob.u;
-            residuals[idx++] = v - ob.v;
+    bool operator()(const T* const q, const T* const t, T* residuals) const {
+        // q = [w, x, y, z], t = [tx, ty, tz]
+        Eigen::Matrix<T,3,3> RX;
+        {
+            T Rdata[9];
+            ceres::QuaternionToRotation(q, Rdata); // column-major
+            RX << Rdata[0], Rdata[3], Rdata[6],
+                  Rdata[1], Rdata[4], Rdata[7],
+                  Rdata[2], Rdata[5], Rdata[8];
         }
+        const Eigen::Matrix<T,3,3> RXT = RX.transpose();
+
+        const Eigen::Matrix<T,3,3> RA = RA_.cast<T>();
+        const Eigen::Matrix<T,3,3> RB = RB_.cast<T>();
+        const Eigen::Matrix<T,3,3> RS = RA * RX * RB * RXT;
+
+        // rot residual: angle-axis of RS
+        T RS_cols[9] = {
+            RS(0,0), RS(1,0), RS(2,0),
+            RS(0,1), RS(1,1), RS(2,1),
+            RS(0,2), RS(1,2), RS(2,2)
+        };
+        T aa[3];
+        ceres::RotationMatrixToAngleAxis(RS_cols, aa);
+
+        // trans residual from (RA - I) tX = RX tB - tA
+        const Eigen::Matrix<T,3,1> tX(t[0], t[1], t[2]);
+        const Eigen::Matrix<T,3,1> tA = tA_.cast<T>();
+        const Eigen::Matrix<T,3,1> tB = tB_.cast<T>();
+        const Eigen::Matrix<T,3,1> et = (RA - Eigen::Matrix<T,3,3>::Identity()) * tX - (RX * tB - tA);
+
+        const T s = T(sqrt_w_);
+        residuals[0] = s * aa[0];
+        residuals[1] = s * aa[1];
+        residuals[2] = s * aa[2];
+        residuals[3] = s * et(0);
+        residuals[4] = s * et(1);
+        residuals[5] = s * et(2);
         return true;
     }
 
-    static auto* create(PlanarView v, const Eigen::Affine3d& base_T_gripper) {
-        auto functor = new HandEyeReprojResidual(v, base_T_gripper);
-        auto* cost = new ceres::AutoDiffCostFunction<
-            HandEyeReprojResidual, ceres::DYNAMIC, 6,6,6,4,4>(
-                functor, static_cast<int>(v.size()) * 2);
-        return cost;
+    static auto create() {
+
     }
 };
 
-struct HEParameterBlocks final {
-    std::array<double,6> base_target6{};
-    std::array<double,6> he_ref6{};
-    std::vector<std::array<double,6>> ext6;
-    std::vector<std::array<double,4>> K;
-    std::vector<std::array<double,4>> dist;
-};
+// ---------- public API: linear init + non-linear refine ----------
+Eigen::Affine3d estimate_hand_eye_tsai_lenz_allpairs_weighted(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<Eigen::Affine3d>& camera_T_target,
+    double min_angle_deg)
+{
+    auto pairs = build_all_pairs(base_T_gripper, camera_T_target, min_angle_deg);
+    const Eigen::Matrix3d RX = estimate_rotation_allpairs_weighted(pairs);
+    const Eigen::Vector3d tX = estimate_translation_allpairs_weighted(pairs, RX);
 
-static void populate_heref6_block(HEParameterBlocks& blocks,
-                        const Eigen::Affine3d& initial_hand_eye) {
-    blocks.he_ref6 = pose_to_array(initial_hand_eye);
+    Eigen::Affine3d X = Eigen::Affine3d::Identity();
+    X.linear() = RX;
+    X.translation() = tX;
+    return X;
 }
 
-static void populate_extrinsics_blocks(HEParameterBlocks& blocks,
-                           const std::vector<Eigen::Affine3d>& initial_extrinsics) {
-    blocks.ext6.resize(initial_extrinsics.size());
-    std::transform(initial_extrinsics.begin(), initial_extrinsics.end(), blocks.ext6.begin(),
-                   [](const Eigen::Affine3d& ext) { return pose_to_array(ext); });
-}
+Eigen::Affine3d refine_hand_eye_ceres(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<Eigen::Affine3d>& camera_T_target,
+    const Eigen::Affine3d& X0,
+    const RefinementOptions& opts)
+{
+    auto pairs = build_all_pairs(base_T_gripper, camera_T_target, /*min_angle_deg*/ 0.5);
 
-static void populate_intrinsic_blocks(HEParameterBlocks& blocks,
-                                      const std::vector<CameraMatrix>& initial_intrinsics) {
-    blocks.K.resize(initial_intrinsics.size());
-    blocks.dist.resize(initial_intrinsics.size());
-    for (size_t i = 0; i < initial_intrinsics.size(); ++i) {
-        const auto& intr = initial_intrinsics[i];
-        blocks.K[i] = {intr.fx, intr.fy, intr.cx, intr.cy};
-        blocks.dist[i] = {0, 0, 0, 0};  // Initialize distortion coefficients to zero
-    }
-}
+    // parameters: rotation quaternion + translation
+    Eigen::Quaterniond q0(X0.linear());
+    double q_param[4] = { q0.w(), q0.x(), q0.y(), q0.z() };
+    double t_param[3] = { X0.translation().x(), X0.translation().y(), X0.translation().z() };
 
-static void populate_base_target_block(HEParameterBlocks& blocks,
-                                       const Eigen::Affine3d& initial_base_target) {
-    blocks.base_target6 = pose_to_array(initial_base_target);
-}
+    ceres::Problem problem;
 
-static HEParameterBlocks initialize_blocks(
-    const std::vector<CameraMatrix>& initial_intrinsics,
-    const Eigen::Affine3d& initial_hand_eye,
-    const std::vector<Eigen::Affine3d>& initial_extrinsics,
-    const Eigen::Affine3d& initial_base_target
-) {
-    HEParameterBlocks blocks;
-    populate_heref6_block(blocks, initial_hand_eye);
-    populate_extrinsics_blocks(blocks, initial_extrinsics);
-    populate_intrinsic_blocks(blocks, initial_intrinsics);
-    populate_base_target_block(blocks, initial_base_target);
-    return blocks;
-}
-
-static void build_problem(const std::vector<HandEyeObservation>& observations,
-                          const HandEyeOptions& opts,
-                          HEParameterBlocks& blocks,
-                          ceres::Problem& p) {
-    for (const auto& obs : observations) {
-        const size_t cam = obs.camera_index;
-        auto* cost = HandEyeReprojResidual::create(obs.view, obs.base_T_gripper);
-        p.AddResidualBlock(cost, new ceres::HuberLoss(1.0),
-                           blocks.base_target6.data(),
-                           blocks.he_ref6.data(),
-                           blocks.ext6[cam].data(),
-                           blocks.K[cam].data(),
-                           blocks.dist[cam].data());
-    }
-    // keep identity extrinsic constant
-    p.SetParameterBlockConstant(blocks.ext6[0].data());
-
-    const bool single_cam = blocks.K.size() == 1;
-
-    // With a single camera, the hand-eye and target pose cannot be estimated
-    // simultaneously.  If both are requested, fix the target pose to the
-    // initial guess to remove the gauge freedom.
-    if (!opts.optimize_target_pose || (single_cam && opts.optimize_hand_eye)) {
-        p.SetParameterBlockConstant(blocks.base_target6.data());
-    }
-    if (!opts.optimize_hand_eye) {
-        p.SetParameterBlockConstant(blocks.he_ref6.data());
-    }
-    if (!opts.optimize_extrinsics) {
-        for (auto& e : blocks.ext6) p.SetParameterBlockConstant(e.data());
-    }
-    if (!opts.optimize_intrinsics) {
-        for (size_t c = 0; c < blocks.K.size(); ++c) {
-            p.SetParameterBlockConstant(blocks.K[c].data());
-            p.SetParameterBlockConstant(blocks.dist[c].data());
-        }
-    } else {
-        for (size_t c = 0; c < blocks.K.size(); ++c) {
-            p.SetParameterLowerBound(blocks.K[c].data(), 0, 0.0);
-            p.SetParameterLowerBound(blocks.K[c].data(), 1, 0.0);
-        }
-        // Anchor scale by fixing fx, fy for reference camera
-        std::vector<int> fixed = {0, 1};
-        p.SetManifold(blocks.K[0].data(), new ceres::SubsetManifold(4, fixed));
-    }
-}
-
-static void recover_parameters(const HEParameterBlocks& blocks,
-                               HandEyeResult& result) {
-    result.hand_eye = array_to_pose(blocks.he_ref6.data());
-    result.base_T_target = array_to_pose(blocks.base_target6.data());
-
-    const size_t num_cams = blocks.K.size();
-    result.extrinsics.resize(num_cams);
-    result.distortions.resize(num_cams);
-    result.intrinsics.resize(num_cams);
-
-    for (size_t c = 0; c < num_cams; ++c) {
-        result.extrinsics[c] = c > 0 ? array_to_pose(blocks.ext6[c].data()) : Eigen::Affine3d::Identity();
-        result.distortions[c] = Eigen::VectorXd::Map(blocks.dist[c].data(), 4);
-        result.intrinsics[c] = {blocks.K[c][0], blocks.K[c][1], blocks.K[c][2], blocks.K[c][3]};
-    }
-}
-
-static double compute_reprojection_error(const std::vector<HandEyeObservation>& observations,
-                                         HandEyeResult& result) {
-    double ssr = 0.0; size_t total = 0;
-
-    for (const auto& obs : observations) {
-        const size_t cam = obs.camera_index;
-        const auto& intr = result.intrinsics[cam];
-        const Eigen::VectorXd& dist = result.distortions[cam];
-
-        auto camera_T_target = get_camera_T_target(
-            result.base_T_target,
-            result.hand_eye,
-            result.extrinsics[cam],
-            obs.base_T_gripper
-        );
-
-        std::vector<Observation<double>> o(obs.view.size());
-        planar_observables_to_observables(obs.view, o, camera_T_target);
-
-        for (const auto& ob : o) {
-            Eigen::Vector2d norm_xy(ob.x, ob.y);
-            Eigen::Vector2d distorted = apply_distortion(norm_xy, dist);
-            double u = intr.fx * distorted.x() + intr.cx;
-            double v = intr.fy * distorted.y() + intr.cy;
-            double du = u - ob.u;
-            double dv = v - ob.v;
-            ssr += du * du + dv * dv;
-            total += 2;
-        }
+    for (const auto& mp : pairs) {
+        auto* cost = new ceres::AutoDiffCostFunction<AX_XBResidual, 6, 4, 3>(new AX_XBResidual(mp));
+        ceres::LossFunction* loss = opts.huber_delta > 0 ? static_cast<ceres::LossFunction*>(new ceres::HuberLoss(opts.huber_delta))
+                                                         : nullptr;
+        problem.AddResidualBlock(cost, loss, q_param, t_param);
     }
 
-    return total ? std::sqrt(ssr / total) : 0.0;
-}
+    problem.SetParameterization(q_param, new ceres::QuaternionParameterization());
 
-static Eigen::MatrixXd compute_covariance(ceres::Problem& p,
-                                          HEParameterBlocks& blocks) {
-    std::vector<const double*> blocks_list;
-    blocks_list.push_back(blocks.base_target6.data());
-    blocks_list.push_back(blocks.he_ref6.data());
-    for (auto& e : blocks.ext6) blocks_list.push_back(e.data());
-    for (auto& k : blocks.K) blocks_list.push_back(k.data());
-    for (auto& d : blocks.dist) blocks_list.push_back(d.data());
-
-    ceres::Covariance::Options cov_opts;
-    ceres::Covariance cov(cov_opts);
-    if (!cov.Compute(blocks_list, &p)) return Eigen::MatrixXd();
-
-    std::vector<int> sizes(blocks_list.size());
-    for (size_t i = 0; i < blocks_list.size(); ++i) {
-        sizes[i] = p.ParameterBlockSize(blocks_list[i]);
-    }
-    int dim = 0; for (int s : sizes) dim += s;
-
-    Eigen::MatrixXd cov_mat = Eigen::MatrixXd::Zero(dim, dim);
-    cov.GetCovarianceMatrix(blocks_list, cov_mat.data());
-    return cov_mat;
-}
-
-static std::string solve_problem(ceres::Problem &p, bool verbose) {
-    ceres::Solver::Options sopts;
-    #if 1
-    sopts.linear_solver_type = ceres::DENSE_QR;
-    #elif 0
-    sopts.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
-    #else
-    sopts.linear_solver_type = ceres::DENSE_SCHUR;
-    #endif
-    sopts.minimizer_progress_to_stdout = verbose;
-
-    constexpr double eps = CONVERGENCE_TOLERANCE;
-    sopts.function_tolerance = eps;
-    sopts.gradient_tolerance = eps;
-    sopts.parameter_tolerance = eps;
-    sopts.max_num_iterations = MAX_ITERATIONS;
+    ceres::Solver::Options options;
+    options.max_num_iterations = opts.max_iterations;
+    options.linear_solver_type = ceres::DENSE_QR;
+    options.minimizer_progress_to_stdout = opts.verbose;
 
     ceres::Solver::Summary summary;
-    ceres::Solve(sopts, &p, &summary);
-    return summary.BriefReport();
+    ceres::Solve(options, &problem, &summary);
+    if (opts.verbose) std::cout << summary.BriefReport() << "\n";
+
+    Eigen::Quaterniond qf(q_param[0], q_param[1], q_param[2], q_param[3]);
+    qf.normalize();
+    Eigen::Affine3d X = Eigen::Affine3d::Identity();
+    X.linear() = qf.toRotationMatrix();
+    X.translation() = Eigen::Vector3d(t_param[0], t_param[1], t_param[2]);
+    return X;
 }
 
-HandEyeResult calibrate_hand_eye(
-    const std::vector<HandEyeObservation>& observations,
-    const std::vector<CameraMatrix>& initial_intrinsics,
-    const Eigen::Affine3d& initial_hand_eye,
-    const std::vector<Eigen::Affine3d>& initial_extrinsics,
-    const Eigen::Affine3d& initial_base_target,
-    const HandEyeOptions& opts
-) {
-    const size_t num_cams = initial_intrinsics.size();
-    if (num_cams == 0) {
-        throw std::invalid_argument("No camera intrinsics provided");
-    };
-
-    HEParameterBlocks blocks = initialize_blocks(
-        initial_intrinsics, initial_hand_eye,
-        initial_extrinsics, initial_base_target);
-
-    ceres::Problem p;
-    build_problem(observations, opts, blocks, p);
-
-    HandEyeResult result;
-    result.summary = solve_problem(p, opts.verbose);
-
-    recover_parameters(blocks, result);
-    result.reprojection_error = compute_reprojection_error(observations, result);
-    result.covariance = compute_covariance(p, blocks);
-
-    return result;
+// ---------- convenience: full pipeline ----------
+Eigen::Affine3d estimate_and_refine_hand_eye(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<Eigen::Affine3d>& camera_T_target,
+    double min_angle_deg = 1.0,
+    const RefinementOptions& ro)
+{
+    auto X0 = estimate_hand_eye_tsai_lenz_allpairs_weighted(base_T_gripper, camera_T_target, min_angle_deg);
+    return refine_hand_eye_ceres(base_T_gripper, camera_T_target, X0, ro);
 }
 
-} // namespace vitavision
+Eigen::Affine3d refine_hand_eye_reprojection(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<Eigen::Vector3d>& object_points,
+    const std::vector<std::vector<Eigen::Vector2d>>& image_points,
+    const Intrinsics& intr,
+    const Eigen::Affine3d& X0,
+    const ReprojRefineOptions& options,
+    Intrinsics& out_intr,
+    Eigen::Affine3d& out_b_T_t
+){
+    const size_t n = base_T_gripper.size();
+    if (n == 0) throw std::runtime_error("Empty base_T_gripper");
+    if (image_points.size() != n) throw std::runtime_error("image_points size mismatch");
+    for (size_t k=0; k<n; ++k) {
+        if (image_points[k].size() != object_points.size())
+            throw std::runtime_error("Per-frame image points size mismatch object points size");
+    }
+
+    // Parameters: qX,tX, qBt,tBt, intr9
+    Eigen::Quaterniond qX0(X0.linear());
+    double qX[4] = { qX0.w(), qX0.x(), qX0.y(), qX0.z() };
+    double tX[3] = { X0.translation().x(), X0.translation().y(), X0.translation().z() };
+
+    // Initialize ^bT_t roughly from frame 0 chain:  ^bT_t ≈ ^bT_g * X * ^cT_t0  (take ^cT_t0 ≈ identity if unknown)
+    // If you already know ^cT_t for a frame, plug it here. Otherwise start near base origin.
+    Eigen::Quaterniond qBt0 = Eigen::Quaterniond::Identity();
+    Eigen::Vector3d tBt0 = Eigen::Vector3d::Zero();
+    double qBt[4] = { qBt0.w(), qBt0.x(), qBt0.y(), qBt0.z() };
+    double tBt[3] = { tBt0.x(), tBt0.y(), tBt0.z() };
+
+    double intr_param[9] = { intr.fx, intr.fy, intr.cx, intr.cy,
+                             intr.k1, intr.k2, intr.p1, intr.p2, intr.k3 };
+
+    ceres::Problem problem;
+
+    // Add reprojection residuals
+    for (size_t k=0; k<n; ++k) {
+        const auto& Tbg = base_T_gripper[k];
+        for (size_t i=0; i<object_points.size(); ++i) {
+            auto* cost = new ceres::AutoDiffCostFunction<ReprojResidual, 2, 4, 3, 4, 3, 9>(
+                new ReprojResidual(Tbg, object_points[i], image_points[k][i], 1.0, options.use_distortion)
+            );
+            ceres::LossFunction* loss = options.huber_delta_px > 0
+                ? static_cast<ceres::LossFunction*>(new ceres::HuberLoss(options.huber_delta_px))
+                : nullptr;
+            problem.AddResidualBlock(cost, loss, qX, tX, qBt, tBt, intr_param);
+        }
+    }
+
+    // Manifolds
+    problem.SetParameterization(qX,  new ceres::QuaternionParameterization());
+    problem.SetParameterization(qBt, new ceres::QuaternionParameterization());
+
+    // Freeze or free intrinsics as requested
+    if (!options.refine_intrinsics) {
+        problem.SetParameterBlockConstant(intr_param);
+    } else if (!options.refine_distortion) {
+        // Only fx,fy,cx,cy optimize; freeze distortion
+        problem.SetParameterBlockVariable(intr_param);
+        problem.SetParameterLowerBound(intr_param, 0, 1e-6); // fx>0
+        problem.SetParameterLowerBound(intr_param, 1, 1e-6); // fy>0
+        for (int j=4;j<9;++j) problem.SetParameterLowerBound(intr_param, j, intr_param[j]); // lock by tying lower=upper
+        for (int j=4;j<9;++j) problem.SetParameterUpperBound(intr_param, j, intr_param[j]);
+    } else {
+        // full intrinsics incl. distortion
+        problem.SetParameterBlockVariable(intr_param);
+        problem.SetParameterLowerBound(intr_param, 0, 1e-6);
+        problem.SetParameterLowerBound(intr_param, 1, 1e-6);
+    }
+
+    // Optional soft AX=XB prior (helps when target points geometry is weak)
+    if (options.lambda_axxb > 0.0 && n >= 2) {
+        for (size_t i=0;i+1<n;++i) {
+            for (size_t j=i+1;j<n;++j) {
+                Eigen::Affine3d A = base_T_gripper[i].inverse() * base_T_gripper[j];
+                // If you also have camera_T_target estimates, you can build B here.
+                // If not, skip B and rely solely on reprojection.
+                // For completeness we set B=Identity (no effect). Replace with your ^cT_t estimates if available.
+                Eigen::Affine3d B = Eigen::Affine3d::Identity();
+                auto* cost = new ceres::AutoDiffCostFunction<AXXBResidualSoft, 6, 4, 3>(
+                    new AXXBResidualSoft(A.linear(), B.linear(), A.translation(), B.translation(), options.lambda_axxb)
+                );
+                problem.AddResidualBlock(cost, nullptr, qX, tX);
+            }
+        }
+    }
+
+    // Solve
+    ceres::Solver::Options opts;
+    opts.max_num_iterations = options.max_iterations;
+    opts.linear_solver_type = ceres::DENSE_QR;
+    opts.minimizer_progress_to_stdout = options.verbose;
+    ceres::Solver::Summary summary;
+    ceres::Solve(opts, &problem, &summary);
+    if (options.verbose) std::cout << summary.BriefReport() << "\n";
+
+    // Pack results
+    Eigen::Quaterniond qXf(qX[0], qX[1], qX[2], qX[3]); qXf.normalize();
+    Eigen::Affine3d X = Eigen::Affine3d::Identity();
+    X.linear() = qXf.toRotationMatrix();
+    X.translation() = Eigen::Vector3d(tX[0], tX[1], tX[2]);
+
+    Eigen::Quaterniond qBtf(qBt[0], qBt[1], qBt[2], qBt[3]); qBtf.normalize();
+    out_b_T_t = Eigen::Affine3d::Identity();
+    out_b_T_t.linear() = qBtf.toRotationMatrix();
+    out_b_T_t.translation() = Eigen::Vector3d(tBt[0], tBt[1], tBt[2]);
+
+    out_intr = intr;
+    out_intr.fx = intr_param[0]; out_intr.fy = intr_param[1];
+    out_intr.cx = intr_param[2]; out_intr.cy = intr_param[3];
+    out_intr.k1 = intr_param[4]; out_intr.k2 = intr_param[5];
+    out_intr.p1 = intr_param[6]; out_intr.p2 = intr_param[7];
+    out_intr.k3 = intr_param[8];
+    out_intr.use_distortion = options.use_distortion;
+
+    return X;
+}
+
+}  // namespace vitavision

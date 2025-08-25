@@ -1,3 +1,5 @@
+/** @brief Linear solvers for the hand-eye problem */
+
 #pragma once
 
 // std
@@ -6,73 +8,87 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calibration/intrinsics.h"
-#include "calibration/planarpose.h"  // PlanarObservation
-
 namespace vitavision {
 
 /**
- * \brief Single observation used for hand-eye calibration.
- *
- * Each observation corresponds to a planar target view acquired by one of the
- * cameras when the robot end-effector is in a known pose relative to the base
- * frame.
- */
-struct HandEyeObservation final {
-    PlanarView view;  ///< Planar target observations
-    Eigen::Affine3d base_T_gripper;       ///< Pose of the gripper in the base frame
-    size_t camera_index = 0;              ///< Which camera acquired this view
-};
-
-/** Options controlling the hand-eye calibration optimisation. */
-struct HandEyeOptions final {
-    bool optimize_intrinsics = false;    ///< Solve for camera intrinsics
-    bool optimize_target_pose = true;    ///< Solve for base->target pose
-    bool optimize_hand_eye = true;       ///< Solve for gripper->camera pose
-    bool optimize_extrinsics = true;     ///< Solve for reference->camera extrinsics
-    bool verbose = false;                ///< Verbose solver output
-};
-
-/** Result returned by hand-eye calibration. */
-struct HandEyeResult final {
-    std::vector<CameraMatrix> intrinsics;          ///< Estimated intrinsics per camera
-    std::vector<Eigen::VectorXd> distortions;      ///< Estimated distortion coefficients
-    Eigen::Affine3d hand_eye;                      ///< Estimated gripper->reference camera transforms
-    std::vector<Eigen::Affine3d> extrinsics;       ///< Estimated reference->camera extrinsics
-    Eigen::Affine3d base_T_target = Eigen::Affine3d::Identity(); ///< Pose of target in base frame
-    double reprojection_error = 0.0;               ///< RMSE of reprojection
-    std::string summary;                           ///< Ceres summary
-    Eigen::MatrixXd covariance;                    ///< Covariance of pose parameters
-};
-
-/**
- * Compute an initial estimate of the hand-eye transform (gripper -> camera)
+ * Compute an initial estimate of the hand-eye transform (camera -> gripper)
  * using the Tsai-Lenz linear method.  The input vectors must contain
  * corresponding poses of the robot end-effector in the base frame and poses of
  * the planar target in the camera frame for the same time instants.
+ * @param base_T_gripper A vector of affine transformations representing the poses
+ *        of the robotic gripper in the base frame.
+ * @param camera_T_target A vector of affine transformations representing the poses
+ *        of the camera relative to the observed target.
+ * @return The estimated hand-eye transform (camera -> gripper).
  */
-Eigen::Affine3d estimate_hand_eye_initial(
+Eigen::Affine3d estimate_hand_eye_tsai_lenz(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
     const std::vector<Eigen::Affine3d>& camera_T_target);
 
-/**
- * Perform bundle-adjustment style optimisation of the hand-eye calibration
- * problem.  Supports single or multiple cameras and optional optimisation of
- * intrinsics and the target pose.
- * @param observations Set of observations with robot poses and target detections
- * @param initial_intrinsics Initial camera intrinsic parameters
- * @param initial_hand_eye Initial estimate of hand-eye transformation
- * @param initial_extrinsics Initial estimates of extrinsic transformations between cameras
- * @param initial_base_target Initial estimate of base-to-target transformation
- * @param opts Optimization options
- * @return Calibration result containing optimized parameters and error metrics
- */
-HandEyeResult calibrate_hand_eye(
-    const std::vector<HandEyeObservation>& observations,
-    const std::vector<CameraMatrix>& initial_intrinsics,
-    const Eigen::Affine3d& initial_hand_eye,
-    const std::vector<Eigen::Affine3d>& initial_extrinsics = {},
-    const Eigen::Affine3d& initial_base_target = Eigen::Affine3d::Identity(),
-    const HandEyeOptions& opts = {});
+Eigen::Affine3d estimate_hand_eye_tsai_lenz_allpairs_weighted(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<Eigen::Affine3d>& camera_T_target,
+    double min_angle_deg = 1.0);
 
-} // namespace vitavision
+struct RefinementOptions final {
+    double huber_delta = 1.0;       // robust loss for residuals (radians & meters in same block)
+    int max_iterations = 50;
+    bool verbose = false;
+};
+
+Eigen::Affine3d refine_hand_eye_ceres(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<Eigen::Affine3d>& camera_T_target,
+    const Eigen::Affine3d& X0,
+    const RefinementOptions& opts = {});
+
+struct Intrinsics final {
+    double fx, fy, cx, cy;                 // pinhole
+    double k1=0, k2=0, p1=0, p2=0, k3=0;   // Brown 5 distortion
+    bool use_distortion = false;
+};
+
+struct ReprojRefineOptions {
+    bool refine_intrinsics = false;     // optimize fx,fy,cx,cy
+    bool refine_distortion = false;     // optimize k1..k3, p1,p2 (requires refine_intrinsics = true)
+    bool use_distortion = false;        // use distortion in projection
+    double huber_delta_px = 1.0;        // robust loss on pixel residuals
+    int max_iterations = 80;
+    bool verbose = false;
+
+    // Optional soft AX=XB prior (lambda=0 -> disabled)
+    double lambda_axxb = 0.0;           // weight for AX=XB residuals
+};
+
+/**
+ * Refine hand-eye X (= ^gT_c), intrinsics, and ^bT_t by minimizing reprojection error.
+ *
+ * @param base_T_gripper   per-frame ^bT_g
+ * @param object_points    3D points in target frame (shared across frames)
+ * @param image_points     per-frame 2D observations; image_points[k].size() must equal object_points.size()
+ * @param intr             initial intrinsics
+ * @param X0               initial hand-eye (e.g., Tsai–Lenz)
+ * @param options          refinement options
+ * @param out_intr         (output) refined intrinsics
+ * @param out_b_T_t        (output) estimated target pose in base frame
+ * @return refined X (= ^gT_c)
+ */
+Eigen::Affine3d refine_hand_eye_reprojection(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<Eigen::Vector3d>& object_points,
+    const std::vector<std::vector<Eigen::Vector2d>>& image_points,
+    const Intrinsics& intr,
+    const Eigen::Affine3d& X0,
+    const ReprojRefineOptions& options,
+    Intrinsics& out_intr,
+    Eigen::Affine3d& out_b_T_t
+);
+
+// ---------- convenience: full pipeline ----------
+Eigen::Affine3d estimate_and_refine_hand_eye(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<Eigen::Affine3d>& camera_T_target,
+    double min_angle_deg = 1.0,
+    const RefinementOptions& ro = {});
+
+}  // namespace vitavision

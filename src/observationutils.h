@@ -11,8 +11,96 @@ namespace vitavision {
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
+// Utility: convert rotation+translation to inverse transform quickly
+inline void invertRT(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,
+                     Eigen::Matrix3d& Rinv, Eigen::Vector3d& tinv)
+{
+    Rinv = R.transpose();
+    tinv = -Rinv * t;
+}
+
+// Project a 3D camera-frame point with intrinsics (templated for AutoDiff)
+template<typename T>
+void project_with_intrinsics(const T& Xc, const T& Yc, const T& Zc,
+                             const T* intr, bool use_distort,
+                             T& u, T& v)
+{
+    // intr: [fx, fy, cx, cy, k1, k2, p1, p2, k3]
+    const T fx = intr[0], fy = intr[1], cx = intr[2], cy = intr[3];
+    const T k1 = intr[4], k2 = intr[5], p1 = intr[6], p2 = intr[7], k3 = intr[8];
+
+    const T x = Xc / Zc;
+    const T y = Yc / Zc;
+
+    T xd = x, yd = y;
+    if (use_distort) {
+        const T r2 = x*x + y*y;
+        const T r4 = r2*r2;
+        const T r6 = r4*r2;
+        const T radial = T(1) + k1*r2 + k2*r4 + k3*r6;
+        const T x_tan = T(2)*p1*x*y + p2*(r2 + T(2)*x*x);
+        const T y_tan = p1*(r2 + T(2)*y*y) + T(2)*p2*x*y;
+        xd = radial * x + x_tan;
+        yd = radial * y + y_tan;
+    }
+
+    u = fx * xd + cx;
+    v = fy * yd + cy;
+}
+
+// ---------- small SO(3) helpers (double) ----------
+inline Eigen::Matrix3d projectToSO3(const Eigen::Matrix3d& R) {
+    Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::Matrix3d U = svd.matrixU(), V = svd.matrixV();
+    Eigen::Matrix3d S = Eigen::Matrix3d::Identity();
+    if ((U * V.transpose()).determinant() < 0.0) S(2,2) = -1.0;
+    return U * S * V.transpose();
+}
+
+// Utility: skew-symmetric matrix from vector
+inline Eigen::Matrix3d skew(const Eigen::Vector3d& v) {
+    Eigen::Matrix3d S;
+    S <<    0, -v.z(),  v.y(),
+         v.z(),     0, -v.x(),
+        -v.y(),  v.x(),     0;
+    return S;
+}
+
+// log(R) as a 3-vector (axis*angle)
+inline Eigen::Vector3d logSO3(const Eigen::Matrix3d& R_in) {
+    const Eigen::Matrix3d R = projectToSO3(R_in);
+    double cos_theta = (R.trace() - 1.0) * 0.5;
+    cos_theta = std::min(1.0, std::max(-1.0, cos_theta));
+    double theta = std::acos(cos_theta);
+    if (theta < 1e-12) return Eigen::Vector3d::Zero();
+    Eigen::Vector3d w;
+    w << R(2,1) - R(1,2),
+         R(0,2) - R(2,0),
+         R(1,0) - R(0,1);
+    w *= 0.5 / std::sin(theta);
+    return w * theta;
+}
+
+inline Eigen::Matrix3d expSO3(const Eigen::Vector3d& w) {
+    double theta = w.norm();
+    if (theta < 1e-12) return Eigen::Matrix3d::Identity();
+    Eigen::Vector3d a = w / theta;
+    Eigen::Matrix3d A = skew(a);
+    return Eigen::Matrix3d::Identity()
+         + std::sin(theta) * A
+         + (1.0 - std::cos(theta)) * (A * A);
+}
+
 inline Eigen::VectorXd solve_llsq(const Eigen::MatrixXd& A, const Eigen::VectorXd& b) {
     return A.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(b);
+}
+
+// ---------- stable ridge LS solve ----------
+template<class Mat, class Vec>
+Eigen::VectorXd ridge_llsq(const Mat& A, const Vec& b, double lambda = 1e-10) {
+    const int p = static_cast<int>(A.cols());
+    return (A.transpose()*A + lambda * Eigen::MatrixXd::Identity(p, p))
+        .ldlt().solve(A.transpose()*b);
 }
 
 inline Eigen::Vector3d log_rot(const Eigen::Matrix3d& R) {
@@ -47,15 +135,6 @@ Eigen::Transform<T, 3, Eigen::Affine> pose2affine(const T* pose) {
     ceres::AngleAxisToRotationMatrix(pose, R.data());
     Eigen::Matrix<T, 3, 1> t{pose[3], pose[4], pose[5]};
     return Eigen::Translation<T, 3>(t) * R;
-}
-
-// Utility: skew-symmetric matrix from vector
-inline Eigen::Matrix3d skew(const Eigen::Vector3d& v) {
-    Eigen::Matrix3d m;
-    m <<    0, -v.z(),  v.y(),
-         v.z(),     0, -v.x(),
-        -v.y(),  v.x(),    0;
-    return m;
 }
 
 inline Eigen::Affine3d pose6_to_affine(const Pose6& p) {
