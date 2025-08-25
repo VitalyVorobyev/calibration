@@ -13,6 +13,7 @@ target_include_directories(${TARGET} PUBLIC
 
 target_link_libraries(${TARGET} PUBLIC Eigen3::Eigen)
 target_link_libraries(${TARGET} PRIVATE Ceres::ceres)
+target_link_libraries(${TARGET} PUBLIC nlohmann_json::nlohmann_json)
 
 # set max warning level if unix, warnings as errors
 if(UNIX)

@@ -85,3 +85,15 @@ target_link_libraries(handeye_test
 )
 gtest_discover_tests(handeye_test)
 
+
+# Test for automatic JSON serialization
+add_executable(json_test json_test.cpp)
+target_link_libraries(json_test
+    PRIVATE calibration
+    PRIVATE GTest::gtest_main
+    PRIVATE GTest::gmock_main
+    PRIVATE Eigen3::Eigen
+    PRIVATE nlohmann_json::nlohmann_json
+)
+gtest_discover_tests(json_test)
+
