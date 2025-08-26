@@ -51,6 +51,21 @@ Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
     return pose;
 }
 
+Eigen::Affine3d estimate_planar_pose_dlt(const PlanarView& obs,
+                                         const CameraMatrix& intrinsics) {
+    if (obs.size() < 4) {
+        return Eigen::Affine3d::Identity();
+    }
+
+    std::vector<Eigen::Vector2d> obj_xy, img_uv;
+    for (const auto& o : obs) {
+        obj_xy.push_back(o.object_xy);
+        img_uv.push_back(o.image_uv);
+    }
+
+    return estimate_planar_pose_dlt(obj_xy, img_uv, intrinsics);
+}
+
 // Convenience: one-shot planar pose from pixels & K
 // Returns true on success; outputs R (world->cam) and t
 Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj_xy,
@@ -76,11 +91,11 @@ using Pose6 = Eigen::Matrix<double, 6, 1>;
 // estimation.  For a given pose (angle-axis + translation) it builds the
 // variable projection system to eliminate distortion coefficients.
 struct PlanarPoseVPResidual {
-    std::vector<PlanarObservation> obs_;
+    PlanarView obs_;
     double K_[4]; // fx, fy, cx, cy
     int num_radial_;
 
-    PlanarPoseVPResidual(std::vector<PlanarObservation> obs,
+    PlanarPoseVPResidual(PlanarView obs,
                          int num_radial,
                          const CameraMatrix& intrinsics)
         : obs_(std::move(obs)),
@@ -94,9 +109,7 @@ struct PlanarPoseVPResidual {
         const T cx = T(K_[2]);
         const T cy = T(K_[3]);
 
-        static thread_local std::vector<Observation<T>> o;
-        if (o.size() != obs_.size()) o.resize(obs_.size());
-
+        std::vector<Observation<T>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(),
             [pose6](const PlanarObservation& s) { return to_observation(s, pose6); });
 
@@ -148,7 +161,7 @@ PlanarPoseFitResult optimize_planar_pose(
     pose6[4] = init_pose.translation().y();
     pose6[5] = init_pose.translation().z();
 
-    std::vector<PlanarObservation> view(obj_xy.size());
+    PlanarView view(obj_xy.size());
     std::transform(obj_xy.begin(), obj_xy.end(), img_uv.begin(), view.begin(),
         [](const Eigen::Vector2d& xy, const Eigen::Vector2d& uv) {
             return PlanarObservation{xy, uv};
