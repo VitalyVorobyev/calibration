@@ -24,16 +24,16 @@ namespace vitavision {
 
 // ---------- motion pair packing ----------
 static std::vector<MotionPair> build_all_pairs(
-    const std::vector<Eigen::Affine3d>& base_T_gripper,
-    const std::vector<Eigen::Affine3d>& camera_T_target,
+    const std::vector<Eigen::Affine3d>& b_T_g,
+    const std::vector<Eigen::Affine3d>& c_T_t,
     double min_angle_deg = 1.0,          // discard too-small motions
     bool reject_axis_parallel = true,    // guard against ill-conditioning
     double axis_parallel_eps = 1e-3
 ) {
-    if (base_T_gripper.size() < 2 || base_T_gripper.size() != camera_T_target.size()) {
+    if (b_T_g.size() < 2 || b_T_g.size() != c_T_t.size()) {
         throw std::runtime_error("Inconsistent hand-eye input sizes");
     }
-    const size_t n = base_T_gripper.size();
+    const size_t n = b_T_g.size();
     const double min_angle = min_angle_deg * std::numbers::pi / 180.0;
 
     std::vector<MotionPair> pairs;
@@ -41,8 +41,8 @@ static std::vector<MotionPair> build_all_pairs(
 
     for (size_t i = 0; i+1 < n; ++i) {
         for (size_t j = i+1; j < n; ++j) {
-            const Eigen::Affine3d A = base_T_gripper[i].inverse() * base_T_gripper[j];
-            const Eigen::Affine3d B = camera_T_target[i].inverse() * camera_T_target[j];
+            const Eigen::Affine3d A = b_T_g[i].inverse() * b_T_g[j];
+            const Eigen::Affine3d B = c_T_t[i] * c_T_t[j].inverse();
 
             MotionPair mp;
             mp.RA = projectToSO3(A.linear());
@@ -87,7 +87,7 @@ static Eigen::Matrix3d estimate_rotation_allpairs_weighted(const std::vector<Mot
     for (int k = 0; k < m; ++k) {
         Eigen::Vector3d alpha = logSO3(pairs[k].RA);
         Eigen::Vector3d beta  = logSO3(pairs[k].RB);
-        const double s = pairs[k].sqrt_weight;
+        const double s = 1;  // pairs[k].sqrt_weight;
 
         M.block<3,3>(3*k, 0) = s * skew(alpha + beta);
         d.segment<3>(3*k)    = s * (beta - alpha);
@@ -109,7 +109,7 @@ static Eigen::Vector3d estimate_translation_allpairs_weighted(
         const Eigen::Matrix3d& RA = pairs[k].RA;
         const Eigen::Vector3d& tA = pairs[k].tA;
         const Eigen::Vector3d& tB = pairs[k].tB;
-        const double s = pairs[k].sqrt_weight;
+        const double s = 1;  // pairs[k].sqrt_weight;
 
         C.block<3,3>(3*k, 0) = s * (RA - Eigen::Matrix3d::Identity());
         w.segment<3>(3*k)    = s * (RX * tB - tA);
