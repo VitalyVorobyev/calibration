@@ -13,6 +13,7 @@ struct PlanarObservation {
     Eigen::Vector2d object_xy;  // Planar target coordinates (Z=0)
     Eigen::Vector2d image_uv;   // Corresponding pixel measurements
 };
+using PlanarView = std::vector<PlanarObservation>;
 
 // Decompose homography in normalized camera coords: H = [r1 r2 t]
 Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H);
@@ -20,6 +21,10 @@ Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H);
 // Convenience: one-shot planar pose from pixels & K
 Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj_xy,
                                          const std::vector<Eigen::Vector2d>& img_uv,
+                                         const CameraMatrix& intrinsics);
+
+// Convenience: one-shot planar pose from pixels & K
+Eigen::Affine3d estimate_planar_pose_dlt(const PlanarView& obs,
                                          const CameraMatrix& intrinsics);
 
 struct PlanarPoseFitResult {

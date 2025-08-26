@@ -156,8 +156,7 @@ struct IntrinsicsVPResidual {
 
     template <typename T>
     bool operator()(const T* intr, T* residuals) const {
-        static thread_local std::vector<Observation<T>> o;
-        if (o.size() != obs_.size()) o.resize(obs_.size());
+        std::vector<Observation<T>> o(obs_.size());
 
         std::transform(obs_.begin(), obs_.end(), o.begin(), [](const Observation<double>& obs) {
             return Observation<T>{T(obs.x), T(obs.y), T(obs.u), T(obs.v)};

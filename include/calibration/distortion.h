@@ -21,7 +21,7 @@ struct Observation final {
 template<typename T>
 Eigen::Matrix<T, 2, 1> apply_distortion(
     const Eigen::Matrix<T, 2, 1>& norm_xy,
-    const Eigen::VectorXd& coeffs
+    const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs
 ) {
     if (coeffs.size() < 2) {
         throw std::runtime_error("Insufficient distortion coefficients");
