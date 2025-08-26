@@ -57,6 +57,10 @@ LineScanCalibrationResult calibrate_laser_plane(
     const CameraMatrix& intrinsics,
     const Eigen::VectorXd& distortion) {
 
+    if (views.size() < 2) {
+        throw std::invalid_argument("At least 2 views are required");
+    }
+
     LineScanCalibrationResult result;
     std::vector<Vec3> all_points;
 

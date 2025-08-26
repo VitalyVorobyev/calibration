@@ -24,9 +24,7 @@ TEST(LineScanCalibration, PlaneFitFailsSingleView) {
         view.laser_uv.emplace_back(x, 0.5);
     }
 
-    auto res = calibrate_laser_plane({view}, K, dist);
-    Eigen::Vector4d true_plane(0.0, 1.0, 0.0, -0.5);
-    EXPECT_FALSE(res.plane.isApprox(true_plane, 1e-6));
+    ASSERT_THROW(calibrate_laser_plane({view}, K, dist), std::invalid_argument);
 }
 
 static LineScanObservation create_view(const Eigen::Matrix3d& R, const Eigen::Vector3d& t) {
