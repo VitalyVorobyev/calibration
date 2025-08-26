@@ -10,6 +10,7 @@
 
 #include "calibration/homography.h"
 #include "calibration/planarpose.h"
+#include "calibration/distortion.h"
 
 namespace vitavision {
 
@@ -53,7 +54,8 @@ struct PlaneResidual final {
 
 LineScanCalibrationResult calibrate_laser_plane(
     const std::vector<LineScanObservation>& views,
-    const CameraMatrix& intrinsics) {
+    const CameraMatrix& intrinsics,
+    const Eigen::VectorXd& distortion) {
 
     LineScanCalibrationResult result;
     std::vector<Vec3> all_points;
@@ -64,10 +66,22 @@ LineScanCalibrationResult calibrate_laser_plane(
             throw std::invalid_argument("Each view requires >=4 target correspondences");
         }
 
-        // Normalize pixel coordinates
+        // Normalize and undistort pixel coordinates
+        auto undistort = [&intrinsics, &distortion](const Vec2& uv) {
+            Vec2 x = intrinsics.normalize(uv);
+            if (distortion.size() >= 2) {
+                Vec2 xp = x;
+                for (int it = 0; it < 5; ++it) {
+                    Vec2 xd = apply_distortion(xp, distortion);
+                    xp += x - xd;
+                }
+                x = xp;
+            }
+            return x;
+        };
+
         std::vector<Vec2> img_norm(v.target_uv.size());
-        std::transform(v.target_uv.begin(), v.target_uv.end(), img_norm.begin(),
-            [&intrinsics](const Vec2& uv) { return intrinsics.normalize(uv); });
+        std::transform(v.target_uv.begin(), v.target_uv.end(), img_norm.begin(), undistort);
 
         // Homography from plane to normalized pixels
         Mat3 H_obj_to_norm = fit_homography(v.target_xy, img_norm);
@@ -78,7 +92,7 @@ LineScanCalibrationResult calibrate_laser_plane(
 
         // Reproject laser pixels to plane and transform to camera coordinates
         for (const auto& lpix : v.laser_uv) {
-            Vec2 norm = intrinsics.normalize(lpix);
+            Vec2 norm = undistort(lpix);
             Eigen::Vector3d hp = H_norm_to_obj * Eigen::Vector3d(norm.x(), norm.y(), 1.0);
             Vec2 plane_xy = hp.hnormalized();
             Vec3 obj_pt(plane_xy.x(), plane_xy.y(), 0.0);

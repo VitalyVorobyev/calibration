@@ -42,6 +42,7 @@ struct LineScanCalibrationResult final {
  */
 LineScanCalibrationResult calibrate_laser_plane(
     const std::vector<LineScanObservation>& views,
-    const CameraMatrix& intrinsics);
+    const CameraMatrix& intrinsics,
+    const Eigen::VectorXd& distortion);
 
 } // namespace vitavision
