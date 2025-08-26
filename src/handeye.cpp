@@ -41,8 +41,8 @@ static std::vector<MotionPair> build_all_pairs(
 
     for (size_t i = 0; i+1 < n; ++i) {
         for (size_t j = i+1; j < n; ++j) {
-            const Eigen::Affine3d A = b_T_g[i].inverse() * b_T_g[j];
-            const Eigen::Affine3d B = c_T_t[i] * c_T_t[j].inverse();
+            Eigen::Affine3d A = b_T_g[i].inverse() * b_T_g[j];
+            Eigen::Affine3d B = c_T_t[i] * c_T_t[j].inverse();
 
             MotionPair mp;
             mp.RA = projectToSO3(A.linear());
@@ -195,20 +195,22 @@ struct HandEyeRepParamBlocks final {
 
 static HandEyeRepParamBlocks init_hand_eye_reprojection_param_blocks(
     const Intrinsics& intr,
-    const Eigen::Affine3d& gripper_T_ref
+    const Eigen::Affine3d& g_T_c,
+    const PlanarView& view0,
+    const Eigen::Affine3d& b_T_g0
 ) {
     // Parameters: qX,tX, qBt,tBt, intr9
     std::array<double, 4> qX;
     std::array<double, 3> tX;
-    populate_quat_tran(gripper_T_ref, qX, tX);
+    populate_quat_tran(g_T_c, qX, tX);
 
-    // TODO: address that!
     // Initialize b_T_t roughly from frame 0 chain:  b_T_t ≈ b_T_g * X * c_T_t0
-    // (take c_T_t0 ≈ identity if unknown)
-    // If you already know c_T_t for a frame, plug it here. Otherwise start near base origin.
+    auto c_T_t0 = estimate_planar_pose_dlt(
+        view0, CameraMatrix{intr.fx, intr.fy, intr.cx, intr.cy});
+    const Eigen::Affine3d b_T_t0 = b_T_g0 * g_T_c * c_T_t0;
     std::array<double, 4> qBt;
     std::array<double, 3> tBt;
-    populate_quat_tran(Eigen::Affine3d::Identity(), qBt, tBt);
+    populate_quat_tran(b_T_t0, qBt, tBt);
 
     std::array<double, 9> intr9 = {
         intr.fx, intr.fy, intr.cx, intr.cy,
@@ -295,7 +297,9 @@ static HandEyeReprojectionResult compose_results(
     result.intr.cy = blocks.intr9[3];
     result.intr.k1 = blocks.intr9[4];
     result.intr.k2 = blocks.intr9[5];
-    result.intr.k3 = blocks.intr9[6];
+    result.intr.p1 = blocks.intr9[6];
+    result.intr.p2 = blocks.intr9[7];
+    result.intr.k3 = blocks.intr9[8];
 
     // TODO: calculate covariance and reprojection error
 
@@ -304,24 +308,26 @@ static HandEyeReprojectionResult compose_results(
 
 HandEyeReprojectionResult refine_hand_eye_reprojection(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
-    const std::vector<PlanarView> observables,
+    const std::vector<PlanarView> observations,
     const Intrinsics& init_intr,
     const Eigen::Affine3d& init_gripper_T_ref,
     const ReprojRefineOptions& options
 ) {
     const size_t nviews = base_T_gripper.size();
     if (nviews == 0) throw std::runtime_error("Empty base_T_gripper");
-    if (observables.size() != nviews) throw std::runtime_error("image_points size mismatch");
-    for (const auto& obs : observables) {
+    if (observations.size() != nviews) throw std::runtime_error("image_points size mismatch");
+    for (const auto& obs : observations) {
         if (obs.empty()) throw std::runtime_error("Empty observations");
     }
 
     HandEyeRepParamBlocks blocks = init_hand_eye_reprojection_param_blocks(
-        init_intr, init_gripper_T_ref);
+        init_intr, init_gripper_T_ref, observations[0], base_T_gripper[0]);
     ceres::Problem problem = build_hand_eye_reprojection_problem(
-        base_T_gripper, observables, options, blocks);
-    const std::string report = solve_hand_eye_reprojection(problem, options.max_iterations, options.verbose);
+        base_T_gripper, observations, options, blocks);
+    const std::string report = solve_hand_eye_reprojection(
+        problem, options.max_iterations, options.verbose);
     auto result = compose_results(blocks, report);
+    result.intr.use_distortion = options.use_distortion;
 
     return result;
 }
