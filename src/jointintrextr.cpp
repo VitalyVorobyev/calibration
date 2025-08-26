@@ -8,46 +8,38 @@
 
 namespace vitavision {
 
+using Pose6 = Eigen::Matrix<double, 6, 1>;
+
 struct JointResidual {
-    std::vector<PlanarObservation> obs_;
+    PlanarView obs_;
     int num_radial_;
 
-    JointResidual(std::vector<PlanarObservation> obs, const Eigen::VectorXd& dist)
+    JointResidual(PlanarView obs, const Eigen::VectorXd& dist)
         : obs_(std::move(obs)),
           num_radial_(std::max<int>(0, static_cast<int>(dist.size()) - 2)) {}
 
     template <typename T>
     bool operator()(const T* intr, const T* cam_pose6, const T* target_pose6, T* residuals) const {
-        Eigen::Matrix<T,3,3> R_cam, R_target;
-        ceres::AngleAxisToRotationMatrix(cam_pose6, R_cam.data());
-        ceres::AngleAxisToRotationMatrix(target_pose6, R_target.data());
-        Eigen::Matrix<T,3,1> t_cam{cam_pose6[3], cam_pose6[4], cam_pose6[5]};
-        Eigen::Matrix<T,3,1> t_target{target_pose6[3], target_pose6[4], target_pose6[5]};
+        std::vector<Observation<T>> o(obs_.size());
 
-        Eigen::Matrix<T,3,3> R = R_cam * R_target;
-        Eigen::Matrix<T,3,1> t = R_cam * t_target + t_cam;
+        auto pose_cam = pose2affine(cam_pose6);
+        auto pose_target = pose2affine(target_pose6);
+        planar_observables_to_observables(obs_, o, pose_cam * pose_target);
 
-        const int N = static_cast<int>(obs_.size());
-        static thread_local std::vector<Observation<T>> o;
-        if (o.size() != static_cast<size_t>(N)) o.resize(N);
-
-        for (int i = 0; i < N; ++i) {
-            const auto& ob = obs_[i];
-            Eigen::Matrix<T,3,1> P{T(ob.object_xy.x()), T(ob.object_xy.y()), T(0)};
-            Eigen::Matrix<T,3,1> Pc = R * P + t;
-            T xn = Pc.x() / Pc.z();
-            T yn = Pc.y() / Pc.z();
-            o[i] = Observation<T>{xn, yn, T(ob.image_uv.x()), T(ob.image_uv.y())};
-        }
-
-        for (int i = 0; i < N; ++i) {
-            const auto& ob = o[i];
-            T u = intr[0] * ob.x + intr[2];
-            T v = intr[1] * ob.y + intr[3];
-            residuals[2*i]   = u - ob.u;
-            residuals[2*i+1] = v - ob.v;
-        }
+        auto dr = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        if (!dr.has_value()) throw std::runtime_error("Distortion fitting failed");
+        const auto& r = dr->residuals;
+        for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
         return true;
+    }
+
+    static auto* create(PlanarView obs, const Eigen::VectorXd& dist) {
+        auto* functor = new JointResidual(obs, dist);
+        auto* cost = new ceres::AutoDiffCostFunction<JointResidual,
+                                                     ceres::DYNAMIC,
+                                                     4,6,6>(functor,
+                                                            static_cast<int>(obs.size())*2);
+        return cost;
     }
 };
 
@@ -66,24 +58,30 @@ static void setup_joint_problem(
         problem.AddParameterBlock(intr[i].data(), 4);
         problem.AddParameterBlock(cam_poses[i].data(), 6);
     }
+
+    // fix SE(3) gauge ambiguity
     if (!cam_poses.empty()) {
         problem.SetParameterBlockConstant(cam_poses[0].data());
     }
     for (size_t v = 0; v < num_views; ++v) {
         problem.AddParameterBlock(targ_poses[v].data(), 6);
     }
+    // Fix the first target pose to remove the overall scale ambiguity between
+    // target translation and the focal length. Without anchoring one target
+    // pose, the optimisation can trade off focal length against scene scale
+    // and still achieve zero reprojection error.  Keeping the first target
+    // constant defines the world scale and allows intrinsics to be recovered.
+    if (!targ_poses.empty()) {
+        problem.SetParameterBlockConstant(targ_poses[0].data());
+    }
 
     // Residuals
     for (size_t v = 0; v < num_views; ++v) {
         const auto& view = views[v];
-        for (size_t c = 0; c < num_cams && c < view.observations.size(); ++c) {
-            const auto& obs = view.observations[c];
+        for (size_t c = 0; c < num_cams && c < view.size(); ++c) {
+            const auto& obs = view[c];
             if (obs.empty()) continue;
-            auto* functor = new JointResidual(obs, initial_cameras[c].distortion);
-            auto* cost = new ceres::AutoDiffCostFunction<JointResidual,
-                                                         ceres::DYNAMIC,
-                                                         4,6,6>(functor,
-                                                                static_cast<int>(obs.size())*2);
+            auto* cost = JointResidual::create(obs, initial_cameras[c].distortion);
             problem.AddResidualBlock(cost, nullptr,
                                      intr[c].data(), cam_poses[c].data(), targ_poses[v].data());
         }
@@ -103,11 +101,11 @@ static void extract_joint_solution(
     result.camera_poses.resize(num_cams);
     for (size_t i = 0; i < num_cams; ++i) {
         result.intrinsics[i] = {intr[i][0], intr[i][1], intr[i][2], intr[i][3]};
-        result.camera_poses[i] = pose6_to_affine(cam_poses[i]);
+        result.camera_poses[i] = pose2affine(cam_poses[i].data());
     }
     result.target_poses.resize(num_views);
     for (size_t v = 0; v < num_views; ++v) {
-        result.target_poses[v] = pose6_to_affine(targ_poses[v]);
+        result.target_poses[v] = pose2affine(targ_poses[v].data());
     }
 }
 
@@ -122,8 +120,8 @@ static std::pair<double, size_t> compute_joint_residual_stats(
     std::vector<std::vector<Observation<double>>> per_cam_obs(num_cams);
     for (size_t v = 0; v < num_views; ++v) {
         const auto& view = views[v];
-        for (size_t c = 0; c < num_cams && c < view.observations.size(); ++c) {
-            const auto& obs = view.observations[c];
+        for (size_t c = 0; c < num_cams && c < view.size(); ++c) {
+            const auto& obs = view[c];
             for (const auto& ob : obs) {
                 Eigen::Vector3d P = result.camera_poses[c] * result.target_poses[v]
                                     * Eigen::Vector3d(ob.object_xy.x(), ob.object_xy.y(), 0.0);
