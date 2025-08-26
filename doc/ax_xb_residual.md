@@ -1,3 +1,7 @@
+# The AX_XB residual
+
+*[by ChatGPT5 Thinking]*
+
 Here’s the math, end-to-end, for the residual we called `AX_XBResidual`, plus one subtle but important sign detail.
 
 ---

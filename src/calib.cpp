@@ -51,14 +51,21 @@ struct CalibVPResidual {
     }
 };
 
+static size_t count_total_observations(const std::vector<PlanarView>& views) {
+    size_t total_obs = 0;
+    for (const auto& view : views) {
+        total_obs += view.size();
+    }
+    return total_obs;
+}
+
 static std::optional<DistortionWithResiduals<double>> solve_full(
         const std::vector<PlanarView>& views,
         int num_radial,
         const double* intr,
         const std::vector<const double*>& pose_ptrs
 ) {
-    const size_t total_obs = std::accumulate(views.begin(), views.end(), 0,
-        [](size_t sum, const PlanarView& v) { return sum + v.size(); });
+    const size_t total_obs = count_total_observations(views);
 
     std::vector<Observation<double>> obs(total_obs);
     size_t obs_idx = 0;
@@ -78,14 +85,6 @@ static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
     T.linear() = R;
     T.translation() = pose6.tail<3>();
     return T;
-}
-
-static size_t count_total_observations(const std::vector<PlanarView>& views) {
-    size_t total_obs = 0;
-    for (const auto& view : views) {
-        total_obs += view.size();
-    }
-    return total_obs;
 }
 
 // Initialize camera poses from views

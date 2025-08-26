@@ -17,7 +17,6 @@
 #include "observationutils.h"
 #include "bundleresidual.h"
 
-constexpr int DEFAULT_NUM_RADIAL_DISTORTION_PARAMS = 2;
 constexpr double CONVERGENCE_TOLERANCE = 1e-6;
 constexpr int MAX_ITERATIONS = 1000;
 
