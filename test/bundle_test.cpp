@@ -36,7 +36,7 @@ TEST(HandEye, TsaiLenz) {
         Eigen::Affine3d b_T_g = Eigen::Affine3d::Identity();
 
         // Add translation in all 3 dimensions
-        double angle = i * M_PI / 4.0;  // Rotate around in a circle
+        double angle = i * std::numbers::pi / 4.0;  // Rotate around in a circle
         b_T_g.translation() = Eigen::Vector3d(
             0.1 * std::cos(angle),      // X varies in a circle
             0.1 * std::sin(angle),      // Y varies in a circle
@@ -110,7 +110,7 @@ TEST(HandEye, SingleCamera_HandEyeWithFixedTarget) {
         Eigen::Affine3d base_T_gripper = Eigen::Affine3d::Identity();
 
         // Add translation in all 3 dimensions
-        double angle = i * M_PI / 4.0;  // Rotate around in a circle
+        double angle = i * std::numbers::pi / 4.0;  // Rotate around in a circle
         base_T_gripper.translation() = Eigen::Vector3d(
             0.1 * std::cos(angle),      // X varies in a circle
             0.1 * std::sin(angle),      // Y varies in a circle
@@ -187,7 +187,7 @@ TEST(HandEye, SingleCamera_TargetPoseWithKnownHandEye) {
     std::vector<HandEyeObservation> observations;
 
     for (int i = 0; i < 8; ++i) {
-        double angle = i * M_PI / 4.0;
+        double angle = i * std::numbers::pi / 4.0;
         Eigen::Affine3d base_T_gripper = Eigen::Affine3d::Identity();
         base_T_gripper.translation() = Eigen::Vector3d(
             0.1 * std::cos(angle),
