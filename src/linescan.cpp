@@ -17,8 +17,6 @@ using Vec2 = Eigen::Vector2d;
 using Vec3 = Eigen::Vector3d;
 using Mat3 = Eigen::Matrix3d;
 
-namespace {
-
 // Simple SVD-based plane initialization
 static Eigen::Vector4d fit_plane_svd(const std::vector<Vec3>& pts) {
     Vec3 centroid = Vec3::Zero();
@@ -35,7 +33,7 @@ static Eigen::Vector4d fit_plane_svd(const std::vector<Vec3>& pts) {
     return {normal.x(), normal.y(), normal.z(), d};
 }
 
-struct PlaneResidual {
+struct PlaneResidual final {
     PlaneResidual(const Vec3& p) : p_(p) {}
 
     template <typename T>
@@ -52,8 +50,6 @@ struct PlaneResidual {
 
     Vec3 p_;
 };
-
-} // namespace
 
 LineScanCalibrationResult calibrate_laser_plane(
     const std::vector<LineScanObservation>& views,
@@ -155,5 +151,4 @@ LineScanCalibrationResult calibrate_laser_plane(
     return result;
 }
 
-} // namespace vitavision
-
+}  // namespace vitavision

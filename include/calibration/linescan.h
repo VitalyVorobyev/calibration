@@ -15,13 +15,13 @@ namespace vitavision {
 /** @brief Observation for line-scan calibration.
  * Contains planar target correspondences and laser line pixel features
  */
-struct LineScanObservation {
+struct LineScanObservation final {
     std::vector<Eigen::Vector2d> target_xy;  // Target plane coordinates (Z=0)
     std::vector<Eigen::Vector2d> target_uv;  // Pixel measurements of target points
     std::vector<Eigen::Vector2d> laser_uv;   // Pixel measurements of laser line points
 };
 
-struct LineScanCalibrationResult {
+struct LineScanCalibrationResult final {
     Eigen::Vector4d plane;                  // Normalized plane coefficients [nx, ny, nz, d]
     Eigen::Matrix4d covariance;             // Covariance of plane coefficients
     Eigen::Matrix3d homography;             // Homography (norm pix -> plane frame)
@@ -45,4 +45,3 @@ LineScanCalibrationResult calibrate_laser_plane(
     const CameraMatrix& intrinsics);
 
 } // namespace vitavision
-

@@ -36,4 +36,3 @@ TEST(LineScanCalibration, PlaneFit) {
     EXPECT_NEAR(res.plane[3], -0.5, 1e-6);
     EXPECT_NEAR(res.rms_error, 0.0, 1e-9);
 }
-
