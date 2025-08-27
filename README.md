@@ -11,6 +11,7 @@ A C++ library for camera calibration and vision-related geometric transformation
 - Hand-eye calibration with bundle adjustment (single or multi-camera)
 - Support for various camera models
 - JSON configuration import/export
+- Automatic JSON serialization for aggregate types
 
 ## Dependencies
 
@@ -18,6 +19,7 @@ A C++ library for camera calibration and vision-related geometric transformation
 - Ceres: Non-linear optimization
 - nlohmann-json: JSON parsing and serialization
 - GoogleTest & GoogleMock: Unit testing frameworks
+- Boost.PFR: Header-only reflection for aggregates
 
 ## Build
 
@@ -29,14 +31,14 @@ Install the build dependencies using your system package manager.
 
 ```bash
 sudo apt update
-sudo apt install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev
+sudo apt install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev
 ```
 
 #### macOS
 
 ```bash
 brew update
-brew install cmake ninja eigen ceres-solver nlohmann-json googletest
+brew install cmake ninja eigen ceres-solver nlohmann-json googletest boost
 ```
 
 Configure and build:
@@ -65,7 +67,7 @@ Install dependencies with [vcpkg](https://github.com/microsoft/vcpkg):
 ```powershell
 git clone https://github.com/microsoft/vcpkg $env:USERPROFILE\vcpkg
 & $env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat
-& $env:USERPROFILE\vcpkg\vcpkg.exe install ceres eigen3 nlohmann-json gtest --triplet x64-windows
+& $env:USERPROFILE\vcpkg\vcpkg.exe install ceres eigen3 nlohmann-json gtest boost-pfr --triplet x64-windows
 ```
 
 Configure and build:
