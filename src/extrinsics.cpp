@@ -38,7 +38,7 @@ InitialExtrinsicGuess make_initial_extrinsic_guess(
                 obj_xy.push_back(o.object_xy);
                 img_uv.push_back(o.image_uv);
             }
-            cam_to_target[v][c] = estimate_planar_pose_dlt(obj_xy, img_uv, cameras[c].intrinsics);
+            cam_to_target[v][c] = estimate_planar_pose_dlt(obj_xy, img_uv, cameras[c].K);
         }
     }
 
@@ -99,7 +99,7 @@ struct ExtrinsicResidual final {
             T xn = P.x() / P.z();
             T yn = P.y() / P.z();
             Eigen::Matrix<T,2,1> xyn{xn, yn};
-            auto uv = cam_.project_normalized(xyn);
+            auto uv = cam_.project(xyn);
             residuals[2*i]   = uv.x() - T(ob.image_uv.x());
             residuals[2*i+1] = uv.y() - T(ob.image_uv.y());
         }
@@ -194,7 +194,7 @@ static std::pair<double, size_t> compute_residual_stats(
                 Eigen::Vector3d P = result.camera_poses[c] * result.target_poses[v]
                                     * Eigen::Vector3d(ob.object_xy.x(), ob.object_xy.y(), 0.0);
                 Eigen::Vector2d xyn{P.x()/P.z(), P.y()/P.z()};
-                Eigen::Vector2d pred = cameras[c].project_normalized(xyn);
+                Eigen::Vector2d pred = cameras[c].project(xyn);
                 Eigen::Vector2d diff = pred - ob.image_uv;
                 ssr += diff.squaredNorm();
                 count += 2;

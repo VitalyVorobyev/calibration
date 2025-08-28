@@ -3,37 +3,50 @@
 // eigen
 #include <Eigen/Core>
 
-#include "calibration/intrinsics.h"
+#include "calibration/cameramatrix.h"
 #include "calibration/distortion.h"
 
 namespace vitavision {
 
-// Simple camera model combining intrinsic matrix and distortion coefficients.
-struct Camera final {
-    CameraMatrix intrinsics;      // Camera matrix parameters
-    Eigen::VectorXd distortion;   // Distortion coefficients [k..., p1, p2]
+class Camera final {
+public:
+    CameraMatrix K;           ///< Intrinsic camera matrix parameters
+    DualDistortion distortion; ///< Forward and inverse distortion coefficients
 
     Camera() = default;
-    Camera(const CameraMatrix& K, const Eigen::VectorXd& dist)
-        : intrinsics(K), distortion(dist) {}
+    Camera(const CameraMatrix& m, const DualDistortion& d)
+        : K(m), distortion(d) {}
 
-    /**
-     * @brief Projects a 2D point in normalized coordinates to pixel coordinates.
-     *
-     * This function applies the camera's distortion model to the input normalized
-     * coordinates and then converts the distorted coordinates to pixel coordinates
-     * using the camera's intrinsic parameters.
-     *
-     * @tparam T The scalar type of the input and output coordinates (e.g., float, double).
-     * @param xyn A 2D point in normalized image coordinates.
-     * @return A 2D point in pixel coordinates after applying distortion and denormalization.
-     */
-    template <typename T>
-    Eigen::Matrix<T,2,1> project_normalized(const Eigen::Matrix<T,2,1>& xyn) const {
-        Eigen::Matrix<T, Eigen::Dynamic, 1> distT = distortion.template cast<T>();
-        Eigen::Matrix<T,2,1> d = apply_distortion(xyn, distT);
-        return intrinsics.denormalize(d);
+    template<typename T>
+    Eigen::Matrix<T,2,1> normalize(const Eigen::Matrix<T,2,1>& pix) const {
+        return K.normalize(pix);
+    }
+
+    template<typename T>
+    Eigen::Matrix<T,2,1> denormalize(const Eigen::Matrix<T,2,1>& xy) const {
+        return K.denormalize(xy);
+    }
+
+    template<typename T>
+    Eigen::Matrix<T,2,1> distort(const Eigen::Matrix<T,2,1>& norm_xy) const {
+        return distortion.distort(norm_xy);
+    }
+
+    template<typename T>
+    Eigen::Matrix<T,2,1> undistort(const Eigen::Matrix<T,2,1>& dist_xy) const {
+        return distortion.undistort(dist_xy);
+    }
+
+    template<typename T>
+    Eigen::Matrix<T,2,1> project(const Eigen::Matrix<T,2,1>& norm_xy) const {
+        return denormalize(distort(norm_xy));
+    }
+
+    template<typename T>
+    Eigen::Matrix<T,2,1> unproject(const Eigen::Matrix<T,2,1>& pix) const {
+        return undistort(normalize(pix));
     }
 };
 
 } // namespace vitavision
+

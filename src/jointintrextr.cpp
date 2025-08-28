@@ -81,7 +81,7 @@ static void setup_joint_problem(
         for (size_t c = 0; c < num_cams && c < view.size(); ++c) {
             const auto& obs = view[c];
             if (obs.empty()) continue;
-            auto* cost = JointResidual::create(obs, initial_cameras[c].distortion);
+            auto* cost = JointResidual::create(obs, initial_cameras[c].distortion.forward);
             problem.AddResidualBlock(cost, nullptr,
                                      intr[c].data(), cam_poses[c].data(), targ_poses[v].data());
         }
@@ -138,7 +138,7 @@ static std::pair<double, size_t> compute_joint_residual_stats(
     double ssr = 0.0; size_t count = 0;
     for (size_t c = 0; c < num_cams; ++c) {
         if (per_cam_obs[c].empty()) continue;
-        int num_radial = std::max<int>(0, static_cast<int>(cameras[c].distortion.size()) - 2);
+        int num_radial = std::max<int>(0, static_cast<int>(cameras[c].distortion.forward.size()) - 2);
         auto dr = fit_distortion_full(per_cam_obs[c],
                                       result.intrinsics[c].fx,
                                       result.intrinsics[c].fy,
@@ -241,10 +241,10 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
     // Parameter arrays
     std::vector<std::array<double,4>> intr(num_cams);
     for (size_t i = 0; i < num_cams; ++i) {
-        intr[i] = {initial_cameras[i].intrinsics.fx,
-                   initial_cameras[i].intrinsics.fy,
-                   initial_cameras[i].intrinsics.cx,
-                   initial_cameras[i].intrinsics.cy};
+        intr[i] = {initial_cameras[i].K.fx,
+                   initial_cameras[i].K.fy,
+                   initial_cameras[i].K.cx,
+                   initial_cameras[i].K.cy};
     }
     std::vector<Pose6> cam_poses(num_cams);
     std::vector<Pose6> targ_poses(num_views);

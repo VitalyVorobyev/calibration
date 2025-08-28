@@ -128,6 +128,26 @@ TEST(DistortionTest, NoisyFit) {
     EXPECT_NEAR(distortion[3], p2_true, 0.001);
 }
 
+TEST(DistortionTest, DualModel) {
+    double fx = 800.0, fy = 800.0, cx = 400.0, cy = 300.0;
+    std::vector<double> k_true = {-0.2, 0.05};
+    double p1_true = 0.001, p2_true = -0.0005;
+
+    auto observations = generate_synthetic_data(
+        k_true, p1_true, p2_true, fx, fy, cx, cy, 200, 0.0);
+
+    auto dual_opt = fit_distortion_dual(observations, fx, fy, cx, cy, 2);
+    ASSERT_TRUE(dual_opt.has_value());
+    const auto& model = dual_opt->distortion;
+
+    Vec2 pt(0.1, -0.2);
+    Vec2 distorted = model.distort(pt);
+    Vec2 recovered = model.undistort(distorted);
+
+    EXPECT_NEAR(pt.x(), recovered.x(), 1e-10);
+    EXPECT_NEAR(pt.y(), recovered.y(), 1e-10);
+}
+
 #if 0
 TEST(DistortionTest, LSDesignMatrix) {
     // Test building the design matrix

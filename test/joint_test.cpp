@@ -11,8 +11,8 @@ TEST(JointCalibration, RecoverAllParameters) {
     CameraMatrix K{100.0, 100.0, 0.0, 0.0};
     Eigen::VectorXd dist(2);
     dist << 0.0, 0.0;
-
-    std::vector<Camera> cameras_gt = {Camera{K, dist}, Camera{K, dist}};
+    DualDistortion dd; dd.forward = dist; dd.inverse = dist;
+    std::vector<Camera> cameras_gt = {Camera{K, dd}, Camera{K, dd}};
 
     Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
     Eigen::Affine3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Affine3d::Identity();
@@ -38,7 +38,7 @@ TEST(JointCalibration, RecoverAllParameters) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x()/P.z(), P.y()/P.z());
-                Eigen::Vector2d pix = cameras_gt[c].intrinsics.denormalize(norm);
+                Eigen::Vector2d pix = cameras_gt[c].K.denormalize(norm);
                 view[c].push_back({xy, pix});
             }
         }
@@ -47,8 +47,8 @@ TEST(JointCalibration, RecoverAllParameters) {
 
     // Perturbed intrinsics for initialization
     std::vector<Camera> cam_init = {
-        Camera{CameraMatrix{90.0, 95.0, 1.0, -1.0}, dist},
-        Camera{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dist}
+        Camera{CameraMatrix{90.0, 95.0, 1.0, -1.0}, dd},
+        Camera{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dd}
     };
 
     auto guess = make_initial_extrinsic_guess(views, cam_init);
@@ -75,8 +75,8 @@ TEST(JointCalibration, FirstTargetPoseFixed) {
     CameraMatrix K{100.0, 100.0, 0.0, 0.0};
     Eigen::VectorXd dist(2);
     dist << 0.0, 0.0;
-
-    std::vector<Camera> cameras_gt = {Camera{K, dist}, Camera{K, dist}};
+    DualDistortion dd; dd.forward = dist; dd.inverse = dist;
+    std::vector<Camera> cameras_gt = {Camera{K, dd}, Camera{K, dd}};
 
     Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
     Eigen::Affine3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Affine3d::Identity();
@@ -100,7 +100,7 @@ TEST(JointCalibration, FirstTargetPoseFixed) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x()/P.z(), P.y()/P.z());
-                Eigen::Vector2d pix = cameras_gt[c].intrinsics.denormalize(norm);
+                Eigen::Vector2d pix = cameras_gt[c].K.denormalize(norm);
                 view[c].push_back({xy, pix});
             }
         }
@@ -108,8 +108,8 @@ TEST(JointCalibration, FirstTargetPoseFixed) {
     }
 
     std::vector<Camera> cam_init = {
-        Camera{CameraMatrix{90.0, 95.0, 1.0, -1.0}, dist},
-        Camera{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dist}
+        Camera{CameraMatrix{90.0, 95.0, 1.0, -1.0}, dd},
+        Camera{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dd}
     };
 
     auto guess = make_initial_extrinsic_guess(views, cam_init);
