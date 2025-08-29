@@ -16,6 +16,8 @@ public:
     Camera() = default;
     Camera(const CameraMatrix& m, const DualDistortion& d)
         : K(m), distortion(d) {}
+    Camera(const CameraMatrix& m, const Eigen::VectorXd& d)
+        : K(m), distortion(d) {}
 
     /**
      * @brief Normalizes a 2D pixel coordinate using the camera's intrinsic parameters.

@@ -2,7 +2,7 @@ include(GoogleTest)
 
 # Test for homography estimation
 add_executable(homography_test homography_test.cpp)
-target_link_libraries(homography_test 
+target_link_libraries(homography_test
     PRIVATE calibration
     PRIVATE GTest::gtest_main
     PRIVATE GTest::gmock_main
@@ -12,7 +12,7 @@ gtest_discover_tests(homography_test)
 
 # Test for distortion calculation
 add_executable(distortion_test distortion_test.cpp)
-target_link_libraries(distortion_test 
+target_link_libraries(distortion_test
     PRIVATE calibration
     PRIVATE GTest::gtest_main
     PRIVATE GTest::gmock_main
@@ -85,6 +85,16 @@ target_link_libraries(handeye_test
 )
 gtest_discover_tests(handeye_test)
 
+# Test for line scan calibration
+add_executable(linescan_test linescan_test.cpp)
+target_link_libraries(linescan_test
+    PRIVATE calibration
+    PRIVATE GTest::gtest_main
+    PRIVATE GTest::gmock_main
+    PRIVATE Eigen3::Eigen
+    PRIVATE Ceres::ceres
+)
+gtest_discover_tests(linescan_test)
 
 # Test for automatic JSON serialization
 add_executable(json_test json_test.cpp)
@@ -93,7 +103,7 @@ target_link_libraries(json_test
     PRIVATE GTest::gtest_main
     PRIVATE GTest::gmock_main
     PRIVATE Eigen3::Eigen
+    PRIVATE Ceres::ceres
     PRIVATE nlohmann_json::nlohmann_json
 )
 gtest_discover_tests(json_test)
-

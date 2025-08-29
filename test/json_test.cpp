@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include <nlohmann/json.hpp>
 
 #include <calibration/intrinsics.h>
@@ -17,4 +18,3 @@ TEST(JsonReflection, CameraMatrixRoundTrip) {
     EXPECT_DOUBLE_EQ(parsed.cx, cam.cx);
     EXPECT_DOUBLE_EQ(parsed.cy, cam.cy);
 }
-
