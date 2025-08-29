@@ -8,7 +8,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calibration/intrinsics.h"
+#include "calibration/camera.h"
 
 namespace vitavision {
 
@@ -42,7 +42,6 @@ struct LineScanCalibrationResult final {
  */
 LineScanCalibrationResult calibrate_laser_plane(
     const std::vector<LineScanObservation>& views,
-    const CameraMatrix& intrinsics,
-    const Eigen::VectorXd& distortion);
+    const Camera& camera);
 
-} // namespace vitavision
+}  // namespace vitavision

@@ -9,6 +9,7 @@ using namespace vitavision;
 TEST(LineScanCalibration, PlaneFitFailsSingleView) {
     CameraMatrix K{1.0, 1.0, 0.0, 0.0};
     Eigen::VectorXd dist;
+    Camera camera(K, dist);
 
     LineScanObservation view;
     view.target_xy = {
@@ -24,7 +25,7 @@ TEST(LineScanCalibration, PlaneFitFailsSingleView) {
         view.laser_uv.emplace_back(x, 0.5);
     }
 
-    ASSERT_THROW(calibrate_laser_plane({view}, K, dist), std::invalid_argument);
+    ASSERT_THROW(calibrate_laser_plane({view}, camera), std::invalid_argument);
 }
 
 static LineScanObservation create_view(const Eigen::Matrix3d& R, const Eigen::Vector3d& t) {

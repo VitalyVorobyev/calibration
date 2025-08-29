@@ -188,7 +188,7 @@ Mat3 fit_homography(const std::vector<Vec2>& src,
 
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary);
-    
+
     // Reconstruct H and normalize scale
     Mat3 H = params_to_h(h);
     if (std::abs(H(2, 2)) > 1e-15) H /= H(2, 2);

@@ -44,6 +44,25 @@ Eigen::Matrix<T, 2, 1> apply_distortion(
     return {xt, yt};
 }
 
+// Normalize and undistort pixel coordinates
+template<typename T>
+Eigen::Matrix<T, 2, 1> undistort(
+    Eigen::Matrix<T, 2, 1> norm_xy,
+    const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs
+) {
+    if (coeffs.size() < 2) {
+        throw std::runtime_error("Insufficient distortion coefficients");
+    }
+
+    Eigen::Matrix<T, 2, 1> xp = norm_xy;
+    for (int it = 0; it < 5; ++it) {
+        Eigen::Matrix<T, 2, 1> xd = apply_distortion(xp, coeffs);
+        xp += norm_xy - xd;
+    }
+    norm_xy = xp;
+    return x;
+}
+
 template<typename T>
 struct DistortionWithResiduals final {
     Eigen::Matrix<T, Eigen::Dynamic, 1> distortion;
