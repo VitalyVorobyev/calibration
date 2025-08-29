@@ -11,8 +11,8 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     CameraMatrix K{100.0, 100.0, 0.0, 0.0};
     Eigen::VectorXd dist(2);
     dist << 0.0, 0.0; // no distortion
-
-    std::vector<Camera> cameras = {Camera{K, dist}, Camera{K, dist}};
+    DualDistortion dd; dd.forward = dist; dd.inverse = dist;
+    std::vector<Camera> cameras = {Camera{K, dd}, Camera{K, dd}};
 
     // Ground-truth camera poses (reference camera is identity)
     Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
@@ -52,7 +52,7 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
-                Eigen::Vector2d pix = cameras[c].intrinsics.denormalize(norm);
+                Eigen::Vector2d pix = cameras[c].K.denormalize(norm);
                 view[c].push_back({xy, pix});
             }
         }

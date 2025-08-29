@@ -10,45 +10,13 @@
 #include <Eigen/Dense>
 
 #include "calibration/distortion.h"  // Observation
+#include "calibration/cameramatrix.h"
+#include "calibration/camera.h"
 
 namespace vitavision {
 
-struct CameraMatrix final {
-    double fx, fy, cx, cy;
-
-    template<typename T>
-    Eigen::Matrix<T, 2, 1> normalize(const Eigen::Matrix<T, 2, 1>& pix) const {
-        return {
-            (pix.x() - T(cx)) / T(fx),
-            (pix.y() - T(cy)) / T(fy)
-        };
-    }
-
-    template<typename T>
-    Eigen::Matrix<T, 2, 1> denormalize(const Eigen::Matrix<T, 2, 1>& xy) const {
-        return {
-            T(fx) * xy.x() + T(cx),
-            T(fy) * xy.y() + T(cy)
-        };
-    }
-};
-
-// Bounds for intrinsics parameters used during calibration. The default
-// values roughly correspond to a 1280x720 image.
-struct CalibrationBounds {
-    double fx_min = 100.0;
-    double fx_max = 2000.0;
-    double fy_min = 100.0;
-    double fy_max = 2000.0;
-    double cx_min = 10.0;
-    double cx_max = 1280.0;
-    double cy_min = 10.0;
-    double cy_max = 720.0;
-};
-
 struct IntrinsicOptimizationResult {
-    CameraMatrix intrinsics;
-    Eigen::VectorXd distortion;
+    Camera camera;
     Eigen::Matrix4d covariance;  // Covariance matrix of intrinsics
     double reprojection_error;   // Reprojection error after optimization (pix)
     std::string summary;         // Summary of optimization results
@@ -57,8 +25,7 @@ struct IntrinsicOptimizationResult {
 // Result of an iterative linear initialization that alternates between
 // estimating camera intrinsics and lens distortion parameters.
 struct LinearInitResult {
-    CameraMatrix intrinsics;     // Estimated camera matrix
-    Eigen::VectorXd distortion;  // Estimated distortion coefficients
+    Camera camera;
 };
 
 // Estimate camera intrinsics (fx, fy, cx, cy) by solving a linear

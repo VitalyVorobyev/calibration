@@ -34,7 +34,7 @@ jobs:
         if: startsWith(matrix.os, 'macos')
         run: |
           brew update
-          brew install cmake ninja eigen ceres-solver nlohmann-json googletest boost
+          brew install eigen ceres-solver nlohmann-json googletest boost
 
       # Set VCPKG vars
       - name: Set VCPKG_ROOT (Windows)
@@ -44,7 +44,7 @@ jobs:
           $vcpkgRoot = "${{ github.workspace }}\vcpkg"
           echo "VCPKG_ROOT=$vcpkgRoot" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "VCPKG_TRIPLET=x64-windows" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-      
+
       - name: Bootstrap vcpkg (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -52,19 +52,19 @@ jobs:
           if (-not (Test-Path $env:VCPKG_ROOT)) { git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT }
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
           & "$env:VCPKG_ROOT\vcpkg.exe" install ceres eigen3 nlohmann-json gtest boost-pfr --triplet $env:VCPKG_TRIPLET
-      
+
       # Configure & Build for Linux/macOS
       - name: Configure (Unix)
         if: runner.os != 'Windows'
         run: |
           cmake -S . -B "$BUILD_DIR" -G "Ninja" \
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
-      
+
       - name: Build (Unix)
         if: runner.os != 'Windows'
         run: |
           cmake --build "$BUILD_DIR" -j 2
-      
+
       # Configure & Build for Windows
       - name: Configure (Windows, MSVC + Ninja)
         if: runner.os == 'Windows'
@@ -76,7 +76,7 @@ jobs:
           Import-Module "$vsPath\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
           Enter-VsDevShell -VsInstallPath $vsPath -SkipAutomaticLocation -DevCmdArguments "-arch=x64"
           $env:VCPKG_ROOT = $vcpkgRoot
-          
+
           # Configure with MSVC
           cmake -S . -B "$env:BUILD_DIR" -G "Ninja" `
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `

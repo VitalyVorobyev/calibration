@@ -50,6 +50,28 @@ struct DistortionWithResiduals final {
     Eigen::Matrix<T, Eigen::Dynamic, 1> residuals;
 };
 
+struct DualDistortion final {
+    Eigen::VectorXd forward;  ///< Coefficients for distortion
+    Eigen::VectorXd inverse;  ///< Coefficients for undistortion
+
+    template<typename T>
+    Eigen::Matrix<T,2,1> distort(const Eigen::Matrix<T,2,1>& norm_xy) const {
+        Eigen::Matrix<T,Eigen::Dynamic,1> coeffs = forward.template cast<T>();
+        return apply_distortion(norm_xy, coeffs);
+    }
+
+    template<typename T>
+    Eigen::Matrix<T,2,1> undistort(const Eigen::Matrix<T,2,1>& dist_xy) const {
+        Eigen::Matrix<T,Eigen::Dynamic,1> coeffs = inverse.template cast<T>();
+        return apply_distortion(dist_xy, coeffs);
+    }
+};
+
+struct DualDistortionWithResiduals final {
+    DualDistortion distortion;
+    Eigen::VectorXd residuals;
+};
+
 template<typename T>
 std::optional<DistortionWithResiduals<T>> fit_distortion_full(
     const std::vector<Observation<T>>& obs,
@@ -120,6 +142,38 @@ std::optional<DistortionWithResiduals<T>> fit_distortion(
     int num_radial = 2
 ) {
     return fit_distortion_full(obs, fx, fy, cx, cy, num_radial);
+}
+
+inline std::optional<DualDistortionWithResiduals> fit_distortion_dual(
+    const std::vector<Observation<double>>& obs,
+    double fx, double fy, double cx, double cy,
+    int num_radial = 2
+) {
+    auto forward = fit_distortion_full(obs, fx, fy, cx, cy, num_radial);
+    if (!forward) {
+        return std::nullopt;
+    }
+
+    std::vector<Observation<double>> inv_obs;
+    inv_obs.reserve(obs.size());
+    for (const auto& o : obs) {
+        double xd = (o.u - cx) / fx;
+        double yd = (o.v - cy) / fy;
+        double u_ud = fx * o.x + cx;
+        double v_ud = fy * o.y + cy;
+        inv_obs.push_back({xd, yd, u_ud, v_ud});
+    }
+
+    auto inverse = fit_distortion_full(inv_obs, fx, fy, cx, cy, num_radial);
+    if (!inverse) {
+        return std::nullopt;
+    }
+
+    DualDistortionWithResiduals out;
+    out.distortion.forward = forward->distortion;
+    out.distortion.inverse = inverse->distortion;
+    out.residuals = forward->residuals;
+    return out;
 }
 
 }  // namespace vitavision
