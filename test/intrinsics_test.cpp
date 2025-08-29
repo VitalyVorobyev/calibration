@@ -139,7 +139,7 @@ TEST(IntrinsicsTest, IterativeLinearInitialization) {
     auto refined_opt = estimate_intrinsics_linear_iterative(observations, 2, 5);
     ASSERT_TRUE(refined_opt.has_value());
 
-    auto refined = refined_opt->intrinsics;
+    auto refined = refined_opt->camera.K;
     auto simple = *simple_guess;
 
     double err_simple = std::abs(simple.fx - intr_true.fx) +
@@ -155,11 +155,11 @@ TEST(IntrinsicsTest, IterativeLinearInitialization) {
     EXPECT_LT(err_refined, err_simple);
 
     // Distortion parameters should also be close to the ground truth
-    ASSERT_EQ(refined_opt->distortion.size(), 4);
-    EXPECT_NEAR(refined_opt->distortion[0], k_radial[0], 0.5);
-    EXPECT_NEAR(refined_opt->distortion[1], k_radial[1], 0.5);
-    EXPECT_NEAR(refined_opt->distortion[2], p1, 0.001);
-    EXPECT_NEAR(refined_opt->distortion[3], p2, 0.001);
+    ASSERT_EQ(refined_opt->camera.distortion.forward.size(), 4);
+    EXPECT_NEAR(refined_opt->camera.distortion.forward[0], k_radial[0], 0.5);
+    EXPECT_NEAR(refined_opt->camera.distortion.forward[1], k_radial[1], 0.5);
+    EXPECT_NEAR(refined_opt->camera.distortion.forward[2], p1, 0.001);
+    EXPECT_NEAR(refined_opt->camera.distortion.forward[3], p2, 0.001);
 }
 
 TEST(IntrinsicsTest, OptimizeExact) {
@@ -179,18 +179,18 @@ TEST(IntrinsicsTest, OptimizeExact) {
     ASSERT_TRUE(initial_guess.has_value());
 
     // Optimize
-    auto result = optimize_intrinsics(observations, 2, initial_guess->intrinsics, false);
+    auto result = optimize_intrinsics(observations, 2, initial_guess->camera.K, false);
 
     // Check results
-    EXPECT_NEAR(result.intrinsics.fx, intr_true.fx, 1e-6);
-    EXPECT_NEAR(result.intrinsics.fy, intr_true.fy, 1e-6);
-    EXPECT_NEAR(result.intrinsics.cx, intr_true.cx, 1e-6);
-    EXPECT_NEAR(result.intrinsics.cy, intr_true.cy, 1e-6);
+    EXPECT_NEAR(result.camera.K.fx, intr_true.fx, 1e-6);
+    EXPECT_NEAR(result.camera.K.fy, intr_true.fy, 1e-6);
+    EXPECT_NEAR(result.camera.K.cx, intr_true.cx, 1e-6);
+    EXPECT_NEAR(result.camera.K.cy, intr_true.cy, 1e-6);
 
-    EXPECT_NEAR(result.distortion[0], k_radial[0], 1e-6);
-    EXPECT_NEAR(result.distortion[1], k_radial[1], 1e-6);
-    EXPECT_NEAR(result.distortion[2], p1, 1e-6);
-    EXPECT_NEAR(result.distortion[3], p2, 1e-6);
+    EXPECT_NEAR(result.camera.distortion.forward[0], k_radial[0], 1e-6);
+    EXPECT_NEAR(result.camera.distortion.forward[1], k_radial[1], 1e-6);
+    EXPECT_NEAR(result.camera.distortion.forward[2], p1, 1e-6);
+    EXPECT_NEAR(result.camera.distortion.forward[3], p2, 1e-6);
 }
 
 TEST(IntrinsicsTest, AutoDiffJacobianParity) {
@@ -253,15 +253,15 @@ TEST(IntrinsicsTest, OptimizeNoisy) {
     auto result = optimize_intrinsics(observations, 2, *initial_guess, false);
 
     // Check results (with tolerance for noise)
-    EXPECT_NEAR(result.intrinsics.fx, intr_true.fx, 10.0);
-    EXPECT_NEAR(result.intrinsics.fy, intr_true.fy, 10.0);
-    EXPECT_NEAR(result.intrinsics.cx, intr_true.cx, 5.0);
-    EXPECT_NEAR(result.intrinsics.cy, intr_true.cy, 5.0);
+    EXPECT_NEAR(result.camera.K.fx, intr_true.fx, 10.0);
+    EXPECT_NEAR(result.camera.K.fy, intr_true.fy, 10.0);
+    EXPECT_NEAR(result.camera.K.cx, intr_true.cx, 5.0);
+    EXPECT_NEAR(result.camera.K.cy, intr_true.cy, 5.0);
 
-    EXPECT_NEAR(result.distortion[0], k_radial[0], 0.05);
-    EXPECT_NEAR(result.distortion[1], k_radial[1], 0.05);
-    EXPECT_NEAR(result.distortion[2], p1, 0.001);
-    EXPECT_NEAR(result.distortion[3], p2, 0.001);
+    EXPECT_NEAR(result.camera.distortion.forward[0], k_radial[0], 0.05);
+    EXPECT_NEAR(result.camera.distortion.forward[1], k_radial[1], 0.05);
+    EXPECT_NEAR(result.camera.distortion.forward[2], p1, 0.001);
+    EXPECT_NEAR(result.camera.distortion.forward[3], p2, 0.001);
 
     // Check covariance matrix is valid (positive definite)
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix4d> eigensolver(result.covariance);
@@ -289,14 +289,14 @@ TEST(IntrinsicsTest, DifferentRadialCoeffs) {
     auto result3 = optimize_intrinsics(observations, 3, initial_guess, false);
 
     // Check that results improve with more coefficients
-    EXPECT_EQ(result1.distortion.size(), 3);  // 1 radial + 2 tangential
-    EXPECT_EQ(result2.distortion.size(), 4);  // 2 radial + 2 tangential
-    EXPECT_EQ(result3.distortion.size(), 5);  // 3 radial + 2 tangential
+    EXPECT_EQ(result1.camera.distortion.forward.size(), 3);  // 1 radial + 2 tangential
+    EXPECT_EQ(result2.camera.distortion.forward.size(), 4);  // 2 radial + 2 tangential
+    EXPECT_EQ(result3.camera.distortion.forward.size(), 5);  // 3 radial + 2 tangential
 
     // The third model should be closest to the true values
-    EXPECT_NEAR(result3.distortion[0], k_radial[0], 0.05);
-    EXPECT_NEAR(result3.distortion[1], k_radial[1], 0.05);
-    EXPECT_NEAR(result3.distortion[2], k_radial[2], 0.05);
+    EXPECT_NEAR(result3.camera.distortion.forward[0], k_radial[0], 0.05);
+    EXPECT_NEAR(result3.camera.distortion.forward[1], k_radial[1], 0.05);
+    EXPECT_NEAR(result3.camera.distortion.forward[2], k_radial[2], 0.05);
 }
 
 TEST(IntrinsicsTest, OptimizationSummary) {

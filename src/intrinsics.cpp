@@ -135,13 +135,15 @@ std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
     }
 
     // Final distortion estimate using refined intrinsics.
-    auto dist_opt = fit_distortion(obs, K.fx, K.fy, K.cx, K.cy, num_radial);
-    if (!dist_opt) {
+    auto dual_opt = fit_distortion_dual(obs, K.fx, K.fy, K.cx, K.cy, num_radial);
+    if (!dual_opt) {
         return std::nullopt;
     }
-    dist = dist_opt->distortion;
+    Camera cam;
+    cam.K = K;
+    cam.distortion = dual_opt->distortion;
 
-    return LinearInitResult{K, dist};
+    return LinearInitResult{cam};
 }
 
 // Residual functor used with AutoDiffCostFunction. The functor performs
@@ -262,14 +264,15 @@ IntrinsicOptimizationResult optimize_intrinsics(
     ceres::Solve(options, &problem, &summary);
 
     IntrinsicOptimizationResult result;
-    result.intrinsics.fx = intrinsics[0];
-    result.intrinsics.fy = intrinsics[1];
-    result.intrinsics.cx = intrinsics[2];
-    result.intrinsics.cy = intrinsics[3];
-    auto final_dist = fit_distortion(
+    result.camera.K.fx = intrinsics[0];
+    result.camera.K.fy = intrinsics[1];
+    result.camera.K.cx = intrinsics[2];
+    result.camera.K.cy = intrinsics[3];
+
+    auto dual_opt = fit_distortion_dual(
         obs, intrinsics[0], intrinsics[1], intrinsics[2], intrinsics[3], num_radial);
-    if (final_dist) {
-        result.distortion = final_dist->distortion;
+    if (dual_opt) {
+        result.camera.distortion = dual_opt->distortion;
     }
     result.summary = summary.BriefReport();
 
