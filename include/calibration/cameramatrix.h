@@ -12,6 +12,18 @@ namespace vitavision {
 struct CameraMatrix final {
     double fx, fy, cx, cy;
 
+    /**
+     * @brief Normalizes a 2D pixel coordinate using the intrinsic camera parameters.
+     *
+     * This function transforms a 2D pixel coordinate into a normalized coordinate
+     * system by subtracting the principal point (cx, cy) and dividing by the focal
+     * lengths (fx, fy). The normalization is performed for each component of the
+     * input pixel coordinate.
+     *
+     * @tparam T The scalar type of the input and output coordinates (e.g., float, double).
+     * @param pix The 2D pixel coordinate to be normalized.
+     * @return Eigen::Matrix<T, 2, 1> The normalized 2D coordinate.
+     */
     template<typename T>
     Eigen::Matrix<T,2,1> normalize(const Eigen::Matrix<T,2,1>& pix) const {
         return {
@@ -20,6 +32,16 @@ struct CameraMatrix final {
         };
     }
 
+    /**
+     * @brief Denormalizes a 2D point using the camera's intrinsic parameters.
+     *
+     * This function applies the camera's intrinsic parameters (focal lengths and principal point offsets)
+     * to transform a normalized 2D point into its corresponding pixel coordinates.
+     *
+     * @tparam T The scalar type of the input and output (e.g., float, double).
+     * @param xy The normalized 2D point as an Eigen::Matrix<T, 2, 1>.
+     * @return Eigen::Matrix<T, 2, 1> The denormalized 2D point in pixel coordinates.
+     */
     template<typename T>
     Eigen::Matrix<T,2,1> denormalize(const Eigen::Matrix<T,2,1>& xy) const {
         return {
@@ -29,7 +51,7 @@ struct CameraMatrix final {
     }
 };
 
-struct CalibrationBounds {
+struct CalibrationBounds final {
     double fx_min = 100.0;
     double fx_max = 2000.0;
     double fy_min = 100.0;
@@ -41,4 +63,3 @@ struct CalibrationBounds {
 };
 
 } // namespace vitavision
-

@@ -34,7 +34,7 @@ jobs:
         if: startsWith(matrix.os, 'macos')
         run: |
           brew update
-          brew install ninja eigen ceres-solver nlohmann-json googletest boost
+          brew install eigen ceres-solver nlohmann-json googletest boost
 
       # Set VCPKG vars
       - name: Set VCPKG_ROOT (Windows)
