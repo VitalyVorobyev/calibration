@@ -59,8 +59,7 @@ Eigen::Matrix<T, 2, 1> undistort(
         Eigen::Matrix<T, 2, 1> xd = apply_distortion(xp, coeffs);
         xp += norm_xy - xd;
     }
-    norm_xy = xp;
-    return x;
+    return xp;
 }
 
 template<typename T>
@@ -72,6 +71,9 @@ struct DistortionWithResiduals final {
 struct DualDistortion final {
     Eigen::VectorXd forward;  ///< Coefficients for distortion
     Eigen::VectorXd inverse;  ///< Coefficients for undistortion
+
+    DualDistortion() = default;
+    explicit DualDistortion(const Eigen::VectorXd& coeffs);
 
     template<typename T>
     Eigen::Matrix<T,2,1> distort(const Eigen::Matrix<T,2,1>& norm_xy) const {
@@ -161,6 +163,37 @@ std::optional<DistortionWithResiduals<T>> fit_distortion(
     int num_radial = 2
 ) {
     return fit_distortion_full(obs, fx, fy, cx, cy, num_radial);
+}
+
+inline DualDistortion::DualDistortion(const Eigen::VectorXd& coeffs) {
+    if (coeffs.size() >= 2) {
+        forward = coeffs;
+    } else {
+        forward = Eigen::VectorXd::Zero(2);
+    }
+
+    int num_radial = static_cast<int>(forward.size()) - 2;
+
+    const int grid = 21;
+    const double lim = 1.0;
+    std::vector<Observation<double>> obs;
+    obs.reserve(grid * grid);
+    for (int i = 0; i < grid; ++i) {
+        double x = -lim + 2.0 * lim * static_cast<double>(i) / static_cast<double>(grid - 1);
+        for (int j = 0; j < grid; ++j) {
+            double y = -lim + 2.0 * lim * static_cast<double>(j) / static_cast<double>(grid - 1);
+            Eigen::Vector2d und(x, y);
+            Eigen::Vector2d dst = apply_distortion<double>(und, forward);
+            obs.push_back({dst.x(), dst.y(), x, y});
+        }
+    }
+
+    auto inv_opt = fit_distortion_full(obs, 1.0, 1.0, 0.0, 0.0, num_radial);
+    if (inv_opt) {
+        inverse = inv_opt->distortion;
+    } else {
+        inverse = Eigen::VectorXd::Zero(forward.size());
+    }
 }
 
 inline std::optional<DualDistortionWithResiduals> fit_distortion_dual(

@@ -51,6 +51,7 @@ static LineScanObservation create_view(const Eigen::Matrix3d& R, const Eigen::Ve
 TEST(LineScanCalibration, PlaneFitMultipleViews) {
     CameraMatrix K{1.0, 1.0, 0.0, 0.0};
     Eigen::VectorXd dist;
+    Camera camera(K, dist);
 
     Eigen::Matrix3d R1 = Eigen::Matrix3d::Identity();
     Eigen::Vector3d t1(0.0, 0.0, 1.0);
@@ -60,7 +61,7 @@ TEST(LineScanCalibration, PlaneFitMultipleViews) {
     auto v1 = create_view(R1, t1);
     auto v2 = create_view(R2, t2);
 
-    auto res = calibrate_laser_plane({v1, v2}, K, dist);
+    auto res = calibrate_laser_plane({v1, v2}, camera);
     EXPECT_NEAR(res.plane[0], 0.0, 1e-6);
     EXPECT_NEAR(res.plane[1], 1.0, 1e-6);
     EXPECT_NEAR(res.plane[2], 0.0, 1e-6);
