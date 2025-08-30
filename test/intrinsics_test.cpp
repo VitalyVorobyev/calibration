@@ -1,4 +1,4 @@
-#include "calibration/intrinsics.h"
+#include "calib/intrinsics.h"
 
 // std
 #include <random>
@@ -11,7 +11,7 @@
 // ceres
 #include <ceres/ceres.h>
 
-using namespace vitavision;
+using namespace calib;
 using Vec2 = Eigen::Vector2d;
 
 namespace {

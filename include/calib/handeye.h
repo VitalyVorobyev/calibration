@@ -8,9 +8,9 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calibration/planarpose.h"
+#include "calib/planarpose.h"
 
-namespace vitavision {
+namespace calib {
 
 Eigen::Affine3d estimate_hand_eye_tsai_lenz_allpairs_weighted(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
@@ -39,6 +39,7 @@ Eigen::Affine3d estimate_and_refine_hand_eye(
 struct Intrinsics final {
     double fx, fy, cx, cy;                 // pinhole
     double k1=0, k2=0, p1=0, p2=0, k3=0;   // Brown 5 distortion
+    double tau_x=0, tau_y=0;               // Scheimpflug tilt angles (rad)
     bool use_distortion = false;
 };
 
@@ -71,4 +72,15 @@ HandEyeReprojectionResult refine_hand_eye_reprojection(
     const ReprojRefineOptions& options
 );
 
-}  // namespace vitavision
+/**
+ * Refine hand-eye, Scheimpflug intrinsics, and ^bT_t by minimizing reprojection error.
+ */
+HandEyeReprojectionResult refine_hand_eye_reprojection_scheimpflug(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<PlanarView> observables,
+    const Intrinsics& init_intr,
+    const Eigen::Affine3d& init_gripper_T_ref,
+    const ReprojRefineOptions& options
+);
+
+}  // namespace calib

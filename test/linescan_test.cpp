@@ -2,9 +2,9 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calibration/linescan.h"
+#include "calib/linescan.h"
 
-using namespace vitavision;
+using namespace calib;
 
 TEST(LineScanCalibration, PlaneFitFailsSingleView) {
     CameraMatrix K{1.0, 1.0, 0.0, 0.0};

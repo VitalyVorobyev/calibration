@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
 #include <Eigen/Core>
 
-#include "calibration/scheimpflug.h"
+#include "calib/scheimpflug.h"
 
-using namespace vitavision;
+using namespace calib;
 
 TEST(ScheimpflugCamera, ZeroTiltMatchesPinhole) {
     Camera cam;

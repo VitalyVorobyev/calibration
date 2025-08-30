@@ -1,8 +1,8 @@
 #pragma once
 
-#include "calibration/extrinsics.h"
+#include "calib/extrinsics.h"
 
-namespace vitavision {
+namespace calib {
 
 struct JointOptimizationResult final {
     std::vector<CameraMatrix> intrinsics;                       // Optimized camera matrices
@@ -23,4 +23,4 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
     const std::vector<Eigen::Affine3d>& initial_target_poses,
     bool verbose = false);
 
-}  // namespace vitavision
+}  // namespace calib

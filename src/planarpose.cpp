@@ -1,4 +1,4 @@
-#include "calibration/planarpose.h"
+#include "calib/planarpose.h"
 
 // std
 #include <algorithm>
@@ -8,12 +8,12 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-#include "calibration/homography.h"
-#include "calibration/distortion.h"
+#include "calib/homography.h"
+#include "calib/distortion.h"
 
 #include "observationutils.h"
 
-namespace vitavision {
+namespace calib {
 
 // Decompose homography in normalized camera coords: H = [r1 r2 t]
 Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
@@ -222,4 +222,4 @@ PlanarPoseFitResult optimize_planar_pose(
     return result;
 }
 
-}  // namespace vitavision
+}  // namespace calib

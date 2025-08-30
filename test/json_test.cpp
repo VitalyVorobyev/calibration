@@ -2,11 +2,11 @@
 
 #include <nlohmann/json.hpp>
 
-#include <calibration/intrinsics.h>
-#include <calibration/json.h>
-#include <calibration/serialization.h>
+#include "calib/intrinsics.h"
+#include "calib/json.h"
+#include "calib/serialization.h"
 
-using vitavision::CameraMatrix;
+using namespace calib;
 
 TEST(JsonReflection, CameraMatrixRoundTrip) {
     CameraMatrix cam{100.0, 110.0, 10.0, 20.0};
@@ -21,9 +21,9 @@ TEST(JsonReflection, CameraMatrixRoundTrip) {
 }
 
 TEST(JsonSerialization, ObservationRoundTrip) {
-    vitavision::Observation<double> o{1.0,2.0,3.0,4.0};
+    Observation<double> o{1.0,2.0,3.0,4.0};
     nlohmann::json j = o;
-    auto o2 = j.get<vitavision::Observation<double>>();
+    auto o2 = j.get<Observation<double>>();
     EXPECT_DOUBLE_EQ(o2.x, o.x);
     EXPECT_DOUBLE_EQ(o2.y, o.y);
     EXPECT_DOUBLE_EQ(o2.u, o.u);
@@ -31,13 +31,13 @@ TEST(JsonSerialization, ObservationRoundTrip) {
 }
 
 TEST(JsonSerialization, IntrinsicResultRoundTrip) {
-    vitavision::IntrinsicOptimizationResult res;
-    res.camera.K = vitavision::CameraMatrix{100,100,0,0};
+    IntrinsicOptimizationResult res;
+    res.camera.K = CameraMatrix{100,100,0,0};
     res.covariance = Eigen::Matrix4d::Identity();
     res.reprojection_error = 0.5;
     res.summary = "ok";
     nlohmann::json j = res;
-    auto r2 = j.get<vitavision::IntrinsicOptimizationResult>();
+    auto r2 = j.get<IntrinsicOptimizationResult>();
     EXPECT_NEAR(r2.camera.K.fx, 100, 1e-9);
     EXPECT_EQ(r2.summary, "ok");
     EXPECT_NEAR(r2.covariance(0,0), 1.0, 1e-9);

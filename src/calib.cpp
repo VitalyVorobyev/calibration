@@ -1,4 +1,4 @@
-#include "calibration/calib.h"
+#include "calib/calib.h"
 
 // std
 #include <numeric>
@@ -8,12 +8,12 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-#include "calibration/distortion.h"
-#include "calibration/planarpose.h"  // for estimate_planar_pose_dlt
+#include "calib/distortion.h"
+#include "calib/planarpose.h"  // for estimate_planar_pose_dlt
 
 #include "observationutils.h"
 
-namespace vitavision {
+namespace calib {
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
@@ -331,5 +331,5 @@ CameraCalibrationResult calibrate_camera_planar(
     return result;
 }
 
-} // namespace vitavision
+} // namespace calib
 

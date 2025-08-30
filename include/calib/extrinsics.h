@@ -7,10 +7,10 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calibration/planarpose.h"
-#include "calibration/camera.h"
+#include "calib/planarpose.h"
+#include "calib/camera.h"
 
-namespace vitavision {
+namespace calib {
 
 // [camera]
 using ExtrinsicPlanarView = std::vector<PlanarView>;
@@ -40,4 +40,4 @@ ExtrinsicOptimizationResult optimize_extrinsic_poses(
     const std::vector<Eigen::Affine3d>& initial_target_poses,
     bool verbose = false);
 
-}  // namespace vitavision
+}  // namespace calib

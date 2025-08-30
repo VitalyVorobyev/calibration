@@ -1,4 +1,4 @@
-#include "calibration/extrinsics.h"
+#include "calib/extrinsics.h"
 
 // std
 #include <numeric>
@@ -11,7 +11,7 @@
 
 #include "observationutils.h"
 
-namespace vitavision {
+namespace calib {
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
@@ -299,4 +299,4 @@ ExtrinsicOptimizationResult optimize_extrinsic_poses(
     return result;
 }
 
-} // namespace vitavision
+} // namespace calib

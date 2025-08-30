@@ -5,9 +5,9 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calibration/intrinsics.h"
+#include "calib/intrinsics.h"
 
-namespace vitavision {
+namespace calib {
 
 struct PlanarObservation {
     Eigen::Vector2d object_xy;  // Planar target coordinates (Z=0)
@@ -43,4 +43,4 @@ PlanarPoseFitResult optimize_planar_pose(
     bool verbose = false
 );
 
-}  // namespace vitavision
+}  // namespace calib

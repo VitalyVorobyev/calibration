@@ -3,10 +3,10 @@
 // eigen
 #include <Eigen/Core>
 
-#include "calibration/cameramatrix.h"
-#include "calibration/distortion.h"
+#include "calib/cameramatrix.h"
+#include "calib/distortion.h"
 
-namespace vitavision {
+namespace calib {
 
 class Camera final {
 public:
@@ -127,4 +127,4 @@ public:
     }
 };
 
-} // namespace vitavision
+} // namespace calib

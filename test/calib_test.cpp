@@ -1,4 +1,4 @@
-#include "calibration/calib.h"
+#include "calib/calib.h"
 
 // std
 #include <random>
@@ -6,7 +6,7 @@
 // gtest
 #include <gtest/gtest.h>
 
-using namespace vitavision;
+using namespace calib;
 
 static void distort_and_project(const Eigen::Vector3d& P,
                                 const Eigen::Affine3d& pose,
