@@ -1,10 +1,10 @@
 #include <CLI/CLI.hpp>
+
 #include <fstream>
 #include <iostream>
 
-#include <nlohmann/json.hpp>
-
 #include "calibration/serialization.h"
+#include "config.h"
 
 using namespace vitavision;
 
@@ -27,16 +27,17 @@ int main(int argc, char** argv) {
         return 1;
     }
     nlohmann::json cfg; cfg_stream >> cfg;
+    AppConfig app_config = cfg;
 
-    if (!task_override.empty()) cfg["task"] = task_override;
-    if (!output_override.empty()) cfg["output"] = output_override;
+    if (!task_override.empty()) app_config.task = task_override;
+    if (!output_override.empty()) app_config.output = output_override;
 
-    if (!cfg.contains("task")) {
+    if (app_config.task.empty()) {
         std::cerr << "Task not specified in config" << std::endl;
         return 1;
     }
 
-    std::string task = cfg["task"].get<std::string>();
+    std::string task = app_config.task;
     nlohmann::json result;
 
     try {
@@ -71,12 +72,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::string out_path = cfg.value("output", std::string{});
+    std::string out_path = app_config.output;
     if (!out_path.empty()) {
         std::ofstream out(out_path);
         out << result.dump(2);
     }
     std::cout << result.dump(2) << std::endl;
-    return 0;
 }
-

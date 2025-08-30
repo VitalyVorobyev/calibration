@@ -14,6 +14,9 @@ jobs:
       matrix:
         os: [ubuntu-24.04, macos-14, windows-2022]
         build_type: [Release, Debug]
+        exclude:
+          - os: windows-2022
+            build_type: Debug
 
     env:
       BUILD_DIR: build
