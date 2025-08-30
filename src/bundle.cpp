@@ -225,7 +225,7 @@ static std::string solve_problem(ceres::Problem &p, bool verbose) {
     return summary.BriefReport();
 }
 
-BundleResult calibrate_hand_eye(
+BundleResult optimize_bundle(
     const std::vector<BundleObservation>& observations,
     const std::vector<CameraMatrix>& initial_intrinsics,
     const Eigen::Affine3d& init_g_T_r,

@@ -163,7 +163,7 @@ with global parameters $\theta = \{f_x,f_y,s,u_0,v_0,\kappa,\tau_x,\tau_y\}$ and
 2. **Define residuals.** For each observed target point $X_w^{(j)}$ in view $i$, residual
 
    $$
-   r_{ij} = 
+   r_{ij} =
    \begin{bmatrix}
    u_{ij}^{\text{meas}} - u(X_w^{(j)};\,\theta,R_i,t_i)\\
    v_{ij}^{\text{meas}} - v(X_w^{(j)};\,\theta,R_i,t_i)
