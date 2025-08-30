@@ -1,0 +1,11 @@
+{
+  "name": "calibration",
+  "version": "0.1.0",
+  "dependencies": [
+    "ceres",
+    "eigen3",
+    "nlohmann-json",
+    "gtest",
+    "boost-pfr"
+  ]
+}
