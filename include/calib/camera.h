@@ -7,7 +7,7 @@
 
 namespace calib {
 
-template<DistortionModel DistortionT>
+template<distortion_model DistortionT>
 class Camera final {
 public:
     using Scalar = typename DistortionT::Scalar;

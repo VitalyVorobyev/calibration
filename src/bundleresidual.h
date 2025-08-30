@@ -41,6 +41,32 @@ struct BundleReprojResidual final {
     BundleReprojResidual(PlanarView v, const Eigen::Affine3d& base_T_gripper)
         : view(std::move(v)), base_to_gripper(base_T_gripper) {}
 
+    /**
+     * @brief Functor to compute the residuals for a bundle adjustment problem.
+     *
+     * This operator computes the residuals between observed image points and
+     * projected 3D points using the given camera parameters and transformations.
+     *
+     * @tparam T The scalar type used for computations (e.g., double or ceres::Jet).
+     *
+     * @param b_q_t Pointer to the quaternion representing the rotation from the base
+     *              frame to the target frame.
+     * @param b_t_t Pointer to the translation vector from the base frame to the target frame.
+     * @param g_q_c Pointer to the quaternion representing the rotation from the gripper
+     *              frame to the camera frame.
+     * @param g_t_c Pointer to the translation vector from the gripper frame to the camera frame.
+     * @param intrinsics Pointer to the array of camera intrinsic parameters and distortion coefficients:
+     *                   - intrinsics[0]: Focal length in x direction (fx).
+     *                   - intrinsics[1]: Focal length in y direction (fy).
+     *                   - intrinsics[2]: Principal point x-coordinate (cx).
+     *                   - intrinsics[3]: Principal point y-coordinate (cy).
+     *                   - intrinsics[4-8]: Radial and tangential distortion coefficients.
+     * @param residuals Pointer to the array where the computed residuals will be stored.
+     *                  The residuals are computed as the difference between the observed
+     *                  image points and the projected points.
+     *
+     * @return true Always returns true to indicate successful computation.
+     */
     template <typename T>
     bool operator()(const T* b_q_t, const T* b_t_t,
                     const T* g_q_c, const T* g_t_c,

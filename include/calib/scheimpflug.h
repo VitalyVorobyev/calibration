@@ -21,7 +21,7 @@ namespace calib {
  * axis.  Distortion is applied in the metric coordinates on the tilted sensor
  * plane.
  */
-template<DistortionModel DistortionT>
+template<distortion_model DistortionT>
 struct ScheimpflugCamera final {
     using Scalar = typename DistortionT::Scalar;
     Camera<DistortionT> camera;   ///< Intrinsics and distortion parameters
