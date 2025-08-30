@@ -6,7 +6,7 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calibration/intrinsics.h"
+#include "calibration/camera.h"
 #include "calibration/planarpose.h"  // PlanarObservation
 
 namespace vitavision {
@@ -35,8 +35,7 @@ struct BundleOptions final {
 
 /** Result returned by hand-eye calibration. */
 struct BundleResult final {
-    std::vector<CameraMatrix> intrinsics;      ///< Estimated intrinsics per camera
-    std::vector<Eigen::VectorXd> distortions;  ///< Estimated distortion coefficients
+    std::vector<Camera> cameras;               ///< Estimated camera parameters per camera
     Eigen::Affine3d g_T_r;                     ///< Estimated reference camera -> gripper transforms
     std::vector<Eigen::Affine3d> c_T_r;        ///< Estimated reference->camera extrinsics
     Eigen::Affine3d b_T_t;                     ///< Pose of target in base frame
@@ -50,7 +49,7 @@ struct BundleResult final {
  * problem.  Supports single or multiple cameras and optional optimisation of
  * intrinsics and the target pose.
  * @param observations Set of observations with robot poses and target detections
- * @param initial_intrinsics Initial camera intrinsic parameters
+ * @param initial_cameras Initial camera parameters
  * @param init_g_T_r Initial estimate of hand-eye transformation
  * @param init_c_T_r Initial estimates of reference camera to camera transformations
  * @param init_b_T_t Initial estimate of base-to-target transformation
@@ -59,7 +58,7 @@ struct BundleResult final {
  */
 BundleResult optimize_bundle(
     const std::vector<BundleObservation>& observations,
-    const std::vector<CameraMatrix>& initial_intrinsics,
+    const std::vector<Camera>& initial_cameras,
     const Eigen::Affine3d& init_g_T_r,
     const std::vector<Eigen::Affine3d>& init_c_T_r = {},
     const Eigen::Affine3d& init_b_T_t = Eigen::Affine3d::Identity(),

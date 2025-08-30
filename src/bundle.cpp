@@ -33,7 +33,7 @@ struct BundleParamBlocks final {
 };
 
 static BundleParamBlocks initialize_blocks(
-    const std::vector<CameraMatrix>& initial_intrinsics,
+    const std::vector<Camera>& initial_cameras,
     const Eigen::Affine3d& g_T_r,
     const std::vector<Eigen::Affine3d>& c_T_r,
     const Eigen::Affine3d& b_T_t
@@ -50,13 +50,18 @@ static BundleParamBlocks initialize_blocks(
     for (size_t i = 0; i < c_T_r.size(); ++i) {
         populate_quat_tran(c_T_r[i], blocks.c_q_r[i], blocks.c_t_r[i]);
 
-        blocks.intr[i] = {
-            initial_intrinsics[i].fx,
-            initial_intrinsics[i].fy,
-            initial_intrinsics[i].cx,
-            initial_intrinsics[i].cy,
-            0, 0, 0, 0, 0
+        const auto& cam = initial_cameras[i];
+        std::array<double,9> intr = {
+            cam.K.fx,
+            cam.K.fy,
+            cam.K.cx,
+            cam.K.cy,
+            0,0,0,0,0
         };
+        for (int d = 0; d < std::min<int>(5, cam.distortion.forward.size()); ++d) {
+            intr[4 + d] = cam.distortion.forward(d);
+        }
+        blocks.intr[i] = intr;
     }
 
     return blocks;
@@ -130,15 +135,15 @@ static void recover_parameters(
 
     const size_t num_cams = blocks.intr.size();
     result.c_T_r.resize(num_cams);
-    result.distortions.resize(num_cams);
-    result.intrinsics.resize(num_cams);
+    result.cameras.resize(num_cams);
 
     for (size_t c = 0; c < num_cams; ++c) {
         result.c_T_r[c] = restore_pose(blocks.c_q_r[c], blocks.c_t_r[c]);
         const auto& i = blocks.intr[c];
-        result.intrinsics[c] = {i[0], i[1], i[2], i[3]};
-        result.distortions[c] = Eigen::VectorXd(5);
-        result.distortions[c] << i[4], i[5], i[6], i[7], i[8];
+        CameraMatrix K{i[0], i[1], i[2], i[3]};
+        Eigen::VectorXd dist(5);
+        dist << i[4], i[5], i[6], i[7], i[8];
+        result.cameras[c] = Camera(K, dist);
     }
 }
 
@@ -149,17 +154,22 @@ static double compute_reprojection_error(
     double ssr = 0.0; size_t total = 0;
 
     for (const auto& obs : observations) {
-        const size_t cam = obs.camera_index;
-        const auto& intr = result.intrinsics[cam];
-        const Eigen::VectorXd& dist = result.distortions[cam];
+        const size_t cam_idx = obs.camera_index;
+        const auto& cam = result.cameras[cam_idx];
+        const auto& intr = cam.K;
+        const Eigen::VectorXd& dist = cam.distortion.forward;
 
         auto c_T_t = get_camera_T_target(
-            result.b_T_t, result.g_T_r, result.c_T_r[cam], obs.b_T_g);
+            result.b_T_t, result.g_T_r, result.c_T_r[cam_idx], obs.b_T_g);
 
         double u_hat, v_hat;
         std::array<double, 9> i {
             intr.fx, intr.fy, intr.cx, intr.cy,
-            dist(0), dist(1), dist(2), dist(3), dist(4)
+            dist.size() > 0 ? dist(0) : 0.0,
+            dist.size() > 1 ? dist(1) : 0.0,
+            dist.size() > 2 ? dist(2) : 0.0,
+            dist.size() > 3 ? dist(3) : 0.0,
+            dist.size() > 4 ? dist(4) : 0.0
         };
         Eigen::Vector3d P;
         for (const auto& ob : obs.view) {
@@ -227,19 +237,19 @@ static std::string solve_problem(ceres::Problem &p, bool verbose) {
 
 BundleResult optimize_bundle(
     const std::vector<BundleObservation>& observations,
-    const std::vector<CameraMatrix>& initial_intrinsics,
+    const std::vector<Camera>& initial_cameras,
     const Eigen::Affine3d& init_g_T_r,
     const std::vector<Eigen::Affine3d>& init_c_T_r,
     const Eigen::Affine3d& init_b_T_t,
     const BundleOptions& opts
 ) {
-    const size_t num_cams = initial_intrinsics.size();
+    const size_t num_cams = initial_cameras.size();
     if (num_cams == 0) {
         throw std::invalid_argument("No camera intrinsics provided");
     };
 
     BundleParamBlocks blocks = initialize_blocks(
-        initial_intrinsics, init_g_T_r,
+        initial_cameras, init_g_T_r,
         init_c_T_r, init_b_T_t);
 
     ceres::Problem p;

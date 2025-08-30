@@ -264,7 +264,7 @@ inline void from_json(const nlohmann::json& j, HandEyeInput& in) {
 
 struct BundleInput final {
     std::vector<BundleObservation> observations;
-    std::vector<CameraMatrix> initial_intrinsics;
+    std::vector<Camera> initial_cameras;
     Eigen::Affine3d init_g_T_r = Eigen::Affine3d::Identity();
     std::vector<Eigen::Affine3d> init_c_T_r;
     Eigen::Affine3d init_b_T_t = Eigen::Affine3d::Identity();
@@ -276,7 +276,7 @@ inline void to_json(nlohmann::json& j, const BundleInput& in) {
     for (const auto& T : in.init_c_T_r) ctr.push_back(affine_to_json(T));
     j = {
         {"observations", in.observations},
-        {"initial_intrinsics", in.initial_intrinsics},
+        {"initial_cameras", in.initial_cameras},
         {"init_g_T_r", affine_to_json(in.init_g_T_r)},
         {"init_c_T_r", ctr},
         {"init_b_T_t", affine_to_json(in.init_b_T_t)},
@@ -286,7 +286,7 @@ inline void to_json(nlohmann::json& j, const BundleInput& in) {
 
 inline void from_json(const nlohmann::json& j, BundleInput& in) {
     j.at("observations").get_to(in.observations);
-    j.at("initial_intrinsics").get_to(in.initial_intrinsics);
+    j.at("initial_cameras").get_to(in.initial_cameras);
     if (j.contains("init_g_T_r")) in.init_g_T_r = json_to_affine(j.at("init_g_T_r"));
     in.init_c_T_r.clear();
     if (j.contains("init_c_T_r"))
@@ -366,15 +366,12 @@ inline void from_json(const nlohmann::json& j, HandEyeReprojectionResult& r) {
 }
 
 inline void to_json(nlohmann::json& j, const BundleResult& r) {
-    nlohmann::json intr = nlohmann::json::array();
-    for (const auto& K : r.intrinsics) intr.push_back(K);
-    nlohmann::json dist = nlohmann::json::array();
-    for (const auto& d : r.distortions) dist.push_back(eigen_vector_to_json(d));
+    nlohmann::json cams = nlohmann::json::array();
+    for (const auto& cam : r.cameras) cams.push_back(cam);
     nlohmann::json ctr = nlohmann::json::array();
     for (const auto& T : r.c_T_r) ctr.push_back(affine_to_json(T));
     j = {
-        {"intrinsics", intr},
-        {"distortions", dist},
+        {"cameras", cams},
         {"g_T_r", affine_to_json(r.g_T_r)},
         {"c_T_r", ctr},
         {"b_T_t", affine_to_json(r.b_T_t)},
@@ -385,10 +382,8 @@ inline void to_json(nlohmann::json& j, const BundleResult& r) {
 }
 
 inline void from_json(const nlohmann::json& j, BundleResult& r) {
-    r.intrinsics.clear();
-    for (const auto& jk : j.at("intrinsics")) r.intrinsics.push_back(jk.get<CameraMatrix>());
-    r.distortions.clear();
-    for (const auto& jd : j.at("distortions")) r.distortions.push_back(json_to_eigen_vector(jd));
+    r.cameras.clear();
+    for (const auto& jc : j.at("cameras")) r.cameras.push_back(jc.get<Camera>());
     r.g_T_r = json_to_affine(j.at("g_T_r"));
     r.c_T_r.clear();
     for (const auto& jt : j.at("c_T_r")) r.c_T_r.push_back(json_to_affine(jt));
