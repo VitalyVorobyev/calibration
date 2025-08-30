@@ -1,0 +1,402 @@
+#pragma once
+
+#include <nlohmann/json.hpp>
+#include <Eigen/Geometry>
+#include <vector>
+
+#include "calibration/cameramatrix.h"
+#include "calibration/distortion.h"
+#include "calibration/camera.h"
+#include "calibration/planarpose.h"
+#include "calibration/intrinsics.h"
+#include "calibration/extrinsics.h"
+#include "calibration/handeye.h"
+#include "calibration/bundle.h"
+
+namespace vitavision {
+
+// ----- Helpers for Eigen types -----
+
+inline nlohmann::json eigen_matrix_to_json(const Eigen::MatrixXd& m) {
+    nlohmann::json rows = nlohmann::json::array();
+    for (int r = 0; r < m.rows(); ++r) {
+        nlohmann::json row = nlohmann::json::array();
+        for (int c = 0; c < m.cols(); ++c) row.push_back(m(r, c));
+        rows.push_back(row);
+    }
+    return rows;
+}
+
+inline Eigen::MatrixXd json_to_eigen_matrix(const nlohmann::json& j) {
+    const int rows = static_cast<int>(j.size());
+    const int cols = rows ? static_cast<int>(j[0].size()) : 0;
+    Eigen::MatrixXd m(rows, cols);
+    for (int r = 0; r < rows; ++r)
+        for (int c = 0; c < cols; ++c)
+            m(r, c) = j[r][c].get<double>();
+    return m;
+}
+
+inline nlohmann::json eigen_vector_to_json(const Eigen::VectorXd& v) {
+    nlohmann::json arr = nlohmann::json::array();
+    for (int i = 0; i < v.size(); ++i) arr.push_back(v[i]);
+    return arr;
+}
+
+inline Eigen::VectorXd json_to_eigen_vector(const nlohmann::json& j) {
+    Eigen::VectorXd v(static_cast<int>(j.size()));
+    for (int i = 0; i < v.size(); ++i) v[i] = j[i].get<double>();
+    return v;
+}
+
+inline nlohmann::json affine_to_json(const Eigen::Affine3d& T) {
+    nlohmann::json j = nlohmann::json::array();
+    for (int r = 0; r < 4; ++r) {
+        nlohmann::json row = nlohmann::json::array();
+        for (int c = 0; c < 4; ++c) row.push_back(T.matrix()(r, c));
+        j.push_back(row);
+    }
+    return j;
+}
+
+inline Eigen::Affine3d json_to_affine(const nlohmann::json& j) {
+    Eigen::Matrix4d m;
+    for (int r = 0; r < 4; ++r)
+        for (int c = 0; c < 4; ++c)
+            m(r, c) = j[r][c].get<double>();
+    Eigen::Affine3d T;
+    T.matrix() = m;
+    return T;
+}
+
+// ----- Basic structures -----
+
+template <typename T>
+void to_json(nlohmann::json& j, const Observation<T>& o) {
+    j = {{"x", o.x}, {"y", o.y}, {"u", o.u}, {"v", o.v}};
+}
+
+template <typename T>
+void from_json(const nlohmann::json& j, Observation<T>& o) {
+    j.at("x").get_to(o.x);
+    j.at("y").get_to(o.y);
+    j.at("u").get_to(o.u);
+    j.at("v").get_to(o.v);
+}
+
+inline void to_json(nlohmann::json& j, const CameraMatrix& c) {
+    j = {{"fx", c.fx}, {"fy", c.fy}, {"cx", c.cx}, {"cy", c.cy}};
+}
+
+inline void from_json(const nlohmann::json& j, CameraMatrix& c) {
+    j.at("fx").get_to(c.fx);
+    j.at("fy").get_to(c.fy);
+    j.at("cx").get_to(c.cx);
+    j.at("cy").get_to(c.cy);
+}
+
+inline void to_json(nlohmann::json& j, const DualDistortion& d) {
+    j = {
+        {"forward", eigen_vector_to_json(d.forward)},
+        {"inverse", eigen_vector_to_json(d.inverse)}
+    };
+}
+
+inline void from_json(const nlohmann::json& j, DualDistortion& d) {
+    if (j.contains("forward")) d.forward = json_to_eigen_vector(j.at("forward"));
+    if (j.contains("inverse")) d.inverse = json_to_eigen_vector(j.at("inverse"));
+}
+
+inline void to_json(nlohmann::json& j, const Camera& cam) {
+    j = {{"K", cam.K}, {"distortion", cam.distortion}};
+}
+
+inline void from_json(const nlohmann::json& j, Camera& cam) {
+    j.at("K").get_to(cam.K);
+    if (j.contains("distortion")) j.at("distortion").get_to(cam.distortion);
+}
+
+inline void to_json(nlohmann::json& j, const PlanarObservation& p) {
+    j = {
+        {"object", {p.object_xy.x(), p.object_xy.y()}},
+        {"image", {p.image_uv.x(), p.image_uv.y()}}
+    };
+}
+
+inline void from_json(const nlohmann::json& j, PlanarObservation& p) {
+    auto obj = j.at("object");
+    auto img = j.at("image");
+    p.object_xy = Eigen::Vector2d(obj[0].get<double>(), obj[1].get<double>());
+    p.image_uv = Eigen::Vector2d(img[0].get<double>(), img[1].get<double>());
+}
+
+// ----- Hand-eye auxiliary types -----
+
+inline void to_json(nlohmann::json& j, const Intrinsics& in) {
+    j = {{"fx", in.fx}, {"fy", in.fy}, {"cx", in.cx}, {"cy", in.cy},
+         {"k1", in.k1}, {"k2", in.k2}, {"p1", in.p1}, {"p2", in.p2},
+         {"k3", in.k3}, {"use_distortion", in.use_distortion}};
+}
+
+inline void from_json(const nlohmann::json& j, Intrinsics& in) {
+    j.at("fx").get_to(in.fx);
+    j.at("fy").get_to(in.fy);
+    j.at("cx").get_to(in.cx);
+    j.at("cy").get_to(in.cy);
+    in.k1 = j.value("k1", 0.0);
+    in.k2 = j.value("k2", 0.0);
+    in.p1 = j.value("p1", 0.0);
+    in.p2 = j.value("p2", 0.0);
+    in.k3 = j.value("k3", 0.0);
+    in.use_distortion = j.value("use_distortion", false);
+}
+
+inline void to_json(nlohmann::json& j, const ReprojRefineOptions& o) {
+    j = {
+        {"refine_intrinsics", o.refine_intrinsics},
+        {"refine_distortion", o.refine_distortion},
+        {"use_distortion", o.use_distortion},
+        {"huber_delta_px", o.huber_delta_px},
+        {"max_iterations", o.max_iterations},
+        {"verbose", o.verbose}
+    };
+}
+
+inline void from_json(const nlohmann::json& j, ReprojRefineOptions& o) {
+    o.refine_intrinsics = j.value("refine_intrinsics", false);
+    o.refine_distortion = j.value("refine_distortion", false);
+    o.use_distortion = j.value("use_distortion", false);
+    o.huber_delta_px = j.value("huber_delta_px", 1.0);
+    o.max_iterations = j.value("max_iterations", 80);
+    o.verbose = j.value("verbose", false);
+}
+
+inline void to_json(nlohmann::json& j, const BundleOptions& o) {
+    j = {
+        {"optimize_intrinsics", o.optimize_intrinsics},
+        {"optimize_target_pose", o.optimize_target_pose},
+        {"optimize_hand_eye", o.optimize_hand_eye},
+        {"optimize_extrinsics", o.optimize_extrinsics},
+        {"verbose", o.verbose}
+    };
+}
+
+inline void from_json(const nlohmann::json& j, BundleOptions& o) {
+    o.optimize_intrinsics = j.value("optimize_intrinsics", false);
+    o.optimize_target_pose = j.value("optimize_target_pose", true);
+    o.optimize_hand_eye = j.value("optimize_hand_eye", true);
+    o.optimize_extrinsics = j.value("optimize_extrinsics", true);
+    o.verbose = j.value("verbose", false);
+}
+
+inline void to_json(nlohmann::json& j, const BundleObservation& bo) {
+    j = {
+        {"view", bo.view},
+        {"b_T_g", affine_to_json(bo.b_T_g)},
+        {"camera_index", bo.camera_index}
+    };
+}
+
+inline void from_json(const nlohmann::json& j, BundleObservation& bo) {
+    j.at("view").get_to(bo.view);
+    bo.b_T_g = json_to_affine(j.at("b_T_g"));
+    bo.camera_index = j.value("camera_index", 0);
+}
+
+// ----- Input containers -----
+
+struct IntrinsicsInput final {
+    std::vector<Observation<double>> observations;
+    int num_radial = 2;
+};
+
+inline void to_json(nlohmann::json& j, const IntrinsicsInput& in) {
+    j = {{"observations", in.observations}, {"num_radial", in.num_radial}};
+}
+
+inline void from_json(const nlohmann::json& j, IntrinsicsInput& in) {
+    j.at("observations").get_to(in.observations);
+    in.num_radial = j.value("num_radial", 2);
+}
+
+struct ExtrinsicsInput final {
+    std::vector<Camera> cameras;
+    std::vector<ExtrinsicPlanarView> views;
+};
+
+inline void to_json(nlohmann::json& j, const ExtrinsicsInput& in) {
+    j = {{"cameras", in.cameras}, {"views", in.views}};
+}
+
+inline void from_json(const nlohmann::json& j, ExtrinsicsInput& in) {
+    j.at("cameras").get_to(in.cameras);
+    j.at("views").get_to(in.views);
+}
+
+struct HandEyeInput final {
+    std::vector<Eigen::Affine3d> base_T_gripper;
+    std::vector<PlanarView> views;
+    Intrinsics intrinsics;
+    Eigen::Affine3d init_gripper_T_ref = Eigen::Affine3d::Identity();
+    ReprojRefineOptions options;
+};
+
+inline void to_json(nlohmann::json& j, const HandEyeInput& in) {
+    nlohmann::json bg = nlohmann::json::array();
+    for (const auto& T : in.base_T_gripper) bg.push_back(affine_to_json(T));
+    j = {
+        {"base_T_gripper", bg},
+        {"views", in.views},
+        {"intrinsics", in.intrinsics},
+        {"init_gripper_T_ref", affine_to_json(in.init_gripper_T_ref)},
+        {"options", in.options}
+    };
+}
+
+inline void from_json(const nlohmann::json& j, HandEyeInput& in) {
+    in.base_T_gripper.clear();
+    for (const auto& jt : j.at("base_T_gripper")) in.base_T_gripper.push_back(json_to_affine(jt));
+    j.at("views").get_to(in.views);
+    j.at("intrinsics").get_to(in.intrinsics);
+    if (j.contains("init_gripper_T_ref")) in.init_gripper_T_ref = json_to_affine(j.at("init_gripper_T_ref"));
+    if (j.contains("options")) j.at("options").get_to(in.options);
+}
+
+struct BundleInput final {
+    std::vector<BundleObservation> observations;
+    std::vector<CameraMatrix> initial_intrinsics;
+    Eigen::Affine3d init_g_T_r = Eigen::Affine3d::Identity();
+    std::vector<Eigen::Affine3d> init_c_T_r;
+    Eigen::Affine3d init_b_T_t = Eigen::Affine3d::Identity();
+    BundleOptions options;
+};
+
+inline void to_json(nlohmann::json& j, const BundleInput& in) {
+    nlohmann::json ctr = nlohmann::json::array();
+    for (const auto& T : in.init_c_T_r) ctr.push_back(affine_to_json(T));
+    j = {
+        {"observations", in.observations},
+        {"initial_intrinsics", in.initial_intrinsics},
+        {"init_g_T_r", affine_to_json(in.init_g_T_r)},
+        {"init_c_T_r", ctr},
+        {"init_b_T_t", affine_to_json(in.init_b_T_t)},
+        {"options", in.options}
+    };
+}
+
+inline void from_json(const nlohmann::json& j, BundleInput& in) {
+    j.at("observations").get_to(in.observations);
+    j.at("initial_intrinsics").get_to(in.initial_intrinsics);
+    if (j.contains("init_g_T_r")) in.init_g_T_r = json_to_affine(j.at("init_g_T_r"));
+    in.init_c_T_r.clear();
+    if (j.contains("init_c_T_r"))
+        for (const auto& jt : j.at("init_c_T_r")) in.init_c_T_r.push_back(json_to_affine(jt));
+    if (j.contains("init_b_T_t")) in.init_b_T_t = json_to_affine(j.at("init_b_T_t"));
+    if (j.contains("options")) j.at("options").get_to(in.options);
+}
+
+// ----- Result serialization -----
+
+inline void to_json(nlohmann::json& j, const IntrinsicOptimizationResult& r) {
+    j = {
+        {"camera", r.camera},
+        {"covariance", eigen_matrix_to_json(r.covariance)},
+        {"reprojection_error", r.reprojection_error},
+        {"summary", r.summary}
+    };
+}
+
+inline void from_json(const nlohmann::json& j, IntrinsicOptimizationResult& r) {
+    j.at("camera").get_to(r.camera);
+    r.covariance = json_to_eigen_matrix(j.at("covariance"));
+    r.reprojection_error = j.value("reprojection_error", 0.0);
+    r.summary = j.value("summary", std::string{});
+}
+
+inline void to_json(nlohmann::json& j, const ExtrinsicOptimizationResult& r) {
+    nlohmann::json cps = nlohmann::json::array();
+    for (const auto& T : r.camera_poses) cps.push_back(affine_to_json(T));
+    nlohmann::json tps = nlohmann::json::array();
+    for (const auto& T : r.target_poses) tps.push_back(affine_to_json(T));
+    nlohmann::json ccov = nlohmann::json::array();
+    for (const auto& C : r.camera_covariances) ccov.push_back(eigen_matrix_to_json(C));
+    nlohmann::json tcov = nlohmann::json::array();
+    for (const auto& C : r.target_covariances) tcov.push_back(eigen_matrix_to_json(C));
+    j = {
+        {"camera_poses", cps},
+        {"target_poses", tps},
+        {"camera_covariances", ccov},
+        {"target_covariances", tcov},
+        {"reprojection_error", r.reprojection_error},
+        {"summary", r.summary}
+    };
+}
+
+inline void from_json(const nlohmann::json& j, ExtrinsicOptimizationResult& r) {
+    r.camera_poses.clear();
+    for (const auto& jt : j.at("camera_poses")) r.camera_poses.push_back(json_to_affine(jt));
+    r.target_poses.clear();
+    for (const auto& jt : j.at("target_poses")) r.target_poses.push_back(json_to_affine(jt));
+    r.camera_covariances.clear();
+    for (const auto& jc : j.at("camera_covariances")) r.camera_covariances.push_back(json_to_eigen_matrix(jc));
+    r.target_covariances.clear();
+    for (const auto& jc : j.at("target_covariances")) r.target_covariances.push_back(json_to_eigen_matrix(jc));
+    r.reprojection_error = j.value("reprojection_error", 0.0);
+    r.summary = j.value("summary", std::string{});
+}
+
+inline void to_json(nlohmann::json& j, const HandEyeReprojectionResult& r) {
+    j = {
+        {"g_T_r", affine_to_json(r.g_T_r)},
+        {"intrinsics", r.intr},
+        {"b_T_t", affine_to_json(r.b_T_t)},
+        {"reprojection_error", r.reprojection_error_pix},
+        {"covariance", eigen_matrix_to_json(r.cov)},
+        {"summary", r.report}
+    };
+}
+
+inline void from_json(const nlohmann::json& j, HandEyeReprojectionResult& r) {
+    r.g_T_r = json_to_affine(j.at("g_T_r"));
+    j.at("intrinsics").get_to(r.intr);
+    r.b_T_t = json_to_affine(j.at("b_T_t"));
+    r.reprojection_error_pix = j.value("reprojection_error", 0.0);
+    r.cov = json_to_eigen_matrix(j.at("covariance"));
+    r.report = j.value("summary", std::string{});
+}
+
+inline void to_json(nlohmann::json& j, const BundleResult& r) {
+    nlohmann::json intr = nlohmann::json::array();
+    for (const auto& K : r.intrinsics) intr.push_back(K);
+    nlohmann::json dist = nlohmann::json::array();
+    for (const auto& d : r.distortions) dist.push_back(eigen_vector_to_json(d));
+    nlohmann::json ctr = nlohmann::json::array();
+    for (const auto& T : r.c_T_r) ctr.push_back(affine_to_json(T));
+    j = {
+        {"intrinsics", intr},
+        {"distortions", dist},
+        {"g_T_r", affine_to_json(r.g_T_r)},
+        {"c_T_r", ctr},
+        {"b_T_t", affine_to_json(r.b_T_t)},
+        {"reprojection_error", r.reprojection_error},
+        {"covariance", eigen_matrix_to_json(r.covariance)},
+        {"summary", r.report}
+    };
+}
+
+inline void from_json(const nlohmann::json& j, BundleResult& r) {
+    r.intrinsics.clear();
+    for (const auto& jk : j.at("intrinsics")) r.intrinsics.push_back(jk.get<CameraMatrix>());
+    r.distortions.clear();
+    for (const auto& jd : j.at("distortions")) r.distortions.push_back(json_to_eigen_vector(jd));
+    r.g_T_r = json_to_affine(j.at("g_T_r"));
+    r.c_T_r.clear();
+    for (const auto& jt : j.at("c_T_r")) r.c_T_r.push_back(json_to_affine(jt));
+    r.b_T_t = json_to_affine(j.at("b_T_t"));
+    r.reprojection_error = j.value("reprojection_error", 0.0);
+    r.covariance = json_to_eigen_matrix(j.at("covariance"));
+    r.report = j.value("summary", std::string{});
+}
+
+} // namespace vitavision
+

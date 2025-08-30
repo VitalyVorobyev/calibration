@@ -18,6 +18,7 @@ A C++ library for camera calibration and vision-related geometric transformation
 - Eigen3: Linear algebra library
 - Ceres: Non-linear optimization
 - nlohmann-json: JSON parsing and serialization
+- CLI11: Command-line argument parsing
 - GoogleTest & GoogleMock: Unit testing frameworks
 - Boost.PFR: Header-only reflection for aggregates
 
@@ -31,14 +32,14 @@ Install the build dependencies using your system package manager.
 
 ```bash
 sudo apt update
-sudo apt install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev
+sudo apt install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev cli11
 ```
 
 #### macOS
 
 ```bash
 brew update
-brew install cmake ninja eigen ceres-solver nlohmann-json googletest boost
+brew install cmake ninja eigen ceres-solver nlohmann-json googletest boost cli11
 ```
 
 Configure and build:
@@ -67,7 +68,7 @@ Install dependencies with [vcpkg](https://github.com/microsoft/vcpkg):
 ```powershell
 git clone https://github.com/microsoft/vcpkg $env:USERPROFILE\vcpkg
 & $env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat
-& $env:USERPROFILE\vcpkg\vcpkg.exe install ceres eigen3 nlohmann-json gtest boost-pfr --triplet x64-windows
+& $env:USERPROFILE\vcpkg\vcpkg.exe install ceres eigen3 nlohmann-json gtest boost-pfr cli11 --triplet x64-windows
 ```
 
 Configure and build:
@@ -119,6 +120,19 @@ The first camera in `intrinsics` is treated as the reference camera.  The
 `hand_eye_guess` specifies the gripper pose relative to this camera.  For any
 additional cameras, provide their poses relative to the reference camera via
 `extrinsics`.
+
+### Command-line tool
+
+A small `calib_app` utility is available for running calibrations from JSON
+files. It accepts the path to a config file and optional overrides:
+
+```bash
+calib_app --config input.json [--task intrinsics] [--output result.json]
+```
+
+The config file specifies the calibration input and task type, while the
+command-line options provided by CLI11 allow overriding the task mode or the
+output file.
 
 ## Documentation
 
