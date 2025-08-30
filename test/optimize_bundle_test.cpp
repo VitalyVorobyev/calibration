@@ -145,8 +145,8 @@ TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
                                      {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
 
     std::vector<BundleObservation> observations;
-    for (int i = 0; i < 5; ++i) {
-        double angle = i * std::numbers::pi/5.0;
+    for (int i = 0; i < 8; ++i) {
+        double angle = i * std::numbers::pi/4.0;
         Eigen::Affine3d b_T_g = Eigen::Affine3d::Identity();
         b_T_g.translation() = Eigen::Vector3d(0.1*std::cos(angle),0.1*std::sin(angle),0.3+0.05*i);
         Eigen::Matrix3d rot = Eigen::AngleAxisd(0.1*i, Eigen::Vector3d(std::cos(angle),std::sin(angle),0.5).normalized()).toRotationMatrix();
@@ -175,7 +175,7 @@ TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
     std::vector<Camera<DualDistortion>> cams{cam0, cam1};
     Eigen::Affine3d init_g_T_c1 = g_T_c1;
     init_g_T_c1.translation() += Eigen::Vector3d(0.01,-0.01,0.0);
-    init_g_T_c1.linear() = Eigen::AngleAxisd(0.09, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    init_g_T_c1.linear() = g_T_c1.linear() * Eigen::AngleAxisd(0.01, Eigen::Vector3d::UnitZ()).toRotationMatrix();
 
     Eigen::Affine3d init_g_T_c0 = g_T_c0;
     init_g_T_c0.translation() += Eigen::Vector3d(-0.01,0.02,-0.02);
@@ -186,6 +186,11 @@ TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
     opts.optimize_hand_eye=true;
 
     auto res = optimize_bundle(observations, cams, {init_g_T_c0, init_g_T_c1}, b_T_t, opts);
+
+    std::cout << "True g_T_c0 translation: " << g_T_c0.translation().transpose() << std::endl;
+    std::cout << "Result g_T_c0 translation: " << res.g_T_c[0].translation().transpose() << std::endl;
+    std::cout << "True g_T_c1 translation: " << g_T_c1.translation().transpose() << std::endl;
+    std::cout << "Result g_T_c1 translation: " << res.g_T_c[1].translation().transpose() << std::endl;
 
     EXPECT_LT((res.g_T_c[0].translation() - g_T_c0.translation()).norm(),1e-3);
     Eigen::AngleAxisd diff(res.g_T_c[0].linear() * g_T_c0.linear().transpose());
