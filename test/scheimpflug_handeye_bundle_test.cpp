@@ -27,10 +27,10 @@ static Eigen::Affine3d compute_camera_T_target(
 
 TEST(ScheimpflugHandEye, ReprojectionRefinement) {
     CameraMatrix K{ 100.0, 100.0, 64.0, 48.0 };
-    Camera cam(K, Eigen::VectorXd::Zero(5));
+    Camera<DualDistortion> cam(K, Eigen::VectorXd::Zero(5));
     const double taux = 0.02;
     const double tauy = -0.015;
-    ScheimpflugCamera sc(cam, taux, tauy);
+    ScheimpflugCamera<DualDistortion> sc(cam, taux, tauy);
 
     Eigen::Affine3d g_T_c = Eigen::Affine3d::Identity();
     g_T_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
@@ -90,10 +90,10 @@ TEST(ScheimpflugHandEye, ReprojectionRefinement) {
 
 TEST(ScheimpflugBundle, SingleCamera) {
     CameraMatrix K{100.0, 100.0, 64.0, 48.0};
-    Camera cam(K, Eigen::VectorXd::Zero(5));
+    Camera<DualDistortion> cam(K, Eigen::VectorXd::Zero(5));
     const double taux = 0.02;
     const double tauy = -0.015;
-    ScheimpflugCamera sc(cam, taux, tauy);
+    ScheimpflugCamera<DualDistortion> sc(cam, taux, tauy);
 
     Eigen::Affine3d g_T_c = Eigen::Affine3d::Identity();
     g_T_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
@@ -117,7 +117,7 @@ TEST(ScheimpflugBundle, SingleCamera) {
         }
         observations.push_back({make_view(obj,img), btg, 0});
     }
-    std::vector<ScheimpflugCamera> cams{sc};
+    std::vector<ScheimpflugCamera<DualDistortion>> cams{sc};
     Eigen::Affine3d init_g_T_c = g_T_c;
     init_g_T_c.translation() += Eigen::Vector3d(0.01,-0.01,0.02);
 

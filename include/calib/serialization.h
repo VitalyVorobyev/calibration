@@ -107,11 +107,13 @@ inline void from_json(const nlohmann::json& j, DualDistortion& d) {
     if (j.contains("inverse")) d.inverse = json_to_eigen_vector(j.at("inverse"));
 }
 
-inline void to_json(nlohmann::json& j, const Camera& cam) {
+template<DistortionModel DistortionT>
+inline void to_json(nlohmann::json& j, const Camera<DistortionT>& cam) {
     j = {{"K", cam.K}, {"distortion", cam.distortion}};
 }
 
-inline void from_json(const nlohmann::json& j, Camera& cam) {
+template<DistortionModel DistortionT>
+inline void from_json(const nlohmann::json& j, Camera<DistortionT>& cam) {
     j.at("K").get_to(cam.K);
     if (j.contains("distortion")) j.at("distortion").get_to(cam.distortion);
 }
@@ -218,7 +220,7 @@ inline void from_json(const nlohmann::json& j, IntrinsicsInput& in) {
 }
 
 struct ExtrinsicsInput final {
-    std::vector<Camera> cameras;
+    std::vector<Camera<DualDistortion>> cameras;
     std::vector<ExtrinsicPlanarView> views;
 };
 
@@ -262,7 +264,7 @@ inline void from_json(const nlohmann::json& j, HandEyeInput& in) {
 
 struct BundleInput final {
     std::vector<BundleObservation> observations;
-    std::vector<Camera> initial_cameras;
+    std::vector<Camera<DualDistortion>> initial_cameras;
     std::vector<Eigen::Affine3d> init_g_T_c;
     Eigen::Affine3d init_b_T_t = Eigen::Affine3d::Identity();
     BundleOptions options;
@@ -377,7 +379,7 @@ inline void to_json(nlohmann::json& j, const BundleResult& r) {
 
 inline void from_json(const nlohmann::json& j, BundleResult& r) {
     r.cameras.clear();
-    for (const auto& jc : j.at("cameras")) r.cameras.push_back(jc.get<Camera>());
+    for (const auto& jc : j.at("cameras")) r.cameras.push_back(jc.get<Camera<DualDistortion>>());
     r.g_T_c.clear();
     for (const auto& jt : j.at("g_T_c")) r.g_T_c.push_back(json_to_affine(jt));
     r.b_T_t = json_to_affine(j.at("b_T_t"));

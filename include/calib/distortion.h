@@ -10,7 +10,15 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
+#include <concepts>
+
 namespace calib {
+
+template<typename D>
+concept DistortionModel = requires(const D& d, const Eigen::Matrix<typename D::Scalar,2,1>& p) {
+    { d.template distort<typename D::Scalar>(p) } -> std::same_as<Eigen::Matrix<typename D::Scalar,2,1>>;
+    { d.template undistort<typename D::Scalar>(p) } -> std::same_as<Eigen::Matrix<typename D::Scalar,2,1>>;
+};
 
 template<typename T>
 struct Observation final {
@@ -68,25 +76,50 @@ struct DistortionWithResiduals final {
     Eigen::Matrix<T, Eigen::Dynamic, 1> residuals;
 };
 
-struct DualDistortion final {
-    Eigen::VectorXd forward;  ///< Coefficients for distortion
-    Eigen::VectorXd inverse;  ///< Coefficients for undistortion
+template<typename Scalar_>
+struct BrownConrady final {
+    using Scalar = Scalar_;
+    Eigen::Matrix<Scalar, Eigen::Dynamic,1> coeffs;
 
-    DualDistortion() = default;
-    explicit DualDistortion(const Eigen::VectorXd& coeffs);
+    BrownConrady() = default;
+    template<typename Derived>
+    explicit BrownConrady(const Eigen::MatrixBase<Derived>& c) : coeffs(c) {}
 
     template<typename T>
     Eigen::Matrix<T,2,1> distort(const Eigen::Matrix<T,2,1>& norm_xy) const {
-        Eigen::Matrix<T,Eigen::Dynamic,1> coeffs = forward.template cast<T>();
-        return apply_distortion(norm_xy, coeffs);
+        return apply_distortion(norm_xy, coeffs.template cast<T>());
     }
 
     template<typename T>
     Eigen::Matrix<T,2,1> undistort(const Eigen::Matrix<T,2,1>& dist_xy) const {
-        Eigen::Matrix<T,Eigen::Dynamic,1> coeffs = inverse.template cast<T>();
-        return apply_distortion(dist_xy, coeffs);
+        return calib::undistort(dist_xy, coeffs.template cast<T>());
     }
 };
+
+template<typename Scalar_>
+struct DualBrownConrady final {
+    using Scalar = Scalar_;
+    Eigen::Matrix<Scalar,Eigen::Dynamic,1> forward;  ///< Coefficients for distortion
+    Eigen::Matrix<Scalar,Eigen::Dynamic,1> inverse;  ///< Coefficients for undistortion
+
+    DualBrownConrady() = default;
+
+    template<typename Derived>
+    explicit DualBrownConrady(const Eigen::MatrixBase<Derived>& coeffs)
+        : forward(coeffs), inverse(coeffs) {}
+
+    template<typename T>
+    Eigen::Matrix<T,2,1> distort(const Eigen::Matrix<T,2,1>& norm_xy) const {
+        return apply_distortion(norm_xy, forward.template cast<T>());
+    }
+
+    template<typename T>
+    Eigen::Matrix<T,2,1> undistort(const Eigen::Matrix<T,2,1>& dist_xy) const {
+        return apply_distortion(dist_xy, inverse.template cast<T>());
+    }
+};
+
+using DualDistortion = DualBrownConrady<double>;
 
 struct DualDistortionWithResiduals final {
     DualDistortion distortion;
@@ -165,7 +198,7 @@ std::optional<DistortionWithResiduals<T>> fit_distortion(
     return fit_distortion_full(obs, fx, fy, cx, cy, num_radial);
 }
 
-inline DualDistortion::DualDistortion(const Eigen::VectorXd& coeffs) {
+inline DualBrownConrady<double>::DualBrownConrady(const Eigen::VectorXd& coeffs) {
     if (coeffs.size() >= 2) {
         forward = coeffs;
     } else {

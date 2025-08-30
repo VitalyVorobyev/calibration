@@ -35,7 +35,7 @@ struct BundleOptions final {
 
 /** Result returned by hand-eye calibration. */
 struct BundleResult final {
-    std::vector<Camera> cameras;               ///< Estimated camera parameters per camera
+    std::vector<Camera<DualDistortion>> cameras;               ///< Estimated camera parameters per camera
     std::vector<Eigen::Affine3d> g_T_c;        ///< Estimated camera->gripper extrinsics
     Eigen::Affine3d b_T_t;                     ///< Pose of target in base frame
     double reprojection_error = 0.0;           ///< RMSE of reprojection
@@ -44,7 +44,7 @@ struct BundleResult final {
 };
 
 struct ScheimpflugBundleResult final {
-    std::vector<ScheimpflugCamera> cameras;   ///< Estimated cameras with tilt
+    std::vector<ScheimpflugCamera<DualDistortion>> cameras;   ///< Estimated cameras with tilt
     std::vector<Eigen::Affine3d> g_T_c;       ///< Estimated camera->gripper extrinsics
     Eigen::Affine3d b_T_t;                    ///< Pose of target in base frame
     double reprojection_error = 0.0;          ///< RMSE of reprojection
@@ -65,14 +65,14 @@ struct ScheimpflugBundleResult final {
  */
 BundleResult optimize_bundle(
     const std::vector<BundleObservation>& observations,
-    const std::vector<Camera>& initial_cameras,
+    const std::vector<Camera<DualDistortion>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& init_g_T_c,
     const Eigen::Affine3d& init_b_T_t,
     const BundleOptions& opts = {});
 
 ScheimpflugBundleResult optimize_bundle_scheimpflug(
     const std::vector<BundleObservation>& observations,
-    const std::vector<ScheimpflugCamera>& initial_cameras,
+    const std::vector<ScheimpflugCamera<DualDistortion>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& init_g_T_c,
     const Eigen::Affine3d& init_b_T_t,
     const BundleOptions& opts = {});
