@@ -1,0 +1,9 @@
+set(TARGET calib_app)
+add_executable(${TARGET} main.cpp)
+target_link_libraries(${TARGET} PRIVATE calibration CLI11::CLI11)
+
+install(TARGETS ${TARGET}
+    EXPORT calibrationTargets
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
