@@ -31,11 +31,11 @@ struct InitialExtrinsicGuess final {
 
 InitialExtrinsicGuess make_initial_extrinsic_guess(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras);
+    const std::vector<Camera<DualDistortion>>& cameras);
 
 ExtrinsicOptimizationResult optimize_extrinsic_poses(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras,
+    const std::vector<Camera<DualDistortion>>& cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
     bool verbose = false);

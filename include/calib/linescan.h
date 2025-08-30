@@ -42,6 +42,6 @@ struct LineScanCalibrationResult final {
  */
 LineScanCalibrationResult calibrate_laser_plane(
     const std::vector<LineScanObservation>& views,
-    const Camera& camera);
+    const Camera<DualDistortion>& camera);
 
 }  // namespace calib

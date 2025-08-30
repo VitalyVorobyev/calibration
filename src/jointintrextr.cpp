@@ -45,7 +45,7 @@ struct JointResidual {
 
 static void setup_joint_problem(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& initial_cameras,
+    const std::vector<Camera<DualDistortion>>& initial_cameras,
     std::vector<std::array<double, 4>>& intr,
     std::vector<Pose6>& cam_poses,
     std::vector<Pose6>& targ_poses,
@@ -111,7 +111,7 @@ static void extract_joint_solution(
 
 static std::pair<double, size_t> compute_joint_residual_stats(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras,
+    const std::vector<Camera<DualDistortion>>& cameras,
     JointOptimizationResult& result
 ) {
     const size_t num_views = views.size();
@@ -225,7 +225,7 @@ static void initialize_pose_vectors(const std::vector<Eigen::Affine3d>& initial_
 // Joint optimization of camera intrinsics, extrinsic poses and target poses
 JointOptimizationResult optimize_joint_intrinsics_extrinsics(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& initial_cameras,
+    const std::vector<Camera<DualDistortion>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
     bool verbose

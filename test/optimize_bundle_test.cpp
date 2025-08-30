@@ -28,7 +28,7 @@ static Eigen::Affine3d compute_camera_T_target(
 
 TEST(OptimizeBundle, SingleCameraHandEye) {
     CameraMatrix K{100.0,100.0,64.0,48.0};
-    Camera cam(K, Eigen::VectorXd::Zero(5));
+    Camera<DualDistortion> cam(K, Eigen::VectorXd::Zero(5));
 
     Eigen::Affine3d g_T_c = Eigen::Affine3d::Identity();
     g_T_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
@@ -59,7 +59,7 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
         observations.push_back({make_view(obj,img), b_T_g, 0});
     }
 
-    std::vector<Camera> cams{cam};
+    std::vector<Camera<DualDistortion>> cams{cam};
     Eigen::Affine3d init_g_T_c = g_T_c;
     init_g_T_c.translation() += Eigen::Vector3d(0.01,-0.01,0.02);
 
@@ -78,7 +78,7 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
 
 TEST(OptimizeBundle, SingleCameraTargetPose) {
     CameraMatrix K{100.0,100.0,64.0,48.0};
-    Camera cam(K, Eigen::VectorXd::Zero(5));
+    Camera<DualDistortion> cam(K, Eigen::VectorXd::Zero(5));
     Eigen::Affine3d g_T_c = Eigen::Affine3d::Identity();
     g_T_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
     g_T_c.translation() = Eigen::Vector3d(0.1,0.0,0.05);
@@ -107,7 +107,7 @@ TEST(OptimizeBundle, SingleCameraTargetPose) {
         observations.push_back({make_view(obj,img), b_T_g,0});
     }
 
-    std::vector<Camera> cams{cam};
+    std::vector<Camera<DualDistortion>> cams{cam};
     Eigen::Affine3d init_b_T_t = b_T_t;
     init_b_T_t.translation() += Eigen::Vector3d(0.01,-0.02,0.03);
 
@@ -125,8 +125,8 @@ TEST(OptimizeBundle, SingleCameraTargetPose) {
 
 TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
     CameraMatrix K{100.0, 100.0, 64.0, 48.0};
-    Camera cam0(K, Eigen::VectorXd::Zero(5));
-    Camera cam1(K, Eigen::VectorXd::Zero(5));
+    Camera<DualDistortion> cam0(K, Eigen::VectorXd::Zero(5));
+    Camera<DualDistortion> cam1(K, Eigen::VectorXd::Zero(5));
 
     Eigen::Affine3d g_T_c0 = Eigen::Affine3d::Identity();
     g_T_c0.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
@@ -172,7 +172,7 @@ TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
         observations.push_back({make_view(obj,img1_vec), b_T_g,1});
     }
 
-    std::vector<Camera> cams{cam0, cam1};
+    std::vector<Camera<DualDistortion>> cams{cam0, cam1};
     Eigen::Affine3d init_g_T_c1 = g_T_c1;
     init_g_T_c1.translation() += Eigen::Vector3d(0.01,-0.01,0.0);
     init_g_T_c1.linear() = Eigen::AngleAxisd(0.09, Eigen::Vector3d::UnitZ()).toRotationMatrix();

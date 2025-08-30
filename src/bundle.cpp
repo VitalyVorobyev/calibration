@@ -39,7 +39,7 @@ struct ScheimpflugBundleBlocks final {
 };
 
 static BundleParamBlocks initialize_blocks(
-    const std::vector<Camera>& initial_cameras,
+    const std::vector<Camera<DualDistortion>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& g_T_c,
     const Eigen::Affine3d& b_T_t
 ) {
@@ -78,7 +78,7 @@ static BundleParamBlocks initialize_blocks(
 }
 
 static ScheimpflugBundleBlocks initialize_blocks_scheimpflug(
-    const std::vector<ScheimpflugCamera>& initial_cameras,
+    const std::vector<ScheimpflugCamera<DualDistortion>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& g_T_c,
     const Eigen::Affine3d& b_T_t)
 {
@@ -210,7 +210,7 @@ static void recover_parameters(
         CameraMatrix K{i[0], i[1], i[2], i[3]};
         Eigen::VectorXd dist(5);
         dist << i[4], i[5], i[6], i[7], i[8];
-        result.cameras[c] = Camera(K, dist);
+        result.cameras[c] = Camera<DualDistortion>(K, dist);
     }
 }
 
@@ -227,8 +227,8 @@ static void recover_parameters(const ScheimpflugBundleBlocks& blocks,
         CameraMatrix K{ i[0], i[1], i[2], i[3] };
         Eigen::VectorXd dist(5);
         dist << i[6], i[7], i[8], i[9], i[10];
-        Camera cam(K, dist);
-        result.cameras[c] = ScheimpflugCamera(cam, i[4], i[5]);
+        Camera<DualDistortion> cam(K, dist);
+        result.cameras[c] = ScheimpflugCamera<DualDistortion>(cam, i[4], i[5]);
     }
 }
 
@@ -352,7 +352,7 @@ static std::string solve_problem(ceres::Problem &p, bool verbose) {
 
 BundleResult optimize_bundle(
     const std::vector<BundleObservation>& observations,
-    const std::vector<Camera>& initial_cameras,
+    const std::vector<Camera<DualDistortion>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& init_g_T_c,
     const Eigen::Affine3d& init_b_T_t,
     const BundleOptions& opts
@@ -379,7 +379,7 @@ BundleResult optimize_bundle(
 
 ScheimpflugBundleResult optimize_bundle_scheimpflug(
     const std::vector<BundleObservation>& observations,
-    const std::vector<ScheimpflugCamera>& initial_cameras,
+    const std::vector<ScheimpflugCamera<DualDistortion>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& init_g_T_c,
     const Eigen::Affine3d& init_b_T_t,
     const BundleOptions& opts)

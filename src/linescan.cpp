@@ -74,7 +74,7 @@ static void validate_observations(const std::vector<LineScanObservation>& views)
 // Processes a single view to extract 3D points
 static std::vector<Vec3> process_view(
     const LineScanObservation& view,
-    const Camera& camera) {
+    const Camera<DualDistortion>& camera) {
 
     std::vector<Vec3> points;
 
@@ -196,7 +196,7 @@ static Mat3 build_plane_homography(const Eigen::Vector4d& plane) {
 
 LineScanCalibrationResult calibrate_laser_plane(
     const std::vector<LineScanObservation>& views,
-    const Camera& camera) {
+    const Camera<DualDistortion>& camera) {
 
     // Validate input observations
     validate_observations(views);
