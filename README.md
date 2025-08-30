@@ -103,7 +103,7 @@ Example for hand‑eye calibration:
 
 ```cpp
 #include <calibration/handeye.h>
-using namespace vitavision;
+using namespace calib;
 
 std::vector<HandEyeObservation> observations = ...; // fill with data
 std::vector<CameraMatrix> intrinsics = ...;         // initial intrinsics

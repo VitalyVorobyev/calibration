@@ -7,9 +7,9 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calibration/camera.h"
+#include "calib/camera.h"
 
-namespace vitavision {
+namespace calib {
 
 /**
  * @brief Camera model with a tilted sensor plane (Scheimpflug configuration).
@@ -84,4 +84,4 @@ struct ScheimpflugCamera final {
     }
 };
 
-} // namespace vitavision
+} // namespace calib

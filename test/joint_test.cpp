@@ -2,9 +2,9 @@
 
 #include <Eigen/Geometry>
 
-#include "calibration/jointintrextr.h"
+#include "calib/jointintrextr.h"
 
-using namespace vitavision;
+using namespace calib;
 
 TEST(JointCalibration, RecoverAllParameters) {
     const int kCams = 2;

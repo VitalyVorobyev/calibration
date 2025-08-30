@@ -7,7 +7,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-namespace vitavision {
+namespace calib {
 
 struct CameraMatrix final {
     double fx, fy, cx, cy;
@@ -62,4 +62,4 @@ struct CalibrationBounds final {
     double cy_max = 720.0;
 };
 
-} // namespace vitavision
+} // namespace calib

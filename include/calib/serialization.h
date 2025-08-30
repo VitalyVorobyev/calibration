@@ -4,16 +4,16 @@
 #include <Eigen/Geometry>
 #include <vector>
 
-#include "calibration/cameramatrix.h"
-#include "calibration/distortion.h"
-#include "calibration/camera.h"
-#include "calibration/planarpose.h"
-#include "calibration/intrinsics.h"
-#include "calibration/extrinsics.h"
-#include "calibration/handeye.h"
-#include "calibration/bundle.h"
+#include "calib/cameramatrix.h"
+#include "calib/distortion.h"
+#include "calib/camera.h"
+#include "calib/planarpose.h"
+#include "calib/intrinsics.h"
+#include "calib/extrinsics.h"
+#include "calib/handeye.h"
+#include "calib/bundle.h"
 
-namespace vitavision {
+namespace calib {
 
 // ----- Helpers for Eigen types -----
 
@@ -393,5 +393,5 @@ inline void from_json(const nlohmann::json& j, BundleResult& r) {
     r.report = j.value("summary", std::string{});
 }
 
-} // namespace vitavision
+} // namespace calib
 

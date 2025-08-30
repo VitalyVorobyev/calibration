@@ -1,4 +1,4 @@
-#include "calibration/linescan.h"
+#include "calib/linescan.h"
 
 // std
 #include <numeric>
@@ -8,11 +8,11 @@
 // ceres
 #include <ceres/ceres.h>
 
-#include "calibration/homography.h"
-#include "calibration/planarpose.h"
-#include "calibration/distortion.h"
+#include "calib/homography.h"
+#include "calib/planarpose.h"
+#include "calib/distortion.h"
 
-namespace vitavision {
+namespace calib {
 
 using Vec2 = Eigen::Vector2d;
 using Vec3 = Eigen::Vector3d;
@@ -222,4 +222,4 @@ LineScanCalibrationResult calibrate_laser_plane(
     return result;
 }
 
-}  // namespace vitavision
+}  // namespace calib

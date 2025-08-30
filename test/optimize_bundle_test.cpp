@@ -4,9 +4,9 @@
 #include <numbers>
 #include <cmath>
 
-#include "calibration/bundle.h"
+#include "calib/bundle.h"
 
-using namespace vitavision;
+using namespace calib;
 
 static PlanarView make_view(const std::vector<Eigen::Vector2d>& obj,
                             const std::vector<Eigen::Vector2d>& img) {

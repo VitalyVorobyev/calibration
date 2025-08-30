@@ -3,10 +3,10 @@
 #include <fstream>
 #include <iostream>
 
-#include "calibration/serialization.h"
+#include "calib/serialization.h"
 #include "config.h"
 
-using namespace vitavision;
+using namespace calib;
 
 int main(int argc, char** argv) {
     CLI::App app{"Calibration app"};

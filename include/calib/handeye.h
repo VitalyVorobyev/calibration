@@ -8,9 +8,9 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calibration/planarpose.h"
+#include "calib/planarpose.h"
 
-namespace vitavision {
+namespace calib {
 
 Eigen::Affine3d estimate_hand_eye_tsai_lenz_allpairs_weighted(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
@@ -83,4 +83,4 @@ HandEyeReprojectionResult refine_hand_eye_reprojection_scheimpflug(
     const ReprojRefineOptions& options
 );
 
-}  // namespace vitavision
+}  // namespace calib

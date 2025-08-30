@@ -5,23 +5,21 @@
 // ceres
 #include <ceres/ceres.h>
 
-#include "calibration/planarpose.h"
+#include "calib/planarpose.h"
 
 #include "observationutils.h"
 
-namespace vitavision {
+namespace calib {
 
 // Computes target -> camera transform
 template<typename T>
 static std::pair<Eigen::Matrix<T, 3, 3>, Eigen::Matrix<T, 3, 1>> get_camera_T_target(
     const Eigen::Matrix<T, 3, 3>& b_R_t, const Eigen::Matrix<T, 3, 1>& b_t_t,
-    const Eigen::Matrix<T, 3, 3>& g_R_r, const Eigen::Matrix<T, 3, 1>& g_t_r,
-    const Eigen::Matrix<T, 3, 3>& c_R_r, const Eigen::Matrix<T, 3, 1>& c_t_r,
+    const Eigen::Matrix<T, 3, 3>& g_R_c, const Eigen::Matrix<T, 3, 1>& g_t_c,
     const Eigen::Matrix<T, 3, 3>& b_R_g, const Eigen::Matrix<T, 3, 1>& b_t_g
 ) {
-    auto [r_R_g, r_t_g] = invert_transform(g_R_r, g_t_r);       // r_T_g -> g_T_r
-    auto [c_R_g, c_t_g] = product(c_R_r, c_t_r, r_R_g, r_t_g);  // c_T_g = c_T_r * r_T_g
-    auto [g_R_b, g_t_b] = invert_transform(b_R_g, b_t_g);       // g_T_b
+    auto [c_R_g, c_t_g] = invert_transform(g_R_c, g_t_c);       // g_T_c -> c_T_g
+    auto [g_R_b, g_t_b] = invert_transform(b_R_g, b_t_g);       // b_T_g -> g_T_b
     auto [c_R_b, c_t_b] = product(c_R_g, c_t_g, g_R_b, g_t_b);  // c_T_b = c_T_g * g_T_b
     auto [c_R_t, c_t_t] = product(c_R_b, c_t_b, b_R_t, b_t_t);  // c_T_t = c_T_b * b_T_t
     return {c_R_t, c_t_t};
@@ -29,20 +27,17 @@ static std::pair<Eigen::Matrix<T, 3, 3>, Eigen::Matrix<T, 3, 1>> get_camera_T_ta
 
 static Eigen::Affine3d get_camera_T_target(
     const Eigen::Affine3d& b_T_t,
-    const Eigen::Affine3d& g_T_r,
-    const Eigen::Affine3d& c_T_r,
+    const Eigen::Affine3d& g_T_c,
     const Eigen::Affine3d& b_T_g
 ) {
-    auto c_T_g = c_T_r * g_T_r.inverse();
-    auto c_T_b = c_T_g * b_T_g.inverse();
-    auto c_T_t = c_T_b * b_T_t;
+    auto c_T_t = g_T_c.inverse() * b_T_g.inverse() * b_T_t;
     return c_T_t;
 }
 
-struct HandEyeReprojResidual final {
+struct BundleReprojResidual final {
     PlanarView view;
     Eigen::Affine3d base_to_gripper;
-    HandEyeReprojResidual(PlanarView v, const Eigen::Affine3d& base_T_gripper)
+    BundleReprojResidual(PlanarView v, const Eigen::Affine3d& base_T_gripper)
         : view(std::move(v)), base_to_gripper(base_T_gripper) {}
 
     template <typename T>
@@ -74,20 +69,44 @@ struct HandEyeReprojResidual final {
     }
 
     static auto* create(PlanarView v, const Eigen::Affine3d& base_T_gripper) {
-        auto functor = new HandEyeReprojResidual(v, base_T_gripper);
+        auto functor = new BundleReprojResidual(v, base_T_gripper);
         auto* cost = new ceres::AutoDiffCostFunction<
-            HandEyeReprojResidual, ceres::DYNAMIC, 4,3,4,3,4,3,9>(
+            BundleReprojResidual, ceres::DYNAMIC, 4,3,4,3,4,3,9>(
                 functor, static_cast<int>(v.size()) * 2);
         return cost;
     }
 };
 
-struct HandEyeScheimpflugReprojResidual final {
+struct BundleScheimpflugReprojResidual final {
     PlanarView view;
     Eigen::Affine3d base_to_gripper;
-    HandEyeScheimpflugReprojResidual(PlanarView v, const Eigen::Affine3d& base_T_gripper)
+    BundleScheimpflugReprojResidual(PlanarView v, const Eigen::Affine3d& base_T_gripper)
         : view(std::move(v)), base_to_gripper(base_T_gripper) {}
 
+    /**
+     * @brief Functor to compute residuals for bundle adjustment.
+     *
+     * This operator computes the residuals for a bundle adjustment problem
+     * by projecting 3D points onto the image plane using the provided camera
+     * and transformation parameters.
+     *
+     * @tparam T The scalar type, typically `double` or ceres::Jet.
+     * @param b_q_t Quaternion representing the rotation from the target to the base.
+     * @param b_t_t Translation vector from the target to the base.
+     * @param g_q_r Quaternion representing the rotation from the reference to the gripper.
+     * @param g_t_r Translation vector from the reference to the gripper.
+     * @param c_q_r Quaternion representing the rotation from the reference to the camera.
+     * @param c_t_r Translation vector from the reference to the camera.
+     * @param intrinsics Camera intrinsics array.
+     * @param residuals Output array to store the computed residuals.
+     * @return true Always returns true.
+     *
+     * This function uses the provided transformations to compute the pose of the
+     * camera relative to the target. It then projects 3D points from the target
+     * frame into the image plane using the camera intrinsics and computes the
+     * residuals as the difference between the projected points and the observed
+     * image points.
+     */
     template <typename T>
     bool operator()(const T* b_q_t, const T* b_t_t,
                     const T* g_q_r, const T* g_t_r,
@@ -114,12 +133,12 @@ struct HandEyeScheimpflugReprojResidual final {
     }
 
     static auto* create(PlanarView v, const Eigen::Affine3d& base_T_gripper) {
-        auto functor = new HandEyeScheimpflugReprojResidual(v, base_T_gripper);
+        auto functor = new BundleScheimpflugReprojResidual(v, base_T_gripper);
         auto* cost = new ceres::AutoDiffCostFunction<
-            HandEyeScheimpflugReprojResidual, ceres::DYNAMIC, 4,3,4,3,4,3,11>(
+            BundleScheimpflugReprojResidual, ceres::DYNAMIC, 4,3,4,3,4,3,11>(
                 functor, static_cast<int>(v.size()) * 2);
         return cost;
     }
 };
 
-}  // namespace vitavision
+}  // namespace calib

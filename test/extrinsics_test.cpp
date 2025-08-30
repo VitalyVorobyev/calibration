@@ -2,9 +2,9 @@
 
 #include <Eigen/Geometry>
 
-#include "calibration/extrinsics.h"
+#include "calib/extrinsics.h"
 
-using namespace vitavision;
+using namespace calib;
 
 TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     const int kCams = 2;

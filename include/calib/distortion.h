@@ -10,7 +10,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-namespace vitavision {
+namespace calib {
 
 template<typename T>
 struct Observation final {
@@ -228,4 +228,4 @@ inline std::optional<DualDistortionWithResiduals> fit_distortion_dual(
     return out;
 }
 
-}  // namespace vitavision
+}  // namespace calib

@@ -5,9 +5,9 @@
 // ceres
 #include "ceres/rotation.h"
 
-#include "calibration/planarpose.h"
+#include "calib/planarpose.h"
 
-namespace vitavision {
+namespace calib {
 
 // templated for autodiff
 template<typename T>
@@ -114,9 +114,17 @@ void project_scheimpflug_with_intrinsics(const T& Xc, const T& Yc, const T& Zc,
                                          const T* intr, bool use_distort,
                                          T& u, T& v)
 {
-    const T fx = intr[0], fy = intr[1], cx = intr[2], cy = intr[3];
-    const T k1 = intr[4], k2 = intr[5], p1 = intr[6], p2 = intr[7], k3 = intr[8];
-    const T tx = intr[9], ty = intr[10];
+    const T fx = intr[0];
+    const T fy = intr[1];
+    const T cx = intr[2];
+    const T cy = intr[3];
+    const T tx = intr[4];
+    const T ty = intr[5];
+    const T k1 = intr[6];
+    const T k2 = intr[7];
+    const T p1 = intr[8];
+    const T p2 = intr[9];
+    const T k3 = intr[10];
 
     const T ctx = ceres::cos(tx);
     const T stx = ceres::sin(tx);
@@ -318,4 +326,4 @@ Observation<T> to_observation(const PlanarObservation& obs, const T* pose6) {
     return ob;
 }
 
-}  // namespace vitavision
+}  // namespace calib

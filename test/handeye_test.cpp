@@ -12,9 +12,9 @@
 #include <iostream>
 #include <numbers>
 
-#include "calibration/handeye.h"
+#include "calib/handeye.h"
 
-using namespace vitavision;
+using namespace calib;
 
 static inline double deg2rad(double d) { return d * std::numbers::pi / 180.0; }
 static inline double rad2deg(double r) { return r * 180.0 / std::numbers::pi; }

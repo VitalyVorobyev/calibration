@@ -1,4 +1,4 @@
-#include "calibration/handeye.h"
+#include "calib/handeye.h"
 
 // std
 #include <iostream>
@@ -20,7 +20,7 @@
 #include "observationutils.h"
 #include "handeyeresidual.h"
 
-namespace vitavision {
+namespace calib {
 
 // ---------- motion pair packing ----------
 static std::vector<MotionPair> build_all_pairs(
@@ -428,4 +428,4 @@ HandEyeReprojectionResult refine_hand_eye_reprojection_scheimpflug(
     return result;
 }
 
-}  // namespace vitavision
+}  // namespace calib

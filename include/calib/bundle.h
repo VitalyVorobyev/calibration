@@ -6,11 +6,11 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calibration/camera.h"
-#include "calibration/planarpose.h"  // PlanarObservation
-#include "calibration/scheimpflug.h"
+#include "calib/camera.h"
+#include "calib/planarpose.h"  // PlanarObservation
+#include "calib/scheimpflug.h"
 
-namespace vitavision {
+namespace calib {
 
 /**
  * \brief Single observation used for hand-eye calibration.
@@ -29,16 +29,14 @@ struct BundleObservation final {
 struct BundleOptions final {
     bool optimize_intrinsics = false;  ///< Solve for camera intrinsics
     bool optimize_target_pose = true;  ///< Solve for base->target pose
-    bool optimize_hand_eye = true;     ///< Solve for gripper->camera pose
-    bool optimize_extrinsics = true;   ///< Solve for reference->camera extrinsics
+    bool optimize_hand_eye = true;     ///< Solve for camera->gripper poses
     bool verbose = false;              ///< Verbose solver output
 };
 
 /** Result returned by hand-eye calibration. */
 struct BundleResult final {
     std::vector<Camera> cameras;               ///< Estimated camera parameters per camera
-    Eigen::Affine3d g_T_r;                     ///< Estimated reference camera -> gripper transforms
-    std::vector<Eigen::Affine3d> c_T_r;        ///< Estimated reference->camera extrinsics
+    std::vector<Eigen::Affine3d> g_T_c;        ///< Estimated camera->gripper extrinsics
     Eigen::Affine3d b_T_t;                     ///< Pose of target in base frame
     double reprojection_error = 0.0;           ///< RMSE of reprojection
     Eigen::MatrixXd covariance;                ///< Covariance of pose parameters
@@ -47,8 +45,7 @@ struct BundleResult final {
 
 struct ScheimpflugBundleResult final {
     std::vector<ScheimpflugCamera> cameras;   ///< Estimated cameras with tilt
-    Eigen::Affine3d g_T_r;                    ///< Estimated reference camera -> gripper
-    std::vector<Eigen::Affine3d> c_T_r;       ///< Estimated reference->camera extrinsics
+    std::vector<Eigen::Affine3d> g_T_c;       ///< Estimated camera->gripper extrinsics
     Eigen::Affine3d b_T_t;                    ///< Pose of target in base frame
     double reprojection_error = 0.0;          ///< RMSE of reprojection
     Eigen::MatrixXd covariance;               ///< Covariance of pose parameters
@@ -61,8 +58,7 @@ struct ScheimpflugBundleResult final {
  * intrinsics and the target pose.
  * @param observations Set of observations with robot poses and target detections
  * @param initial_cameras Initial camera parameters
- * @param init_g_T_r Initial estimate of hand-eye transformation
- * @param init_c_T_r Initial estimates of reference camera to camera transformations
+ * @param init_g_T_c Initial estimate of hand-eye transformations
  * @param init_b_T_t Initial estimate of base-to-target transformation
  * @param opts Optimization options
  * @return Calibration result containing optimized parameters and error metrics
@@ -70,17 +66,15 @@ struct ScheimpflugBundleResult final {
 BundleResult optimize_bundle(
     const std::vector<BundleObservation>& observations,
     const std::vector<Camera>& initial_cameras,
-    const Eigen::Affine3d& init_g_T_r,
-    const std::vector<Eigen::Affine3d>& init_c_T_r = {},
-    const Eigen::Affine3d& init_b_T_t = Eigen::Affine3d::Identity(),
+    const std::vector<Eigen::Affine3d>& init_g_T_c,
+    const Eigen::Affine3d& init_b_T_t,
     const BundleOptions& opts = {});
 
 ScheimpflugBundleResult optimize_bundle_scheimpflug(
     const std::vector<BundleObservation>& observations,
     const std::vector<ScheimpflugCamera>& initial_cameras,
-    const Eigen::Affine3d& init_g_T_r,
-    const std::vector<Eigen::Affine3d>& init_c_T_r = {},
-    const Eigen::Affine3d& init_b_T_t = Eigen::Affine3d::Identity(),
+    const std::vector<Eigen::Affine3d>& init_g_T_c,
+    const Eigen::Affine3d& init_b_T_t,
     const BundleOptions& opts = {});
 
-} // namespace vitavision
+}  // namespace calib

@@ -1,4 +1,4 @@
-#include "calibration/jointintrextr.h"
+#include "calib/jointintrextr.h"
 
 // ceres
 #include <ceres/ceres.h>
@@ -6,7 +6,7 @@
 
 #include "observationutils.h"
 
-namespace vitavision {
+namespace calib {
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
@@ -284,4 +284,4 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
     return result;
 }
 
-}  // namespace vitavision
+}  // namespace calib

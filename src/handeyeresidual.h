@@ -9,11 +9,11 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calibration/planarpose.h"
+#include "calib/planarpose.h"
 
 #include "observationutils.h"
 
-namespace vitavision {
+namespace calib {
 
 struct MotionPair final {
     Eigen::Matrix3d RA, RB;
@@ -188,4 +188,4 @@ struct HandEyeViewScheimpflugResidual final {
     }
 };
 
-}  // namespace vitavision
+}  // namespace calib

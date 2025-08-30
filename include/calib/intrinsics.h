@@ -9,11 +9,11 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include "calibration/distortion.h"  // Observation
-#include "calibration/cameramatrix.h"
-#include "calibration/camera.h"
+#include "calib/distortion.h"  // Observation
+#include "calib/cameramatrix.h"
+#include "calib/camera.h"
 
-namespace vitavision {
+namespace calib {
 
 struct IntrinsicOptimizationResult {
     Camera camera;
@@ -56,4 +56,4 @@ IntrinsicOptimizationResult optimize_intrinsics(
     std::optional<CalibrationBounds> bounds = std::nullopt
 );
 
-}  // namespace vitavision
+}  // namespace calib
