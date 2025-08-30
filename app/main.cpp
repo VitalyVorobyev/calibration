@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
             result = r;
         } else if (task == "bundle") {
             BundleInput in = cfg.at("input").get<BundleInput>();
-            auto r = optimize_bundle(in.observations, in.initial_intrinsics, in.init_g_T_r, in.init_c_T_r, in.init_b_T_t, in.options);
+            auto r = optimize_bundle(in.observations, in.initial_cameras, in.init_g_T_r, in.init_c_T_r, in.init_b_T_t, in.options);
             result = r;
         } else {
             std::cerr << "Unknown task: " << task << std::endl;

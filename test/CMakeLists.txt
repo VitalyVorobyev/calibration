@@ -108,6 +108,17 @@ target_link_libraries(json_test
 )
 gtest_discover_tests(json_test)
 
+# Test for bundle optimisation
+add_executable(optimize_bundle_test optimize_bundle_test.cpp)
+target_link_libraries(optimize_bundle_test
+    PRIVATE calibration
+    PRIVATE GTest::gtest_main
+    PRIVATE GTest::gmock_main
+    PRIVATE Eigen3::Eigen
+    PRIVATE Ceres::ceres
+)
+gtest_discover_tests(optimize_bundle_test)
+
 # Test for Scheimpflug camera projection
 add_executable(scheimpflug_test scheimpflug_test.cpp)
 target_link_libraries(scheimpflug_test
