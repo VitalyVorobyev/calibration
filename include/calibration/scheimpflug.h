@@ -1,9 +1,11 @@
 #pragma once
 
+// std
+#include <cmath>
+
 // eigen
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-#include <cmath>
 
 #include "calibration/camera.h"
 
@@ -65,9 +67,9 @@ struct ScheimpflugCamera final {
         T my = bs.dot(Xc) / sden;
 
         // Principal ray intersection with the plane
-        T s0 = ns.z();
-        T mx0 = as.z() / s0;
-        T my0 = bs.z() / s0;
+        const T s0 = ns.z();
+        const T mx0 = as.z() / s0;
+        const T my0 = bs.z() / s0;
 
         // Distortion in plane coordinates
         Eigen::Matrix<T,2,1> dxy(mx - mx0, my - my0);
@@ -83,4 +85,3 @@ struct ScheimpflugCamera final {
 };
 
 } // namespace vitavision
-

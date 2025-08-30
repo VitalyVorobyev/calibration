@@ -95,6 +95,23 @@ public:
     }
 
     /**
+     * @brief Projects a 3D point onto a 2D plane using camera intrinsic parameters.
+     *
+     * This function takes a 3D point in homogeneous coordinates, normalizes it to 2D,
+     * applies distortion to the normalized coordinates, and then denormalizes the
+     * distorted coordinates to obtain the final 2D projection.
+     *
+     * @tparam T The scalar type of the input and output (e.g., float, double).
+     * @param xyz A 3D point in homogeneous coordinates represented as an Eigen::Matrix<T,3,1>.
+     * @return A 2D point in the image plane represented as an Eigen::Matrix<T,2,1>.
+     */
+    template<typename T>
+    Eigen::Matrix<T,2,1> project(const Eigen::Matrix<T,3,1>& xyz) const {
+        Eigen::Matrix<T,2,1> norm_xy = xyz.hnormalized();
+        return denormalize(distort(norm_xy));
+    }
+
+    /**
      * @brief Unprojects a 2D pixel coordinate into an undistorted normalized coordinate.
      *
      * This function takes a 2D pixel coordinate, normalizes it, and then applies
