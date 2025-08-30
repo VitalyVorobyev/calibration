@@ -131,4 +131,61 @@ struct HandEyeViewReprojResidual final {
     }
 };
 
+// ---------- Reprojection residual with Scheimpflug camera ----------
+struct HandEyeViewScheimpflugResidual final {
+    const Eigen::Matrix3d b_R_g_;
+    const Eigen::Vector3d b_t_g_;
+    const PlanarView view_;
+    double sqrt_w_;
+    const bool use_distortion_;
+
+    HandEyeViewScheimpflugResidual(const Eigen::Affine3d& base_T_gripper_k,
+                                   const PlanarView& view,
+                                   double weight = 1.0,
+                                   bool use_dist=false)
+        : b_R_g_(base_T_gripper_k.linear()),
+          b_t_g_(base_T_gripper_k.translation()),
+          view_(view),
+          sqrt_w_(std::sqrt(weight)),
+          use_distortion_(use_dist) {}
+
+    template <typename T>
+    bool operator()(const T* const g_q_c, const T* const g_t_c,
+                    const T* const b_q_t, const T* const b_t_t,
+                    const T* const intr, T* residuals) const {
+        Eigen::Matrix<T,3,3> b_R_g = b_R_g_.cast<T>();
+        Eigen::Matrix<T,3,1> b_t_g_vec = b_t_g_.cast<T>();
+        auto [g_R_b, g_t_b_vec] = invert_transform(b_R_g, b_t_g_vec);
+
+        Eigen::Matrix<T,3,3> g_R_c = quat_array_to_rotmat(g_q_c);
+        Eigen::Matrix<T,3,1> g_t_c_vec(g_t_c[0], g_t_c[1], g_t_c[2]);
+        auto [c_R_g, c_t_g_vec] = invert_transform(g_R_c, g_t_c_vec);
+
+        Eigen::Matrix<T,3,3> b_R_t = quat_array_to_rotmat(b_q_t);
+        Eigen::Matrix<T,3,1> b_t_t_vec(b_t_t[0], b_t_t[1], b_t_t[2]);
+        auto [g_R_t, g_t_t_vec] = product(g_R_b, g_t_b_vec, b_R_t, b_t_t_vec);
+        auto [c_R_t, c_t_t_vec] = product(c_R_g, c_t_g_vec, g_R_t, g_t_t_vec);
+
+        size_t idx = 0; T u_hat, v_hat; const T s = T(sqrt_w_);
+        for (const auto& ob : view_) {
+            Eigen::Matrix<T,3,1> P(T(ob.object_xy.x()), T(ob.object_xy.y()), T(0));
+            P = c_R_t * P + c_t_t_vec;
+            project_scheimpflug_with_intrinsics(P(0), P(1), P(2), intr, use_distortion_, u_hat, v_hat);
+            residuals[idx++] = s * (u_hat - T(ob.image_uv.x()));
+            residuals[idx++] = s * (v_hat - T(ob.image_uv.y()));
+        }
+        return true;
+    }
+
+    static auto create(const Eigen::Affine3d& base_T_gripper_k,
+                       const PlanarView& view,
+                       double weight = 1.0,
+                       bool use_dist=false) {
+        auto functor = new HandEyeViewScheimpflugResidual(base_T_gripper_k, view, weight, use_dist);
+        auto* cost = new ceres::AutoDiffCostFunction<HandEyeViewScheimpflugResidual, ceres::DYNAMIC, 4,3,4,3,11>(
+            functor, static_cast<int>(2 * view.size()));
+        return cost;
+    }
+};
+
 }  // namespace vitavision

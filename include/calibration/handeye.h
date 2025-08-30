@@ -39,6 +39,7 @@ Eigen::Affine3d estimate_and_refine_hand_eye(
 struct Intrinsics final {
     double fx, fy, cx, cy;                 // pinhole
     double k1=0, k2=0, p1=0, p2=0, k3=0;   // Brown 5 distortion
+    double tau_x=0, tau_y=0;               // Scheimpflug tilt angles (rad)
     bool use_distortion = false;
 };
 
@@ -64,6 +65,17 @@ struct HandEyeReprojectionResult final {
  * Refine hand-eye X (= ^gT_c), intrinsics, and ^bT_t by minimizing reprojection error.
  */
 HandEyeReprojectionResult refine_hand_eye_reprojection(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<PlanarView> observables,
+    const Intrinsics& init_intr,
+    const Eigen::Affine3d& init_gripper_T_ref,
+    const ReprojRefineOptions& options
+);
+
+/**
+ * Refine hand-eye, Scheimpflug intrinsics, and ^bT_t by minimizing reprojection error.
+ */
+HandEyeReprojectionResult refine_hand_eye_reprojection_scheimpflug(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
     const std::vector<PlanarView> observables,
     const Intrinsics& init_intr,

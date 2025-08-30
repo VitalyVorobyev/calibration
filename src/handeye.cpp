@@ -193,6 +193,14 @@ struct HandEyeRepParamBlocks final {
     std::array<double, 9> intr9; // fx,fy,cx,cy,k1,k2,p1,p2,k3
 };
 
+struct HandEyeScheimpflugBlocks final {
+    std::array<double,4> qX;
+    std::array<double,3> tX;
+    std::array<double,4> qBt;
+    std::array<double,3> tBt;
+    std::array<double,11> intr11; // fx,fy,cx,cy,k1,k2,p1,p2,k3,tau_x,tau_y
+};
+
 static HandEyeRepParamBlocks init_hand_eye_reprojection_param_blocks(
     const Intrinsics& intr,
     const Eigen::Affine3d& g_T_c,
@@ -217,6 +225,23 @@ static HandEyeRepParamBlocks init_hand_eye_reprojection_param_blocks(
         intr.k1, intr.k2, intr.p1, intr.p2, intr.k3 };
 
     return { qX, tX, qBt, tBt, intr9 };
+}
+
+static HandEyeScheimpflugBlocks init_hand_eye_scheimpflug_param_blocks(
+    const Intrinsics& intr,
+    const Eigen::Affine3d& g_T_c,
+    const PlanarView& view0,
+    const Eigen::Affine3d& b_T_g0)
+{
+    std::array<double,4> qX; std::array<double,3> tX; populate_quat_tran(g_T_c, qX, tX);
+    auto c_T_t0 = estimate_planar_pose_dlt(view0, CameraMatrix{intr.fx, intr.fy, intr.cx, intr.cy});
+    const Eigen::Affine3d b_T_t0 = b_T_g0 * g_T_c * c_T_t0;
+    std::array<double,4> qBt; std::array<double,3> tBt; populate_quat_tran(b_T_t0, qBt, tBt);
+    std::array<double,11> intr11 = {
+        intr.fx,intr.fy,intr.cx,intr.cy,
+        intr.k1,intr.k2,intr.p1,intr.p2,intr.k3,
+        intr.tau_x,intr.tau_y};
+    return {qX,tX,qBt,tBt,intr11};
 }
 
 static ceres::Problem build_hand_eye_reprojection_problem(
@@ -267,6 +292,39 @@ static ceres::Problem build_hand_eye_reprojection_problem(
     return problem;
 }
 
+static ceres::Problem build_hand_eye_scheimpflug_problem(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<PlanarView> observations,
+    const ReprojRefineOptions& options,
+    HandEyeScheimpflugBlocks& blocks)
+{
+    ceres::Problem problem; const size_t nviews = base_T_gripper.size();
+    for (size_t k=0;k<nviews;++k){
+        const auto& b_T_g = base_T_gripper[k];
+        auto* cost = HandEyeViewScheimpflugResidual::create(
+            b_T_g, observations[k], 1.0, options.use_distortion);
+        ceres::LossFunction* loss = options.huber_delta_px > 0
+            ? static_cast<ceres::LossFunction*>(new ceres::HuberLoss(options.huber_delta_px))
+            : nullptr;
+        problem.AddResidualBlock(cost, loss,
+            blocks.qX.data(), blocks.tX.data(),
+            blocks.qBt.data(), blocks.tBt.data(),
+            blocks.intr11.data());
+    }
+    problem.SetManifold(blocks.qX.data(), new ceres::QuaternionManifold());
+    problem.SetManifold(blocks.qBt.data(), new ceres::QuaternionManifold());
+    if (!options.refine_intrinsics){
+        problem.SetParameterBlockConstant(blocks.intr11.data());
+    } else {
+        problem.SetParameterLowerBound(blocks.intr11.data(),0,1e-6);
+        problem.SetParameterLowerBound(blocks.intr11.data(),1,1e-6);
+        if (!options.refine_distortion){
+            problem.SetManifold(blocks.intr11.data(), new ceres::SubsetManifold(11,{4,5,6,7,8}));
+        }
+    }
+    return problem;
+}
+
 std::string solve_hand_eye_reprojection(
     ceres::Problem& problem,
     int max_iterations,
@@ -306,6 +364,22 @@ static HandEyeReprojectionResult compose_results(
     return result;
 }
 
+static HandEyeReprojectionResult compose_results(
+    const HandEyeScheimpflugBlocks& blocks,
+    const std::string report)
+{
+    HandEyeReprojectionResult result; result.report = report;
+    result.g_T_r = restore_pose(blocks.qX, blocks.tX);
+    result.b_T_t = restore_pose(blocks.qBt, blocks.tBt);
+    result.intr.fx = blocks.intr11[0]; result.intr.fy = blocks.intr11[1];
+    result.intr.cx = blocks.intr11[2]; result.intr.cy = blocks.intr11[3];
+    result.intr.k1 = blocks.intr11[4]; result.intr.k2 = blocks.intr11[5];
+    result.intr.p1 = blocks.intr11[6]; result.intr.p2 = blocks.intr11[7];
+    result.intr.k3 = blocks.intr11[8]; result.intr.tau_x = blocks.intr11[9];
+    result.intr.tau_y = blocks.intr11[10];
+    return result;
+}
+
 HandEyeReprojectionResult refine_hand_eye_reprojection(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
     const std::vector<PlanarView> observations,
@@ -329,6 +403,28 @@ HandEyeReprojectionResult refine_hand_eye_reprojection(
     auto result = compose_results(blocks, report);
     result.intr.use_distortion = options.use_distortion;
 
+    return result;
+}
+
+HandEyeReprojectionResult refine_hand_eye_reprojection_scheimpflug(
+    const std::vector<Eigen::Affine3d>& base_T_gripper,
+    const std::vector<PlanarView> observations,
+    const Intrinsics& init_intr,
+    const Eigen::Affine3d& init_gripper_T_ref,
+    const ReprojRefineOptions& options)
+{
+    const size_t nviews = base_T_gripper.size();
+    if (nviews==0) throw std::runtime_error("Empty base_T_gripper");
+    if (observations.size()!=nviews) throw std::runtime_error("image_points size mismatch");
+    for (const auto& obs: observations) if (obs.empty()) throw std::runtime_error("Empty observations");
+
+    HandEyeScheimpflugBlocks blocks = init_hand_eye_scheimpflug_param_blocks(
+        init_intr, init_gripper_T_ref, observations[0], base_T_gripper[0]);
+    ceres::Problem problem = build_hand_eye_scheimpflug_problem(
+        base_T_gripper, observations, options, blocks);
+    const std::string report = solve_hand_eye_reprojection(problem, options.max_iterations, options.verbose);
+    auto result = compose_results(blocks, report);
+    result.intr.use_distortion = options.use_distortion;
     return result;
 }
 

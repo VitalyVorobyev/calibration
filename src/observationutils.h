@@ -108,6 +108,63 @@ void project_with_intrinsics(const T& Xc, const T& Yc, const T& Zc,
     v = fy * yd + cy;
 }
 
+// Project a 3D camera-frame point with Scheimpflug intrinsics
+template<typename T>
+void project_scheimpflug_with_intrinsics(const T& Xc, const T& Yc, const T& Zc,
+                                         const T* intr, bool use_distort,
+                                         T& u, T& v)
+{
+    const T fx = intr[0], fy = intr[1], cx = intr[2], cy = intr[3];
+    const T k1 = intr[4], k2 = intr[5], p1 = intr[6], p2 = intr[7], k3 = intr[8];
+    const T tx = intr[9], ty = intr[10];
+
+    const T ctx = ceres::cos(tx);
+    const T stx = ceres::sin(tx);
+    const T cty = ceres::cos(ty);
+    const T sty = ceres::sin(ty);
+
+    Eigen::Matrix<T,3,3> Rx;
+    Rx << T(1), T(0), T(0),
+          T(0), ctx, -stx,
+          T(0), stx,  ctx;
+    Eigen::Matrix<T,3,3> Ry;
+    Ry << cty, T(0), sty,
+          T(0), T(1), T(0),
+          -sty, T(0), cty;
+    Eigen::Matrix<T,3,3> Rs = Ry * Rx;
+
+    Eigen::Matrix<T,3,1> as = Rs.col(0);
+    Eigen::Matrix<T,3,1> bs = Rs.col(1);
+    Eigen::Matrix<T,3,1> ns = Rs.col(2);
+
+    Eigen::Matrix<T,3,1> X{Xc, Yc, Zc};
+    T sden = ns.dot(X);
+    T mx = as.dot(X) / sden;
+    T my = bs.dot(X) / sden;
+
+    const T s0 = ns.z();
+    const T mx0 = as.z() / s0;
+    const T my0 = bs.z() / s0;
+
+    T dx = mx - mx0;
+    T dy = my - my0;
+    if (use_distort) {
+        const T r2 = dx*dx + dy*dy;
+        const T r4 = r2*r2;
+        const T r6 = r4*r2;
+        const T radial = T(1) + k1*r2 + k2*r4 + k3*r6;
+        const T x_tan = T(2)*p1*dx*dy + p2*(r2 + T(2)*dx*dx);
+        const T y_tan = p1*(r2 + T(2)*dy*dy) + T(2)*p2*dx*dy;
+        dx = radial*dx + x_tan;
+        dy = radial*dy + y_tan;
+    }
+    mx = dx + mx0;
+    my = dy + my0;
+
+    u = fx * mx + cx;
+    v = fy * my + cy;
+}
+
 // ---------- small SO(3) helpers (double) ----------
 inline Eigen::Matrix3d projectToSO3(const Eigen::Matrix3d& R) {
     Eigen::JacobiSVD<Eigen::Matrix3d> svd(R, Eigen::ComputeFullU | Eigen::ComputeFullV);

@@ -128,3 +128,14 @@ target_link_libraries(scheimpflug_test
     PRIVATE Eigen3::Eigen
 )
 gtest_discover_tests(scheimpflug_test)
+
+# Tests for Scheimpflug hand-eye and bundle adjustment
+add_executable(scheimpflug_handeye_bundle_test scheimpflug_handeye_bundle_test.cpp)
+target_link_libraries(scheimpflug_handeye_bundle_test
+    PRIVATE calibration
+    PRIVATE GTest::gtest_main
+    PRIVATE GTest::gmock_main
+    PRIVATE Eigen3::Eigen
+    PRIVATE Ceres::ceres
+)
+gtest_discover_tests(scheimpflug_handeye_bundle_test)

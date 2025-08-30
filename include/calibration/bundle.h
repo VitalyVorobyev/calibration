@@ -8,6 +8,7 @@
 
 #include "calibration/camera.h"
 #include "calibration/planarpose.h"  // PlanarObservation
+#include "calibration/scheimpflug.h"
 
 namespace vitavision {
 
@@ -44,6 +45,16 @@ struct BundleResult final {
     std::string report;                        ///< Ceres summary
 };
 
+struct ScheimpflugBundleResult final {
+    std::vector<ScheimpflugCamera> cameras;   ///< Estimated cameras with tilt
+    Eigen::Affine3d g_T_r;                    ///< Estimated reference camera -> gripper
+    std::vector<Eigen::Affine3d> c_T_r;       ///< Estimated reference->camera extrinsics
+    Eigen::Affine3d b_T_t;                    ///< Pose of target in base frame
+    double reprojection_error = 0.0;          ///< RMSE of reprojection
+    Eigen::MatrixXd covariance;               ///< Covariance of pose parameters
+    std::string report;                       ///< Ceres summary
+};
+
 /**
  * Perform bundle-adjustment style optimisation of the hand-eye calibration
  * problem.  Supports single or multiple cameras and optional optimisation of
@@ -59,6 +70,14 @@ struct BundleResult final {
 BundleResult optimize_bundle(
     const std::vector<BundleObservation>& observations,
     const std::vector<Camera>& initial_cameras,
+    const Eigen::Affine3d& init_g_T_r,
+    const std::vector<Eigen::Affine3d>& init_c_T_r = {},
+    const Eigen::Affine3d& init_b_T_t = Eigen::Affine3d::Identity(),
+    const BundleOptions& opts = {});
+
+ScheimpflugBundleResult optimize_bundle_scheimpflug(
+    const std::vector<BundleObservation>& observations,
+    const std::vector<ScheimpflugCamera>& initial_cameras,
     const Eigen::Affine3d& init_g_T_r,
     const std::vector<Eigen::Affine3d>& init_c_T_r = {},
     const Eigen::Affine3d& init_b_T_t = Eigen::Affine3d::Identity(),
