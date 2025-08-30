@@ -176,7 +176,6 @@ inline void to_json(nlohmann::json& j, const BundleOptions& o) {
         {"optimize_intrinsics", o.optimize_intrinsics},
         {"optimize_target_pose", o.optimize_target_pose},
         {"optimize_hand_eye", o.optimize_hand_eye},
-        {"optimize_extrinsics", o.optimize_extrinsics},
         {"verbose", o.verbose}
     };
 }
@@ -185,7 +184,6 @@ inline void from_json(const nlohmann::json& j, BundleOptions& o) {
     o.optimize_intrinsics = j.value("optimize_intrinsics", false);
     o.optimize_target_pose = j.value("optimize_target_pose", true);
     o.optimize_hand_eye = j.value("optimize_hand_eye", true);
-    o.optimize_extrinsics = j.value("optimize_extrinsics", true);
     o.verbose = j.value("verbose", false);
 }
 
@@ -265,20 +263,18 @@ inline void from_json(const nlohmann::json& j, HandEyeInput& in) {
 struct BundleInput final {
     std::vector<BundleObservation> observations;
     std::vector<Camera> initial_cameras;
-    Eigen::Affine3d init_g_T_r = Eigen::Affine3d::Identity();
-    std::vector<Eigen::Affine3d> init_c_T_r;
+    std::vector<Eigen::Affine3d> init_g_T_c;
     Eigen::Affine3d init_b_T_t = Eigen::Affine3d::Identity();
     BundleOptions options;
 };
 
 inline void to_json(nlohmann::json& j, const BundleInput& in) {
-    nlohmann::json ctr = nlohmann::json::array();
-    for (const auto& T : in.init_c_T_r) ctr.push_back(affine_to_json(T));
+    nlohmann::json gtc = nlohmann::json::array();
+    for (const auto& T : in.init_g_T_c) gtc.push_back(affine_to_json(T));
     j = {
         {"observations", in.observations},
         {"initial_cameras", in.initial_cameras},
-        {"init_g_T_r", affine_to_json(in.init_g_T_r)},
-        {"init_c_T_r", ctr},
+        {"init_g_T_c", gtc},
         {"init_b_T_t", affine_to_json(in.init_b_T_t)},
         {"options", in.options}
     };
@@ -287,10 +283,9 @@ inline void to_json(nlohmann::json& j, const BundleInput& in) {
 inline void from_json(const nlohmann::json& j, BundleInput& in) {
     j.at("observations").get_to(in.observations);
     j.at("initial_cameras").get_to(in.initial_cameras);
-    if (j.contains("init_g_T_r")) in.init_g_T_r = json_to_affine(j.at("init_g_T_r"));
-    in.init_c_T_r.clear();
-    if (j.contains("init_c_T_r"))
-        for (const auto& jt : j.at("init_c_T_r")) in.init_c_T_r.push_back(json_to_affine(jt));
+    in.init_g_T_c.clear();
+    if (j.contains("init_g_T_c"))
+        for (const auto& jt : j.at("init_g_T_c")) in.init_g_T_c.push_back(json_to_affine(jt));
     if (j.contains("init_b_T_t")) in.init_b_T_t = json_to_affine(j.at("init_b_T_t"));
     if (j.contains("options")) j.at("options").get_to(in.options);
 }
@@ -368,12 +363,11 @@ inline void from_json(const nlohmann::json& j, HandEyeReprojectionResult& r) {
 inline void to_json(nlohmann::json& j, const BundleResult& r) {
     nlohmann::json cams = nlohmann::json::array();
     for (const auto& cam : r.cameras) cams.push_back(cam);
-    nlohmann::json ctr = nlohmann::json::array();
-    for (const auto& T : r.c_T_r) ctr.push_back(affine_to_json(T));
+    nlohmann::json gtc = nlohmann::json::array();
+    for (const auto& T : r.g_T_c) gtc.push_back(affine_to_json(T));
     j = {
         {"cameras", cams},
-        {"g_T_r", affine_to_json(r.g_T_r)},
-        {"c_T_r", ctr},
+        {"g_T_c", gtc},
         {"b_T_t", affine_to_json(r.b_T_t)},
         {"reprojection_error", r.reprojection_error},
         {"covariance", eigen_matrix_to_json(r.covariance)},
@@ -384,9 +378,8 @@ inline void to_json(nlohmann::json& j, const BundleResult& r) {
 inline void from_json(const nlohmann::json& j, BundleResult& r) {
     r.cameras.clear();
     for (const auto& jc : j.at("cameras")) r.cameras.push_back(jc.get<Camera>());
-    r.g_T_r = json_to_affine(j.at("g_T_r"));
-    r.c_T_r.clear();
-    for (const auto& jt : j.at("c_T_r")) r.c_T_r.push_back(json_to_affine(jt));
+    r.g_T_c.clear();
+    for (const auto& jt : j.at("g_T_c")) r.g_T_c.push_back(json_to_affine(jt));
     r.b_T_t = json_to_affine(j.at("b_T_t"));
     r.reprojection_error = j.value("reprojection_error", 0.0);
     r.covariance = json_to_eigen_matrix(j.at("covariance"));
@@ -394,4 +387,3 @@ inline void from_json(const nlohmann::json& j, BundleResult& r) {
 }
 
 } // namespace calib
-

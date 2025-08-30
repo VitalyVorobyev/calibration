@@ -40,7 +40,6 @@ struct ScheimpflugBundleBlocks final {
 
 static BundleParamBlocks initialize_blocks(
     const std::vector<Camera>& initial_cameras,
-    const Eigen::Affine3d& g_T_r,
     const std::vector<Eigen::Affine3d>& g_T_c,
     const Eigen::Affine3d& b_T_t
 ) {
@@ -354,8 +353,7 @@ static std::string solve_problem(ceres::Problem &p, bool verbose) {
 BundleResult optimize_bundle(
     const std::vector<BundleObservation>& observations,
     const std::vector<Camera>& initial_cameras,
-    const Eigen::Affine3d& init_g_T_r,
-    const std::vector<Eigen::Affine3d>& init_c_T_r,
+    const std::vector<Eigen::Affine3d>& init_g_T_c,
     const Eigen::Affine3d& init_b_T_t,
     const BundleOptions& opts
 ) {
@@ -365,8 +363,7 @@ BundleResult optimize_bundle(
     };
 
     BundleParamBlocks blocks = initialize_blocks(
-        initial_cameras, init_g_T_r,
-        init_c_T_r, init_b_T_t);
+        initial_cameras, init_g_T_c, init_b_T_t);
 
     ceres::Problem p = build_problem(observations, opts, blocks);
 

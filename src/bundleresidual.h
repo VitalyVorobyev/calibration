@@ -42,16 +42,14 @@ struct BundleReprojResidual final {
 
     template <typename T>
     bool operator()(const T* b_q_t, const T* b_t_t,
-                    const T* g_q_r, const T* g_t_r,
-                    const T* c_q_r, const T* c_t_r,
+                    const T* g_q_c, const T* g_t_c,
                     const T* intrinsics,
                     T* residuals) const {
         const Eigen::Matrix<T, 3, 3> b_R_g = base_to_gripper.linear().template cast<T>();
         const Eigen::Matrix<T, 3, 1> b_t_g = base_to_gripper.translation().template cast<T>();
         const auto [c_R_t, c_t_t] = get_camera_T_target(
             quat_array_to_rotmat(b_q_t), array_to_translation(b_t_t),
-            quat_array_to_rotmat(g_q_r), array_to_translation(g_t_r),
-            quat_array_to_rotmat(c_q_r), array_to_translation(c_t_r),
+            quat_array_to_rotmat(g_q_c), array_to_translation(g_t_c),
             b_R_g, b_t_g
         );
 
@@ -61,6 +59,7 @@ struct BundleReprojResidual final {
         for (const auto& ob : view) {
             auto P = Eigen::Matrix<T,3,1>(T(ob.object_xy.x()), T(ob.object_xy.y()), T(0));
             P = c_R_t * P + c_t_t;
+            // TODO: refactor this function into camera model
             project_with_intrinsics(P(0), P(1), P(2), intrinsics, true, u_hat, v_hat);
             residuals[idx++] = u_hat - T(ob.image_uv.x());
             residuals[idx++] = v_hat - T(ob.image_uv.y());
@@ -71,7 +70,7 @@ struct BundleReprojResidual final {
     static auto* create(PlanarView v, const Eigen::Affine3d& base_T_gripper) {
         auto functor = new BundleReprojResidual(v, base_T_gripper);
         auto* cost = new ceres::AutoDiffCostFunction<
-            BundleReprojResidual, ceres::DYNAMIC, 4,3,4,3,4,3,9>(
+            BundleReprojResidual, ceres::DYNAMIC,4,3,4,3,9>(
                 functor, static_cast<int>(v.size()) * 2);
         return cost;
     }
@@ -93,10 +92,8 @@ struct BundleScheimpflugReprojResidual final {
      * @tparam T The scalar type, typically `double` or ceres::Jet.
      * @param b_q_t Quaternion representing the rotation from the target to the base.
      * @param b_t_t Translation vector from the target to the base.
-     * @param g_q_r Quaternion representing the rotation from the reference to the gripper.
-     * @param g_t_r Translation vector from the reference to the gripper.
-     * @param c_q_r Quaternion representing the rotation from the reference to the camera.
-     * @param c_t_r Translation vector from the reference to the camera.
+     * @param g_q_c Quaternion representing the rotation from the camera to the gripper.
+     * @param g_t_c Translation vector from the camera to the gripper.
      * @param intrinsics Camera intrinsics array.
      * @param residuals Output array to store the computed residuals.
      * @return true Always returns true.
@@ -109,22 +106,21 @@ struct BundleScheimpflugReprojResidual final {
      */
     template <typename T>
     bool operator()(const T* b_q_t, const T* b_t_t,
-                    const T* g_q_r, const T* g_t_r,
-                    const T* c_q_r, const T* c_t_r,
+                    const T* g_q_c, const T* g_t_c,
                     const T* intrinsics,
                     T* residuals) const {
         const Eigen::Matrix<T,3,3> b_R_g = base_to_gripper.linear().template cast<T>();
         const Eigen::Matrix<T,3,1> b_t_g = base_to_gripper.translation().template cast<T>();
         const auto [c_R_t, c_t_t] = get_camera_T_target(
             quat_array_to_rotmat(b_q_t), array_to_translation(b_t_t),
-            quat_array_to_rotmat(g_q_r), array_to_translation(g_t_r),
-            quat_array_to_rotmat(c_q_r), array_to_translation(c_t_r),
+            quat_array_to_rotmat(g_q_c), array_to_translation(g_t_c),
             b_R_g, b_t_g);
 
         size_t idx = 0; T u_hat, v_hat;
         for (const auto& ob : view) {
             auto P = Eigen::Matrix<T,3,1>(T(ob.object_xy.x()), T(ob.object_xy.y()), T(0));
             P = c_R_t * P + c_t_t;
+            // TODO: refactor this function into camera model
             project_scheimpflug_with_intrinsics(P(0), P(1), P(2), intrinsics, true, u_hat, v_hat);
             residuals[idx++] = u_hat - T(ob.image_uv.x());
             residuals[idx++] = v_hat - T(ob.image_uv.y());
@@ -135,7 +131,7 @@ struct BundleScheimpflugReprojResidual final {
     static auto* create(PlanarView v, const Eigen::Affine3d& base_T_gripper) {
         auto functor = new BundleScheimpflugReprojResidual(v, base_T_gripper);
         auto* cost = new ceres::AutoDiffCostFunction<
-            BundleScheimpflugReprojResidual, ceres::DYNAMIC, 4,3,4,3,4,3,11>(
+            BundleScheimpflugReprojResidual, ceres::DYNAMIC,4,3,4,3,11>(
                 functor, static_cast<int>(v.size()) * 2);
         return cost;
     }
