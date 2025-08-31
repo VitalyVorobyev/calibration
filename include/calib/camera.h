@@ -1,9 +1,11 @@
 #pragma once
 
 #include <Eigen/Core>
+#include <array>
 
 #include "calib/cameramatrix.h"
 #include "calib/distortion.h"
+#include "calib/cameramodel.h"
 
 namespace calib {
 
@@ -60,6 +62,27 @@ public:
 };
 
 using PinholeCamera = Camera<DualDistortion>;
+
+// Camera traits specialisation for generic pinhole camera
+template<distortion_model DistortionT>
+struct CameraTraits<Camera<DistortionT>> {
+    static constexpr size_t param_count = 9;
+
+    template<typename T>
+    static Camera<BrownConrady<T>> from_array(const T* intr) {
+        CameraMatrixT<T> K{intr[0], intr[1], intr[2], intr[3]};
+        Eigen::Matrix<T, Eigen::Dynamic, 1> dist(5);
+        dist << intr[4], intr[5], intr[6], intr[7], intr[8];
+        return Camera<BrownConrady<T>>(K, dist);
+    }
+
+    static void to_array(const Camera<DistortionT>& cam,
+                         std::array<double, param_count>& arr) {
+        arr[0] = cam.K.fx; arr[1] = cam.K.fy;
+        arr[2] = cam.K.cx; arr[3] = cam.K.cy;
+        for (int i = 0; i < 5; ++i) arr[4 + i] = cam.distortion.coeffs[i];
+    }
+};
 
 } // namespace calib
 

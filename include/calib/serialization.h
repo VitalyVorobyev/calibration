@@ -282,7 +282,7 @@ inline void from_json(const nlohmann::json& j, ExtrinsicOptimizationResult& r) {
     r.summary = j.value("summary", std::string{});
 }
 
-inline void to_json(nlohmann::json& j, const BundleResult& r) {
+inline void to_json(nlohmann::json& j, const BundleResult<Camera<BrownConradyd>>& r) {
     nlohmann::json cams = nlohmann::json::array();
     for (const auto& cam : r.cameras) cams.push_back(cam);
     nlohmann::json gtc = nlohmann::json::array();
@@ -297,7 +297,7 @@ inline void to_json(nlohmann::json& j, const BundleResult& r) {
     };
 }
 
-inline void from_json(const nlohmann::json& j, BundleResult& r) {
+inline void from_json(const nlohmann::json& j, BundleResult<Camera<BrownConradyd>>& r) {
     r.cameras.clear();
     for (const auto& jc : j.at("cameras")) r.cameras.push_back(jc.get<Camera<BrownConradyd>>());
     r.g_T_c.clear();
