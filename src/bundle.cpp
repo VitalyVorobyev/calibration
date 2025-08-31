@@ -39,7 +39,7 @@ struct ScheimpflugBundleBlocks final {
 };
 
 static BundleParamBlocks initialize_blocks(
-    const std::vector<Camera<DualDistortion>>& initial_cameras,
+    const std::vector<Camera<BrownConradyd>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& g_T_c,
     const Eigen::Affine3d& b_T_t
 ) {
@@ -59,7 +59,7 @@ static BundleParamBlocks initialize_blocks(
         populate_quat_tran(g_T_c[i], blocks.g_q_c[i], blocks.g_t_c[i]);
 
         const auto& cam = initial_cameras[i];
-        if (cam.distortion.forward.size() != 5) {
+        if (cam.distortion.coeffs.size() != 5) {
             throw std::runtime_error("Invalid distortion parameters");
         }
 
@@ -67,18 +67,18 @@ static BundleParamBlocks initialize_blocks(
         blocks.intr[i][1] = cam.K.fy;
         blocks.intr[i][2] = cam.K.cx;
         blocks.intr[i][3] = cam.K.cy;
-        blocks.intr[i][4] = cam.distortion.forward[0];
-        blocks.intr[i][5] = cam.distortion.forward[1];
-        blocks.intr[i][6] = cam.distortion.forward[2];
-        blocks.intr[i][7] = cam.distortion.forward[3];
-        blocks.intr[i][8] = cam.distortion.forward[4];
+        blocks.intr[i][4] = cam.distortion.coeffs[0];
+        blocks.intr[i][5] = cam.distortion.coeffs[1];
+        blocks.intr[i][6] = cam.distortion.coeffs[2];
+        blocks.intr[i][7] = cam.distortion.coeffs[3];
+        blocks.intr[i][8] = cam.distortion.coeffs[4];
     }
 
     return blocks;
 }
 
 static ScheimpflugBundleBlocks initialize_blocks_scheimpflug(
-    const std::vector<ScheimpflugCamera<DualDistortion>>& initial_cameras,
+    const std::vector<ScheimpflugCamera<BrownConradyd>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& g_T_c,
     const Eigen::Affine3d& b_T_t)
 {
@@ -100,11 +100,11 @@ static ScheimpflugBundleBlocks initialize_blocks_scheimpflug(
         blocks.intr[i][3] = cam.camera.K.cy;
         blocks.intr[i][4] = cam.tau_x;
         blocks.intr[i][5] = cam.tau_y;
-        blocks.intr[i][6] = cam.camera.distortion.forward[0];
-        blocks.intr[i][7] = cam.camera.distortion.forward[1];
-        blocks.intr[i][8] = cam.camera.distortion.forward[2];
-        blocks.intr[i][9] = cam.camera.distortion.forward[3];
-        blocks.intr[i][10] = cam.camera.distortion.forward[4];
+        blocks.intr[i][6] = cam.camera.distortion.coeffs[0];
+        blocks.intr[i][7] = cam.camera.distortion.coeffs[1];
+        blocks.intr[i][8] = cam.camera.distortion.coeffs[2];
+        blocks.intr[i][9] = cam.camera.distortion.coeffs[3];
+        blocks.intr[i][10] = cam.camera.distortion.coeffs[4];
     }
     return blocks;
 }
@@ -210,7 +210,7 @@ static void recover_parameters(
         CameraMatrix K{i[0], i[1], i[2], i[3]};
         Eigen::VectorXd dist(5);
         dist << i[4], i[5], i[6], i[7], i[8];
-        result.cameras[c] = Camera<DualDistortion>(K, dist);
+        result.cameras[c] = Camera<BrownConradyd>(K, dist);
     }
 }
 
@@ -227,8 +227,8 @@ static void recover_parameters(const ScheimpflugBundleBlocks& blocks,
         CameraMatrix K{ i[0], i[1], i[2], i[3] };
         Eigen::VectorXd dist(5);
         dist << i[6], i[7], i[8], i[9], i[10];
-        Camera<DualDistortion> cam(K, dist);
-        result.cameras[c] = ScheimpflugCamera<DualDistortion>(cam, i[4], i[5]);
+        Camera<BrownConradyd> cam(K, dist);
+        result.cameras[c] = ScheimpflugCamera<BrownConradyd>(cam, i[4], i[5]);
     }
 }
 
@@ -352,7 +352,7 @@ static std::string solve_problem(ceres::Problem &p, bool verbose) {
 
 BundleResult optimize_bundle(
     const std::vector<BundleObservation>& observations,
-    const std::vector<Camera<DualDistortion>>& initial_cameras,
+    const std::vector<Camera<BrownConradyd>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& init_g_T_c,
     const Eigen::Affine3d& init_b_T_t,
     const BundleOptions& opts
@@ -379,7 +379,7 @@ BundleResult optimize_bundle(
 
 ScheimpflugBundleResult optimize_bundle_scheimpflug(
     const std::vector<BundleObservation>& observations,
-    const std::vector<ScheimpflugCamera<DualDistortion>>& initial_cameras,
+    const std::vector<ScheimpflugCamera<BrownConradyd>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& init_g_T_c,
     const Eigen::Affine3d& init_b_T_t,
     const BundleOptions& opts)

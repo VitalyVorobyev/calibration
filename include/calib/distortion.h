@@ -95,6 +95,7 @@ struct BrownConrady final {
         return calib::undistort(dist_xy, coeffs.template cast<T>().eval());
     }
 };
+using BrownConradyd = BrownConrady<double>;
 
 template<typename Scalar>
 inline Eigen::Matrix<Scalar,Eigen::Dynamic,1> invert_brown_conrady(const Eigen::Matrix<Scalar,Eigen::Dynamic,1>& forward) {

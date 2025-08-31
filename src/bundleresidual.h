@@ -37,9 +37,9 @@ static Eigen::Affine3d get_camera_T_target(
 
 struct BundleReprojResidual final {
     PlanarView view;
-    Eigen::Affine3d base_to_gripper;
-    BundleReprojResidual(PlanarView v, const Eigen::Affine3d& base_T_gripper)
-        : view(std::move(v)), base_to_gripper(base_T_gripper) {}
+    Eigen::Affine3d base_T_gripper;
+    BundleReprojResidual(PlanarView v, const Eigen::Affine3d& b_T_g)
+        : view(std::move(v)), base_T_gripper(b_T_g) {}
 
     /**
      * @brief Functor to compute the residuals for a bundle adjustment problem.
@@ -72,8 +72,8 @@ struct BundleReprojResidual final {
                     const T* g_q_c, const T* g_t_c,
                     const T* intrinsics,
                     T* residuals) const {
-        const Eigen::Matrix<T, 3, 3> b_R_g = base_to_gripper.linear().template cast<T>();
-        const Eigen::Matrix<T, 3, 1> b_t_g = base_to_gripper.translation().template cast<T>();
+        const Eigen::Matrix<T, 3, 3> b_R_g = base_T_gripper.linear().template cast<T>();
+        const Eigen::Matrix<T, 3, 1> b_t_g = base_T_gripper.translation().template cast<T>();
         const auto [c_R_t, c_t_t] = get_camera_T_target(
             quat_array_to_rotmat(b_q_t), array_to_translation(b_t_t),
             quat_array_to_rotmat(g_q_c), array_to_translation(g_t_c),
@@ -107,9 +107,9 @@ struct BundleReprojResidual final {
 
 struct BundleScheimpflugReprojResidual final {
     PlanarView view;
-    Eigen::Affine3d base_to_gripper;
+    Eigen::Affine3d base_T_gripper;
     BundleScheimpflugReprojResidual(PlanarView v, const Eigen::Affine3d& base_T_gripper)
-        : view(std::move(v)), base_to_gripper(base_T_gripper) {}
+        : view(std::move(v)), base_T_gripper(base_T_gripper) {}
 
     /**
      * @brief Functor to compute residuals for bundle adjustment.
@@ -138,8 +138,8 @@ struct BundleScheimpflugReprojResidual final {
                     const T* g_q_c, const T* g_t_c,
                     const T* intrinsics,
                     T* residuals) const {
-        const Eigen::Matrix<T,3,3> b_R_g = base_to_gripper.linear().template cast<T>();
-        const Eigen::Matrix<T,3,1> b_t_g = base_to_gripper.translation().template cast<T>();
+        const Eigen::Matrix<T,3,3> b_R_g = base_T_gripper.linear().template cast<T>();
+        const Eigen::Matrix<T,3,1> b_t_g = base_T_gripper.translation().template cast<T>();
         const auto [c_R_t, c_t_t] = get_camera_T_target(
             quat_array_to_rotmat(b_q_t), array_to_translation(b_t_t),
             quat_array_to_rotmat(g_q_c), array_to_translation(g_t_c),
