@@ -14,11 +14,13 @@
 
 #include "calib/camera.h"
 #include "calib/bundle.h"
+#include "calib/scheimpflug.h"
 
 using calib::Camera;
 using calib::BrownConradyd;
 using calib::PlanarView;
 using calib::BundleObservation;
+using calib::ScheimpflugCamera;
 
 static inline double deg2rad(double d) { return d * std::numbers::pi / 180.0; }
 static inline double rad2deg(double r) { return r * 180.0 / std::numbers::pi; }
@@ -57,6 +59,46 @@ inline Eigen::Affine3d make_pose(const Eigen::Vector3d& t, const Eigen::Vector3d
     T.linear() = axis_angle_to_R(axis, angle);
     T.translation() = t;
     return T;
+}
+
+inline std::vector<Eigen::Affine3d> make_circle_poses(int n, double radius, double z0,
+                                                      double z_step, double rot_step) {
+    std::vector<Eigen::Affine3d> poses;
+    poses.reserve(n);
+    for (int i = 0; i < n; ++i) {
+        double angle = i * 2.0 * std::numbers::pi / n;
+        Eigen::Affine3d T = Eigen::Affine3d::Identity();
+        T.translation() = Eigen::Vector3d(radius * std::cos(angle),
+                                          radius * std::sin(angle),
+                                          z0 + z_step * i);
+        Eigen::Vector3d axis(std::cos(angle), std::sin(angle), 1.0);
+        T.linear() = Eigen::AngleAxisd(rot_step * i, axis.normalized()).toRotationMatrix();
+        poses.push_back(T);
+    }
+    return poses;
+}
+
+template <class DistortionT>
+inline std::vector<BundleObservation> make_scheimpflug_observations(
+    const ScheimpflugCamera<DistortionT>& sc,
+    const Eigen::Affine3d& g_T_c,
+    const Eigen::Affine3d& b_T_t,
+    const std::vector<Eigen::Vector2d>& obj,
+    const std::vector<Eigen::Affine3d>& b_T_gs) {
+    std::vector<BundleObservation> obs;
+    obs.reserve(b_T_gs.size());
+    for (const auto& btg : b_T_gs) {
+        Eigen::Affine3d c_T_t = compute_camera_T_target(b_T_t, g_T_c, btg);
+        std::vector<Eigen::Vector2d> img;
+        img.reserve(obj.size());
+        for (const auto& xy : obj) {
+            Eigen::Vector3d P(xy.x(), xy.y(), 0);
+            P = c_T_t * P;
+            img.push_back(sc.project(P));
+        }
+        obs.push_back({make_view(obj, img), btg, 0});
+    }
+    return obs;
 }
 
 // RNG helpers
