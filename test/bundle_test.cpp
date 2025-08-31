@@ -49,7 +49,7 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
     opts.optimize_intrinsics = true;
     opts.verbose = false;
 
-    auto result = optimize_bundle(sim.observations, {cam0}, {g_T_c0}, b_T_t_gt, opts);
+    auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {g_T_c0}, b_T_t_gt, opts);
     const auto& X = result.g_T_c[0];
     const auto& Kf = result.cameras[0].K;
     const auto& b_T_t_est = result.b_T_t;
@@ -115,7 +115,7 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     opts.optimizer = OptimizerType::DENSE_QR;
     opts.verbose = false;
 
-    auto result = optimize_bundle(sim.observations, {cam0}, {X0}, b_T_t_gt, opts);
+    auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {X0}, b_T_t_gt, opts);
     const auto& X = result.g_T_c[0];
     const auto& dist = result.cameras[0].distortion.coeffs;
 
@@ -142,7 +142,7 @@ TEST(OptimizeBundle, InputValidation) {
     BundleOptions opts;
 
     EXPECT_THROW({
-        optimize_bundle(observations, {cam, cam}, {X0}, init_b_T_t, opts);
+        optimize_bundle<Camera<BrownConradyd>>(observations, {cam, cam}, {X0}, init_b_T_t, opts);
     }, std::runtime_error);
 }
 
@@ -171,7 +171,7 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
     opts.optimize_target_pose = false;
     opts.optimize_hand_eye = true;
 
-    auto res = optimize_bundle(observations, cams, {init_g_T_c}, b_T_t, opts);
+    auto res = optimize_bundle<Camera<BrownConradyd>>(observations, cams, {init_g_T_c}, b_T_t, opts);
     std::cout << res.report << std::endl;
 
     EXPECT_LT((res.g_T_c[0].translation() - g_T_c.translation()).norm(),1e-3);
@@ -203,7 +203,7 @@ TEST(OptimizeBundle, SingleCameraTargetPose) {
     opts.optimize_target_pose = true;
     opts.optimize_hand_eye = false;
 
-    auto res = optimize_bundle(observations, cams, {g_T_c}, init_b_T_t, opts);
+    auto res = optimize_bundle<Camera<BrownConradyd>>(observations, cams, {g_T_c}, init_b_T_t, opts);
 
     EXPECT_LT((res.b_T_t.translation() - b_T_t.translation()).norm(), 1e-3);
     Eigen::AngleAxisd diff(res.b_T_t.linear() * b_T_t.linear().transpose());
@@ -247,7 +247,7 @@ TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
     opts.optimize_target_pose=false;
     opts.optimize_hand_eye=true;
 
-    auto res = optimize_bundle(observations, cams, {init_g_T_c0, init_g_T_c1}, b_T_t, opts);
+    auto res = optimize_bundle<Camera<BrownConradyd>>(observations, cams, {init_g_T_c0, init_g_T_c1}, b_T_t, opts);
 
     std::cout << "True g_T_c0 translation: " << g_T_c0.translation().transpose() << std::endl;
     std::cout << "Result g_T_c0 translation: " << res.g_T_c[0].translation().transpose() << std::endl;

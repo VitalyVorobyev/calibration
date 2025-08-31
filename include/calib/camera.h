@@ -69,11 +69,11 @@ struct CameraTraits<Camera<DistortionT>> {
     static constexpr size_t param_count = 9;
 
     template<typename T>
-    static Camera<DistortionT> from_array(const T* intr) {
+    static Camera<BrownConrady<T>> from_array(const T* intr) {
         CameraMatrixT<T> K{intr[0], intr[1], intr[2], intr[3]};
         Eigen::Matrix<T, Eigen::Dynamic, 1> dist(5);
         dist << intr[4], intr[5], intr[6], intr[7], intr[8];
-        return Camera<DistortionT>(K, dist);
+        return Camera<BrownConrady<T>>(K, dist);
     }
 
     static void to_array(const Camera<DistortionT>& cam,

@@ -34,6 +34,16 @@ struct ScheimpflugCamera final {
     ScheimpflugCamera(const Camera<DistortionT>& cam, Scalar tx, Scalar ty)
         : camera(cam), tau_x(tx), tau_y(ty) {}
 
+    template<typename T>
+    ScheimpflugCamera(const Camera<DistortionT>& cam, T tx, T ty)
+        : camera(cam), tau_x(Scalar(tx)), tau_y(Scalar(ty)) {}
+
+    template<distortion_model OtherDistortionT, typename T>
+    ScheimpflugCamera(const Camera<OtherDistortionT>& cam, T tx, T ty)
+        : camera(Camera<DistortionT>(CameraMatrixT<Scalar>{Scalar(cam.K.fx), Scalar(cam.K.fy), Scalar(cam.K.cx), Scalar(cam.K.cy)}, 
+                                   cam.distortion.coeffs.template cast<Scalar>())), 
+          tau_x(Scalar(tx)), tau_y(Scalar(ty)) {}
+
     /**
      * @brief Project a 3D point in the camera frame to pixel coordinates.
      *
@@ -95,12 +105,12 @@ struct CameraTraits<ScheimpflugCamera<DistortionT>> {
     static constexpr size_t param_count = 11;
 
     template<typename T>
-    static ScheimpflugCamera<DistortionT> from_array(const T* intr) {
+    static ScheimpflugCamera<BrownConrady<T>> from_array(const T* intr) {
         CameraMatrixT<T> K{intr[0], intr[1], intr[2], intr[3]};
         Eigen::Matrix<T, Eigen::Dynamic, 1> dist(5);
         dist << intr[6], intr[7], intr[8], intr[9], intr[10];
-        Camera<DistortionT> cam(K, dist);
-        return ScheimpflugCamera<DistortionT>(cam, intr[4], intr[5]);
+        Camera<BrownConrady<T>> cam(K, dist);
+        return ScheimpflugCamera<BrownConrady<T>>(cam, intr[4], intr[5]);
     }
 
     static void to_array(const ScheimpflugCamera<DistortionT>& cam,
