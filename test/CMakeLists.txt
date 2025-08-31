@@ -1,5 +1,10 @@
 include(GoogleTest)
 
+if(WIN32)
+  add_definitions(-DGLOG_NO_ABBREVIATED_SEVERITIES)
+  add_definitions(-DGOOGLE_GLOG_DLL_DECL=)
+endif()
+
 # Test for homography estimation
 add_executable(homography_test homography_test.cpp)
 target_link_libraries(homography_test

@@ -25,11 +25,22 @@ struct BundleObservation final {
     size_t camera_index = 0;  ///< Which camera acquired this view
 };
 
+enum class OptimizerType {
+    DEFAULT,  // SPARSE_NORMAL_CHOLESKY
+    SPARSE_SCHUR,  // for large problems
+    DENSE_SCHUR,  // for small multiple camera problems
+    DENSE_QR  // for small single camera problems
+};
+
 /** Options controlling the hand-eye calibration optimisation. */
 struct BundleOptions final {
     bool optimize_intrinsics = false;  ///< Solve for camera intrinsics
     bool optimize_target_pose = true;  ///< Solve for base->target pose
     bool optimize_hand_eye = true;     ///< Solve for camera->gripper poses
+    double huber_delta = 1.0;          ///< Huber loss delta
+    double epsilon = 1e-9;             ///< Solver convergence tolerance
+    int max_iterations = 1000;         ///< Maximum number of iterations
+    OptimizerType optimizer = OptimizerType::DEFAULT;
     bool verbose = false;              ///< Verbose solver output
 };
 

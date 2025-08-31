@@ -30,6 +30,7 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
     sim.make_sequence(25, rng);
     sim.make_target_grid(8, 11, 0.02);
     sim.render_pixels(0.3, &rng); // 0.3 px noise
+    sim.render_pixels();
 
     // Bad initial intrinsics and X
     Camera<BrownConradyd> cam0;
@@ -75,7 +76,7 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
 }
 
 TEST(ReprojectionRefine, DistortionRecoveryOptional) {
-    RNG rng(99);
+    RNG rng(137);
     // GT with distortion
     Camera<BrownConradyd> cam_gt;
     cam_gt.K.fx = 900;
@@ -85,13 +86,19 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
     cam_gt.distortion.coeffs << -0.12, 0.02, 0.0005, -0.0007, 0.001;
 
-    Eigen::Affine3d g_T_c_gt = make_pose(Eigen::Vector3d(0.015, -0.002, 0.10), Eigen::Vector3d(0.2,0.5,0.1).normalized(), deg2rad(9.0));
-    Eigen::Affine3d b_T_t_gt = make_pose(Eigen::Vector3d(0.35, 0.15, 0.65), Eigen::Vector3d(0.6,-0.1,0.2).normalized(), deg2rad(16.0));
+    Eigen::Affine3d g_T_c_gt = make_pose(
+        Eigen::Vector3d(0.03, 0.00, 0.12),
+        Eigen::Vector3d(0,1,0), deg2rad(8.0)
+    );
+    Eigen::Affine3d b_T_t_gt = make_pose(
+        Eigen::Vector3d(0.5, -0.1, 80),
+        Eigen::Vector3d(1,0,0), deg2rad(14.0)
+    );
 
     SimulatedHandEye sim{g_T_c_gt, b_T_t_gt, cam_gt};
     sim.make_sequence(22, rng);
     sim.make_target_grid(7, 10, 0.022);
-    sim.render_pixels(0.25, &rng);
+    sim.render_pixels();
 
     // Start from wrong K (no distortion) and perturbed X
     Camera<BrownConradyd> cam0 = cam_gt;
@@ -103,6 +110,9 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
 
     BundleOptions opts;
     opts.optimize_intrinsics = true;
+    opts.optimize_hand_eye = true;
+    opts.optimize_target_pose = true;
+    opts.optimizer = OptimizerType::DENSE_QR;
     opts.verbose = false;
 
     auto result = optimize_bundle(sim.observations, {cam0}, {X0}, b_T_t_gt, opts);
@@ -116,17 +126,16 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     EXPECT_LT(tr_err,  0.02);
 
     const auto& dist_gt = cam_gt.distortion.coeffs;
-    // Distortion parameters should move toward GT (not necessarily perfect)
-    EXPECT_NEAR(dist[0], dist_gt[0], 0.15);   // k1
-    EXPECT_NEAR(dist[1], dist_gt[1], 0.03);   // k2
-    EXPECT_NEAR(dist[2], dist_gt[2], 0.001);  // p1
-    EXPECT_NEAR(dist[3], dist_gt[3], 0.001);  // p2
-    EXPECT_NEAR(dist[4], dist_gt[4], 0.002);  // k3
+    EXPECT_NEAR(dist[0], dist_gt[0], 1e-5);  // k1
+    EXPECT_NEAR(dist[1], dist_gt[1], 1e-5);  // k2
+    EXPECT_NEAR(dist[2], dist_gt[2], 1e-5);  // p1
+    EXPECT_NEAR(dist[3], dist_gt[3], 1e-5);  // p2
+    EXPECT_NEAR(dist[4], dist_gt[4], 1e-5);  // k3
 }
 
 TEST(OptimizeBundle, InputValidation) {
     // Mismatched sizes should throw
-    std::vector<BundleObservation> observations(2); // wrong (should be 3)
+    std::vector<BundleObservation> observations(2);
     Camera<BrownConradyd> cam;
     Eigen::Affine3d X0 = Eigen::Affine3d::Identity();
     Eigen::Affine3d init_b_T_t = Eigen::Affine3d::Identity();
@@ -149,30 +158,13 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
     b_T_t.translation() = Eigen::Vector3d(0.2,0.0,0.0);
 
     std::vector<Eigen::Vector2d> obj{{-0.1,-0.1},{0.1,-0.1},{0.1,0.1},{-0.1,0.1},
-                                     {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
-
-    std::vector<BundleObservation> observations;
-    for (int i = 0; i < 8; ++i) {
-        double angle = i * std::numbers::pi/4.0;
-        Eigen::Affine3d b_T_g = Eigen::Affine3d::Identity();
-        b_T_g.translation() = Eigen::Vector3d(0.1*std::cos(angle),0.1*std::sin(angle),0.3+0.05*i);
-        Eigen::Matrix3d rot = Eigen::AngleAxisd(0.1*i, Eigen::Vector3d(std::cos(angle),std::sin(angle),0.5).normalized()).toRotationMatrix();
-        b_T_g.linear() = rot;
-
-        Eigen::Affine3d c_T_t = compute_camera_T_target(b_T_t, g_T_c, b_T_g);
-        std::vector<Eigen::Vector2d> img; img.reserve(obj.size());
-        for (const auto& xy: obj){
-            Eigen::Vector3d P(xy.x(),xy.y(),0.0);
-            P = c_T_t * P;
-            Eigen::Vector2d uv = cam.project(P);
-            img.push_back(uv);
-        }
-        observations.push_back({make_view(obj,img), b_T_g, 0});
-    }
+                                     {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}, {9, 0}};
 
     std::vector<Camera<BrownConradyd>> cams{cam};
+    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
+    auto observations = make_bundle_observations(cams, {g_T_c}, b_T_t, obj, poses);
     Eigen::Affine3d init_g_T_c = g_T_c;
-    init_g_T_c.translation() += Eigen::Vector3d(0.01,-0.01,0.02);
+    init_g_T_c.translation() += Eigen::Vector3d(0.01, -0.01, 0.02);
 
     BundleOptions opts;
     opts.optimize_intrinsics = false;
@@ -180,6 +172,7 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
     opts.optimize_hand_eye = true;
 
     auto res = optimize_bundle(observations, cams, {init_g_T_c}, b_T_t, opts);
+    std::cout << res.report << std::endl;
 
     EXPECT_LT((res.g_T_c[0].translation() - g_T_c.translation()).norm(),1e-3);
     Eigen::AngleAxisd diff(res.g_T_c[0].linear()*g_T_c.linear().transpose());
@@ -199,26 +192,9 @@ TEST(OptimizeBundle, SingleCameraTargetPose) {
 
     std::vector<Eigen::Vector2d> obj{{-0.1,-0.1},{0.1,-0.1},{0.1,0.1},{-0.1,0.1},
                                      {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
-    std::vector<BundleObservation> observations;
-    for (int i = 0; i < 8; ++i) {
-        double angle = i * std::numbers::pi/4.0;
-        Eigen::Affine3d b_T_g = Eigen::Affine3d::Identity();
-        b_T_g.translation() = Eigen::Vector3d(0.1*std::cos(angle),0.1*std::sin(angle),0.3+0.05*i);
-        Eigen::Matrix3d rot = Eigen::AngleAxisd(0.1*i, Eigen::Vector3d(std::cos(angle),std::sin(angle),0.5).normalized()).toRotationMatrix();
-        b_T_g.linear() = rot;
-        Eigen::Affine3d c_T_t = compute_camera_T_target(b_T_t, g_T_c, b_T_g);
-        std::vector<Eigen::Vector2d> img;
-        img.reserve(obj.size());
-
-        for (const auto& xy : obj) {
-            Eigen::Vector3d P(xy.x(), xy.y(), 0.0);
-            P = c_T_t * P;
-            img.push_back(cam.project(P));
-        }
-        observations.push_back({make_view(obj,img), b_T_g,0});
-    }
-
     std::vector<Camera<BrownConradyd>> cams{cam};
+    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
+    auto observations = make_bundle_observations(cams, {g_T_c}, b_T_t, obj, poses);
     Eigen::Affine3d init_b_T_t = b_T_t;
     init_b_T_t.translation() += Eigen::Vector3d(0.01,-0.02,0.03);
 
@@ -255,35 +231,10 @@ TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
     std::vector<Eigen::Vector2d> obj{{-0.1,-0.1},{0.1,-0.1},{0.1,0.1},{-0.1,0.1},
                                      {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
 
-    std::vector<BundleObservation> observations;
-    for (int i = 0; i < 8; ++i) {
-        double angle = i * std::numbers::pi/4.0;
-        Eigen::Affine3d b_T_g = Eigen::Affine3d::Identity();
-        b_T_g.translation() = Eigen::Vector3d(0.1*std::cos(angle),0.1*std::sin(angle),0.3+0.05*i);
-        Eigen::Matrix3d rot = Eigen::AngleAxisd(0.1*i, Eigen::Vector3d(std::cos(angle),std::sin(angle),0.5).normalized()).toRotationMatrix();
-        b_T_g.linear() = rot;
-
-        Eigen::Affine3d c0_T_t = compute_camera_T_target(b_T_t, g_T_c0, b_T_g);
-        Eigen::Affine3d c1_T_t = compute_camera_T_target(b_T_t, g_T_c1, b_T_g);
-        std::vector<Eigen::Vector2d> img0_vec;
-        img0_vec.reserve(obj.size());
-        for(const auto& xy:obj){
-            Eigen::Vector3d P(xy.x(),xy.y(),0.0);
-            P = c0_T_t * P;
-            img0_vec.push_back(cam0.project(P));
-        }
-        observations.push_back({make_view(obj,img0_vec), b_T_g,0});
-        std::vector<Eigen::Vector2d> img1_vec;
-        img1_vec.reserve(obj.size());
-        for(const auto& xy:obj){
-            Eigen::Vector3d P(xy.x(),xy.y(),0.0);
-            P = c1_T_t * P;
-            img1_vec.push_back(cam1.project(P));
-        }
-        observations.push_back({make_view(obj,img1_vec), b_T_g,1});
-    }
-
     std::vector<Camera<BrownConradyd>> cams{cam0, cam1};
+    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
+    auto observations = make_bundle_observations(
+        cams, {g_T_c0, g_T_c1}, b_T_t, obj, poses);
     Eigen::Affine3d init_g_T_c1 = g_T_c1;
     init_g_T_c1.translation() += Eigen::Vector3d(0.01,-0.01,0.0);
     init_g_T_c1.linear() = g_T_c1.linear() * Eigen::AngleAxisd(0.01, Eigen::Vector3d::UnitZ()).toRotationMatrix();
