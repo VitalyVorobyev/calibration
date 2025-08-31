@@ -66,7 +66,7 @@ TEST(ScheimpflugBundle, SingleCamera) {
 
     std::vector<Eigen::Vector2d> obj{{-0.1,-0.1},{0.1,-0.1},{0.1,0.1},{-0.1,0.1},
                                      {0.05,0.0},{-0.05,0.0},{0.0,0.05},{0.0,-0.05}};
-    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1);
+    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
     auto observations = make_scheimpflug_observations(sc, g_T_c, b_T_t, obj, poses);
     Eigen::Affine3d init_g_T_c = g_T_c;
     init_g_T_c.translation() += Eigen::Vector3d(0.01,-0.01,0.02);

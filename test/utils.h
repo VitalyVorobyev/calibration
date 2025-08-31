@@ -62,7 +62,8 @@ inline Eigen::Affine3d make_pose(const Eigen::Vector3d& t, const Eigen::Vector3d
 }
 
 inline std::vector<Eigen::Affine3d> make_circle_poses(int n, double radius, double z0,
-                                                      double z_step, double rot_step) {
+                                                      double z_step, double rot_step,
+                                                      double axis_z = 1.0) {
     std::vector<Eigen::Affine3d> poses;
     poses.reserve(n);
     for (int i = 0; i < n; ++i) {
@@ -71,7 +72,7 @@ inline std::vector<Eigen::Affine3d> make_circle_poses(int n, double radius, doub
         T.translation() = Eigen::Vector3d(radius * std::cos(angle),
                                           radius * std::sin(angle),
                                           z0 + z_step * i);
-        Eigen::Vector3d axis(std::cos(angle), std::sin(angle), 1.0);
+        Eigen::Vector3d axis(std::cos(angle), std::sin(angle), axis_z);
         T.linear() = Eigen::AngleAxisd(rot_step * i, axis.normalized()).toRotationMatrix();
         poses.push_back(T);
     }

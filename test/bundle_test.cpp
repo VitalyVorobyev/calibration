@@ -152,7 +152,7 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
                                      {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
 
     std::vector<BundleObservation> observations;
-    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1);
+    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
     for (const auto& b_T_g : poses) {
         Eigen::Affine3d c_T_t = compute_camera_T_target(b_T_t, g_T_c, b_T_g);
         std::vector<Eigen::Vector2d> img;
@@ -195,7 +195,7 @@ TEST(OptimizeBundle, SingleCameraTargetPose) {
     std::vector<Eigen::Vector2d> obj{{-0.1,-0.1},{0.1,-0.1},{0.1,0.1},{-0.1,0.1},
                                      {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
     std::vector<BundleObservation> observations;
-    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1);
+    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
     for (const auto& b_T_g : poses) {
         Eigen::Affine3d c_T_t = compute_camera_T_target(b_T_t, g_T_c, b_T_g);
         std::vector<Eigen::Vector2d> img;
@@ -246,7 +246,7 @@ TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
                                      {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
 
     std::vector<BundleObservation> observations;
-    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1);
+    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
     for (const auto& b_T_g : poses) {
         Eigen::Affine3d c0_T_t = compute_camera_T_target(b_T_t, g_T_c0, b_T_g);
         Eigen::Affine3d c1_T_t = compute_camera_T_target(b_T_t, g_T_c1, b_T_g);
