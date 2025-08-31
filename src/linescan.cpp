@@ -1,4 +1,4 @@
-#include "calibration/linescan.h"
+#include "calib/linescan.h"
 
 // std
 #include <numeric>
@@ -8,11 +8,11 @@
 // ceres
 #include <ceres/ceres.h>
 
-#include "calibration/homography.h"
-#include "calibration/planarpose.h"
-#include "calibration/distortion.h"
+#include "calib/homography.h"
+#include "calib/planarpose.h"
+#include "calib/distortion.h"
 
-namespace vitavision {
+namespace calib {
 
 using Vec2 = Eigen::Vector2d;
 using Vec3 = Eigen::Vector3d;
@@ -74,7 +74,7 @@ static void validate_observations(const std::vector<LineScanObservation>& views)
 // Processes a single view to extract 3D points
 static std::vector<Vec3> process_view(
     const LineScanObservation& view,
-    const Camera& camera) {
+    const Camera<DualDistortion>& camera) {
 
     std::vector<Vec3> points;
 
@@ -196,7 +196,7 @@ static Mat3 build_plane_homography(const Eigen::Vector4d& plane) {
 
 LineScanCalibrationResult calibrate_laser_plane(
     const std::vector<LineScanObservation>& views,
-    const Camera& camera) {
+    const Camera<DualDistortion>& camera) {
 
     // Validate input observations
     validate_observations(views);
@@ -222,4 +222,4 @@ LineScanCalibrationResult calibrate_laser_plane(
     return result;
 }
 
-}  // namespace vitavision
+}  // namespace calib

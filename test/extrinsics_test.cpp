@@ -2,9 +2,9 @@
 
 #include <Eigen/Geometry>
 
-#include "calibration/extrinsics.h"
+#include "calib/extrinsics.h"
 
-using namespace vitavision;
+using namespace calib;
 
 TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     const int kCams = 2;
@@ -12,7 +12,7 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     Eigen::VectorXd dist(2);
     dist << 0.0, 0.0; // no distortion
     DualDistortion dd; dd.forward = dist; dd.inverse = dist;
-    std::vector<Camera> cameras = {Camera{K, dd}, Camera{K, dd}};
+    std::vector<Camera<DualDistortion>> cameras = {Camera<DualDistortion>{K, dd}, Camera<DualDistortion>{K, dd}};
 
     // Ground-truth camera poses (reference camera is identity)
     Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();

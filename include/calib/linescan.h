@@ -8,9 +8,9 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calibration/camera.h"
+#include "calib/camera.h"
 
-namespace vitavision {
+namespace calib {
 
 /** @brief Observation for line-scan calibration.
  * Contains planar target correspondences and laser line pixel features
@@ -42,6 +42,6 @@ struct LineScanCalibrationResult final {
  */
 LineScanCalibrationResult calibrate_laser_plane(
     const std::vector<LineScanObservation>& views,
-    const Camera& camera);
+    const Camera<DualDistortion>& camera);
 
-}  // namespace vitavision
+}  // namespace calib

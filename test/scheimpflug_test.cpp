@@ -1,17 +1,17 @@
 #include <gtest/gtest.h>
 #include <Eigen/Core>
 
-#include "calibration/scheimpflug.h"
+#include "calib/scheimpflug.h"
 
-using namespace vitavision;
+using namespace calib;
 
 TEST(ScheimpflugCamera, ZeroTiltMatchesPinhole) {
-    Camera cam;
+    Camera<DualDistortion> cam;
     cam.K.fx = 800; cam.K.fy = 820; cam.K.cx = 320; cam.K.cy = 240;
     cam.distortion.forward = Eigen::VectorXd::Zero(2);
     cam.distortion.inverse = Eigen::VectorXd::Zero(2);
 
-    ScheimpflugCamera sc(cam, 0.0, 0.0);
+    ScheimpflugCamera<DualDistortion> sc(cam, 0.0, 0.0);
 
     Eigen::Vector3d Xc(0.2, -0.1, 1.0);
     Eigen::Vector2d uv_s = sc.project(Xc);
@@ -22,14 +22,14 @@ TEST(ScheimpflugCamera, ZeroTiltMatchesPinhole) {
 }
 
 TEST(ScheimpflugCamera, PrincipalRay) {
-    Camera cam;
+    Camera<DualDistortion> cam;
     cam.K.fx = 600; cam.K.fy = 600; cam.K.cx = 400; cam.K.cy = 300;
     cam.distortion.forward = Eigen::VectorXd::Zero(2);
     cam.distortion.inverse = Eigen::VectorXd::Zero(2);
 
     const double taux = 0.1;
     const double tauy = -0.2;
-    ScheimpflugCamera sc(cam, taux, tauy);
+    ScheimpflugCamera<DualDistortion> sc(cam, taux, tauy);
 
     Eigen::Vector3d Xc(0.0, 0.0, 1.0);
     Eigen::Vector2d uv = sc.project(Xc);

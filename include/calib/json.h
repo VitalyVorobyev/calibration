@@ -7,7 +7,7 @@
 #include <boost/pfr.hpp>
 #include <nlohmann/json.hpp>
 
-namespace vitavision {
+namespace calib {
 
 // Concept for aggregate types that can be reflected by Boost.PFR.
 template <typename T>
@@ -33,5 +33,5 @@ void from_json(const nlohmann::json& j, T& value) {
     });
 }
 
-}  // namespace vitavision
+}  // namespace calib
 

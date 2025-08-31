@@ -9,7 +9,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-namespace vitavision {
+namespace calib {
 
 Eigen::Matrix3d estimate_homography_dlt(const std::vector<Eigen::Vector2d>& src,
                                         const std::vector<Eigen::Vector2d>& dst);
@@ -17,4 +17,4 @@ Eigen::Matrix3d estimate_homography_dlt(const std::vector<Eigen::Vector2d>& src,
 Eigen::Matrix3d fit_homography(const std::vector<Eigen::Vector2d>& src,
                                const std::vector<Eigen::Vector2d>& dst);
 
-}  // namespace vitavision
+}  // namespace calib

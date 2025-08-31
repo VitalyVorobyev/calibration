@@ -1,4 +1,4 @@
-#include "calibration/homography.h"
+#include "calib/homography.h"
 
 // std
 #include <random>
@@ -8,7 +8,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-using namespace vitavision;
+using namespace calib;
 using Vec2 = Eigen::Vector2d;
 using Mat3 = Eigen::Matrix3d;
 

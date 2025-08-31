@@ -5,9 +5,9 @@
 // ceres
 #include "ceres/rotation.h"
 
-#include "calibration/planarpose.h"
+#include "calib/planarpose.h"
 
-namespace vitavision {
+namespace calib {
 
 // templated for autodiff
 template<typename T>
@@ -77,35 +77,6 @@ inline void invertRT(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,
 {
     Rinv = R.transpose();
     tinv = -Rinv * t;
-}
-
-// Project a 3D camera-frame point with intrinsics (templated for AutoDiff)
-template<typename T>
-void project_with_intrinsics(const T& Xc, const T& Yc, const T& Zc,
-                             const T* intr, bool use_distort,
-                             T& u, T& v)
-{
-    // intr: [fx, fy, cx, cy, k1, k2, p1, p2, k3]
-    const T fx = intr[0], fy = intr[1], cx = intr[2], cy = intr[3];
-    const T k1 = intr[4], k2 = intr[5], p1 = intr[6], p2 = intr[7], k3 = intr[8];
-
-    const T x = Xc / Zc;
-    const T y = Yc / Zc;
-
-    T xd = x, yd = y;
-    if (use_distort) {
-        const T r2 = x*x + y*y;
-        const T r4 = r2*r2;
-        const T r6 = r4*r2;
-        const T radial = T(1) + k1*r2 + k2*r4 + k3*r6;
-        const T x_tan = T(2)*p1*x*y + p2*(r2 + T(2)*x*x);
-        const T y_tan = p1*(r2 + T(2)*y*y) + T(2)*p2*x*y;
-        xd = radial * x + x_tan;
-        yd = radial * y + y_tan;
-    }
-
-    u = fx * xd + cx;
-    v = fy * yd + cy;
 }
 
 // ---------- small SO(3) helpers (double) ----------
@@ -261,4 +232,4 @@ Observation<T> to_observation(const PlanarObservation& obs, const T* pose6) {
     return ob;
 }
 
-}  // namespace vitavision
+}  // namespace calib

@@ -2,9 +2,9 @@
 
 #include <Eigen/Geometry>
 
-#include "calibration/jointintrextr.h"
+#include "calib/jointintrextr.h"
 
-using namespace vitavision;
+using namespace calib;
 
 TEST(JointCalibration, RecoverAllParameters) {
     const int kCams = 2;
@@ -12,7 +12,7 @@ TEST(JointCalibration, RecoverAllParameters) {
     Eigen::VectorXd dist(2);
     dist << 0.0, 0.0;
     DualDistortion dd; dd.forward = dist; dd.inverse = dist;
-    std::vector<Camera> cameras_gt = {Camera{K, dd}, Camera{K, dd}};
+    std::vector<Camera<DualDistortion>> cameras_gt = {Camera<DualDistortion>{K, dd}, Camera<DualDistortion>{K, dd}};
 
     Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
     Eigen::Affine3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Affine3d::Identity();
@@ -46,9 +46,9 @@ TEST(JointCalibration, RecoverAllParameters) {
     }
 
     // Perturbed intrinsics for initialization
-    std::vector<Camera> cam_init = {
-        Camera{CameraMatrix{90.0, 95.0, 1.0, -1.0}, dd},
-        Camera{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dd}
+    std::vector<Camera<DualDistortion>> cam_init = {
+        Camera<DualDistortion>{CameraMatrix{90.0, 95.0, 1.0, -1.0}, dd},
+        Camera<DualDistortion>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dd}
     };
 
     auto guess = make_initial_extrinsic_guess(views, cam_init);
@@ -76,7 +76,7 @@ TEST(JointCalibration, FirstTargetPoseFixed) {
     Eigen::VectorXd dist(2);
     dist << 0.0, 0.0;
     DualDistortion dd; dd.forward = dist; dd.inverse = dist;
-    std::vector<Camera> cameras_gt = {Camera{K, dd}, Camera{K, dd}};
+    std::vector<Camera<DualDistortion>> cameras_gt = {Camera<DualDistortion>{K, dd}, Camera<DualDistortion>{K, dd}};
 
     Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
     Eigen::Affine3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Affine3d::Identity();
@@ -107,9 +107,9 @@ TEST(JointCalibration, FirstTargetPoseFixed) {
         views.push_back(std::move(view));
     }
 
-    std::vector<Camera> cam_init = {
-        Camera{CameraMatrix{90.0, 95.0, 1.0, -1.0}, dd},
-        Camera{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dd}
+    std::vector<Camera<DualDistortion>> cam_init = {
+        Camera<DualDistortion>{CameraMatrix{90.0, 95.0, 1.0, -1.0}, dd},
+        Camera<DualDistortion>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dd}
     };
 
     auto guess = make_initial_extrinsic_guess(views, cam_init);

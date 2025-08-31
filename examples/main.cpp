@@ -5,12 +5,12 @@
 // std
 #include <iostream>
 
-#include "calibration/homography.h"
+#include "calib/homography.h"
 
 using Vec2 = Eigen::Vector2d;
 using Mat3 = Eigen::Matrix3d;
 
-using namespace vitavision;
+using namespace calib;
 
 int main() {
     std::ios::sync_with_stdio(false);

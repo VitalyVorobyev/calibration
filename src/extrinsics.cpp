@@ -1,4 +1,4 @@
-#include "calibration/extrinsics.h"
+#include "calib/extrinsics.h"
 
 // std
 #include <numeric>
@@ -11,13 +11,13 @@
 
 #include "observationutils.h"
 
-namespace vitavision {
+namespace calib {
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
 InitialExtrinsicGuess make_initial_extrinsic_guess(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras
+    const std::vector<Camera<DualDistortion>>& cameras
 ) {
     const size_t num_cams = cameras.size();
     const size_t num_views = views.size();
@@ -80,9 +80,9 @@ InitialExtrinsicGuess make_initial_extrinsic_guess(
 
 struct ExtrinsicResidual final {
     PlanarView obs_;
-    const Camera cam_;
+    const Camera<DualDistortion> cam_;
 
-    ExtrinsicResidual(PlanarView obs, const Camera& cam)
+    ExtrinsicResidual(PlanarView obs, const Camera<DualDistortion>& cam)
         : obs_(std::move(obs)), cam_(cam) {}
 
     template <typename T>
@@ -106,7 +106,7 @@ struct ExtrinsicResidual final {
         return true;
     }
 
-    static auto* create(const PlanarView& obs, const Camera cam) {
+    static auto* create(const PlanarView& obs, const Camera<DualDistortion> cam) {
         auto* functor = new ExtrinsicResidual(obs, cam);
         auto* cost = new ceres::AutoDiffCostFunction<ExtrinsicResidual,
             ceres::DYNAMIC, 6, 6>(
@@ -135,7 +135,7 @@ static void initialize_pose_vectors(const std::vector<Eigen::Affine3d>& initial_
 }
 
 static void setup_problem(const std::vector<ExtrinsicPlanarView>& views,
-                          const std::vector<Camera>& cameras,
+                          const std::vector<Camera<DualDistortion>>& cameras,
                           std::vector<Pose6>& cam_poses,
                           std::vector<Pose6>& targ_poses,
                           ceres::Problem& problem) {
@@ -179,7 +179,7 @@ static void extract_solution(const std::vector<Pose6>& cam_poses,
 
 static std::pair<double, size_t> compute_residual_stats(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras,
+    const std::vector<Camera<DualDistortion>>& cameras,
     const ExtrinsicOptimizationResult& result) {
     double ssr = 0.0;
     size_t count = 0;
@@ -245,7 +245,7 @@ static void compute_covariances(ceres::Problem& problem,
 
 ExtrinsicOptimizationResult optimize_extrinsic_poses(
     const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera>& cameras,
+    const std::vector<Camera<DualDistortion>>& cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
     bool verbose
@@ -299,4 +299,4 @@ ExtrinsicOptimizationResult optimize_extrinsic_poses(
     return result;
 }
 
-} // namespace vitavision
+} // namespace calib

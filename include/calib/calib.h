@@ -11,10 +11,10 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calibration/intrinsics.h"
-#include "calibration/planarpose.h"  // PlanarObservation
+#include "calib/intrinsics.h"
+#include "calib/planarpose.h"  // PlanarObservation
 
-namespace vitavision {
+namespace calib {
 
 struct CameraCalibrationResult final {
     CameraMatrix intrinsics;             // Estimated camera matrix
@@ -33,4 +33,4 @@ CameraCalibrationResult calibrate_camera_planar(
     bool verbose = false,
     std::optional<CalibrationBounds> bounds = std::nullopt);
 
-}  // namespace vitavision
+}  // namespace calib

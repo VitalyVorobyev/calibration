@@ -11,12 +11,14 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-#include "calibration/planarpose.h"
-#include "calibration/intrinsics.h"
+#include "calib/planarpose.h"
+#include "calib/intrinsics.h"
+
+using namespace calib;
 
 // Helper function to create a simple synthetic planar target
 std::pair<std::vector<Eigen::Vector2d>, std::vector<Eigen::Vector2d>>
-createSyntheticPlanarData(const Eigen::Affine3d& pose, const vitavision::CameraMatrix& intrinsics) {
+createSyntheticPlanarData(const Eigen::Affine3d& pose, const CameraMatrix& intrinsics) {
     // Create a grid of points on the plane Z=0
     std::vector<Eigen::Vector2d> obj_points;
     std::vector<Eigen::Vector2d> img_points;
@@ -46,7 +48,7 @@ createSyntheticPlanarData(const Eigen::Affine3d& pose, const vitavision::CameraM
     return {obj_points, img_points};
 }
 
-namespace vitavision {
+namespace calib {
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
@@ -395,4 +397,4 @@ TEST(PlanarPoseTest, BasicOptimizePlanarPoseTest) {
     }
 }
 
-} // namespace vitavision
+} // namespace calib

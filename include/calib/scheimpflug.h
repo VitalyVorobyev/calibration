@@ -6,10 +6,11 @@
 // eigen
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <ceres/ceres.h>
 
-#include "calibration/camera.h"
+#include "calib/camera.h"
 
-namespace vitavision {
+namespace calib {
 
 /**
  * @brief Camera model with a tilted sensor plane (Scheimpflug configuration).
@@ -20,13 +21,15 @@ namespace vitavision {
  * axis.  Distortion is applied in the metric coordinates on the tilted sensor
  * plane.
  */
+template<distortion_model DistortionT>
 struct ScheimpflugCamera final {
-    Camera camera;   ///< Intrinsics and distortion parameters
-    double tau_x{0}; ///< Tilt around the X axis (radians)
-    double tau_y{0}; ///< Tilt around the Y axis (radians)
+    using Scalar = typename DistortionT::Scalar;
+    Camera<DistortionT> camera;   ///< Intrinsics and distortion parameters
+    Scalar tau_x{0}; ///< Tilt around the X axis (radians)
+    Scalar tau_y{0}; ///< Tilt around the Y axis (radians)
 
     ScheimpflugCamera() = default;
-    ScheimpflugCamera(const Camera& cam, double tx, double ty)
+    ScheimpflugCamera(const Camera<DistortionT>& cam, Scalar tx, Scalar ty)
         : camera(cam), tau_x(tx), tau_y(ty) {}
 
     /**
@@ -41,10 +44,10 @@ struct ScheimpflugCamera final {
         // Build rotation that aligns the tilted sensor basis
         const T tx = T(tau_x);
         const T ty = T(tau_y);
-        const T ctx = std::cos(tx);
-        const T stx = std::sin(tx);
-        const T cty = std::cos(ty);
-        const T sty = std::sin(ty);
+        const T ctx = ceres::cos(tx);
+        const T stx = ceres::sin(tx);
+        const T cty = ceres::cos(ty);
+        const T sty = ceres::sin(ty);
 
         Eigen::Matrix<T,3,3> Rx;
         Rx << T(1), T(0), T(0),
@@ -84,4 +87,4 @@ struct ScheimpflugCamera final {
     }
 };
 
-} // namespace vitavision
+} // namespace calib

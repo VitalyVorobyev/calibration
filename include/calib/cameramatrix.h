@@ -7,10 +7,11 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-namespace vitavision {
+namespace calib {
 
-struct CameraMatrix final {
-    double fx, fy, cx, cy;
+template<typename Scalar>
+struct CameraMatrixT final {
+    Scalar fx, fy, cx, cy;
 
     /**
      * @brief Normalizes a 2D pixel coordinate using the intrinsic camera parameters.
@@ -51,6 +52,8 @@ struct CameraMatrix final {
     }
 };
 
+using CameraMatrix = CameraMatrixT<double>;
+
 struct CalibrationBounds final {
     double fx_min = 100.0;
     double fx_max = 2000.0;
@@ -62,4 +65,4 @@ struct CalibrationBounds final {
     double cy_max = 720.0;
 };
 
-} // namespace vitavision
+} // namespace calib

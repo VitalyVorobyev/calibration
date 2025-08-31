@@ -7,10 +7,10 @@
 #include <cmath>
 #include <algorithm>
 
-#include "calibration/distortion.h"
-#include "calibration/cameramatrix.h"
+#include "calib/distortion.h"
+#include "calib/cameramatrix.h"
 
-using namespace vitavision;
+using namespace calib;
 using Vec2 = Eigen::Vector2d;
 
 // Generate synthetic observations with known distortion

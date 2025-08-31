@@ -1,4 +1,4 @@
-#include "calibration/intrinsics.h"
+#include "calib/intrinsics.h"
 
 // std
 #include <iostream>
@@ -9,7 +9,7 @@
 // ceres
 #include <ceres/ceres.h>
 
-namespace vitavision {
+namespace calib {
 
 // Compute a linear least-squares estimate of the camera intrinsics
 // (fx, fy, cx, cy) from normalized correspondences.  This ignores lens
@@ -139,7 +139,7 @@ std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
     if (!dual_opt) {
         return std::nullopt;
     }
-    Camera cam;
+    Camera<DualDistortion> cam;
     cam.K = K;
     cam.distortion = dual_opt->distortion;
 
@@ -284,4 +284,4 @@ IntrinsicOptimizationResult optimize_intrinsics(
     return result;
 }
 
-}  // namespace vitavision
+}  // namespace calib

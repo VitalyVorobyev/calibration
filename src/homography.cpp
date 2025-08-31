@@ -1,5 +1,5 @@
 
-#include "calibration/homography.h"
+#include "calib/homography.h"
 
 // std
 #include <array>
@@ -9,7 +9,7 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-namespace vitavision {
+namespace calib {
 
 using Vec2 = Eigen::Vector2d;
 using Mat3 = Eigen::Matrix3d;
@@ -196,4 +196,4 @@ Mat3 fit_homography(const std::vector<Vec2>& src,
     return H;
 }
 
-}  // namespace vitavision
+}  // namespace calib
