@@ -9,7 +9,7 @@
 using namespace calib;
 
 TEST(JsonReflection, CameraMatrixRoundTrip) {
-    CameraMatrix cam{100.0, 110.0, 10.0, 20.0};
+    CameraMatrix cam{100.0, 110.0, 10.0, 20.0, 1.5};
 
     nlohmann::json j = cam;
     CameraMatrix parsed = j.get<CameraMatrix>();
@@ -18,6 +18,7 @@ TEST(JsonReflection, CameraMatrixRoundTrip) {
     EXPECT_DOUBLE_EQ(parsed.fy, cam.fy);
     EXPECT_DOUBLE_EQ(parsed.cx, cam.cx);
     EXPECT_DOUBLE_EQ(parsed.cy, cam.cy);
+    EXPECT_DOUBLE_EQ(parsed.skew, cam.skew);
 }
 
 TEST(JsonSerialization, ObservationRoundTrip) {
@@ -32,8 +33,8 @@ TEST(JsonSerialization, ObservationRoundTrip) {
 
 TEST(JsonSerialization, IntrinsicResultRoundTrip) {
     IntrinsicOptimizationResult res;
-    res.camera.K = CameraMatrix{100,100,0,0};
-    res.covariance = Eigen::Matrix4d::Identity();
+    res.camera.K = CameraMatrix{100,100,0,0,0};
+    res.covariance = Eigen::Matrix<double,5,5>::Identity();
     res.reprojection_error = 0.5;
     res.summary = "ok";
     nlohmann::json j = res;

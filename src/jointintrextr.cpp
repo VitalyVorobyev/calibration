@@ -26,7 +26,7 @@ struct JointResidual {
         auto pose_target = pose2affine(target_pose6);
         planar_observables_to_observables(obs_, o, pose_cam * pose_target);
 
-        auto dr = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        auto dr = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], intr[4], num_radial_);
         if (!dr.has_value()) throw std::runtime_error("Distortion fitting failed");
         const auto& r = dr->residuals;
         for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
@@ -37,7 +37,7 @@ struct JointResidual {
         auto* functor = new JointResidual(obs, dist);
         auto* cost = new ceres::AutoDiffCostFunction<JointResidual,
                                                      ceres::DYNAMIC,
-                                                     4,6,6>(functor,
+                                                     5,6,6>(functor,
                                                             static_cast<int>(obs.size())*2);
         return cost;
     }
@@ -46,7 +46,7 @@ struct JointResidual {
 static void setup_joint_problem(
     const std::vector<ExtrinsicPlanarView>& views,
     const std::vector<Camera<DualDistortion>>& initial_cameras,
-    std::vector<std::array<double, 4>>& intr,
+    std::vector<std::array<double, 5>>& intr,
     std::vector<Pose6>& cam_poses,
     std::vector<Pose6>& targ_poses,
     ceres::Problem& problem
@@ -55,7 +55,7 @@ static void setup_joint_problem(
     const size_t num_views = views.size();
 
     for (size_t i = 0; i < num_cams; ++i) {
-        problem.AddParameterBlock(intr[i].data(), 4);
+        problem.AddParameterBlock(intr[i].data(), 5);
         problem.AddParameterBlock(cam_poses[i].data(), 6);
     }
 
@@ -89,7 +89,7 @@ static void setup_joint_problem(
 }
 
 static void extract_joint_solution(
-    const std::vector<std::array<double, 4>>& intr,
+    const std::vector<std::array<double, 5>>& intr,
     const std::vector<Pose6>& cam_poses,
     const std::vector<Pose6>& targ_poses,
     JointOptimizationResult& result
@@ -100,7 +100,7 @@ static void extract_joint_solution(
     result.intrinsics.resize(num_cams);
     result.camera_poses.resize(num_cams);
     for (size_t i = 0; i < num_cams; ++i) {
-        result.intrinsics[i] = {intr[i][0], intr[i][1], intr[i][2], intr[i][3]};
+        result.intrinsics[i] = {intr[i][0], intr[i][1], intr[i][2], intr[i][3], intr[i][4]};
         result.camera_poses[i] = pose2affine(cam_poses[i].data());
     }
     result.target_poses.resize(num_views);
@@ -144,6 +144,7 @@ static std::pair<double, size_t> compute_joint_residual_stats(
                                       result.intrinsics[c].fy,
                                       result.intrinsics[c].cx,
                                       result.intrinsics[c].cy,
+                                      result.intrinsics[c].skew,
                                       num_radial);
         if (dr) {
             result.distortions[c] = dr->distortion;
@@ -157,7 +158,7 @@ static std::pair<double, size_t> compute_joint_residual_stats(
 
 static void compute_joint_covariance(
     ceres::Problem& problem,
-    const std::vector<std::array<double, 4>>& intr,
+    const std::vector<std::array<double, 5>>& intr,
     const std::vector<Pose6>& cam_poses,
     const std::vector<Pose6>& targ_poses,
     double sigma2,
@@ -166,7 +167,7 @@ static void compute_joint_covariance(
     const size_t num_views = targ_poses.size();
     const size_t num_cams = cam_poses.size();
 
-    result.intrinsic_covariances.assign(num_cams, Eigen::Matrix4d::Zero());
+    result.intrinsic_covariances.assign(num_cams, Eigen::Matrix<double,5,5>::Zero());
     result.camera_covariances.assign(num_cams, Eigen::Matrix<double,6,6>::Zero());
     result.target_covariances.assign(num_views, Eigen::Matrix<double,6,6>::Zero());
 
@@ -184,10 +185,10 @@ static void compute_joint_covariance(
     }
     if (cov.Compute(blocks, &problem)) {
         for (size_t i = 0; i < num_cams; ++i) {
-            double Cov4x4[16];
-            cov.GetCovarianceBlock(intr[i].data(), intr[i].data(), Cov4x4);
-            Eigen::Map<Eigen::Matrix4d> C4(Cov4x4);
-            result.intrinsic_covariances[i] = sigma2 * C4;
+            double Cov5x5[25];
+            cov.GetCovarianceBlock(intr[i].data(), intr[i].data(), Cov5x5);
+            Eigen::Map<Eigen::Matrix<double,5,5>> C5(Cov5x5);
+            result.intrinsic_covariances[i] = sigma2 * C5;
             if (!problem.IsParameterBlockConstant(cam_poses[i].data())) {
                 double Cov6x6[36];
                 cov.GetCovarianceBlock(cam_poses[i].data(), cam_poses[i].data(), Cov6x6);
@@ -239,12 +240,13 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
     }
 
     // Parameter arrays
-    std::vector<std::array<double,4>> intr(num_cams);
+    std::vector<std::array<double,5>> intr(num_cams);
     for (size_t i = 0; i < num_cams; ++i) {
         intr[i] = {initial_cameras[i].K.fx,
                    initial_cameras[i].K.fy,
                    initial_cameras[i].K.cx,
-                   initial_cameras[i].K.cy};
+                   initial_cameras[i].K.cy,
+                   initial_cameras[i].K.skew};
     }
     std::vector<Pose6> cam_poses(num_cams);
     std::vector<Pose6> targ_poses(num_views);

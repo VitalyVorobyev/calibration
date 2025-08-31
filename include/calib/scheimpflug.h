@@ -88,8 +88,7 @@ struct ScheimpflugCamera final {
         mx = dxy.x() + mx0;
         my = dxy.y() + my0;
 
-        // Pixel mapping (no skew)
-        T u = T(camera.K.fx) * mx + T(camera.K.cx);
+        T u = T(camera.K.fx) * mx + T(camera.K.skew) * my + T(camera.K.cx);
         T v = T(camera.K.fy) * my + T(camera.K.cy);
         return {u, v};
     }
@@ -98,23 +97,24 @@ struct ScheimpflugCamera final {
 // Traits specialisation for Scheimpflug camera
 template<distortion_model DistortionT>
 struct CameraTraits<ScheimpflugCamera<DistortionT>> {
-    static constexpr size_t param_count = 11;
+    static constexpr size_t param_count = 12;
 
     template<typename T>
     static ScheimpflugCamera<BrownConrady<T>> from_array(const T* intr) {
-        CameraMatrixT<T> K{intr[0], intr[1], intr[2], intr[3]};
+        CameraMatrixT<T> K{intr[0], intr[1], intr[2], intr[3], intr[4]};
         Eigen::Matrix<T, Eigen::Dynamic, 1> dist(5);
-        dist << intr[6], intr[7], intr[8], intr[9], intr[10];
+        dist << intr[7], intr[8], intr[9], intr[10], intr[11];
         Camera<BrownConrady<T>> cam(K, dist);
-        return ScheimpflugCamera<BrownConrady<T>>(cam, intr[4], intr[5]);
+        return ScheimpflugCamera<BrownConrady<T>>(cam, intr[5], intr[6]);
     }
 
     static void to_array(const ScheimpflugCamera<DistortionT>& cam,
                          std::array<double, param_count>& arr) {
         arr[0] = cam.camera.K.fx; arr[1] = cam.camera.K.fy;
         arr[2] = cam.camera.K.cx; arr[3] = cam.camera.K.cy;
-        arr[4] = cam.tau_x; arr[5] = cam.tau_y;
-        for (int i = 0; i < 5; ++i) arr[6 + i] = cam.camera.distortion.coeffs[i];
+        arr[4] = cam.camera.K.skew;
+        arr[5] = cam.tau_x; arr[6] = cam.tau_y;
+        for (int i = 0; i < 5; ++i) arr[7 + i] = cam.camera.distortion.coeffs[i];
     }
 };
 

@@ -76,7 +76,7 @@ TEST(DistortionTest, ExactFit) {
         k_true, p1_true, p2_true, fx, fy, cx, cy, 500, 0.0);
 
     // Fit distortion parameters
-    auto distortion_opt = fit_distortion(observations, fx, fy, cx, cy, 2);
+    auto distortion_opt = fit_distortion(observations, fx, fy, cx, cy, 0.0, 2);
     ASSERT_TRUE(distortion_opt.has_value());
     Eigen::VectorXd distortion = distortion_opt->distortion;
 
@@ -100,7 +100,7 @@ TEST(DistortionTest, NoisyFit) {
         k_true, p1_true, p2_true, fx, fy, cx, cy, 1000, 0.5);
 
     // Fit distortion parameters
-    auto distortion_opt = fit_distortion(observations, fx, fy, cx, cy, 2);
+    auto distortion_opt = fit_distortion(observations, fx, fy, cx, cy, 0.0, 2);
     ASSERT_TRUE(distortion_opt.has_value());
     Eigen::VectorXd distortion = distortion_opt->distortion;
 
@@ -119,7 +119,7 @@ TEST(DistortionTest, DualModel) {
     auto observations = generate_synthetic_data(
         k_true, p1_true, p2_true, fx, fy, cx, cy, 200, 0.0);
 
-    auto dual_opt = fit_distortion_dual(observations, fx, fy, cx, cy, 2);
+    auto dual_opt = fit_distortion_dual(observations, fx, fy, cx, cy, 0.0, 2);
     ASSERT_TRUE(dual_opt.has_value());
     const auto& model = dual_opt->distortion;
 

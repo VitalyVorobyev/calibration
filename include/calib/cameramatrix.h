@@ -12,6 +12,7 @@ namespace calib {
 template<typename Scalar>
 struct CameraMatrixT final {
     Scalar fx, fy, cx, cy;
+    Scalar skew = Scalar(0);
 
     /**
      * @brief Normalizes a 2D pixel coordinate using the intrinsic camera parameters.
@@ -27,10 +28,9 @@ struct CameraMatrixT final {
      */
     template<typename T>
     Eigen::Matrix<T,2,1> normalize(const Eigen::Matrix<T,2,1>& pix) const {
-        return {
-            (pix.x() - T(cx)) / T(fx),
-            (pix.y() - T(cy)) / T(fy)
-        };
+        T y = (pix.y() - T(cy)) / T(fy);
+        T x = (pix.x() - T(cx) - T(skew) * y) / T(fx);
+        return {x, y};
     }
 
     /**
@@ -46,7 +46,7 @@ struct CameraMatrixT final {
     template<typename T>
     Eigen::Matrix<T,2,1> denormalize(const Eigen::Matrix<T,2,1>& xy) const {
         return {
-            T(fx) * xy.x() + T(cx),
+            T(fx) * xy.x() + T(skew) * xy.y() + T(cx),
             T(fy) * xy.y() + T(cy)
         };
     }
@@ -55,14 +55,16 @@ struct CameraMatrixT final {
 using CameraMatrix = CameraMatrixT<double>;
 
 struct CalibrationBounds final {
-    double fx_min = 100.0;
+    double fx_min = 0;
     double fx_max = 2000.0;
-    double fy_min = 100.0;
+    double fy_min = 0;
     double fy_max = 2000.0;
-    double cx_min = 10.0;
+    double cx_min = 0;
     double cx_max = 1280.0;
-    double cy_min = 10.0;
+    double cy_min = 0;
     double cy_max = 720.0;
+    double skew_min = -0.01;
+    double skew_max =  0.01;
 };
 
 } // namespace calib

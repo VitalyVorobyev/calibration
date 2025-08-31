@@ -79,19 +79,7 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
 cmake --build build --config Release -j2
 ```
 
-Run a smoke test:
-
-```powershell
-build\examples\homography.exe <<EOF
-4
-0   0    10 20
-100 0    110 18
-100 50   120 70
-0   50   8  72
-EOF
-```
-
-## Usage
+## Usage *TODO: update this section*
 
 The library exposes lightweight C++ APIs.  The most common entry points are:
 

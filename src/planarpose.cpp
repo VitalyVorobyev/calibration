@@ -92,14 +92,14 @@ using Pose6 = Eigen::Matrix<double, 6, 1>;
 // variable projection system to eliminate distortion coefficients.
 struct PlanarPoseVPResidual {
     PlanarView obs_;
-    double K_[4]; // fx, fy, cx, cy
+    double K_[5]; // fx, fy, cx, cy, skew
     int num_radial_;
 
     PlanarPoseVPResidual(PlanarView obs,
                          int num_radial,
                          const CameraMatrix& intrinsics)
         : obs_(std::move(obs)),
-          K_{intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy},
+          K_{intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy, intrinsics.skew},
           num_radial_(num_radial) {}
 
     template <typename T>
@@ -108,12 +108,13 @@ struct PlanarPoseVPResidual {
         const T fy = T(K_[1]);
         const T cx = T(K_[2]);
         const T cy = T(K_[3]);
+        const T skew = T(K_[4]);
 
         std::vector<Observation<T>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(),
             [pose6](const PlanarObservation& s) { return to_observation(s, pose6); });
 
-        auto dr = fit_distortion_full(o, fx, fy, cx, cy, num_radial_);
+        auto dr = fit_distortion_full(o, fx, fy, cx, cy, skew, num_radial_);
         if (!dr) return false;
         const auto& r = dr->residuals;
         for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
@@ -126,7 +127,7 @@ struct PlanarPoseVPResidual {
         std::transform(obs_.begin(), obs_.end(), o.begin(),
             [pose6](const PlanarObservation& s) { return to_observation(s, pose6.data()); });
 
-        auto d = fit_distortion(o, K_[0], K_[1], K_[2], K_[3], num_radial_);
+        auto d = fit_distortion(o, K_[0], K_[1], K_[2], K_[3], K_[4], num_radial_);
         return d ? d->distortion : Eigen::VectorXd{};
     }
 };

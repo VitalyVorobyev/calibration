@@ -118,7 +118,7 @@ inline Eigen::Matrix<Scalar,Eigen::Dynamic,1> invert_brown_conrady(const Eigen::
         }
     }
 
-    auto inv_opt = fit_distortion_full(obs, 1.0, 1.0, 0.0, 0.0, num_radial);
+    auto inv_opt = fit_distortion_full(obs, 1.0, 1.0, 0.0, 0.0, 0.0, num_radial);
     if (inv_opt.has_value()) return inv_opt->distortion;
     return Eigen::Matrix<Scalar, Eigen::Dynamic, 1>::Zero(forward.size());
 }
@@ -155,7 +155,7 @@ struct DualDistortionWithResiduals final {
 template<typename T>
 std::optional<DistortionWithResiduals<T>> fit_distortion_full(
     const std::vector<Observation<T>>& obs,
-    T fx, T fy, T cx, T cy,
+    T fx, T fy, T cx, T cy, T skew,
     int num_radial = 2
 ) {
     if (obs.size() < 8) {
@@ -180,7 +180,7 @@ std::optional<DistortionWithResiduals<T>> fit_distortion_full(
         const T y = T(obs[i].y);
         const T r2 = x * x + y * y;
 
-        const T u0 = fx * x + cx;
+        const T u0 = fx * x + skew * y + cx;
         const T v0 = fy * y + cy;
 
         const T du = T(obs[i].u) - u0;
@@ -192,14 +192,14 @@ std::optional<DistortionWithResiduals<T>> fit_distortion_full(
         // Radial terms
         T rpow = r2;  // r^(2*1)
         for (int j = 0; j < num_radial; ++j) {
-            A(ru, j) = fx * x * rpow;
+            A(ru, j) = fx * x * rpow + skew * y * rpow;
             A(rv, j) = fy * y * rpow;
             rpow *= r2;
         }
 
         // Tangential terms
-        A(ru, idx_p1) = fx * (T(2.0) * x * y);
-        A(ru, idx_p2) = fx * (r2 + T(2.0) * x * x);
+        A(ru, idx_p1) = fx * (T(2.0) * x * y) + skew * (r2 + T(2.0) * y * y);
+        A(ru, idx_p2) = fx * (r2 + T(2.0) * x * x) + skew * (T(2.0) * x * y);
         A(rv, idx_p1) = fy * (r2 + T(2.0) * y * y);
         A(rv, idx_p2) = fy * (T(2.0) * x * y);
 
@@ -218,18 +218,18 @@ std::optional<DistortionWithResiduals<T>> fit_distortion_full(
 template<typename T>
 std::optional<DistortionWithResiduals<T>> fit_distortion(
     const std::vector<Observation<T>>& obs,
-    T fx, T fy, T cx, T cy,
+    T fx, T fy, T cx, T cy, T skew,
     int num_radial = 2
 ) {
-    return fit_distortion_full(obs, fx, fy, cx, cy, num_radial);
+    return fit_distortion_full(obs, fx, fy, cx, cy, skew, num_radial);
 }
 
 inline std::optional<DualDistortionWithResiduals> fit_distortion_dual(
     const std::vector<Observation<double>>& obs,
-    double fx, double fy, double cx, double cy,
+    double fx, double fy, double cx, double cy, double skew,
     int num_radial = 2
 ) {
-    auto forward = fit_distortion_full(obs, fx, fy, cx, cy, num_radial);
+    auto forward = fit_distortion_full(obs, fx, fy, cx, cy, skew, num_radial);
     if (!forward) {
         return std::nullopt;
     }
@@ -237,14 +237,14 @@ inline std::optional<DualDistortionWithResiduals> fit_distortion_dual(
     std::vector<Observation<double>> inv_obs;
     inv_obs.reserve(obs.size());
     for (const auto& o : obs) {
-        double xd = (o.u - cx) / fx;
         double yd = (o.v - cy) / fy;
-        double u_ud = fx * o.x + cx;
+        double xd = (o.u - cx - skew * yd) / fx;
+        double u_ud = fx * o.x + skew * o.y + cx;
         double v_ud = fy * o.y + cy;
         inv_obs.push_back({xd, yd, u_ud, v_ud});
     }
 
-    auto inverse = fit_distortion_full(inv_obs, fx, fy, cx, cy, num_radial);
+    auto inverse = fit_distortion_full(inv_obs, fx, fy, cx, cy, skew, num_radial);
     if (!inverse) {
         return std::nullopt;
     }

@@ -43,7 +43,7 @@ struct CalibVPResidual {
             }
         }
 
-        auto dr = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], num_radial_);
+        auto dr = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], intr[4], num_radial_);
         if (!dr) return false;
         const auto& r = dr->residuals;
         for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
@@ -75,7 +75,7 @@ static std::optional<DistortionWithResiduals<double>> solve_full(
             obs[obs_idx++] = to_observation(ob, pose6);
         }
     }
-    return fit_distortion_full(obs, intr[0], intr[1], intr[2], intr[3], num_radial);
+    return fit_distortion_full(obs, intr[0], intr[1], intr[2], intr[3], intr[4], num_radial);
 }
 
 static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
@@ -114,7 +114,7 @@ static void setup_optimization_problem(
 ) {
     auto* functor = new CalibVPResidual(obs_views, num_radial);
     auto* cost = new ceres::DynamicAutoDiffCostFunction(functor);
-    cost->AddParameterBlock(4);  // Intrinsics
+    cost->AddParameterBlock(5);  // Intrinsics
     for (size_t i = 0; i < poses.size(); ++i) {
         cost->AddParameterBlock(6);  // Pose for each view
     }
@@ -127,6 +127,7 @@ static void setup_optimization_problem(
         param_blocks.push_back(poses[i].data());
     }
     problem.AddResidualBlock(cost, nullptr, param_blocks);
+    problem.SetManifold(intrinsics, new ceres::SubsetManifold(5, {4}));  // fix skew
 }
 
 // Calculate reprojection errors overall and per view
@@ -165,6 +166,7 @@ static void populate_result_parameters(
     result.intrinsics.fy = intrinsics[1];
     result.intrinsics.cx = intrinsics[2];
     result.intrinsics.cy = intrinsics[3];
+    result.intrinsics.skew = intrinsics[4];
 
     result.poses.resize(poses.size());
     for (size_t i = 0; i < poses.size(); ++i) {
@@ -256,7 +258,7 @@ CameraCalibrationResult calibrate_camera_planar(
     }
 
     // Initialize intrinsics and poses
-    double intrinsics[4] = {initial_guess.fx, initial_guess.fy, initial_guess.cx, initial_guess.cy};
+    double intrinsics[5] = {initial_guess.fx, initial_guess.fy, initial_guess.cx, initial_guess.cy, initial_guess.skew};
     std::vector<Pose6> poses(num_views);
     initialize_poses(views, initial_guess, poses);
 
@@ -287,11 +289,13 @@ CameraCalibrationResult calibrate_camera_planar(
     problem.SetParameterLowerBound(intrinsics, 1, bounds.fy_min);
     problem.SetParameterLowerBound(intrinsics, 2, bounds.cx_min);
     problem.SetParameterLowerBound(intrinsics, 3, bounds.cy_min);
+    problem.SetParameterLowerBound(intrinsics, 4, bounds.skew_min);
 
     problem.SetParameterUpperBound(intrinsics, 0, bounds.fx_max);
     problem.SetParameterUpperBound(intrinsics, 1, bounds.fy_max);
     problem.SetParameterUpperBound(intrinsics, 2, bounds.cx_max);
     problem.SetParameterUpperBound(intrinsics, 3, bounds.cy_max);
+    problem.SetParameterUpperBound(intrinsics, 4, bounds.skew_max);
 
     ceres::Solver::Summary summary;
     ceres::Solve(opts, &problem, &summary);
@@ -312,9 +316,9 @@ CameraCalibrationResult calibrate_camera_planar(
         populate_result_parameters(intrinsics, poses, result);
 
         // Compute covariance matrix
-        const size_t total_params = 4 + 6 * num_views;
+    const size_t total_params = 5 + 6 * num_views;
         std::vector<int> block_sizes;
-        block_sizes.push_back(4);  // Intrinsics block
+        block_sizes.push_back(5);  // Intrinsics block
         for (size_t i = 0; i < num_views; ++i) {
             block_sizes.push_back(6);  // Pose blocks
         }
