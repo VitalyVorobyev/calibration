@@ -127,6 +127,7 @@ static void setup_optimization_problem(
         param_blocks.push_back(poses[i].data());
     }
     problem.AddResidualBlock(cost, nullptr, param_blocks);
+    problem.SetManifold(intrinsics, new ceres::SubsetManifold(5, {4}));  // fix skew
 }
 
 // Calculate reprojection errors overall and per view

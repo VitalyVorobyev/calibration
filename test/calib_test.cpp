@@ -42,16 +42,12 @@ TEST(CameraCalibrationTest, PlanarViewsExact) {
 
     // Generate several poses
     std::vector<PlanarView> views(4);
-    std::vector<Eigen::Affine3d> poses_true(4);
-    poses_true[0] = Eigen::Affine3d::Identity();
+    std::vector<Eigen::Affine3d> poses_true(4, Eigen::Affine3d::Identity());
     poses_true[0].translation() = Eigen::Vector3d(0.1, -0.1, 2.0);
-    poses_true[1] = Eigen::Affine3d::Identity();
     poses_true[1].linear() = Eigen::AngleAxisd(0.2, Eigen::Vector3d::UnitY()).toRotationMatrix();
     poses_true[1].translation() = Eigen::Vector3d(-0.2, 0.1, 1.8);
-    poses_true[2] = Eigen::Affine3d::Identity();
     poses_true[2].linear() = Eigen::AngleAxisd(-0.15, Eigen::Vector3d::UnitX()).toRotationMatrix();
     poses_true[2].translation() = Eigen::Vector3d(0.05, 0.2, 2.2);
-    poses_true[3] = Eigen::Affine3d::Identity();
     poses_true[3].linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitZ()).toRotationMatrix();
     poses_true[3].translation() = Eigen::Vector3d(-0.1, -0.15, 1.9);
 
