@@ -21,6 +21,7 @@ using calib::BrownConradyd;
 using calib::PlanarView;
 using calib::BundleObservation;
 using calib::ScheimpflugCamera;
+using calib::distortion_model;
 
 static inline double deg2rad(double d) { return d * std::numbers::pi / 180.0; }
 static inline double rad2deg(double r) { return r * 180.0 / std::numbers::pi; }
@@ -79,7 +80,7 @@ inline std::vector<Eigen::Affine3d> make_circle_poses(int n, double radius, doub
     return poses;
 }
 
-template <class DistortionT>
+template <distortion_model DistortionT>
 inline std::vector<BundleObservation> make_scheimpflug_observations(
     const std::vector<ScheimpflugCamera<DistortionT>>& scs,
     const std::vector<Eigen::Affine3d>& g_T_cs,
@@ -98,13 +99,13 @@ inline std::vector<BundleObservation> make_scheimpflug_observations(
                 P = c_T_t * P;
                 img.push_back(scs[cam_idx].project(P));
             }
-            obs.push_back({make_view(obj, img), btg, static_cast<int>(cam_idx)});
+            obs.push_back({make_view(obj, img), btg, cam_idx});
         }
     }
     return obs;
 }
 
-template <class DistortionT>
+template <distortion_model DistortionT>
 inline std::vector<BundleObservation> make_bundle_observations(
     const std::vector<Camera<DistortionT>>& cams,
     const std::vector<Eigen::Affine3d>& g_T_cs,
@@ -123,7 +124,7 @@ inline std::vector<BundleObservation> make_bundle_observations(
                 P = c_T_t * P;
                 img.push_back(cams[cam_idx].project(P));
             }
-            obs.push_back({make_view(obj, img), btg, static_cast<int>(cam_idx)});
+            obs.push_back({make_view(obj, img), btg, cam_idx});
         }
     }
     return obs;

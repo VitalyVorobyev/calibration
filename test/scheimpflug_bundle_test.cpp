@@ -27,7 +27,7 @@ TEST(ScheimpflugBundle, ReprojectionRefinement) {
     std::vector<Eigen::Vector2d> obj{{-0.1, -0.1}, {0.1, -0.1}, {0.1, 0.1}, {-0.1, 0.1},
                                      {0.05, 0.0}, {-0.05, 0.0}, {0.0, 0.05}, {0.0, -0.05}};
     auto b_T_gs = make_circle_poses(5, 0.2, 0.5, 0.15, 0.3);
-    auto obs = make_scheimpflug_observations({sc}, {g_T_c}, b_T_t, obj, b_T_gs);
+    auto obs = make_scheimpflug_observations<BrownConradyd>({sc}, {g_T_c}, b_T_t, obj, b_T_gs);
 
     sc.tau_x += 0.01;
     sc.tau_y -= 0.01;
@@ -38,7 +38,7 @@ TEST(ScheimpflugBundle, ReprojectionRefinement) {
 
     BundleOptions opts;
     opts.optimize_intrinsics = true;
-    opts.optimize_target_pose = false;
+    opts.optimize_target_pose = true;
     opts.optimize_hand_eye = true;
     opts.verbose = false;
 
@@ -67,7 +67,7 @@ TEST(ScheimpflugBundle, SingleCamera) {
     std::vector<Eigen::Vector2d> obj{{-0.1,-0.1},{0.1,-0.1},{0.1,0.1},{-0.1,0.1},
                                      {0.05,0.0},{-0.05,0.0},{0.0,0.05},{0.0,-0.05}};
     auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
-    auto observations = make_scheimpflug_observations({sc}, {g_T_c}, b_T_t, obj, poses);
+    auto observations = make_scheimpflug_observations<BrownConradyd>({sc}, {g_T_c}, b_T_t, obj, poses);
     Eigen::Affine3d init_g_T_c = g_T_c;
     init_g_T_c.translation() += Eigen::Vector3d(0.01,-0.01,0.02);
 

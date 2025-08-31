@@ -126,7 +126,7 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
 
 TEST(OptimizeBundle, InputValidation) {
     // Mismatched sizes should throw
-    std::vector<BundleObservation> observations(2); // wrong (should be 3)
+    std::vector<BundleObservation> observations(2);
     Camera<BrownConradyd> cam;
     Eigen::Affine3d X0 = Eigen::Affine3d::Identity();
     Eigen::Affine3d init_b_T_t = Eigen::Affine3d::Identity();
