@@ -136,14 +136,15 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
 TEST(OptimizeBundle, InputValidation) {
     // Mismatched sizes should throw
     std::vector<BundleObservation> observations(2);
-    Camera<BrownConradyd> cam;
+    CameraMatrix K{100.0, 100.0, 64.0, 48.0};
+    Camera<BrownConradyd> cam(K, Eigen::VectorXd::Zero(5));
     Eigen::Affine3d X0 = Eigen::Affine3d::Identity();
     Eigen::Affine3d init_b_T_t = Eigen::Affine3d::Identity();
     BundleOptions opts;
 
     EXPECT_THROW({
         optimize_bundle<Camera<BrownConradyd>>(observations, {cam, cam}, {X0}, init_b_T_t, opts);
-    }, std::runtime_error);
+    }, std::invalid_argument);
 }
 
 TEST(OptimizeBundle, SingleCameraHandEye) {
