@@ -10,7 +10,15 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
+#include <concepts>
+
 namespace calib {
+
+template<typename D>
+concept distortion_model = requires(const D& d, const Eigen::Matrix<typename D::Scalar,2,1>& p) {
+    { d.template distort<typename D::Scalar>(p) } -> std::same_as<Eigen::Matrix<typename D::Scalar,2,1>>;
+    { d.template undistort<typename D::Scalar>(p) } -> std::same_as<Eigen::Matrix<typename D::Scalar,2,1>>;
+};
 
 template<typename T>
 struct Observation final {
@@ -68,25 +76,76 @@ struct DistortionWithResiduals final {
     Eigen::Matrix<T, Eigen::Dynamic, 1> residuals;
 };
 
-struct DualDistortion final {
-    Eigen::VectorXd forward;  ///< Coefficients for distortion
-    Eigen::VectorXd inverse;  ///< Coefficients for undistortion
+template<typename Scalar_>
+struct BrownConrady final {
+    using Scalar = Scalar_;
+    Eigen::Matrix<Scalar, Eigen::Dynamic,1> coeffs;
 
-    DualDistortion() = default;
-    explicit DualDistortion(const Eigen::VectorXd& coeffs);
+    BrownConrady() = default;
+    template<typename Derived>
+    explicit BrownConrady(const Eigen::MatrixBase<Derived>& c) : coeffs(c) {}
 
     template<typename T>
     Eigen::Matrix<T,2,1> distort(const Eigen::Matrix<T,2,1>& norm_xy) const {
-        Eigen::Matrix<T,Eigen::Dynamic,1> coeffs = forward.template cast<T>();
-        return apply_distortion(norm_xy, coeffs);
+        return apply_distortion(norm_xy, coeffs.template cast<T>().eval());
     }
 
     template<typename T>
     Eigen::Matrix<T,2,1> undistort(const Eigen::Matrix<T,2,1>& dist_xy) const {
-        Eigen::Matrix<T,Eigen::Dynamic,1> coeffs = inverse.template cast<T>();
-        return apply_distortion(dist_xy, coeffs);
+        return calib::undistort(dist_xy, coeffs.template cast<T>().eval());
     }
 };
+using BrownConradyd = BrownConrady<double>;
+
+template<typename Scalar>
+inline Eigen::Matrix<Scalar,Eigen::Dynamic,1> invert_brown_conrady(const Eigen::Matrix<Scalar,Eigen::Dynamic,1>& forward) {
+    if (forward.size() < 2) {
+        throw std::runtime_error("Insufficient distortion coefficients");
+    }
+    int num_radial = static_cast<int>(forward.size()) - 2;
+
+    constexpr int grid = 21;
+    constexpr double lim = 1.0;
+    std::vector<Observation<Scalar>> obs;
+    obs.reserve(grid * grid);
+    for (int i = 0; i < grid; ++i) {
+        Scalar x = -lim + 2.0 * lim * static_cast<Scalar>(i) / static_cast<Scalar>(grid - 1);
+        for (int j = 0; j < grid; ++j) {
+            Scalar y = -lim + 2.0 * lim * static_cast<Scalar>(j) / static_cast<Scalar>(grid - 1);
+            Eigen::Matrix<Scalar, 2, 1> und(x, y);
+            Eigen::Matrix<Scalar, 2, 1> dst = apply_distortion(und, forward);
+            obs.push_back({dst.x(), dst.y(), x, y});
+        }
+    }
+
+    auto inv_opt = fit_distortion_full(obs, 1.0, 1.0, 0.0, 0.0, num_radial);
+    if (inv_opt.has_value()) return inv_opt->distortion;
+    return Eigen::Matrix<Scalar, Eigen::Dynamic, 1>::Zero(forward.size());
+}
+
+template<typename Scalar_>
+struct DualBrownConrady final {
+    using Scalar = Scalar_;
+    Eigen::Matrix<Scalar,Eigen::Dynamic,1> forward;  ///< Coefficients for distortion
+    Eigen::Matrix<Scalar,Eigen::Dynamic,1> inverse;  ///< Coefficients for undistortion
+
+    DualBrownConrady() = default;
+
+    explicit DualBrownConrady(const Eigen::Matrix<Scalar,Eigen::Dynamic,1>& coeffs)
+        : forward(coeffs), inverse(invert_brown_conrady(coeffs)) {}
+
+    template<typename T>
+    Eigen::Matrix<T,2,1> distort(const Eigen::Matrix<T,2,1>& norm_xy) const {
+        return apply_distortion(norm_xy, forward.template cast<T>().eval());
+    }
+
+    template<typename T>
+    Eigen::Matrix<T,2,1> undistort(const Eigen::Matrix<T,2,1>& dist_xy) const {
+        return apply_distortion(dist_xy, inverse.template cast<T>().eval());
+    }
+};
+
+using DualDistortion = DualBrownConrady<double>;
 
 struct DualDistortionWithResiduals final {
     DualDistortion distortion;
@@ -163,37 +222,6 @@ std::optional<DistortionWithResiduals<T>> fit_distortion(
     int num_radial = 2
 ) {
     return fit_distortion_full(obs, fx, fy, cx, cy, num_radial);
-}
-
-inline DualDistortion::DualDistortion(const Eigen::VectorXd& coeffs) {
-    if (coeffs.size() >= 2) {
-        forward = coeffs;
-    } else {
-        forward = Eigen::VectorXd::Zero(2);
-    }
-
-    int num_radial = static_cast<int>(forward.size()) - 2;
-
-    const int grid = 21;
-    const double lim = 1.0;
-    std::vector<Observation<double>> obs;
-    obs.reserve(grid * grid);
-    for (int i = 0; i < grid; ++i) {
-        double x = -lim + 2.0 * lim * static_cast<double>(i) / static_cast<double>(grid - 1);
-        for (int j = 0; j < grid; ++j) {
-            double y = -lim + 2.0 * lim * static_cast<double>(j) / static_cast<double>(grid - 1);
-            Eigen::Vector2d und(x, y);
-            Eigen::Vector2d dst = apply_distortion<double>(und, forward);
-            obs.push_back({dst.x(), dst.y(), x, y});
-        }
-    }
-
-    auto inv_opt = fit_distortion_full(obs, 1.0, 1.0, 0.0, 0.0, num_radial);
-    if (inv_opt) {
-        inverse = inv_opt->distortion;
-    } else {
-        inverse = Eigen::VectorXd::Zero(forward.size());
-    }
 }
 
 inline std::optional<DualDistortionWithResiduals> fit_distortion_dual(

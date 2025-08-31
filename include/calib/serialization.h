@@ -107,11 +107,23 @@ inline void from_json(const nlohmann::json& j, DualDistortion& d) {
     if (j.contains("inverse")) d.inverse = json_to_eigen_vector(j.at("inverse"));
 }
 
-inline void to_json(nlohmann::json& j, const Camera& cam) {
+inline void to_json(nlohmann::json& j, const BrownConradyd& d) {
+    j = {
+        {"coeffs", eigen_vector_to_json(d.coeffs)}
+    };
+}
+
+inline void from_json(const nlohmann::json& j, BrownConradyd& d) {
+    if (j.contains("coeffs")) d.coeffs = json_to_eigen_vector(j.at("coeffs"));
+}
+
+template<distortion_model DistortionT>
+inline void to_json(nlohmann::json& j, const Camera<DistortionT>& cam) {
     j = {{"K", cam.K}, {"distortion", cam.distortion}};
 }
 
-inline void from_json(const nlohmann::json& j, Camera& cam) {
+template<distortion_model DistortionT>
+inline void from_json(const nlohmann::json& j, Camera<DistortionT>& cam) {
     j.at("K").get_to(cam.K);
     if (j.contains("distortion")) j.at("distortion").get_to(cam.distortion);
 }
@@ -128,47 +140,6 @@ inline void from_json(const nlohmann::json& j, PlanarObservation& p) {
     auto img = j.at("image");
     p.object_xy = Eigen::Vector2d(obj[0].get<double>(), obj[1].get<double>());
     p.image_uv = Eigen::Vector2d(img[0].get<double>(), img[1].get<double>());
-}
-
-// ----- Hand-eye auxiliary types -----
-
-inline void to_json(nlohmann::json& j, const Intrinsics& in) {
-    j = {{"fx", in.fx}, {"fy", in.fy}, {"cx", in.cx}, {"cy", in.cy},
-         {"k1", in.k1}, {"k2", in.k2}, {"p1", in.p1}, {"p2", in.p2},
-         {"k3", in.k3}, {"use_distortion", in.use_distortion}};
-}
-
-inline void from_json(const nlohmann::json& j, Intrinsics& in) {
-    j.at("fx").get_to(in.fx);
-    j.at("fy").get_to(in.fy);
-    j.at("cx").get_to(in.cx);
-    j.at("cy").get_to(in.cy);
-    in.k1 = j.value("k1", 0.0);
-    in.k2 = j.value("k2", 0.0);
-    in.p1 = j.value("p1", 0.0);
-    in.p2 = j.value("p2", 0.0);
-    in.k3 = j.value("k3", 0.0);
-    in.use_distortion = j.value("use_distortion", false);
-}
-
-inline void to_json(nlohmann::json& j, const ReprojRefineOptions& o) {
-    j = {
-        {"refine_intrinsics", o.refine_intrinsics},
-        {"refine_distortion", o.refine_distortion},
-        {"use_distortion", o.use_distortion},
-        {"huber_delta_px", o.huber_delta_px},
-        {"max_iterations", o.max_iterations},
-        {"verbose", o.verbose}
-    };
-}
-
-inline void from_json(const nlohmann::json& j, ReprojRefineOptions& o) {
-    o.refine_intrinsics = j.value("refine_intrinsics", false);
-    o.refine_distortion = j.value("refine_distortion", false);
-    o.use_distortion = j.value("use_distortion", false);
-    o.huber_delta_px = j.value("huber_delta_px", 1.0);
-    o.max_iterations = j.value("max_iterations", 80);
-    o.verbose = j.value("verbose", false);
 }
 
 inline void to_json(nlohmann::json& j, const BundleOptions& o) {
@@ -218,7 +189,7 @@ inline void from_json(const nlohmann::json& j, IntrinsicsInput& in) {
 }
 
 struct ExtrinsicsInput final {
-    std::vector<Camera> cameras;
+    std::vector<Camera<DualDistortion>> cameras;
     std::vector<ExtrinsicPlanarView> views;
 };
 
@@ -231,38 +202,9 @@ inline void from_json(const nlohmann::json& j, ExtrinsicsInput& in) {
     j.at("views").get_to(in.views);
 }
 
-struct HandEyeInput final {
-    std::vector<Eigen::Affine3d> base_T_gripper;
-    std::vector<PlanarView> views;
-    Intrinsics intrinsics;
-    Eigen::Affine3d init_gripper_T_ref = Eigen::Affine3d::Identity();
-    ReprojRefineOptions options;
-};
-
-inline void to_json(nlohmann::json& j, const HandEyeInput& in) {
-    nlohmann::json bg = nlohmann::json::array();
-    for (const auto& T : in.base_T_gripper) bg.push_back(affine_to_json(T));
-    j = {
-        {"base_T_gripper", bg},
-        {"views", in.views},
-        {"intrinsics", in.intrinsics},
-        {"init_gripper_T_ref", affine_to_json(in.init_gripper_T_ref)},
-        {"options", in.options}
-    };
-}
-
-inline void from_json(const nlohmann::json& j, HandEyeInput& in) {
-    in.base_T_gripper.clear();
-    for (const auto& jt : j.at("base_T_gripper")) in.base_T_gripper.push_back(json_to_affine(jt));
-    j.at("views").get_to(in.views);
-    j.at("intrinsics").get_to(in.intrinsics);
-    if (j.contains("init_gripper_T_ref")) in.init_gripper_T_ref = json_to_affine(j.at("init_gripper_T_ref"));
-    if (j.contains("options")) j.at("options").get_to(in.options);
-}
-
 struct BundleInput final {
     std::vector<BundleObservation> observations;
-    std::vector<Camera> initial_cameras;
+    std::vector<Camera<BrownConradyd>> initial_cameras;
     std::vector<Eigen::Affine3d> init_g_T_c;
     Eigen::Affine3d init_b_T_t = Eigen::Affine3d::Identity();
     BundleOptions options;
@@ -340,26 +282,6 @@ inline void from_json(const nlohmann::json& j, ExtrinsicOptimizationResult& r) {
     r.summary = j.value("summary", std::string{});
 }
 
-inline void to_json(nlohmann::json& j, const HandEyeReprojectionResult& r) {
-    j = {
-        {"g_T_r", affine_to_json(r.g_T_r)},
-        {"intrinsics", r.intr},
-        {"b_T_t", affine_to_json(r.b_T_t)},
-        {"reprojection_error", r.reprojection_error_pix},
-        {"covariance", eigen_matrix_to_json(r.cov)},
-        {"summary", r.report}
-    };
-}
-
-inline void from_json(const nlohmann::json& j, HandEyeReprojectionResult& r) {
-    r.g_T_r = json_to_affine(j.at("g_T_r"));
-    j.at("intrinsics").get_to(r.intr);
-    r.b_T_t = json_to_affine(j.at("b_T_t"));
-    r.reprojection_error_pix = j.value("reprojection_error", 0.0);
-    r.cov = json_to_eigen_matrix(j.at("covariance"));
-    r.report = j.value("summary", std::string{});
-}
-
 inline void to_json(nlohmann::json& j, const BundleResult& r) {
     nlohmann::json cams = nlohmann::json::array();
     for (const auto& cam : r.cameras) cams.push_back(cam);
@@ -377,7 +299,7 @@ inline void to_json(nlohmann::json& j, const BundleResult& r) {
 
 inline void from_json(const nlohmann::json& j, BundleResult& r) {
     r.cameras.clear();
-    for (const auto& jc : j.at("cameras")) r.cameras.push_back(jc.get<Camera>());
+    for (const auto& jc : j.at("cameras")) r.cameras.push_back(jc.get<Camera<BrownConradyd>>());
     r.g_T_c.clear();
     for (const auto& jt : j.at("g_T_c")) r.g_T_c.push_back(json_to_affine(jt));
     r.b_T_t = json_to_affine(j.at("b_T_t"));

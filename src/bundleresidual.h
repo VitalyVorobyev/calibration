@@ -6,7 +6,8 @@
 #include <ceres/ceres.h>
 
 #include "calib/planarpose.h"
-
+#include "calib/camera.h"
+#include "calib/scheimpflug.h"
 #include "observationutils.h"
 
 namespace calib {
@@ -36,33 +37,61 @@ static Eigen::Affine3d get_camera_T_target(
 
 struct BundleReprojResidual final {
     PlanarView view;
-    Eigen::Affine3d base_to_gripper;
-    BundleReprojResidual(PlanarView v, const Eigen::Affine3d& base_T_gripper)
-        : view(std::move(v)), base_to_gripper(base_T_gripper) {}
+    Eigen::Affine3d base_T_gripper;
+    BundleReprojResidual(PlanarView v, const Eigen::Affine3d& b_T_g)
+        : view(std::move(v)), base_T_gripper(b_T_g) {}
 
+    /**
+     * @brief Functor to compute the residuals for a bundle adjustment problem.
+     *
+     * This operator computes the residuals between observed image points and
+     * projected 3D points using the given camera parameters and transformations.
+     *
+     * @tparam T The scalar type used for computations (e.g., double or ceres::Jet).
+     *
+     * @param b_q_t Pointer to the quaternion representing the rotation from the base
+     *              frame to the target frame.
+     * @param b_t_t Pointer to the translation vector from the base frame to the target frame.
+     * @param g_q_c Pointer to the quaternion representing the rotation from the gripper
+     *              frame to the camera frame.
+     * @param g_t_c Pointer to the translation vector from the gripper frame to the camera frame.
+     * @param intrinsics Pointer to the array of camera intrinsic parameters and distortion coefficients:
+     *                   - intrinsics[0]: Focal length in x direction (fx).
+     *                   - intrinsics[1]: Focal length in y direction (fy).
+     *                   - intrinsics[2]: Principal point x-coordinate (cx).
+     *                   - intrinsics[3]: Principal point y-coordinate (cy).
+     *                   - intrinsics[4-8]: Radial and tangential distortion coefficients.
+     * @param residuals Pointer to the array where the computed residuals will be stored.
+     *                  The residuals are computed as the difference between the observed
+     *                  image points and the projected points.
+     *
+     * @return true Always returns true to indicate successful computation.
+     */
     template <typename T>
     bool operator()(const T* b_q_t, const T* b_t_t,
                     const T* g_q_c, const T* g_t_c,
                     const T* intrinsics,
                     T* residuals) const {
-        const Eigen::Matrix<T, 3, 3> b_R_g = base_to_gripper.linear().template cast<T>();
-        const Eigen::Matrix<T, 3, 1> b_t_g = base_to_gripper.translation().template cast<T>();
+        const Eigen::Matrix<T, 3, 3> b_R_g = base_T_gripper.linear().template cast<T>();
+        const Eigen::Matrix<T, 3, 1> b_t_g = base_T_gripper.translation().template cast<T>();
         const auto [c_R_t, c_t_t] = get_camera_T_target(
             quat_array_to_rotmat(b_q_t), array_to_translation(b_t_t),
             quat_array_to_rotmat(g_q_c), array_to_translation(g_t_c),
             b_R_g, b_t_g
         );
 
-        // Transform 3D point into camera frame and set residuals
+        CameraMatrixT<T> K{intrinsics[0], intrinsics[1], intrinsics[2], intrinsics[3]};
+        Eigen::Matrix<T,Eigen::Dynamic,1> dist(5);
+        dist << intrinsics[4], intrinsics[5], intrinsics[6], intrinsics[7], intrinsics[8];
+        Camera<BrownConrady<T>> cam(K, dist);
+
         size_t idx = 0;
-        T u_hat, v_hat;
         for (const auto& ob : view) {
             auto P = Eigen::Matrix<T,3,1>(T(ob.object_xy.x()), T(ob.object_xy.y()), T(0));
             P = c_R_t * P + c_t_t;
-            // TODO: refactor this function into camera model
-            project_with_intrinsics(P(0), P(1), P(2), intrinsics, true, u_hat, v_hat);
-            residuals[idx++] = u_hat - T(ob.image_uv.x());
-            residuals[idx++] = v_hat - T(ob.image_uv.y());
+            Eigen::Matrix<T,2,1> uv = cam.project(P);
+            residuals[idx++] = uv.x() - T(ob.image_uv.x());
+            residuals[idx++] = uv.y() - T(ob.image_uv.y());
         }
         return true;
     }
@@ -78,9 +107,9 @@ struct BundleReprojResidual final {
 
 struct BundleScheimpflugReprojResidual final {
     PlanarView view;
-    Eigen::Affine3d base_to_gripper;
+    Eigen::Affine3d base_T_gripper;
     BundleScheimpflugReprojResidual(PlanarView v, const Eigen::Affine3d& base_T_gripper)
-        : view(std::move(v)), base_to_gripper(base_T_gripper) {}
+        : view(std::move(v)), base_T_gripper(base_T_gripper) {}
 
     /**
      * @brief Functor to compute residuals for bundle adjustment.
@@ -109,21 +138,26 @@ struct BundleScheimpflugReprojResidual final {
                     const T* g_q_c, const T* g_t_c,
                     const T* intrinsics,
                     T* residuals) const {
-        const Eigen::Matrix<T,3,3> b_R_g = base_to_gripper.linear().template cast<T>();
-        const Eigen::Matrix<T,3,1> b_t_g = base_to_gripper.translation().template cast<T>();
+        const Eigen::Matrix<T,3,3> b_R_g = base_T_gripper.linear().template cast<T>();
+        const Eigen::Matrix<T,3,1> b_t_g = base_T_gripper.translation().template cast<T>();
         const auto [c_R_t, c_t_t] = get_camera_T_target(
             quat_array_to_rotmat(b_q_t), array_to_translation(b_t_t),
             quat_array_to_rotmat(g_q_c), array_to_translation(g_t_c),
             b_R_g, b_t_g);
 
-        size_t idx = 0; T u_hat, v_hat;
+        CameraMatrixT<T> K{intrinsics[0], intrinsics[1], intrinsics[2], intrinsics[3]};
+        Eigen::Matrix<T,Eigen::Dynamic,1> dist(5);
+        dist << intrinsics[6], intrinsics[7], intrinsics[8], intrinsics[9], intrinsics[10];
+        Camera<BrownConrady<T>> cam(K, dist);
+        ScheimpflugCamera<BrownConrady<T>> sc(cam, intrinsics[4], intrinsics[5]);
+
+        size_t idx = 0;
         for (const auto& ob : view) {
             auto P = Eigen::Matrix<T,3,1>(T(ob.object_xy.x()), T(ob.object_xy.y()), T(0));
             P = c_R_t * P + c_t_t;
-            // TODO: refactor this function into camera model
-            project_scheimpflug_with_intrinsics(P(0), P(1), P(2), intrinsics, true, u_hat, v_hat);
-            residuals[idx++] = u_hat - T(ob.image_uv.x());
-            residuals[idx++] = v_hat - T(ob.image_uv.y());
+            Eigen::Matrix<T,2,1> uv = sc.project(P);
+            residuals[idx++] = uv.x() - T(ob.image_uv.x());
+            residuals[idx++] = uv.y() - T(ob.image_uv.y());
         }
         return true;
     }

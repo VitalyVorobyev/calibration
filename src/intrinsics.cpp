@@ -139,7 +139,7 @@ std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
     if (!dual_opt) {
         return std::nullopt;
     }
-    Camera cam;
+    Camera<DualDistortion> cam;
     cam.K = K;
     cam.distortion = dual_opt->distortion;
 

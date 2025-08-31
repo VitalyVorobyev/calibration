@@ -55,10 +55,10 @@ int main(int argc, char** argv) {
             auto guess = make_initial_extrinsic_guess(in.views, in.cameras);
             auto r = optimize_extrinsic_poses(in.views, in.cameras, guess.camera_poses, guess.target_poses);
             result = r;
-        } else if (task == "handeye") {
-            HandEyeInput in = cfg.at("input").get<HandEyeInput>();
-            auto r = refine_hand_eye_reprojection(in.base_T_gripper, in.views, in.intrinsics, in.init_gripper_T_ref, in.options);
-            result = r;
+        // } else if (task == "handeye") {
+        //     HandEyeInput in = cfg.at("input").get<HandEyeInput>();
+        //     auto r = refine_hand_eye_reprojection(in.base_T_gripper, in.views, in.intrinsics, in.init_gripper_T_ref, in.options);
+        //     result = r;
         } else if (task == "bundle") {
             BundleInput in = cfg.at("input").get<BundleInput>();
             auto r = optimize_bundle(in.observations, in.initial_cameras, in.init_g_T_c, in.init_b_T_t, in.options);

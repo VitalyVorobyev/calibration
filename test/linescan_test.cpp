@@ -8,8 +8,8 @@ using namespace calib;
 
 TEST(LineScanCalibration, PlaneFitFailsSingleView) {
     CameraMatrix K{1.0, 1.0, 0.0, 0.0};
-    Eigen::VectorXd dist;
-    Camera camera(K, dist);
+    auto dist = Eigen::VectorXd::Zero(5);
+    Camera<DualDistortion> camera(K, dist);
 
     LineScanObservation view;
     view.target_xy = {
@@ -50,8 +50,8 @@ static LineScanObservation create_view(const Eigen::Matrix3d& R, const Eigen::Ve
 
 TEST(LineScanCalibration, PlaneFitMultipleViews) {
     CameraMatrix K{1.0, 1.0, 0.0, 0.0};
-    Eigen::VectorXd dist;
-    Camera camera(K, dist);
+    auto dist = Eigen::VectorXd::Zero(5);
+    Camera<DualDistortion> camera(K, dist);
 
     Eigen::Matrix3d R1 = Eigen::Matrix3d::Identity();
     Eigen::Vector3d t1(0.0, 0.0, 1.0);

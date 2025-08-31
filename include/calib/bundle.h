@@ -35,7 +35,7 @@ struct BundleOptions final {
 
 /** Result returned by hand-eye calibration. */
 struct BundleResult final {
-    std::vector<Camera> cameras;               ///< Estimated camera parameters per camera
+    std::vector<Camera<BrownConradyd>> cameras;               ///< Estimated camera parameters per camera
     std::vector<Eigen::Affine3d> g_T_c;        ///< Estimated camera->gripper extrinsics
     Eigen::Affine3d b_T_t;                     ///< Pose of target in base frame
     double reprojection_error = 0.0;           ///< RMSE of reprojection
@@ -44,7 +44,7 @@ struct BundleResult final {
 };
 
 struct ScheimpflugBundleResult final {
-    std::vector<ScheimpflugCamera> cameras;   ///< Estimated cameras with tilt
+    std::vector<ScheimpflugCamera<BrownConradyd>> cameras;   ///< Estimated cameras with tilt
     std::vector<Eigen::Affine3d> g_T_c;       ///< Estimated camera->gripper extrinsics
     Eigen::Affine3d b_T_t;                    ///< Pose of target in base frame
     double reprojection_error = 0.0;          ///< RMSE of reprojection
@@ -65,14 +65,35 @@ struct ScheimpflugBundleResult final {
  */
 BundleResult optimize_bundle(
     const std::vector<BundleObservation>& observations,
-    const std::vector<Camera>& initial_cameras,
+    const std::vector<Camera<BrownConradyd>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& init_g_T_c,
     const Eigen::Affine3d& init_b_T_t,
     const BundleOptions& opts = {});
 
+/**
+ * @brief Optimizes the bundle adjustment for a Scheimpflug camera setup.
+ *
+ * This function performs bundle adjustment optimization for a set of observations
+ * captured by Scheimpflug cameras. It refines the camera parameters, poses, and
+ * other related transformations to minimize the reprojection error.
+ *
+ * @param observations A vector of BundleObservation objects representing the
+ *                     observed 2D points and their corresponding 3D points.
+ * @param initial_cameras A vector of ScheimpflugCamera<BrownConradyd> objects
+ *                        representing the initial intrinsic parameters of the cameras.
+ * @param init_g_T_c A vector of Eigen::Affine3d transformations representing the
+ *                   initial guesses for the camera poses in the global frame.
+ * @param init_b_T_t An Eigen::Affine3d transformation representing the initial
+ *                   guess for the transformation from the bundle frame to the target frame.
+ * @param opts A BundleOptions object specifying the optimization parameters and settings.
+ *             Defaults to an empty configuration if not provided.
+ *
+ * @return A ScheimpflugBundleResult object containing the optimized camera parameters,
+ *         poses, and other relevant results of the bundle adjustment.
+ */
 ScheimpflugBundleResult optimize_bundle_scheimpflug(
     const std::vector<BundleObservation>& observations,
-    const std::vector<ScheimpflugCamera>& initial_cameras,
+    const std::vector<ScheimpflugCamera<BrownConradyd>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& init_g_T_c,
     const Eigen::Affine3d& init_b_T_t,
     const BundleOptions& opts = {});

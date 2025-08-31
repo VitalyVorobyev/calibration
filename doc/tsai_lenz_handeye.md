@@ -2,7 +2,7 @@
 
 *[by ChatGPT5 Thinking]*
 
-Here’s the math the function `estimate_hand_eye_tsai_lenz_allpairs_weighted` is implementing, step-by-step, with all the pieces spelled out.
+Here’s the math the function `estimate_hand_eye_tsai_lenz` is implementing, step-by-step, with all the pieces spelled out.
 
 # 1) Kinematic equation and motion pairs
 
@@ -170,4 +170,4 @@ You still need **exciting motions**: if all rotation axes are (nearly) the same,
 4. **Translation**: form $C,w$ from (9) and solve (10) for $\hat t_X$.
 5. Return $\hat X = (\hat R_X,\hat t_X)$.
 
-That’s the complete math behind `estimate_hand_eye_tsai_lenz_allpairs_weighted`: Tsai–Lenz’s linear rotation solve extended to **all pairs with weighting and filtering**, followed by the **exact** linear translation solve conditioned on $\hat R_X$.
+That’s the complete math behind `estimate_hand_eye_tsai_lenz`: Tsai–Lenz’s linear rotation solve extended to **all pairs with weighting and filtering**, followed by the **exact** linear translation solve conditioned on $\hat R_X$.

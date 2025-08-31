@@ -16,7 +16,7 @@
 namespace calib {
 
 struct IntrinsicOptimizationResult {
-    Camera camera;
+    Camera<DualDistortion> camera;
     Eigen::Matrix4d covariance;  // Covariance matrix of intrinsics
     double reprojection_error;   // Reprojection error after optimization (pix)
     std::string summary;         // Summary of optimization results
@@ -25,7 +25,7 @@ struct IntrinsicOptimizationResult {
 // Result of an iterative linear initialization that alternates between
 // estimating camera intrinsics and lens distortion parameters.
 struct LinearInitResult {
-    Camera camera;
+    Camera<DualDistortion> camera;
 };
 
 // Estimate camera intrinsics (fx, fy, cx, cy) by solving a linear
