@@ -17,9 +17,6 @@
 #include "observationutils.h"
 #include "bundleresidual.h"
 
-constexpr double CONVERGENCE_TOLERANCE = 1e-6;
-constexpr int MAX_ITERATIONS = 1000;
-
 namespace calib {
 
 struct BundleParamBlocks final {
@@ -118,7 +115,8 @@ static ceres::Problem build_problem(
     for (const auto& obs : observations) {
         const size_t cam = obs.camera_index;
         auto* cost = BundleReprojResidual::create(obs.view, obs.b_T_g);
-        p.AddResidualBlock(cost, new ceres::HuberLoss(1.0),
+        auto loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
+        p.AddResidualBlock(cost, loss,
                            blocks.b_q_t.data(), blocks.b_t_t.data(),
                            blocks.g_q_c[cam].data(), blocks.g_t_c[cam].data(),
                            blocks.intr[cam].data());
@@ -162,9 +160,10 @@ static ceres::Problem build_problem_scheimpflug(
     ceres::Problem p;
     for (const auto& obs : observations) {
         const size_t cam = obs.camera_index;
+        auto loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
         p.AddResidualBlock(
             BundleScheimpflugReprojResidual::create(obs.view, obs.b_T_g),
-            new ceres::HuberLoss(1.0),
+            loss,
             blocks.b_q_t.data(), blocks.b_t_t.data(),
             blocks.g_q_c[cam].data(), blocks.g_t_c[cam].data(),
             blocks.intr[cam].data());
@@ -183,13 +182,17 @@ static ceres::Problem build_problem_scheimpflug(
         for (auto& e : blocks.g_t_c) p.SetParameterBlockConstant(e.data());
     }
     if (!opts.optimize_intrinsics){
-        for (size_t c=0;c<blocks.intr.size();++c)
+        for (size_t c = 0; c < blocks.intr.size(); ++c)
             p.SetParameterBlockConstant(blocks.intr[c].data());
     } else {
-        for (size_t c=0;c<blocks.intr.size();++c){
+        for (size_t c = 0; c < blocks.intr.size();++c){
             p.SetParameterLowerBound(blocks.intr[c].data(),0,0.0);
             p.SetParameterLowerBound(blocks.intr[c].data(),1,0.0);
         }
+        // Anchor scale by fixing fx, fy for reference camera
+        #if 0
+        p.SetManifold(blocks.intr[0].data(), new ceres::SubsetManifold(11, {0, 1, 2, 3, 6, 7, 8, 9, 10}));
+        #endif
     }
     return p;
 }
@@ -327,23 +330,20 @@ static Eigen::MatrixXd compute_covariance(ceres::Problem& p,
     return cov_mat;
 }
 
-static std::string solve_problem(ceres::Problem &p, bool verbose) {
+static std::string solve_problem(ceres::Problem &p, const BundleOptions& opts) {
     ceres::Solver::Options sopts;
-    #if 0
-    sopts.linear_solver_type = ceres::SPARSE_SCHUR;
-    //  ;// ceres::DENSE_QR;
-    #elif 0
-    sopts.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;  // default option
-    #elif 0
-    sopts.linear_solver_type = ceres::DENSE_SCHUR;
-    #endif
-    sopts.minimizer_progress_to_stdout = verbose;
-
-    constexpr double eps = CONVERGENCE_TOLERANCE;
-    sopts.function_tolerance = eps;
-    sopts.gradient_tolerance = eps;
-    sopts.parameter_tolerance = eps;
-    sopts.max_num_iterations = MAX_ITERATIONS;
+    if (opts.optimizer == OptimizerType::SPARSE_SCHUR) {
+        sopts.linear_solver_type = ceres::SPARSE_SCHUR;
+    } else if (opts.optimizer == OptimizerType::DENSE_QR) {
+        sopts.linear_solver_type = ceres::DENSE_QR;
+    } else if (opts.optimizer == OptimizerType::DENSE_SCHUR) {
+        sopts.linear_solver_type = ceres::DENSE_SCHUR;
+    }
+    sopts.minimizer_progress_to_stdout = opts.verbose;
+    sopts.function_tolerance = opts.epsilon;
+    sopts.gradient_tolerance = opts.epsilon;
+    sopts.parameter_tolerance = opts.epsilon;
+    sopts.max_num_iterations = opts.max_iterations;
 
     ceres::Solver::Summary summary;
     ceres::Solve(sopts, &p, &summary);
@@ -368,7 +368,7 @@ BundleResult optimize_bundle(
     ceres::Problem p = build_problem(observations, opts, blocks);
 
     BundleResult result;
-    result.report = solve_problem(p, opts.verbose);
+    result.report = solve_problem(p, opts);
 
     recover_parameters(blocks, result);
     result.reprojection_error = compute_reprojection_error(observations, result);
@@ -397,7 +397,7 @@ ScheimpflugBundleResult optimize_bundle_scheimpflug(
 
     ceres::Problem p = build_problem_scheimpflug(observations, opts, blocks);
 
-    ScheimpflugBundleResult result; result.report = solve_problem(p, opts.verbose);
+    ScheimpflugBundleResult result; result.report = solve_problem(p, opts);
     recover_parameters(blocks, result);
     result.reprojection_error = compute_reprojection_error_scheimpflug(observations, result);
     result.covariance = compute_covariance(p, blocks);

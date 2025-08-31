@@ -149,13 +149,13 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
     b_T_t.translation() = Eigen::Vector3d(0.2,0.0,0.0);
 
     std::vector<Eigen::Vector2d> obj{{-0.1,-0.1},{0.1,-0.1},{0.1,0.1},{-0.1,0.1},
-                                     {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
+                                     {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}, {9, 0}};
 
     std::vector<Camera<BrownConradyd>> cams{cam};
     auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
     auto observations = make_bundle_observations(cams, {g_T_c}, b_T_t, obj, poses);
     Eigen::Affine3d init_g_T_c = g_T_c;
-    init_g_T_c.translation() += Eigen::Vector3d(0.01,-0.01,0.02);
+    init_g_T_c.translation() += Eigen::Vector3d(0.01, -0.01, 0.02);
 
     BundleOptions opts;
     opts.optimize_intrinsics = false;
@@ -163,6 +163,7 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
     opts.optimize_hand_eye = true;
 
     auto res = optimize_bundle(observations, cams, {init_g_T_c}, b_T_t, opts);
+    std::cout << res.report << std::endl;
 
     EXPECT_LT((res.g_T_c[0].translation() - g_T_c.translation()).norm(),1e-3);
     Eigen::AngleAxisd diff(res.g_T_c[0].linear()*g_T_c.linear().transpose());
