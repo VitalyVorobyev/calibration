@@ -152,22 +152,17 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
                                      {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
 
     std::vector<BundleObservation> observations;
-    for (int i = 0; i < 8; ++i) {
-        double angle = i * std::numbers::pi/4.0;
-        Eigen::Affine3d b_T_g = Eigen::Affine3d::Identity();
-        b_T_g.translation() = Eigen::Vector3d(0.1*std::cos(angle),0.1*std::sin(angle),0.3+0.05*i);
-        Eigen::Matrix3d rot = Eigen::AngleAxisd(0.1*i, Eigen::Vector3d(std::cos(angle),std::sin(angle),0.5).normalized()).toRotationMatrix();
-        b_T_g.linear() = rot;
-
+    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1);
+    for (const auto& b_T_g : poses) {
         Eigen::Affine3d c_T_t = compute_camera_T_target(b_T_t, g_T_c, b_T_g);
-        std::vector<Eigen::Vector2d> img; img.reserve(obj.size());
-        for (const auto& xy: obj){
-            Eigen::Vector3d P(xy.x(),xy.y(),0.0);
+        std::vector<Eigen::Vector2d> img;
+        img.reserve(obj.size());
+        for (const auto& xy : obj) {
+            Eigen::Vector3d P(xy.x(), xy.y(), 0.0);
             P = c_T_t * P;
-            Eigen::Vector2d uv = cam.project(P);
-            img.push_back(uv);
+            img.push_back(cam.project(P));
         }
-        observations.push_back({make_view(obj,img), b_T_g, 0});
+        observations.push_back({make_view(obj, img), b_T_g, 0});
     }
 
     std::vector<Camera<BrownConradyd>> cams{cam};
@@ -200,22 +195,17 @@ TEST(OptimizeBundle, SingleCameraTargetPose) {
     std::vector<Eigen::Vector2d> obj{{-0.1,-0.1},{0.1,-0.1},{0.1,0.1},{-0.1,0.1},
                                      {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
     std::vector<BundleObservation> observations;
-    for (int i = 0; i < 8; ++i) {
-        double angle = i * std::numbers::pi/4.0;
-        Eigen::Affine3d b_T_g = Eigen::Affine3d::Identity();
-        b_T_g.translation() = Eigen::Vector3d(0.1*std::cos(angle),0.1*std::sin(angle),0.3+0.05*i);
-        Eigen::Matrix3d rot = Eigen::AngleAxisd(0.1*i, Eigen::Vector3d(std::cos(angle),std::sin(angle),0.5).normalized()).toRotationMatrix();
-        b_T_g.linear() = rot;
+    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1);
+    for (const auto& b_T_g : poses) {
         Eigen::Affine3d c_T_t = compute_camera_T_target(b_T_t, g_T_c, b_T_g);
         std::vector<Eigen::Vector2d> img;
         img.reserve(obj.size());
-
         for (const auto& xy : obj) {
             Eigen::Vector3d P(xy.x(), xy.y(), 0.0);
             P = c_T_t * P;
             img.push_back(cam.project(P));
         }
-        observations.push_back({make_view(obj,img), b_T_g,0});
+        observations.push_back({make_view(obj, img), b_T_g, 0});
     }
 
     std::vector<Camera<BrownConradyd>> cams{cam};
@@ -256,31 +246,26 @@ TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
                                      {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
 
     std::vector<BundleObservation> observations;
-    for (int i = 0; i < 8; ++i) {
-        double angle = i * std::numbers::pi/4.0;
-        Eigen::Affine3d b_T_g = Eigen::Affine3d::Identity();
-        b_T_g.translation() = Eigen::Vector3d(0.1*std::cos(angle),0.1*std::sin(angle),0.3+0.05*i);
-        Eigen::Matrix3d rot = Eigen::AngleAxisd(0.1*i, Eigen::Vector3d(std::cos(angle),std::sin(angle),0.5).normalized()).toRotationMatrix();
-        b_T_g.linear() = rot;
-
+    auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1);
+    for (const auto& b_T_g : poses) {
         Eigen::Affine3d c0_T_t = compute_camera_T_target(b_T_t, g_T_c0, b_T_g);
         Eigen::Affine3d c1_T_t = compute_camera_T_target(b_T_t, g_T_c1, b_T_g);
         std::vector<Eigen::Vector2d> img0_vec;
         img0_vec.reserve(obj.size());
-        for(const auto& xy:obj){
-            Eigen::Vector3d P(xy.x(),xy.y(),0.0);
+        for (const auto& xy : obj) {
+            Eigen::Vector3d P(xy.x(), xy.y(), 0.0);
             P = c0_T_t * P;
             img0_vec.push_back(cam0.project(P));
         }
-        observations.push_back({make_view(obj,img0_vec), b_T_g,0});
+        observations.push_back({make_view(obj, img0_vec), b_T_g, 0});
         std::vector<Eigen::Vector2d> img1_vec;
         img1_vec.reserve(obj.size());
-        for(const auto& xy:obj){
-            Eigen::Vector3d P(xy.x(),xy.y(),0.0);
+        for (const auto& xy : obj) {
+            Eigen::Vector3d P(xy.x(), xy.y(), 0.0);
             P = c1_T_t * P;
             img1_vec.push_back(cam1.project(P));
         }
-        observations.push_back({make_view(obj,img1_vec), b_T_g,1});
+        observations.push_back({make_view(obj, img1_vec), b_T_g, 1});
     }
 
     std::vector<Camera<BrownConradyd>> cams{cam0, cam1};
