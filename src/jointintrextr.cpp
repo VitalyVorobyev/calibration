@@ -229,7 +229,7 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
     const std::vector<Camera<DualDistortion>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
-    bool verbose
+    const JointOptions& opts
 ) {
     JointOptimizationResult result;
     const size_t num_cams = initial_cameras.size();
@@ -255,17 +255,22 @@ JointOptimizationResult optimize_joint_intrinsics_extrinsics(
     ceres::Problem problem;
     setup_joint_problem(views, initial_cameras, intr, cam_poses, targ_poses, problem);
 
-    ceres::Solver::Options opts;
-    opts.linear_solver_type = ceres::DENSE_QR;
-    opts.minimizer_progress_to_stdout = verbose;
-    constexpr double eps = 1e-6;
-    opts.function_tolerance = eps;
-    opts.gradient_tolerance = eps;
-    opts.parameter_tolerance = eps;
-    opts.max_num_iterations = 1000;
+    ceres::Solver::Options sopts;
+    if (opts.optimizer == OptimizerType::SPARSE_SCHUR) {
+        sopts.linear_solver_type = ceres::SPARSE_SCHUR;
+    } else if (opts.optimizer == OptimizerType::DENSE_SCHUR) {
+        sopts.linear_solver_type = ceres::DENSE_SCHUR;
+    } else {
+        sopts.linear_solver_type = ceres::DENSE_QR;
+    }
+    sopts.minimizer_progress_to_stdout = opts.verbose;
+    sopts.function_tolerance = opts.epsilon;
+    sopts.gradient_tolerance = opts.epsilon;
+    sopts.parameter_tolerance = opts.epsilon;
+    sopts.max_num_iterations = opts.max_iterations;
 
     ceres::Solver::Summary summary;
-    ceres::Solve(opts, &problem, &summary);
+    ceres::Solve(sopts, &problem, &summary);
     result.summary = summary.BriefReport();
 
     // Extract solution

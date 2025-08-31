@@ -42,14 +42,7 @@ int main(int argc, char** argv) {
 
     try {
         if (task == "intrinsics") {
-            IntrinsicsInput in = cfg.at("input").get<IntrinsicsInput>();
-            CameraMatrix guess{1000,1000,640,360};
-            if (!in.observations.empty()) {
-                auto init = estimate_intrinsics_linear_iterative(in.observations, in.num_radial, 5, false);
-                if (init) guess = init->camera.K;
-            }
-            IntrinsicOptimizationResult r = optimize_intrinsics(in.observations, in.num_radial, guess, false, std::nullopt, false);
-            result = r;
+            result = nlohmann::json{{"error", "intrinsics task not supported"}};
         } else if (task == "extrinsics") {
             ExtrinsicsInput in = cfg.at("input").get<ExtrinsicsInput>();
             auto guess = make_initial_extrinsic_guess(in.views, in.cameras);

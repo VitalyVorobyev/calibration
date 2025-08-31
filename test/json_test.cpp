@@ -31,15 +31,16 @@ TEST(JsonSerialization, ObservationRoundTrip) {
     EXPECT_DOUBLE_EQ(o2.v, o.v);
 }
 
-TEST(JsonSerialization, IntrinsicResultRoundTrip) {
-    IntrinsicOptimizationResult res;
+TEST(JsonSerialization, IntrinsicsResultRoundTrip) {
+    IntrinsicsResult res;
     res.camera.K = CameraMatrix{100,100,0,0,0};
-    res.covariance = Eigen::Matrix<double,5,5>::Identity();
-    res.reprojection_error = 0.5;
+    res.covariance = Eigen::MatrixXd::Identity(5,5);
+    res.view_errors = {0.1, 0.2};
     res.summary = "ok";
+    res.poses = {Eigen::Affine3d::Identity()};
     nlohmann::json j = res;
-    auto r2 = j.get<IntrinsicOptimizationResult>();
+    auto r2 = j.get<IntrinsicsResult>();
     EXPECT_NEAR(r2.camera.K.fx, 100, 1e-9);
     EXPECT_EQ(r2.summary, "ok");
-    EXPECT_NEAR(r2.covariance(0,0), 1.0, 1e-9);
+    EXPECT_EQ(r2.view_errors.size(), 2u);
 }

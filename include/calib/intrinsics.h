@@ -12,21 +12,30 @@
 #include "calib/distortion.h"  // Observation
 #include "calib/cameramatrix.h"
 #include "calib/camera.h"
+#include "calib/planarpose.h"  // PlanarView
 
 namespace calib {
-
-// TODO: make distortion model a template parameter
-struct IntrinsicOptimizationResult {
-    Camera<DualDistortion> camera;
-    Eigen::Matrix<double,5,5> covariance;  // Covariance matrix of intrinsics
-    double reprojection_error;   // Reprojection error after optimization (pix)
-    std::string summary;         // Summary of optimization results
-};
 
 // Result of an iterative linear initialization that alternates between
 // estimating camera intrinsics and lens distortion parameters.
 struct LinearInitResult {
     Camera<DualDistortion> camera;
+};
+
+struct IntrinsicsOptions final {
+    int num_radial = 2;  ///< Number of radial distortion coefficients
+    bool optimize_skew = false;  ///< Estimate skew parameter
+    std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Parameter bounds
+    bool verbose = false;  ///< Verbose solver output
+};
+
+struct IntrinsicsResult final {
+    Camera<DualDistortion> camera;              ///< Estimated camera parameters
+    std::vector<Eigen::Affine3d> poses;         ///< Estimated pose of each view
+    Eigen::MatrixXd covariance;                ///< Covariance of intrinsics and poses
+    std::vector<double> view_errors;           ///< Per-view reprojection errors
+    double reprojection_error = 0.0;           ///< Overall reprojection RMSE
+    std::string summary;                       ///< Solver brief report
 };
 
 // Estimate camera intrinsics (fx, fy, cx, cy[, skew]) by solving a linear
@@ -51,13 +60,9 @@ std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
     int max_iterations = 5,
     bool use_skew = false);
 
-IntrinsicOptimizationResult optimize_intrinsics(
-    const std::vector<Observation<double>>& obs,
-    int num_radial,
+IntrinsicsResult optimize_intrinsics(
+    const std::vector<PlanarView>& views,
     const CameraMatrix& initial_guess,
-    bool verb=false,
-    std::optional<CalibrationBounds> bounds = std::nullopt,
-    bool use_skew = false
-);
+    const IntrinsicsOptions& opts = {});
 
 }  // namespace calib

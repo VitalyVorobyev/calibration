@@ -57,7 +57,8 @@ TEST(JointCalibration, RecoverAllParameters) {
     // Anchor the first target pose to its ground truth to fix the scale.
     guess.target_poses[0] = target_gt[0];
 
-    auto res = optimize_joint_intrinsics_extrinsics(views, cam_init, guess.camera_poses, guess.target_poses);
+    JointOptions opts; opts.verbose = false;
+    auto res = optimize_joint_intrinsics_extrinsics(views, cam_init, guess.camera_poses, guess.target_poses, opts);
     std::cout << res.summary << std::endl;
 
     EXPECT_LT(res.reprojection_error, 1e-6);
@@ -117,7 +118,8 @@ TEST(JointCalibration, FirstTargetPoseFixed) {
     // should remain unchanged by the optimisation.
     guess.target_poses[0].translation() = Eigen::Vector3d(0.0, 0.0, 3.0);
 
-    auto res = optimize_joint_intrinsics_extrinsics(views, cam_init, guess.camera_poses, guess.target_poses);
+    JointOptions opts; opts.verbose = false;
+    auto res = optimize_joint_intrinsics_extrinsics(views, cam_init, guess.camera_poses, guess.target_poses, opts);
 
     EXPECT_TRUE(res.target_poses[0].translation().isApprox(guess.target_poses[0].translation(), 1e-12));
     EXPECT_GT(res.reprojection_error, 0.1);

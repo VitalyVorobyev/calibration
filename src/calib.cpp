@@ -1,4 +1,4 @@
-#include "calib/calib.h"
+#include "calib/intrinsics.h"
 
 // std
 #include <numeric>
@@ -127,7 +127,6 @@ static void setup_optimization_problem(
         param_blocks.push_back(poses[i].data());
     }
     problem.AddResidualBlock(cost, nullptr, param_blocks);
-    problem.SetManifold(intrinsics, new ceres::SubsetManifold(5, {4}));  // fix skew
 }
 
 // Calculate reprojection errors overall and per view
@@ -135,7 +134,7 @@ static void compute_reprojection_errors(
     const std::vector<PlanarView>& obs_views,
     size_t total_obs,
     const Eigen::VectorXd& residuals,
-    CameraCalibrationResult& result
+    IntrinsicsResult& result
 ) {
     int total_residuals = static_cast<int>(total_obs * 2);
     double sum_squared_residuals = residuals.squaredNorm();
@@ -160,13 +159,13 @@ static void compute_reprojection_errors(
 static void populate_result_parameters(
     const double* intrinsics,
     const std::vector<Pose6>& poses,
-    CameraCalibrationResult& result
+    IntrinsicsResult& result
 ) {
-    result.intrinsics.fx = intrinsics[0];
-    result.intrinsics.fy = intrinsics[1];
-    result.intrinsics.cx = intrinsics[2];
-    result.intrinsics.cy = intrinsics[3];
-    result.intrinsics.skew = intrinsics[4];
+    result.camera.K.fx = intrinsics[0];
+    result.camera.K.fy = intrinsics[1];
+    result.camera.K.cx = intrinsics[2];
+    result.camera.K.cy = intrinsics[3];
+    result.camera.K.skew = intrinsics[4];
 
     result.poses.resize(poses.size());
     for (size_t i = 0; i < poses.size(); ++i) {
@@ -182,7 +181,7 @@ static bool compute_covariance(
     size_t total_residuals,
     double sum_squared_residuals,
     ceres::Problem& problem,
-    CameraCalibrationResult& result
+    IntrinsicsResult& result
 ) {
     // Convert param_blocks to const pointers
     std::vector<const double*> const_param_blocks;
@@ -240,14 +239,12 @@ static bool compute_covariance(
     return true;
 }
 
-CameraCalibrationResult calibrate_camera_planar(
+IntrinsicsResult optimize_intrinsics(
     const std::vector<PlanarView>& views,
-    int num_radial,
     const CameraMatrix& initial_guess,
-    bool verbose,
-    std::optional<CalibrationBounds> bounds_opt
+    const IntrinsicsOptions& opts
 ) {
-    CameraCalibrationResult result;
+    IntrinsicsResult result;
 
     // Prepare observations per view
     const size_t total_obs = count_total_observations(views);
@@ -264,7 +261,11 @@ CameraCalibrationResult calibrate_camera_planar(
 
     // Set up and solve the optimization problem
     ceres::Problem problem;
-    setup_optimization_problem(views, total_obs, num_radial, intrinsics, poses, problem);
+    setup_optimization_problem(views, total_obs, opts.num_radial, intrinsics, poses, problem);
+
+    if (!opts.optimize_skew) {
+        problem.SetManifold(intrinsics, new ceres::SubsetManifold(5, {4}));
+    }
 
     // Collect parameter blocks for later use
     std::vector<double*> param_blocks;
@@ -274,31 +275,36 @@ CameraCalibrationResult calibrate_camera_planar(
     }
 
     // Configure and run the solver
-    ceres::Solver::Options opts;
-    opts.linear_solver_type = ceres::DENSE_QR;
-    opts.minimizer_progress_to_stdout = verbose;
+    ceres::Solver::Options solver_opts;
+    solver_opts.linear_solver_type = ceres::DENSE_QR;
+    solver_opts.minimizer_progress_to_stdout = opts.verbose;
 
     constexpr double eps = 1e-6;
-    opts.function_tolerance = eps;
-    opts.gradient_tolerance = eps;
-    opts.parameter_tolerance = eps;
-    opts.max_num_iterations = 1000;
+    solver_opts.function_tolerance = eps;
+    solver_opts.gradient_tolerance = eps;
+    solver_opts.parameter_tolerance = eps;
+    solver_opts.max_num_iterations = 1000;
 
-    CalibrationBounds bounds = bounds_opt.value_or(CalibrationBounds{});
+    CalibrationBounds bounds = opts.bounds.value_or(CalibrationBounds{});
     problem.SetParameterLowerBound(intrinsics, 0, bounds.fx_min);
     problem.SetParameterLowerBound(intrinsics, 1, bounds.fy_min);
     problem.SetParameterLowerBound(intrinsics, 2, bounds.cx_min);
     problem.SetParameterLowerBound(intrinsics, 3, bounds.cy_min);
-    problem.SetParameterLowerBound(intrinsics, 4, bounds.skew_min);
+    if (opts.optimize_skew) {
+        problem.SetParameterLowerBound(intrinsics, 4, bounds.skew_min);
+        problem.SetParameterUpperBound(intrinsics, 4, bounds.skew_max);
+    } else {
+        problem.SetParameterLowerBound(intrinsics, 4, initial_guess.skew);
+        problem.SetParameterUpperBound(intrinsics, 4, initial_guess.skew);
+    }
 
     problem.SetParameterUpperBound(intrinsics, 0, bounds.fx_max);
     problem.SetParameterUpperBound(intrinsics, 1, bounds.fy_max);
     problem.SetParameterUpperBound(intrinsics, 2, bounds.cx_max);
     problem.SetParameterUpperBound(intrinsics, 3, bounds.cy_max);
-    problem.SetParameterUpperBound(intrinsics, 4, bounds.skew_max);
 
     ceres::Solver::Summary summary;
-    ceres::Solve(opts, &problem, &summary);
+    ceres::Solve(solver_opts, &problem, &summary);
     result.summary = summary.BriefReport();
 
     // Compute best distortion and residuals
@@ -307,16 +313,17 @@ CameraCalibrationResult calibrate_camera_planar(
         pose_ptrs[i] = poses[i].data();
     }
 
-    auto dr_opt = solve_full(views, num_radial, intrinsics, pose_ptrs);
+    auto dr_opt = solve_full(views, opts.num_radial, intrinsics, pose_ptrs);
     if (dr_opt) {
-        result.distortion = dr_opt->distortion;
+        result.camera.distortion.forward = dr_opt->distortion;
+        result.camera.distortion.inverse = dr_opt->distortion;
 
         // Process results
         compute_reprojection_errors(views, total_obs, dr_opt->residuals, result);
         populate_result_parameters(intrinsics, poses, result);
 
         // Compute covariance matrix
-    const size_t total_params = 5 + 6 * num_views;
+        const size_t total_params = 5 + 6 * num_views;
         std::vector<int> block_sizes;
         block_sizes.push_back(5);  // Intrinsics block
         for (size_t i = 0; i < num_views; ++i) {
@@ -328,7 +335,8 @@ CameraCalibrationResult calibrate_camera_planar(
         compute_covariance(param_blocks, block_sizes, total_params, total_residuals,
                            sum_squared_residuals, problem, result);
     } else {
-        result.distortion = Eigen::VectorXd{};
+        result.camera.distortion.forward = Eigen::VectorXd{};
+        result.camera.distortion.inverse = Eigen::VectorXd{};
         populate_result_parameters(intrinsics, poses, result);
     }
 

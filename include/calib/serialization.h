@@ -237,18 +237,26 @@ inline void from_json(const nlohmann::json& j, BundleInput& in) {
 
 // ----- Result serialization -----
 
-inline void to_json(nlohmann::json& j, const IntrinsicOptimizationResult& r) {
+inline void to_json(nlohmann::json& j, const IntrinsicsResult& r) {
+    nlohmann::json pose_arr = nlohmann::json::array();
+    for (const auto& T : r.poses) pose_arr.push_back(affine_to_json(T));
     j = {
         {"camera", r.camera},
+        {"poses", pose_arr},
         {"covariance", eigen_matrix_to_json(r.covariance)},
+        {"view_errors", r.view_errors},
         {"reprojection_error", r.reprojection_error},
         {"summary", r.summary}
     };
 }
 
-inline void from_json(const nlohmann::json& j, IntrinsicOptimizationResult& r) {
+inline void from_json(const nlohmann::json& j, IntrinsicsResult& r) {
     j.at("camera").get_to(r.camera);
+    r.poses.clear();
+    if (j.contains("poses"))
+        for (const auto& jt : j.at("poses")) r.poses.push_back(json_to_affine(jt));
     r.covariance = json_to_eigen_matrix(j.at("covariance"));
+    r.view_errors = j.value("view_errors", std::vector<double>{});
     r.reprojection_error = j.value("reprojection_error", 0.0);
     r.summary = j.value("summary", std::string{});
 }

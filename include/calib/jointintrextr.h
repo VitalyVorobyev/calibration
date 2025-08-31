@@ -1,6 +1,7 @@
 #pragma once
 
 #include "calib/extrinsics.h"
+#include "calib/bundle.h"  // OptimizerType
 
 namespace calib {
 
@@ -16,11 +17,18 @@ struct JointOptimizationResult final {
     std::string summary;                                        // Solver brief report
 };
 
+struct JointOptions final {
+    double epsilon = 1e-9;                 ///< Solver convergence tolerance
+    int max_iterations = 1000;             ///< Maximum number of iterations
+    OptimizerType optimizer = OptimizerType::DENSE_QR; ///< Linear solver type
+    bool verbose = false;                  ///< Verbose solver output
+};
+
 JointOptimizationResult optimize_joint_intrinsics_extrinsics(
     const std::vector<ExtrinsicPlanarView>& views,
     const std::vector<Camera<DualDistortion>>& initial_cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
-    bool verbose = false);
+    const JointOptions& opts = {});
 
 }  // namespace calib
