@@ -6,6 +6,7 @@
 #include "ceres/rotation.h"
 
 #include "calib/planarpose.h"
+#include "calib/distortion.h"
 
 namespace calib {
 
