@@ -8,6 +8,8 @@
 #include <Eigen/Geometry>
 #include <ceres/ceres.h>
 
+#include <array>
+
 #include "calib/camera.h"
 
 namespace calib {
@@ -84,6 +86,29 @@ struct ScheimpflugCamera final {
         T u = T(camera.K.fx) * mx + T(camera.K.cx);
         T v = T(camera.K.fy) * my + T(camera.K.cy);
         return {u, v};
+    }
+};
+
+// Traits specialisation for Scheimpflug camera
+template<distortion_model DistortionT>
+struct CameraTraits<ScheimpflugCamera<DistortionT>> {
+    static constexpr size_t param_count = 11;
+
+    template<typename T>
+    static ScheimpflugCamera<DistortionT> from_array(const T* intr) {
+        CameraMatrixT<T> K{intr[0], intr[1], intr[2], intr[3]};
+        Eigen::Matrix<T, Eigen::Dynamic, 1> dist(5);
+        dist << intr[6], intr[7], intr[8], intr[9], intr[10];
+        Camera<DistortionT> cam(K, dist);
+        return ScheimpflugCamera<DistortionT>(cam, intr[4], intr[5]);
+    }
+
+    static void to_array(const ScheimpflugCamera<DistortionT>& cam,
+                         std::array<double, param_count>& arr) {
+        arr[0] = cam.camera.K.fx; arr[1] = cam.camera.K.fy;
+        arr[2] = cam.camera.K.cx; arr[3] = cam.camera.K.cy;
+        arr[4] = cam.tau_x; arr[5] = cam.tau_y;
+        for (int i = 0; i < 5; ++i) arr[6 + i] = cam.camera.distortion.coeffs[i];
     }
 };
 
