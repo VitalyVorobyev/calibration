@@ -14,28 +14,14 @@
 #include "calib/camera.h"
 #include "calib/planarpose.h"  // PlanarView
 
+#include "calib/optimize.h"
+
 namespace calib {
 
 // Result of an iterative linear initialization that alternates between
 // estimating camera intrinsics and lens distortion parameters.
 struct LinearInitResult {
-    Camera<DualDistortion> camera;
-};
-
-struct IntrinsicsOptions final {
-    int num_radial = 2;  ///< Number of radial distortion coefficients
-    bool optimize_skew = false;  ///< Estimate skew parameter
-    std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Parameter bounds
-    bool verbose = false;  ///< Verbose solver output
-};
-
-struct IntrinsicsResult final {
-    Camera<DualDistortion> camera;              ///< Estimated camera parameters
-    std::vector<Eigen::Affine3d> poses;         ///< Estimated pose of each view
-    Eigen::MatrixXd covariance;                ///< Covariance of intrinsics and poses
-    std::vector<double> view_errors;           ///< Per-view reprojection errors
-    double reprojection_error = 0.0;           ///< Overall reprojection RMSE
-    std::string summary;                       ///< Solver brief report
+    Camera<BrownConradyd> camera;
 };
 
 // Estimate camera intrinsics (fx, fy, cx, cy[, skew]) by solving a linear
@@ -59,6 +45,18 @@ std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
     int num_radial,
     int max_iterations = 5,
     bool use_skew = false);
+
+struct IntrinsicsOptions final : public OptimOptions {
+    int num_radial = 2;  ///< Number of radial distortion coefficients
+    bool optimize_skew = false;  ///< Estimate skew parameter
+    std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Parameter bounds
+};
+
+struct IntrinsicsResult final : public OptimResult {
+    Camera<BrownConradyd> camera;        ///< Estimated camera parameters
+    std::vector<Eigen::Affine3d> poses;  ///< Estimated pose of each view
+    std::vector<double> view_errors;     ///< Per-view reprojection errors
+};
 
 IntrinsicsResult optimize_intrinsics(
     const std::vector<PlanarView>& views,

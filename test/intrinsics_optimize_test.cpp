@@ -27,7 +27,7 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     guess.cx += 5.0; guess.cy -= 4.0;
 
     IntrinsicsOptions opts;
-    opts.num_radial = 0;
+    opts.num_radial = 3;
     opts.optimize_skew = false;
     auto res = optimize_intrinsics(views, guess, opts);
 

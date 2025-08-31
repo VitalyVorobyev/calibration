@@ -5,12 +5,12 @@
 // std
 #include <optional>
 #include <vector>
+#include <concepts>
 
 // eigen
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include <concepts>
 
 namespace calib {
 

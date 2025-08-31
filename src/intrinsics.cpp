@@ -164,13 +164,13 @@ std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
         }
     }
 
-    auto dual_opt = fit_distortion_dual(obs, K.fx, K.fy, K.cx, K.cy, K.skew, num_radial);
+    auto dual_opt = fit_distortion_full(obs, K.fx, K.fy, K.cx, K.cy, K.skew, num_radial);
     if (!dual_opt) {
         return std::nullopt;
     }
-    Camera<DualDistortion> cam;
+    Camera<BrownConradyd> cam;
     cam.K = K;
-    cam.distortion = dual_opt->distortion;
+    cam.distortion.coeffs = dual_opt->distortion;
 
     return LinearInitResult{cam};
 }

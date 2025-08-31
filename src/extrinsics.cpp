@@ -15,7 +15,7 @@ namespace calib {
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
-InitialExtrinsicGuess make_initial_extrinsic_guess(
+InitialExtrinsicGuess estimate_extrinsic_dlt(
     const std::vector<ExtrinsicPlanarView>& views,
     const std::vector<Camera<DualDistortion>>& cameras
 ) {

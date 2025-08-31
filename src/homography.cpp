@@ -9,6 +9,8 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
+#include "ceresutils.h"
+
 namespace calib {
 
 using Vec2 = Eigen::Vector2d;
@@ -122,6 +124,8 @@ Mat3 estimate_homography_dlt(const std::vector<Vec2>& src,
 
 // Ceres residual: maps (x,y) -> (u,v) using H(h) and compares to (u*, v*)
 struct HomographyResidual {
+    double x_, y_, u_, v_;
+
     HomographyResidual(double x, double y, double u, double v)
         : x_(x), y_(y), u_(u), v_(v) {}
 
@@ -143,57 +147,52 @@ struct HomographyResidual {
         return true;
     }
 
-    static ceres::CostFunction* Create(double x, double y, double u, double v) {
+    static ceres::CostFunction* create(double x, double y, double u, double v) {
         return new ceres::AutoDiffCostFunction<HomographyResidual, 2, 8>(
             new HomographyResidual(x, y, u, v));
     }
-
-    double x_, y_, u_, v_;
 };
 
-Mat3 fit_homography(const std::vector<Vec2>& src,
-                    const std::vector<Vec2>& dst)
+ceres::Problem build_problem(const std::vector<Vec2>& src,
+                             const std::vector<Vec2>& dst,
+                             const OptimOptions& options, Params& h) {
+    ceres::Problem problem;
+    for (size_t i = 0; i < src.size(); ++i) {
+        problem.AddResidualBlock(
+            HomographyResidual::create(src[i].x(), src[i].y(), dst[i].x(), dst[i].y()),
+            options.huber_delta > 0 ? new ceres::HuberLoss(options.huber_delta) : nullptr,
+            h.data());
+    }
+    return problem;
+}
+
+OptimizeHomographyResult optimize_homography(const std::vector<Vec2>& src,
+                                             const std::vector<Vec2>& dst,
+                                             const Eigen::Matrix3d& init_h,
+                                             const OptimOptions& options)
 {
-    if (src.size() < 4 || dst.size() < 4 || src.size() != dst.size()) {
+    if (src.size() < 4 || src.size() != dst.size()) {
         throw std::invalid_argument("At least 4 correspondences are required.");
     }
 
-    // Initial estimate via (normalized) DLT
-    Mat3 H0 = estimate_homography_dlt(src, dst);
     // Convert to 8-parameter vector with H22 fixed to 1
     Params h = {
-        H0(0,0), H0(0,1), H0(0,2),
-        H0(1,0), H0(1,1), H0(1,2),
-        H0(2,0), H0(2,1)
+        init_h(0,0), init_h(0,1), init_h(0,2),
+        init_h(1,0), init_h(1,1), init_h(1,2),
+        init_h(2,0), init_h(2,1)
     };
 
-    ceres::Problem problem;
-    // Robust loss helps when outliers exist.
-    ceres::LossFunction* loss = new ceres::HuberLoss(1.0);
+    ceres::Problem problem = build_problem(src, dst, options, h);
 
-    for (size_t i = 0; i < src.size(); ++i) {
-        ceres::CostFunction* cost =
-            HomographyResidual::Create(src[i].x(), src[i].y(), dst[i].x(), dst[i].y());
-        problem.AddResidualBlock(cost, loss, h.data());
-    }
-
-    // (Optional) You can constrain parameters if needed:
-    // e.g., none here. If you suspect degeneracy, consider parameterization tricks.
-
-    ceres::Solver::Options options;
-    options.linear_solver_type = ceres::DENSE_QR;
-    options.max_num_iterations = 100;
-    options.num_threads = std::max(1u, std::thread::hardware_concurrency());
-    options.minimizer_progress_to_stdout = true;
-
-    ceres::Solver::Summary summary;
-    ceres::Solve(options, &problem, &summary);
+    OptimizeHomographyResult result;
+    solve_problem(problem, options, &result);
 
     // Reconstruct H and normalize scale
     Mat3 H = params_to_h(h);
     if (std::abs(H(2, 2)) > 1e-15) H /= H(2, 2);
 
-    return H;
+    result.homography = H;
+    return result;
 }
 
 }  // namespace calib

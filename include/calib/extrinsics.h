@@ -29,7 +29,7 @@ struct InitialExtrinsicGuess final {
     std::vector<Eigen::Affine3d> target_poses;  // target->reference
 };
 
-InitialExtrinsicGuess make_initial_extrinsic_guess(
+InitialExtrinsicGuess estimate_extrinsic_dlt(
     const std::vector<ExtrinsicPlanarView>& views,
     const std::vector<Camera<DualDistortion>>& cameras);
 

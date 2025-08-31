@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
             result = nlohmann::json{{"error", "intrinsics task not supported"}};
         } else if (task == "extrinsics") {
             ExtrinsicsInput in = cfg.at("input").get<ExtrinsicsInput>();
-            auto guess = make_initial_extrinsic_guess(in.views, in.cameras);
+            auto guess = estimate_extrinsic_dlt(in.views, in.cameras);
             auto r = optimize_extrinsic_poses(in.views, in.cameras, guess.camera_poses, guess.target_poses);
             result = r;
         // } else if (task == "handeye") {

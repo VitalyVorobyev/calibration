@@ -51,7 +51,7 @@ TEST(JointCalibration, RecoverAllParameters) {
         Camera<DualDistortion>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dd}
     };
 
-    auto guess = make_initial_extrinsic_guess(views, cam_init);
+    auto guess = estimate_extrinsic_dlt(views, cam_init);
     ASSERT_TRUE(guess.camera_poses.front().isApprox(Eigen::Affine3d::Identity()));
 
     // Anchor the first target pose to its ground truth to fix the scale.
@@ -113,7 +113,7 @@ TEST(JointCalibration, FirstTargetPoseFixed) {
         Camera<DualDistortion>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dd}
     };
 
-    auto guess = make_initial_extrinsic_guess(views, cam_init);
+    auto guess = estimate_extrinsic_dlt(views, cam_init);
     // Deliberately set an incorrect scale for the first target pose. This pose
     // should remain unchanged by the optimisation.
     guess.target_poses[0].translation() = Eigen::Vector3d(0.0, 0.0, 3.0);

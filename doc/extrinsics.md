@@ -5,7 +5,7 @@ observations from multiple cameras.
 
 ## Algorithms
 
-1. **Initial Guess** – `make_initial_extrinsic_guess` triangulates planar poses
+1. **Initial Guess** – `estimate_extrinsic_dlt` triangulates planar poses
    to seed camera and target transforms.
 2. **Joint Optimisation** – `optimize_joint_intrinsics_extrinsics` refines
    intrinsics, distortion and all poses simultaneously to minimise pixel error.
@@ -17,7 +17,7 @@ observations from multiple cameras.
 ## API
 
 ```
-InitialExtrinsicGuess make_initial_extrinsic_guess(
+InitialExtrinsicGuess estimate_extrinsic_dlt(
     const std::vector<ExtrinsicPlanarView>& views,
     const std::vector<Camera>& cameras);
 

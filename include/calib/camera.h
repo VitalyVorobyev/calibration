@@ -61,8 +61,6 @@ public:
     }
 };
 
-using PinholeCamera = Camera<DualDistortion>;
-
 // Camera traits specialisation for generic pinhole camera
 template<distortion_model DistortionT>
 struct CameraTraits<Camera<DistortionT>> {
