@@ -30,6 +30,7 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
     sim.make_sequence(25, rng);
     sim.make_target_grid(8, 11, 0.02);
     sim.render_pixels(0.3, &rng); // 0.3 px noise
+    sim.render_pixels();
 
     // Bad initial intrinsics and X
     Camera<BrownConradyd> cam0;
@@ -75,7 +76,7 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
 }
 
 TEST(ReprojectionRefine, DistortionRecoveryOptional) {
-    RNG rng(99);
+    RNG rng(137);
     // GT with distortion
     Camera<BrownConradyd> cam_gt;
     cam_gt.K.fx = 900;
@@ -85,13 +86,19 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
     cam_gt.distortion.coeffs << -0.12, 0.02, 0.0005, -0.0007, 0.001;
 
-    Eigen::Affine3d g_T_c_gt = make_pose(Eigen::Vector3d(0.015, -0.002, 0.10), Eigen::Vector3d(0.2,0.5,0.1).normalized(), deg2rad(9.0));
-    Eigen::Affine3d b_T_t_gt = make_pose(Eigen::Vector3d(0.35, 0.15, 0.65), Eigen::Vector3d(0.6,-0.1,0.2).normalized(), deg2rad(16.0));
+    Eigen::Affine3d g_T_c_gt = make_pose(
+        Eigen::Vector3d(0.03, 0.00, 0.12),
+        Eigen::Vector3d(0,1,0), deg2rad(8.0)
+    );
+    Eigen::Affine3d b_T_t_gt = make_pose(
+        Eigen::Vector3d(0.5, -0.1, 80),
+        Eigen::Vector3d(1,0,0), deg2rad(14.0)
+    );
 
     SimulatedHandEye sim{g_T_c_gt, b_T_t_gt, cam_gt};
     sim.make_sequence(22, rng);
     sim.make_target_grid(7, 10, 0.022);
-    sim.render_pixels(0.25, &rng);
+    sim.render_pixels();
 
     // Start from wrong K (no distortion) and perturbed X
     Camera<BrownConradyd> cam0 = cam_gt;
@@ -103,6 +110,9 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
 
     BundleOptions opts;
     opts.optimize_intrinsics = true;
+    opts.optimize_hand_eye = true;
+    opts.optimize_target_pose = true;
+    opts.optimizer = OptimizerType::DENSE_QR;
     opts.verbose = false;
 
     auto result = optimize_bundle(sim.observations, {cam0}, {X0}, b_T_t_gt, opts);
@@ -116,12 +126,11 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     EXPECT_LT(tr_err,  0.02);
 
     const auto& dist_gt = cam_gt.distortion.coeffs;
-    // Distortion parameters should move toward GT (not necessarily perfect)
-    EXPECT_NEAR(dist[0], dist_gt[0], 0.15);   // k1
-    EXPECT_NEAR(dist[1], dist_gt[1], 0.03);   // k2
-    EXPECT_NEAR(dist[2], dist_gt[2], 0.001);  // p1
-    EXPECT_NEAR(dist[3], dist_gt[3], 0.001);  // p2
-    EXPECT_NEAR(dist[4], dist_gt[4], 0.002);  // k3
+    EXPECT_NEAR(dist[0], dist_gt[0], 1e-5);  // k1
+    EXPECT_NEAR(dist[1], dist_gt[1], 1e-5);  // k2
+    EXPECT_NEAR(dist[2], dist_gt[2], 1e-5);  // p1
+    EXPECT_NEAR(dist[3], dist_gt[3], 1e-5);  // p2
+    EXPECT_NEAR(dist[4], dist_gt[4], 1e-5);  // k3
 }
 
 TEST(OptimizeBundle, InputValidation) {

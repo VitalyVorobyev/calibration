@@ -97,6 +97,9 @@ struct BundleReprojResidual final {
     }
 
     static auto* create(PlanarView v, const Eigen::Affine3d& base_T_gripper) {
+        if (v.empty()) {
+            throw std::invalid_argument("No observations provided");
+        }
         auto functor = new BundleReprojResidual(v, base_T_gripper);
         auto* cost = new ceres::AutoDiffCostFunction<
             BundleReprojResidual, ceres::DYNAMIC,4,3,4,3,9>(

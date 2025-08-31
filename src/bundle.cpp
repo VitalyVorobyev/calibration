@@ -113,6 +113,10 @@ static ceres::Problem build_problem(
 ) {
     ceres::Problem p;
     for (const auto& obs : observations) {
+        if (obs.view.empty()) {
+            std::cerr << "Empty observation view provided" << std::endl;
+            continue;
+        }
         const size_t cam = obs.camera_index;
         auto* cost = BundleReprojResidual::create(obs.view, obs.b_T_g);
         auto loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
@@ -361,6 +365,9 @@ BundleResult optimize_bundle(
     if (num_cams == 0) {
         throw std::invalid_argument("No camera intrinsics provided");
     };
+    if (observations.empty()) {
+        throw std::invalid_argument("No observations provided");
+    }
 
     BundleParamBlocks blocks = initialize_blocks(
         initial_cameras, init_g_T_c, init_b_T_t);

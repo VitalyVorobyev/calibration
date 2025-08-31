@@ -39,12 +39,13 @@ TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
     opts.optimize_intrinsics = true;
     opts.optimize_target_pose = false;
     opts.optimize_hand_eye = false;
+    opts.optimizer = OptimizerType::DENSE_QR;
     opts.verbose = false;
 
     auto res = optimize_bundle_scheimpflug(obs, {sc}, {init_g_T_c}, b_T_t, opts);
     std::cout << res.report << std::endl;
 
-    EXPECT_LT((res.g_T_c[0].translation() - g_T_c.translation()).norm(),1e-6);
+    EXPECT_LT((res.g_T_c[0].translation() - g_T_c.translation()).norm(), 1e-6);
     Eigen::AngleAxisd diff(res.g_T_c[0].linear()*g_T_c.linear().transpose());
     EXPECT_LT(diff.angle(), 1e-6);
 
