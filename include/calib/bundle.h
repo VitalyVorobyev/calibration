@@ -34,6 +34,7 @@ enum class OptimizerType {
 };
 
 /** Options controlling the hand-eye calibration optimisation. */
+// TODO: add optimize_distortion
 struct BundleOptions final {
     bool optimize_intrinsics = false;  ///< Solve for camera intrinsics
     bool optimize_skew = false;        ///< Solve for skew parameter

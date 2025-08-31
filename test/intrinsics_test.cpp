@@ -195,7 +195,7 @@ TEST(IntrinsicsTest, OptimizeExactSkew) {
 
     auto observations = generate_synthetic_data(intr_true, k_radial, p1, p2, 300, 0.0);
 
-    bool use_skew = false;
+    bool use_skew = true;
     auto initial_guess = estimate_intrinsics_linear_iterative(observations, 2, 5, use_skew);
     ASSERT_TRUE(initial_guess.has_value());
 

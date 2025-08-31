@@ -89,9 +89,7 @@ static ceres::Problem build_problem(
             p.SetParameterLowerBound(blocks.intr[c].data(), 0, 0.0);
             p.SetParameterLowerBound(blocks.intr[c].data(), 1, 0.0);
             if (!opts.optimize_skew) {
-                double s = blocks.intr[c][4];
-                p.SetParameterLowerBound(blocks.intr[c].data(), 4, s);
-                p.SetParameterUpperBound(blocks.intr[c].data(), 4, s);
+                p.SetManifold(blocks.intr[c].data(), new ceres::SubsetManifold(BundleBlocks<CameraT>::IntrSize, {4}));
             }
         }
     }

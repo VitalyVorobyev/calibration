@@ -15,6 +15,7 @@
 
 namespace calib {
 
+// TODO: make distortion model a template parameter
 struct IntrinsicOptimizationResult {
     Camera<DualDistortion> camera;
     Eigen::Matrix<double,5,5> covariance;  // Covariance matrix of intrinsics
