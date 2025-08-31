@@ -1,10 +1,5 @@
 include(GoogleTest)
 
-if(WIN32)
-  add_definitions(-DGLOG_NO_ABBREVIATED_SEVERITIES)
-  add_definitions(-DGOOGLE_GLOG_DLL_DECL=)
-endif()
-
 # Test for homography estimation
 add_executable(homography_test homography_test.cpp)
 target_link_libraries(homography_test
@@ -32,7 +27,6 @@ target_link_libraries(intrinsics_test
     PRIVATE GTest::gtest_main
     PRIVATE GTest::gmock_main
     PRIVATE Eigen3::Eigen
-    PRIVATE Ceres::ceres
 )
 gtest_discover_tests(intrinsics_test)
 
@@ -43,7 +37,6 @@ target_link_libraries(planarpose_test PRIVATE
     GTest::gtest_main
     GTest::gmock_main
     Eigen3::Eigen
-    Ceres::ceres
 )
 gtest_discover_tests(planarpose_test)
 
@@ -54,7 +47,6 @@ target_link_libraries(calib_test
     PRIVATE GTest::gtest_main
     PRIVATE GTest::gmock_main
     PRIVATE Eigen3::Eigen
-    PRIVATE Ceres::ceres
 )
 gtest_discover_tests(calib_test)
 
@@ -65,7 +57,6 @@ target_link_libraries(extrinsics_test
     PRIVATE GTest::gtest_main
     PRIVATE GTest::gmock_main
     PRIVATE Eigen3::Eigen
-    PRIVATE Ceres::ceres
 )
 gtest_discover_tests(extrinsics_test)
 
@@ -76,7 +67,6 @@ target_link_libraries(joint_test
     PRIVATE GTest::gtest_main
     PRIVATE GTest::gmock_main
     PRIVATE Eigen3::Eigen
-    PRIVATE Ceres::ceres
 )
 gtest_discover_tests(joint_test)
 
@@ -86,7 +76,6 @@ target_link_libraries(handeye_test
     PRIVATE calibration
     PRIVATE GTest::gtest_main
     PRIVATE Eigen3::Eigen
-    PRIVATE Ceres::ceres
 )
 gtest_discover_tests(handeye_test)
 
@@ -97,7 +86,6 @@ target_link_libraries(linescan_test
     PRIVATE GTest::gtest_main
     PRIVATE GTest::gmock_main
     PRIVATE Eigen3::Eigen
-    PRIVATE Ceres::ceres
 )
 gtest_discover_tests(linescan_test)
 
@@ -108,7 +96,6 @@ target_link_libraries(json_test
     PRIVATE GTest::gtest_main
     PRIVATE GTest::gmock_main
     PRIVATE Eigen3::Eigen
-    PRIVATE Ceres::ceres
     PRIVATE nlohmann_json::nlohmann_json
 )
 gtest_discover_tests(json_test)
@@ -120,7 +107,6 @@ target_link_libraries(bundle_test
     PRIVATE GTest::gtest_main
     PRIVATE GTest::gmock_main
     PRIVATE Eigen3::Eigen
-    PRIVATE Ceres::ceres
 )
 gtest_discover_tests(bundle_test)
 
@@ -141,6 +127,5 @@ target_link_libraries(scheimpflug_bundle_test
     PRIVATE GTest::gtest_main
     PRIVATE GTest::gmock_main
     PRIVATE Eigen3::Eigen
-    PRIVATE Ceres::ceres
 )
 gtest_discover_tests(scheimpflug_bundle_test)

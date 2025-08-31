@@ -8,9 +8,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-// ceres
-#include <ceres/ceres.h>
-
 using namespace calib;
 using Vec2 = Eigen::Vector2d;
 
@@ -191,46 +188,6 @@ TEST(IntrinsicsTest, OptimizeExact) {
     EXPECT_NEAR(result.camera.distortion.forward[1], k_radial[1], 1e-6);
     EXPECT_NEAR(result.camera.distortion.forward[2], p1, 1e-6);
     EXPECT_NEAR(result.camera.distortion.forward[3], p2, 1e-6);
-}
-
-TEST(IntrinsicsTest, AutoDiffJacobianParity) {
-    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0};
-    std::vector<double> k_radial = {-0.2, 0.03};
-    double p1 = 0.001, p2 = -0.0005;
-    auto observations = generate_synthetic_data(intr_true, k_radial, p1, p2, 20, 0.1);
-
-    auto functor = new IntrinsicsVPResidualTestFunctor{observations, 2};
-    ceres::AutoDiffCostFunction<IntrinsicsVPResidualTestFunctor, ceres::DYNAMIC, 4> cost(
-        functor, static_cast<int>(observations.size()) * 2);
-
-    double intr[4] = {790.0, 810.0, 630.0, 350.0};
-    const int m = static_cast<int>(observations.size()) * 2;
-    std::vector<double> residuals(m);
-    std::vector<double> jac(m * 4);
-    double* jac_blocks[1] = {jac.data()};
-    const double* params[1] = {intr};
-    cost.Evaluate(params, residuals.data(), jac_blocks);
-
-    std::vector<double> num_jac(m * 4);
-    std::vector<double> r_plus(m), r_minus(m);
-    for (int k = 0; k < 4; ++k) {
-        double step = 1e-6 * std::max(1.0, std::abs(intr[k]));
-        double intr_p[4] = {intr[0], intr[1], intr[2], intr[3]};
-        double intr_m[4] = {intr[0], intr[1], intr[2], intr[3]};
-        intr_p[k] += step;
-        intr_m[k] -= step;
-        const double* p_plus[1] = {intr_p};
-        const double* p_minus[1] = {intr_m};
-        cost.Evaluate(p_plus, r_plus.data(), nullptr);
-        cost.Evaluate(p_minus, r_minus.data(), nullptr);
-        for (int i = 0; i < m; ++i) {
-            num_jac[i * 4 + k] = (r_plus[i] - r_minus[i]) / (2.0 * step);
-        }
-    }
-
-    for (int i = 0; i < m * 4; ++i) {
-        EXPECT_NEAR(jac[i], num_jac[i], 1e-6);
-    }
 }
 
 TEST(IntrinsicsTest, OptimizeNoisy) {
