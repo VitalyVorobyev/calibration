@@ -81,23 +81,50 @@ inline std::vector<Eigen::Affine3d> make_circle_poses(int n, double radius, doub
 
 template <class DistortionT>
 inline std::vector<BundleObservation> make_scheimpflug_observations(
-    const ScheimpflugCamera<DistortionT>& sc,
-    const Eigen::Affine3d& g_T_c,
+    const std::vector<ScheimpflugCamera<DistortionT>>& scs,
+    const std::vector<Eigen::Affine3d>& g_T_cs,
     const Eigen::Affine3d& b_T_t,
     const std::vector<Eigen::Vector2d>& obj,
     const std::vector<Eigen::Affine3d>& b_T_gs) {
     std::vector<BundleObservation> obs;
-    obs.reserve(b_T_gs.size());
+    obs.reserve(b_T_gs.size() * scs.size());
     for (const auto& btg : b_T_gs) {
-        Eigen::Affine3d c_T_t = compute_camera_T_target(b_T_t, g_T_c, btg);
-        std::vector<Eigen::Vector2d> img;
-        img.reserve(obj.size());
-        for (const auto& xy : obj) {
-            Eigen::Vector3d P(xy.x(), xy.y(), 0);
-            P = c_T_t * P;
-            img.push_back(sc.project(P));
+        for (size_t cam_idx = 0; cam_idx < scs.size(); ++cam_idx) {
+            Eigen::Affine3d c_T_t = compute_camera_T_target(b_T_t, g_T_cs[cam_idx], btg);
+            std::vector<Eigen::Vector2d> img;
+            img.reserve(obj.size());
+            for (const auto& xy : obj) {
+                Eigen::Vector3d P(xy.x(), xy.y(), 0);
+                P = c_T_t * P;
+                img.push_back(scs[cam_idx].project(P));
+            }
+            obs.push_back({make_view(obj, img), btg, static_cast<int>(cam_idx)});
         }
-        obs.push_back({make_view(obj, img), btg, 0});
+    }
+    return obs;
+}
+
+template <class DistortionT>
+inline std::vector<BundleObservation> make_bundle_observations(
+    const std::vector<Camera<DistortionT>>& cams,
+    const std::vector<Eigen::Affine3d>& g_T_cs,
+    const Eigen::Affine3d& b_T_t,
+    const std::vector<Eigen::Vector2d>& obj,
+    const std::vector<Eigen::Affine3d>& b_T_gs) {
+    std::vector<BundleObservation> obs;
+    obs.reserve(b_T_gs.size() * cams.size());
+    for (const auto& btg : b_T_gs) {
+        for (size_t cam_idx = 0; cam_idx < cams.size(); ++cam_idx) {
+            Eigen::Affine3d c_T_t = compute_camera_T_target(b_T_t, g_T_cs[cam_idx], btg);
+            std::vector<Eigen::Vector2d> img;
+            img.reserve(obj.size());
+            for (const auto& xy : obj) {
+                Eigen::Vector3d P(xy.x(), xy.y(), 0);
+                P = c_T_t * P;
+                img.push_back(cams[cam_idx].project(P));
+            }
+            obs.push_back({make_view(obj, img), btg, static_cast<int>(cam_idx)});
+        }
     }
     return obs;
 }
