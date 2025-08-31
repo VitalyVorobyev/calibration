@@ -34,10 +34,6 @@ struct ScheimpflugCamera final {
     ScheimpflugCamera(const Camera<DistortionT>& cam, Scalar tx, Scalar ty)
         : camera(cam), tau_x(tx), tau_y(ty) {}
 
-    template<typename T>
-    ScheimpflugCamera(const Camera<DistortionT>& cam, T tx, T ty)
-        : camera(cam), tau_x(Scalar(tx)), tau_y(Scalar(ty)) {}
-
     template<distortion_model OtherDistortionT, typename T>
     ScheimpflugCamera(const Camera<OtherDistortionT>& cam, T tx, T ty)
         : camera(Camera<DistortionT>(CameraMatrixT<Scalar>{Scalar(cam.K.fx), Scalar(cam.K.fy), Scalar(cam.K.cx), Scalar(cam.K.cy)}, 
