@@ -45,10 +45,10 @@ int main(int argc, char** argv) {
             IntrinsicsInput in = cfg.at("input").get<IntrinsicsInput>();
             CameraMatrix guess{1000,1000,640,360};
             if (!in.observations.empty()) {
-                auto init = estimate_intrinsics_linear_iterative(in.observations, in.num_radial, 5);
+                auto init = estimate_intrinsics_linear_iterative(in.observations, in.num_radial, 5, false);
                 if (init) guess = init->camera.K;
             }
-            IntrinsicOptimizationResult r = optimize_intrinsics(in.observations, in.num_radial, guess);
+            IntrinsicOptimizationResult r = optimize_intrinsics(in.observations, in.num_radial, guess, false, std::nullopt, false);
             result = r;
         } else if (task == "extrinsics") {
             ExtrinsicsInput in = cfg.at("input").get<ExtrinsicsInput>();

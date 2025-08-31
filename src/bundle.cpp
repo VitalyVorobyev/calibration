@@ -88,6 +88,11 @@ static ceres::Problem build_problem(
         for (size_t c = 0; c < blocks.intr.size(); ++c) {
             p.SetParameterLowerBound(blocks.intr[c].data(), 0, 0.0);
             p.SetParameterLowerBound(blocks.intr[c].data(), 1, 0.0);
+            if (!opts.optimize_skew) {
+                double s = blocks.intr[c][4];
+                p.SetParameterLowerBound(blocks.intr[c].data(), 4, s);
+                p.SetParameterUpperBound(blocks.intr[c].data(), 4, s);
+            }
         }
     }
     return p;

@@ -85,7 +85,7 @@ void from_json(const nlohmann::json& j, Observation<T>& o) {
 }
 
 inline void to_json(nlohmann::json& j, const CameraMatrix& c) {
-    j = {{"fx", c.fx}, {"fy", c.fy}, {"cx", c.cx}, {"cy", c.cy}};
+    j = {{"fx", c.fx}, {"fy", c.fy}, {"cx", c.cx}, {"cy", c.cy}, {"skew", c.skew}};
 }
 
 inline void from_json(const nlohmann::json& j, CameraMatrix& c) {
@@ -93,6 +93,7 @@ inline void from_json(const nlohmann::json& j, CameraMatrix& c) {
     j.at("fy").get_to(c.fy);
     j.at("cx").get_to(c.cx);
     j.at("cy").get_to(c.cy);
+    c.skew = j.value("skew", 0.0);
 }
 
 inline void to_json(nlohmann::json& j, const DualDistortion& d) {
@@ -145,6 +146,7 @@ inline void from_json(const nlohmann::json& j, PlanarObservation& p) {
 inline void to_json(nlohmann::json& j, const BundleOptions& o) {
     j = {
         {"optimize_intrinsics", o.optimize_intrinsics},
+        {"optimize_skew", o.optimize_skew},
         {"optimize_target_pose", o.optimize_target_pose},
         {"optimize_hand_eye", o.optimize_hand_eye},
         {"verbose", o.verbose}
@@ -153,6 +155,7 @@ inline void to_json(nlohmann::json& j, const BundleOptions& o) {
 
 inline void from_json(const nlohmann::json& j, BundleOptions& o) {
     o.optimize_intrinsics = j.value("optimize_intrinsics", false);
+    o.optimize_skew = j.value("optimize_skew", false);
     o.optimize_target_pose = j.value("optimize_target_pose", true);
     o.optimize_hand_eye = j.value("optimize_hand_eye", true);
     o.verbose = j.value("verbose", false);

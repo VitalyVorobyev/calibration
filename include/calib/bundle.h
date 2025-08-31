@@ -36,6 +36,7 @@ enum class OptimizerType {
 /** Options controlling the hand-eye calibration optimisation. */
 struct BundleOptions final {
     bool optimize_intrinsics = false;  ///< Solve for camera intrinsics
+    bool optimize_skew = false;        ///< Solve for skew parameter
     bool optimize_target_pose = true;  ///< Solve for base->target pose
     bool optimize_hand_eye = true;     ///< Solve for camera->gripper poses
     double huber_delta = 1.0;          ///< Huber loss delta
