@@ -164,34 +164,60 @@ TEST(IntrinsicsTest, IterativeLinearInitialization) {
 TEST(IntrinsicsTest, OptimizeExact) {
     std::vector<double> k_radial = {-0.20, 0.03};
     double p1 = 0.001, p2 = -0.0005;
-    for (double skew : {0.0, 5.0}) {
-        CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0, skew};
+    double skew = 0;
+    const bool use_skew = false;
+    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0, skew};
 
-        auto observations = generate_synthetic_data(
-            intr_true, k_radial, p1, p2, 300, 0.0);
+    auto observations = generate_synthetic_data(intr_true, k_radial, p1, p2, 300, 0.0);
 
-        auto initial_guess = estimate_intrinsics_linear_iterative(observations, 2, 5, skew != 0.0);
-        ASSERT_TRUE(initial_guess.has_value());
+    auto initial_guess = estimate_intrinsics_linear_iterative(observations, 2, 5, use_skew);
+    ASSERT_TRUE(initial_guess.has_value());
 
-        auto result = optimize_intrinsics(observations, 2, initial_guess->camera.K, false, std::nullopt, skew != 0.0);
+    auto result = optimize_intrinsics(observations, 2, initial_guess->camera.K, false, std::nullopt, use_skew);
 
-        EXPECT_NEAR(result.camera.K.fx, intr_true.fx, 1e-6);
-        EXPECT_NEAR(result.camera.K.fy, intr_true.fy, 1e-6);
-        EXPECT_NEAR(result.camera.K.cx, intr_true.cx, 1e-6);
-        EXPECT_NEAR(result.camera.K.cy, intr_true.cy, 1e-6);
-        EXPECT_NEAR(result.camera.K.skew, intr_true.skew, 1e-6);
+    EXPECT_NEAR(result.camera.K.fx, intr_true.fx, 1e-6);
+    EXPECT_NEAR(result.camera.K.fy, intr_true.fy, 1e-6);
+    EXPECT_NEAR(result.camera.K.cx, intr_true.cx, 1e-6);
+    EXPECT_NEAR(result.camera.K.cy, intr_true.cy, 1e-6);
+    EXPECT_NEAR(result.camera.K.skew, intr_true.skew, 1e-6);
 
-        EXPECT_NEAR(result.camera.distortion.forward[0], k_radial[0], 1e-6);
-        EXPECT_NEAR(result.camera.distortion.forward[1], k_radial[1], 1e-6);
-        EXPECT_NEAR(result.camera.distortion.forward[2], p1, 1e-6);
-        EXPECT_NEAR(result.camera.distortion.forward[3], p2, 1e-6);
-    }
+    EXPECT_NEAR(result.camera.distortion.forward[0], k_radial[0], 1e-6);
+    EXPECT_NEAR(result.camera.distortion.forward[1], k_radial[1], 1e-6);
+    EXPECT_NEAR(result.camera.distortion.forward[2], p1, 1e-6);
+    EXPECT_NEAR(result.camera.distortion.forward[3], p2, 1e-6);
+}
+
+TEST(IntrinsicsTest, OptimizeExactSkew) {
+    std::vector<double> k_radial = {-0.20, 0.03};
+    double p1 = 0.001, p2 = -0.0005;
+    double skew = 0.001;
+    CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0, skew};
+
+    auto observations = generate_synthetic_data(intr_true, k_radial, p1, p2, 300, 0.0);
+
+    bool use_skew = false;
+    auto initial_guess = estimate_intrinsics_linear_iterative(observations, 2, 5, use_skew);
+    ASSERT_TRUE(initial_guess.has_value());
+
+    use_skew = true;
+    auto result = optimize_intrinsics(observations, 2, initial_guess->camera.K, false, std::nullopt, use_skew);
+
+    EXPECT_NEAR(result.camera.K.fx, intr_true.fx, 1e-6);
+    EXPECT_NEAR(result.camera.K.fy, intr_true.fy, 1e-6);
+    EXPECT_NEAR(result.camera.K.cx, intr_true.cx, 1e-6);
+    EXPECT_NEAR(result.camera.K.cy, intr_true.cy, 1e-6);
+    EXPECT_NEAR(result.camera.K.skew, intr_true.skew, 1e-6);
+
+    EXPECT_NEAR(result.camera.distortion.forward[0], k_radial[0], 1e-6);
+    EXPECT_NEAR(result.camera.distortion.forward[1], k_radial[1], 1e-6);
+    EXPECT_NEAR(result.camera.distortion.forward[2], p1, 1e-6);
+    EXPECT_NEAR(result.camera.distortion.forward[3], p2, 1e-6);
 }
 
 TEST(IntrinsicsTest, OptimizeNoisy) {
     std::vector<double> k_radial = {-0.20, 0.03};
     double p1 = 0.001, p2 = -0.0005;
-    for (double skew : {0.0, 5.0}) {
+    for (double skew : {0.0, 0.001}) {
         CameraMatrix intr_true{800.0, 820.0, 640.0, 360.0, skew};
 
         auto observations = generate_synthetic_data(

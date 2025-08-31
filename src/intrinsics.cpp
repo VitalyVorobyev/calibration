@@ -206,6 +206,14 @@ struct IntrinsicsVPResidual {
         auto d = fit_distortion(obs_, intr[0], intr[1], intr[2], intr[3], intr[4], num_radial_);
         return d ? d->distortion : Eigen::VectorXd{};
     }
+
+    static auto create_cost(const std::vector<Observation<double>>& obs,
+                            int num_radial) {
+        auto* functor = new IntrinsicsVPResidual(obs, num_radial);
+        auto* cost = new ceres::AutoDiffCostFunction<IntrinsicsVPResidual,
+            ceres::DYNAMIC, 5>(functor, static_cast<int>(obs.size()) * 2);
+        return cost;
+    }
 };
 
 static bool compute_covariance(
@@ -266,11 +274,7 @@ IntrinsicOptimizationResult optimize_intrinsics(
     };
 
     ceres::Problem problem;
-    auto* functor = new IntrinsicsVPResidual(obs, num_radial);
-    auto* cost = new ceres::AutoDiffCostFunction<IntrinsicsVPResidual,
-                                                 ceres::DYNAMIC, 5>(functor,
-                                                                      static_cast<int>(obs.size()) * 2);
-
+    auto* cost = IntrinsicsVPResidual::create_cost(obs, num_radial);
     problem.AddResidualBlock(cost, /*loss=*/nullptr, intrinsics);
 
     CalibrationBounds bounds = bounds_opt.value_or(CalibrationBounds{});
@@ -282,8 +286,7 @@ IntrinsicOptimizationResult optimize_intrinsics(
         problem.SetParameterLowerBound(intrinsics, 4, bounds.skew_min);
         problem.SetParameterUpperBound(intrinsics, 4, bounds.skew_max);
     } else {
-        problem.SetParameterLowerBound(intrinsics, 4, initial_guess.skew);
-        problem.SetParameterUpperBound(intrinsics, 4, initial_guess.skew);
+        problem.SetManifold(intrinsics, new ceres::SubsetManifold(5, {4}));
     }
 
     problem.SetParameterUpperBound(intrinsics, 0, bounds.fx_max);
