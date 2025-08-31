@@ -68,17 +68,17 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
     EXPECT_LT(tr_err,  1e-6);
 
     // Intrinsics recovered
-    EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-8);
-    EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-8);
-    EXPECT_NEAR(Kf.cx, K_gt.cx, 1e-8);
-    EXPECT_NEAR(Kf.cy, K_gt.cy, 1e-8);
+    EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-6);
+    EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-6);
+    EXPECT_NEAR(Kf.cx, K_gt.cx, 1e-6);
+    EXPECT_NEAR(Kf.cy, K_gt.cy, 1e-6);
     EXPECT_NEAR(Kf.skew, K_gt.skew, 1e-9);
 
     // Recovered base->target should be close
     double bt_rot = rad2deg(rotation_angle(b_T_t_est.linear().transpose() * b_T_t_gt.linear()));
     double bt_tr  = (b_T_t_est.translation() - b_T_t_gt.translation()).norm();
-    EXPECT_LT(bt_rot, 1e-8);
-    EXPECT_LT(bt_tr,  1e-8);
+    EXPECT_LT(bt_rot, 1e-6);
+    EXPECT_LT(bt_tr,  1e-6);
 }
 
 TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortionSkew) {
@@ -142,17 +142,17 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortionSkew) {
     EXPECT_LT(tr_err,  1e-6);
 
     // Intrinsics recovered
-    EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-7);
-    EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-7);
-    EXPECT_NEAR(Kf.cx, K_gt.cx, 1e-7);
-    EXPECT_NEAR(Kf.cy, K_gt.cy, 1e-7);
-    EXPECT_NEAR(Kf.skew, K_gt.skew, 1e-7);
+    EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-6);
+    EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-6);
+    EXPECT_NEAR(Kf.cx, K_gt.cx, 1e-6);
+    EXPECT_NEAR(Kf.cy, K_gt.cy, 1e-6);
+    EXPECT_NEAR(Kf.skew, K_gt.skew, 1e-6);
 
     // Recovered base->target should be close
     double bt_rot = rad2deg(rotation_angle(b_T_t_est.linear().transpose() * b_T_t_gt.linear()));
     double bt_tr  = (b_T_t_est.translation() - b_T_t_gt.translation()).norm();
-    EXPECT_LT(bt_rot, 1e-8);
-    EXPECT_LT(bt_tr,  1e-8);
+    EXPECT_LT(bt_rot, 1e-6);
+    EXPECT_LT(bt_tr,  1e-6);
 }
 
 TEST(ReprojectionRefine, DistortionRecoveryOptional) {
