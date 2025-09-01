@@ -47,6 +47,9 @@ struct ParamBlock final {
     const double *data;
     size_t size;
     size_t dof;
+    
+    ParamBlock(const double* data_, size_t size_, size_t dof_) 
+        : data(data_), size(size_), dof(dof_) {}
 };
 
 struct ProblemParamBlocks {
@@ -89,11 +92,11 @@ inline std::optional<Eigen::MatrixXd> compute_covariance(
     size_t row_offset = 0;
 
     for (size_t i = 0; i < param_blocks.size(); ++i) {
-        int block_i_size = param_blocks[i].size;
+        size_t block_i_size = param_blocks[i].size;
         size_t col_offset = 0;
 
         for (size_t j = 0; j <= i; ++j) {
-            int block_j_size = param_blocks[j].size;
+            size_t block_j_size = param_blocks[j].size;
             std::vector<double> block_cov(block_i_size * block_j_size);
 
             covariance.GetCovarianceBlock(
@@ -101,12 +104,12 @@ inline std::optional<Eigen::MatrixXd> compute_covariance(
                 param_blocks[j].data,
                 block_cov.data());
 
-            for (int r = 0; r < block_i_size; ++r) {
-                for (int c = 0; c < block_j_size; ++c) {
+            for (size_t r = 0; r < block_i_size; ++r) {
+                for (size_t c = 0; c < block_j_size; ++c) {
                     double value = block_cov[r * block_j_size + c];
-                    cov_matrix(row_offset + r, col_offset + c) = value;
+                    cov_matrix(static_cast<size_t>(row_offset + r), static_cast<size_t>(col_offset + c)) = value;
                     if (j < i) {
-                        cov_matrix(col_offset + c, row_offset + r) = value;
+                        cov_matrix(static_cast<size_t>(col_offset + c), static_cast<size_t>(row_offset + r)) = value;
                     }
                 }
             }
