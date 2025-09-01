@@ -18,7 +18,8 @@
 #include <ceres/rotation.h>
 
 #include "observationutils.h"
-#include "handeyeresidual.h"
+
+#include "residuals/handeyeresidual.h"
 
 namespace calib {
 
@@ -129,7 +130,7 @@ static Eigen::Vector3d estimate_translation_allpairs_weighted(
 }
 
 // ---------- public API: linear init + non-linear refine ----------
-Eigen::Affine3d estimate_hand_eye_tsai_lenz(
+Eigen::Affine3d estimate_handeye_dlt(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
     const std::vector<Eigen::Affine3d>& camera_T_target,
     double min_angle_deg)
@@ -144,7 +145,7 @@ Eigen::Affine3d estimate_hand_eye_tsai_lenz(
     return X;
 }
 
-Eigen::Affine3d refine_hand_eye(
+Eigen::Affine3d optimize_handeye(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
     const std::vector<Eigen::Affine3d>& camera_T_target,
     const Eigen::Affine3d& X0,
@@ -191,8 +192,8 @@ Eigen::Affine3d estimate_and_refine_hand_eye(
     double min_angle_deg,
     const RefinementOptions& ro)
 {
-    auto X0 = estimate_hand_eye_tsai_lenz(base_T_gripper, camera_T_target, min_angle_deg);
-    return refine_hand_eye(base_T_gripper, camera_T_target, X0, ro);
+    auto X0 = estimate_handeye_dlt(base_T_gripper, camera_T_target, min_angle_deg);
+    return optimize_handeye(base_T_gripper, camera_T_target, X0, ro);
 }
 
 }  // namespace calib

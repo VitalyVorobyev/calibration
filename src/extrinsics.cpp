@@ -9,19 +9,19 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
+#include "calib/scheimpflug.h"
+
 #include "observationutils.h"
 
 namespace calib {
 
-using Pose6 = Eigen::Matrix<double, 6, 1>;
-
-InitialExtrinsicGuess estimate_extrinsic_dlt(
+ExtrinsicPoses estimate_extrinsic_dlt(
     const std::vector<ExtrinsicPlanarView>& views,
     const std::vector<Camera<DualDistortion>>& cameras
 ) {
     const size_t num_cams = cameras.size();
     const size_t num_views = views.size();
-    std::vector<std::vector<Eigen::Affine3d>> cam_to_target(
+    std::vector<std::vector<Eigen::Affine3d>> c_T_t(
         num_views, std::vector<Eigen::Affine3d>(num_cams, Eigen::Affine3d::Identity()));
 
     // Estimate per-camera target poses via DLT
@@ -38,26 +38,32 @@ InitialExtrinsicGuess estimate_extrinsic_dlt(
                 obj_xy.push_back(o.object_xy);
                 img_uv.push_back(o.image_uv);
             }
-            cam_to_target[v][c] = estimate_planar_pose_dlt(obj_xy, img_uv, cameras[c].K);
+            c_T_t[v][c] = estimate_planar_pose_dlt(obj_xy, img_uv, cameras[c].K);
         }
     }
 
-    InitialExtrinsicGuess guess;
-    guess.camera_poses.assign(num_cams, Eigen::Affine3d::Identity());
-    guess.target_poses.assign(num_views, Eigen::Affine3d::Identity());
+    ExtrinsicPoses guess;
+    guess.c_T_r.assign(num_cams, Eigen::Affine3d::Identity());
+    guess.r_T_t.assign(num_views, Eigen::Affine3d::Identity());
 
     // Compute camera poses relative to first camera (reference)
     for (size_t c = 1; c < num_cams; ++c) {
         std::vector<Eigen::Affine3d> rels;
         for (size_t v = 0; v < num_views; ++v) {
-            if (c >= views[v].size()) continue;
+            if (c >= views[v].size()) {
+                throw std::runtime_error("Camera index out of bounds");
+            }
             const auto& obs0 = views[v][0];
             const auto& obsC = views[v][c];
-            if (obs0.size() < 4 || obsC.size() < 4) continue;
-            rels.push_back(cam_to_target[v][c] * cam_to_target[v][0].inverse());
+            if (obs0.size() < 4 || obsC.size() < 4) {
+                std::cerr << "Insufficient observations for view " << v
+                    << " and camera " << c << std::endl;
+                continue;
+            }
+            rels.push_back(c_T_t[v][c] * c_T_t[v][0].inverse());
         }
         if (!rels.empty()) {
-            guess.camera_poses[c] = average_affines(rels);
+            guess.c_T_r[c] = average_affines(rels);
         }
     }
 
@@ -68,53 +74,15 @@ InitialExtrinsicGuess estimate_extrinsic_dlt(
             if (c >= views[v].size()) continue;
             const auto& ob_c = views[v][c];
             if (ob_c.size() < 4) continue;
-            tposes.push_back(guess.camera_poses[c].inverse() * cam_to_target[v][c]);
+            tposes.push_back(guess.c_T_r[c].inverse() * c_T_t[v][c]);
         }
         if (!tposes.empty()) {
-            guess.target_poses[v] = average_affines(tposes);
+            guess.r_T_t[v] = average_affines(tposes);
         }
     }
 
     return guess;
 }
-
-struct ExtrinsicResidual final {
-    PlanarView obs_;
-    const Camera<DualDistortion> cam_;
-
-    ExtrinsicResidual(PlanarView obs, const Camera<DualDistortion>& cam)
-        : obs_(std::move(obs)), cam_(cam) {}
-
-    template <typename T>
-    bool operator()(const T* cam_pose6, const T* target_pose6, T* residuals) const {
-        auto pose_cam = pose2affine(cam_pose6);
-        auto pose_target = pose2affine(target_pose6);
-        Eigen::Transform<T, 3, Eigen::Affine> pose = pose_cam * pose_target;
-
-        const int N = static_cast<int>(obs_.size());
-        for (int i = 0; i < N; ++i) {
-            const auto& ob = obs_[i];
-            Eigen::Matrix<T,3,1> P{T(ob.object_xy.x()), T(ob.object_xy.y()), T(0)};
-            P = pose * P;
-            T xn = P.x() / P.z();
-            T yn = P.y() / P.z();
-            Eigen::Matrix<T,2,1> xyn{xn, yn};
-            auto uv = cam_.project(xyn);
-            residuals[2*i]   = uv.x() - T(ob.image_uv.x());
-            residuals[2*i+1] = uv.y() - T(ob.image_uv.y());
-        }
-        return true;
-    }
-
-    static auto* create(const PlanarView& obs, const Camera<DualDistortion> cam) {
-        auto* functor = new ExtrinsicResidual(obs, cam);
-        auto* cost = new ceres::AutoDiffCostFunction<ExtrinsicResidual,
-            ceres::DYNAMIC, 6, 6>(
-        functor, static_cast<int>(obs.size()) * 2);
-
-        return cost;
-    }
-};
 
 static void initialize_pose_vectors(const std::vector<Eigen::Affine3d>& initial_camera_poses,
                                     const std::vector<Eigen::Affine3d>& initial_target_poses,
@@ -243,14 +211,12 @@ static void compute_covariances(ceres::Problem& problem,
     }
 }
 
-ExtrinsicOptimizationResult optimize_extrinsic_poses(
-    const std::vector<ExtrinsicPlanarView>& views,
+void consistency_check(
     const std::vector<Camera<DualDistortion>>& cameras,
-    const std::vector<Eigen::Affine3d>& initial_camera_poses,
-    const std::vector<Eigen::Affine3d>& initial_target_poses,
-    bool verbose
+    const std::vector<ExtrinsicPlanarView>& views,
+    const ExtrinsicPoses& initial_camera_poses,
+    const ExtrinsicPoses& initial_target_poses
 ) {
-    ExtrinsicOptimizationResult result;
     const size_t num_cams = cameras.size();
     const size_t num_views = views.size();
     if (initial_camera_poses.size() != num_cams ||
@@ -262,6 +228,19 @@ ExtrinsicOptimizationResult optimize_extrinsic_poses(
                                     ", initial_target_poses: " + std::to_string(initial_target_poses.size()) +
                                     " are not compatible.");
     }
+}
+
+template<camera_model CameraT>
+ExtrinsicOptimizationResult optimize_extrinsics(
+    const std::vector<ExtrinsicPlanarView>& views,
+    const std::vector<CameraT>& cameras,
+    const ExtrinsicPoses& init_poses,
+    const OptimOptions& options
+) {
+    consistency_check(cameras, views, init_poses.camera_poses, init_poses.target_poses);
+    ExtrinsicOptimizationResult result;
+    const size_t num_cams = cameras.size();
+    const size_t num_views = views.size();
 
     std::vector<Pose6> cam_poses(num_cams);
     std::vector<Pose6> targ_poses(num_views);
@@ -298,5 +277,17 @@ ExtrinsicOptimizationResult optimize_extrinsic_poses(
 
     return result;
 }
+
+template ExtrinsicOptimizationResult optimize_extrinsics(
+    const std::vector<ExtrinsicPlanarView>&,
+    const std::vector<Camera<BrownConradyd>>&,
+    const ExtrinsicPoses&,
+    const OptimOptions&);
+
+template ExtrinsicOptimizationResult optimize_extrinsics(
+    const std::vector<ExtrinsicPlanarView>&,
+    const std::vector<ScheimpflugCamera<BrownConradyd>>&,
+    const ExtrinsicPoses&,
+    const OptimOptions&);
 
 } // namespace calib

@@ -7,6 +7,7 @@
 #include <thread>
 #include <optional>
 
+// ceres
 #include "ceres/solver.h"
 
 #include "calib/optimize.h"

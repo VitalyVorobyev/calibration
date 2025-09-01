@@ -13,17 +13,18 @@ enum class OptimizerType {
 
 struct OptimOptions {
     OptimizerType optimizer = OptimizerType::DEFAULT;
-    double huber_delta = 1.0;  ///< Huber loss delta. No effect if below 0
-    double epsilon = 1e-9;  ///< Solver convergence tolerance
-    int max_iterations = 1000;  ///< Maximum number of iterations
-    bool verbose = false;  ///< Verbose solver output
+    double huber_delta = 1.0;        ///< Huber loss delta. L2 loss is used if huber_delta < 0
+    double epsilon = 1e-9;           ///< Solver convergence tolerance
+    int max_iterations = 1000;       ///< Maximum number of iterations
+    bool compute_covariance = true;  ///< Compute covariance matrix
+    bool verbose = false;            ///< Verbose solver output
 };
 
 struct OptimResult {
-    bool success;
+    bool success = false;
     Eigen::MatrixXd covariance;
-    std::string report;  ///< Solver brief report
-    double final_cost;
+    std::string report = "Empty";  ///< Solver brief report
+    double final_cost = 0.0;
 };
 
 }  // namespace calib

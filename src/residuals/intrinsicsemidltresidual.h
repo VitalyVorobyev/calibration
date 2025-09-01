@@ -15,14 +15,14 @@ namespace calib {
 
 // Variable projection residual for full camera calibration.
 struct CalibVPResidual final {
-    std::vector<PlanarView> views_;  // observations per view
+    const std::vector<PlanarView> views;  // observations per view
     int num_radial_;
     size_t total_obs_;
 
-    CalibVPResidual(const std::vector<PlanarView>& views, int num_radial)
-        : views_(views), num_radial_(num_radial) {
+    CalibVPResidual(const std::vector<PlanarView>& v, int num_radial)
+        : views(v), num_radial_(num_radial) {
         total_obs_ = 0;
-        for (const auto& v : views_) total_obs_ += v.size();
+        for (const auto& view : v) total_obs_ += view.size();
     }
 
     template<typename T>

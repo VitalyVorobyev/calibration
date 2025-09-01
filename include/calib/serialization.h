@@ -245,8 +245,8 @@ inline void to_json(nlohmann::json& j, const IntrinsicsResult& r) {
         {"poses", pose_arr},
         {"covariance", eigen_matrix_to_json(r.covariance)},
         {"view_errors", r.view_errors},
-        {"reprojection_error", r.reprojection_error},
-        {"summary", r.summary}
+        {"final_cost", r.final_cost},
+        {"report", r.report}
     };
 }
 
@@ -257,8 +257,8 @@ inline void from_json(const nlohmann::json& j, IntrinsicsResult& r) {
         for (const auto& jt : j.at("poses")) r.poses.push_back(json_to_affine(jt));
     r.covariance = json_to_eigen_matrix(j.at("covariance"));
     r.view_errors = j.value("view_errors", std::vector<double>{});
-    r.reprojection_error = j.value("reprojection_error", 0.0);
-    r.summary = j.value("summary", std::string{});
+    r.final_cost = j.value("final_cost", 0.0);
+    r.report = j.value("report", std::string{});
 }
 
 inline void to_json(nlohmann::json& j, const ExtrinsicOptimizationResult& r) {
@@ -275,8 +275,8 @@ inline void to_json(nlohmann::json& j, const ExtrinsicOptimizationResult& r) {
         {"target_poses", tps},
         {"camera_covariances", ccov},
         {"target_covariances", tcov},
-        {"reprojection_error", r.reprojection_error},
-        {"summary", r.summary}
+        {"final_cost", r.final_cost},
+        {"report", r.report}
     };
 }
 
@@ -289,8 +289,8 @@ inline void from_json(const nlohmann::json& j, ExtrinsicOptimizationResult& r) {
     for (const auto& jc : j.at("camera_covariances")) r.camera_covariances.push_back(json_to_eigen_matrix(jc));
     r.target_covariances.clear();
     for (const auto& jc : j.at("target_covariances")) r.target_covariances.push_back(json_to_eigen_matrix(jc));
-    r.reprojection_error = j.value("reprojection_error", 0.0);
-    r.summary = j.value("summary", std::string{});
+    r.final_cost = j.value("final_cost", 0.0);
+    r.report = j.value("report", std::string{});
 }
 
 inline void to_json(nlohmann::json& j, const BundleResult<Camera<BrownConradyd>>& r) {
@@ -302,9 +302,9 @@ inline void to_json(nlohmann::json& j, const BundleResult<Camera<BrownConradyd>>
         {"cameras", cams},
         {"g_T_c", gtc},
         {"b_T_t", affine_to_json(r.b_T_t)},
-        {"reprojection_error", r.reprojection_error},
+        {"final_cost", r.final_cost},
         {"covariance", eigen_matrix_to_json(r.covariance)},
-        {"summary", r.report}
+        {"report", r.report}
     };
 }
 
@@ -314,9 +314,9 @@ inline void from_json(const nlohmann::json& j, BundleResult<Camera<BrownConradyd
     r.g_T_c.clear();
     for (const auto& jt : j.at("g_T_c")) r.g_T_c.push_back(json_to_affine(jt));
     r.b_T_t = json_to_affine(j.at("b_T_t"));
-    r.reprojection_error = j.value("reprojection_error", 0.0);
+    r.final_cost = j.value("final_cost", 0.0);
     r.covariance = json_to_eigen_matrix(j.at("covariance"));
-    r.report = j.value("summary", std::string{});
+    r.report = j.value("report", std::string{});
 }
 
 } // namespace calib

@@ -6,10 +6,9 @@
 #include <ceres/ceres.h>
 
 #include "calib/planarpose.h"
-#include "calib/camera.h"
-#include "calib/scheimpflug.h"
 #include "calib/cameramodel.h"
-#include "observationutils.h"
+
+#include "../observationutils.h"
 
 namespace calib {
 
@@ -38,16 +37,15 @@ static Eigen::Affine3d get_camera_T_target(
 
 template<camera_model CameraT>
 struct BundleReprojResidual final {
-    PlanarView view;
-    Eigen::Affine3d base_T_gripper;
-    BundleReprojResidual(PlanarView v, const Eigen::Affine3d& b_T_g)
+    const PlanarView view;
+    const Eigen::Affine3d base_T_gripper;
+    BundleReprojResidual(PlanarView&& v, const Eigen::Affine3d& b_T_g)
         : view(std::move(v)), base_T_gripper(b_T_g) {}
 
     template <typename T>
     bool operator()(const T* b_q_t, const T* b_t_t,
                     const T* g_q_c, const T* g_t_c,
-                    const T* intrinsics,
-                    T* residuals) const {
+                    const T* intrinsics, T* residuals) const {
         const Eigen::Matrix<T, 3, 3> b_R_g = base_T_gripper.linear().template cast<T>();
         const Eigen::Matrix<T, 3, 1> b_t_g = base_T_gripper.translation().template cast<T>();
         const auto [c_R_t, c_t_t] = get_camera_T_target(
@@ -69,7 +67,7 @@ struct BundleReprojResidual final {
         return true;
     }
 
-    static auto* create(PlanarView v, const Eigen::Affine3d& base_T_gripper) {
+    static auto* create(PlanarView&& v, const Eigen::Affine3d& base_T_gripper) {
         if (v.empty()) {
             throw std::invalid_argument("No observations provided");
         }

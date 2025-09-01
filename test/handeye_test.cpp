@@ -42,7 +42,7 @@ TEST(TsaiLenzAllPairsWeighted, RecoversGroundTruthWithNoise) {
     const auto& camera_T_target = sim.c_T_t;
 
     // Estimate with all-pairs weighted Tsai-Lenz
-    Eigen::Affine3d X_est = estimate_hand_eye_tsai_lenz(
+    Eigen::Affine3d X_est = estimate_handeye_dlt(
         base_T_gripper, camera_T_target, /*min_angle_deg*/1.0);
 
     double rot_err = rad2deg(rotation_angle(X_est.linear().transpose() * X_gt.linear()));
@@ -57,7 +57,7 @@ TEST(TsaiLenzAllPairsWeighted, ThrowsOnDegenerateSmallMotions) {
     std::vector<Eigen::Affine3d> b_T_g(5, Eigen::Affine3d::Identity());
     std::vector<Eigen::Affine3d> c_T_t(5, Eigen::Affine3d::Identity());
     EXPECT_THROW({
-        estimate_hand_eye_tsai_lenz(b_T_g, c_T_t, /*min_angle_deg*/2.0);
+        estimate_handeye_dlt(b_T_g, c_T_t, /*min_angle_deg*/2.0);
     }, std::runtime_error);
 }
 
@@ -86,8 +86,8 @@ TEST(TsaiLenzAllPairsWeighted, InvariantToBaseFrameLeftMultiply) {
     std::vector<Eigen::Affine3d> base_T_gripper2 = base_T_gripper;
     for (auto& T : base_T_gripper2) T = B * T;
 
-    Eigen::Affine3d X1 = estimate_hand_eye_tsai_lenz(base_T_gripper,  camera_T_target, 1.0);
-    Eigen::Affine3d X2 = estimate_hand_eye_tsai_lenz(base_T_gripper2, camera_T_target, 1.0);
+    Eigen::Affine3d X1 = estimate_handeye_dlt(base_T_gripper,  camera_T_target, 1.0);
+    Eigen::Affine3d X2 = estimate_handeye_dlt(base_T_gripper2, camera_T_target, 1.0);
 
     double rot_err = rad2deg(rotation_angle(X1.linear().transpose() * X2.linear()));
     double trans_err = (X1.translation() - X2.translation()).norm();
@@ -133,7 +133,7 @@ TEST(CeresAXXBRefine, ImprovesOverInitializer) {
     ro.huber_delta = 1.0;
     ro.verbose = false;
 
-    Eigen::Affine3d Xr = refine_hand_eye(base_T_gripper, camera_T_target, X0, ro);
+    Eigen::Affine3d Xr = optimize_handeye(base_T_gripper, camera_T_target, X0, ro);
 
     double err1_rot = rad2deg(rotation_angle(Xr.linear().transpose()*X_gt.linear()));
     double err1_tr  = (Xr.translation() - X_gt.translation()).norm();
