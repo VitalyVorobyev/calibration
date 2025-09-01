@@ -20,8 +20,8 @@ using Mat3 = Eigen::Matrix3d;
 
 // Simple SVD-based plane initialization
 static Eigen::Vector4d fit_plane_svd(const std::vector<Vec3>& pts) {
-    Vec3 centroid = Vec3::Zero();
-    for (const auto& p : pts) centroid += p;
+    Vec3 centroid = std::accumulate(pts.cbegin(), pts.cend(), Vec3{Vec3::Zero()},
+                                    [](const Vec3& a, const Vec3& b) -> Vec3 { return a + b; });
     centroid /= static_cast<double>(pts.size());
 
     Eigen::MatrixXd A(static_cast<Eigen::Index>(pts.size()), 3);

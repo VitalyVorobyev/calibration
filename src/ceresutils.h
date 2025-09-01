@@ -57,11 +57,10 @@ struct ProblemParamBlocks {
 
     [[nodiscard]]
     auto total_params() const -> size_t {
-        size_t total_count = 0;
-        for (const auto& param_block : get_param_blocks()) {
-            total_count += param_block.size;
-        }
-        return total_count;
+        const auto blocks = get_param_blocks();
+        return std::accumulate(blocks.begin(), blocks.end(), size_t{0},
+            [](size_t sum, const ParamBlock& block) { return sum + block.size; }
+        );
     }
 };
 

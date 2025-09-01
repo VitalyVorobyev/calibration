@@ -184,12 +184,13 @@ PlanarPoseResult optimize_planar_pose(const std::vector<Eigen::Vector2d>& obj_xy
     std::vector<double> residuals(m);
     const double* parameter_blocks[] = {blocks.pose6.data()};
     cost->Evaluate(parameter_blocks, residuals.data(), nullptr);
-    double ssr = 0.0;
-    for (double r : residuals) ssr += r * r;
+
+    const double ssr = std::accumulate(residuals.begin(), residuals.end(), 0.0,
+                                        [](double sum, double r) { return sum + r * r; });
     result.reprojection_error = std::sqrt(ssr / m);
 
     if (opts.compute_covariance) {
-        auto optcov = compute_covariance(blocks, problem, residuals.size(), ssr);
+        auto optcov = compute_covariance(blocks, problem, ssr, residuals.size());
         if (optcov.has_value()) {
             result.covariance = std::move(optcov.value());
         }

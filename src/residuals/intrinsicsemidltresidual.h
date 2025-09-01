@@ -4,6 +4,7 @@
 
 // std
 #include <vector>
+#include <numeric>
 
 // ceres
 #include <ceres/ceres.h>
@@ -17,14 +18,13 @@ namespace calib {
 // Variable projection residual for full camera calibration.
 struct CalibVPResidual final {
     const std::vector<PlanarView> views;  // observations per view
-    int num_radial_;
-    size_t total_obs_;
+    const int num_radial_;
+    const size_t total_obs_;
 
     CalibVPResidual(const std::vector<PlanarView>& v, int num_radial)
-        : views(v), num_radial_(num_radial) {
-        total_obs_ = 0;
-        for (const auto& view : v) total_obs_ += view.size();
-    }
+        : views(v), num_radial_(num_radial),
+          total_obs_(std::accumulate(v.begin(), v.end(), size_t(0),
+                     [](size_t sum, const PlanarView& view) { return sum + view.size(); })) {}
 
     template <typename T>
     bool operator()(T const* const* params, T* residuals) const {
@@ -57,8 +57,9 @@ struct CalibVPResidual final {
             cost->AddParameterBlock(4);  // Quaternion for each view
             cost->AddParameterBlock(3);  // Translation for each view
         }
-        size_t total_obs = 0;
-        for (const auto& v : views) total_obs += v.size();
+        const size_t total_obs = std::accumulate(
+            views.begin(), views.end(), size_t(0),
+            [](size_t sum, const PlanarView& v) { return sum + v.size(); });
         cost->SetNumResiduals(static_cast<int>(total_obs * 2));
         return cost;
     }

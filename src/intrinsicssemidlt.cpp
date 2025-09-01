@@ -175,7 +175,7 @@ IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics_semidlt(
 
     double sum_squared_residuals = dr_opt->residuals.squaredNorm();
     size_t total_residuals = total_obs * 2;
-    result.covariance = compute_covariance(blocks, problem, total_residuals, sum_squared_residuals)
+    result.covariance = compute_covariance(blocks, problem, sum_squared_residuals, total_residuals)
                             .value_or(Eigen::MatrixXd{});
 
     return result;
