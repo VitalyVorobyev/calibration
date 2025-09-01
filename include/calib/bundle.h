@@ -57,9 +57,9 @@ struct BundleResult final : public OptimResult {
  */
 template <camera_model CameraT>
 auto optimize_bundle(const std::vector<BundleObservation>& observations,
-                    const std::vector<CameraT>& initial_cameras,
-                    const std::vector<Eigen::Affine3d>& init_g_T_c,
-                    const Eigen::Affine3d& init_b_T_t,
-                    const BundleOptions& opts = {}) -> BundleResult<CameraT>;
+                     const std::vector<CameraT>& initial_cameras,
+                     const std::vector<Eigen::Affine3d>& init_g_T_c,
+                     const Eigen::Affine3d& init_b_T_t,
+                     const BundleOptions& opts = {}) -> BundleResult<CameraT>;
 
 }  // namespace calib

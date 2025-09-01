@@ -8,11 +8,11 @@
 
 namespace calib {
 
-auto build_all_pairs(
-    const std::vector<Eigen::Affine3d>& ref_T_gripper, const std::vector<Eigen::Affine3d>& cam_T_target,
-    double min_angle_deg,       // discard too-small motions
-    bool reject_axis_parallel,  // guard against ill-conditioning
-    double axis_parallel_eps) -> std::vector<MotionPair> {
+auto build_all_pairs(const std::vector<Eigen::Affine3d>& ref_T_gripper,
+                     const std::vector<Eigen::Affine3d>& cam_T_target,
+                     double min_angle_deg,       // discard too-small motions
+                     bool reject_axis_parallel,  // guard against ill-conditioning
+                     double axis_parallel_eps) -> std::vector<MotionPair> {
     if (ref_T_gripper.size() < 2 || ref_T_gripper.size() != cam_T_target.size()) {
         throw std::runtime_error("Inconsistent hand-eye input sizes");
     }
@@ -63,7 +63,8 @@ auto build_all_pairs(
 }
 
 // ---------- weighted Tsai–Lenz rotation over all pairs ----------
-static auto estimate_rotation_allpairs_weighted(const std::vector<MotionPair>& pairs) -> Eigen::Matrix3d {
+static auto estimate_rotation_allpairs_weighted(const std::vector<MotionPair>& pairs)
+    -> Eigen::Matrix3d {
     const int num_pairs = static_cast<int>(pairs.size());
     Eigen::MatrixXd mat_M(3 * num_pairs, 3);
     Eigen::VectorXd vec_d(3 * num_pairs);
@@ -80,8 +81,8 @@ static auto estimate_rotation_allpairs_weighted(const std::vector<MotionPair>& p
 }
 
 // ---------- weighted Tsai–Lenz translation over all pairs ----------
-static auto estimate_translation_allpairs_weighted(const std::vector<MotionPair>& pairs,
-                                                  const Eigen::Matrix3d& rot_X) -> Eigen::Vector3d {
+static auto estimate_translation_allpairs_weighted(
+    const std::vector<MotionPair>& pairs, const Eigen::Matrix3d& rot_X) -> Eigen::Vector3d {
     const int num_pairs = static_cast<int>(pairs.size());
     Eigen::MatrixXd mat_C(3 * num_pairs, 3);
     Eigen::VectorXd vec_w(3 * num_pairs);
@@ -90,7 +91,8 @@ static auto estimate_translation_allpairs_weighted(const std::vector<MotionPair>
         const Eigen::Vector3d& tran_A = pairs[idx].tA;
         const Eigen::Vector3d& tran_B = pairs[idx].tB;
         constexpr double kWeight = 1.0;
-        mat_C.block<3, 3>(static_cast<Eigen::Index>(3 * idx), 0) = kWeight * (rot_A - Eigen::Matrix3d::Identity());
+        mat_C.block<3, 3>(static_cast<Eigen::Index>(3 * idx), 0) =
+            kWeight * (rot_A - Eigen::Matrix3d::Identity());
         vec_w.segment<3>(static_cast<Eigen::Index>(3 * idx)) = kWeight * (rot_X * tran_B - tran_A);
     }
     constexpr double kRidge = 1e-12;
@@ -99,8 +101,8 @@ static auto estimate_translation_allpairs_weighted(const std::vector<MotionPair>
 
 // ---------- public API: linear init + non-linear refine ----------
 auto estimate_handeye_dlt(const std::vector<Eigen::Affine3d>& ref_T_gripper,
-                         const std::vector<Eigen::Affine3d>& camera_T_target,
-                         double min_angle_deg) -> Eigen::Affine3d {
+                          const std::vector<Eigen::Affine3d>& camera_T_target,
+                          double min_angle_deg) -> Eigen::Affine3d {
     auto pairs = build_all_pairs(ref_T_gripper, camera_T_target, min_angle_deg);
     const Eigen::Matrix3d rot_X = estimate_rotation_allpairs_weighted(pairs);
     const Eigen::Vector3d g_t_c = estimate_translation_allpairs_weighted(pairs, rot_X);

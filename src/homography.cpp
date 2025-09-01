@@ -23,22 +23,26 @@ struct HomographyBlocks final : public ProblemParamBlocks {
     static auto create(const Eigen::Matrix3d& init_h) -> HomographyBlocks {
         HomographyBlocks blocks;
         blocks.params = {init_h(0, 0), init_h(0, 1), init_h(0, 2), init_h(1, 0),
-                        init_h(1, 1), init_h(1, 2), init_h(2, 0), init_h(2, 1)};
+                         init_h(1, 1), init_h(1, 2), init_h(2, 0), init_h(2, 1)};
         return blocks;
     }
 
     [[nodiscard]]
-    auto get_param_blocks() const -> std::vector<ParamBlock> override { return {{params.data(), params.size(), 8}}; }
+    auto get_param_blocks() const -> std::vector<ParamBlock> override {
+        return {{params.data(), params.size(), 8}};
+    }
 };
 
 static auto params_to_h(const HomographyParams& params) -> Mat3 {
     Mat3 mat_h;
-    mat_h << params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], 1.0;
+    mat_h << params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7],
+        1.0;
     return mat_h;
 }
 
 // Normalize points (Hartley): translate to centroid, scale to mean distance sqrt(2).
-static void normalize_points(const std::vector<Vec2>& points, std::vector<Vec2>& norm_points, Mat3& transform) {
+static void normalize_points(const std::vector<Vec2>& points, std::vector<Vec2>& norm_points,
+                             Mat3& transform) {
     norm_points.resize(points.size());
     if (points.empty()) {
         transform.setIdentity();
@@ -111,7 +115,8 @@ auto estimate_homography_dlt(const std::vector<Vec2>& src, const std::vector<Vec
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(mat_A, Eigen::ComputeFullV);
     Eigen::VectorXd vec_h = svd.matrixV().col(8);
     Mat3 mat_Hn;
-    mat_Hn << vec_h(0), vec_h(1), vec_h(2), vec_h(3), vec_h(4), vec_h(5), vec_h(6), vec_h(7), vec_h(8);
+    mat_Hn << vec_h(0), vec_h(1), vec_h(2), vec_h(3), vec_h(4), vec_h(5), vec_h(6), vec_h(7),
+        vec_h(8);
     // Denormalize: H = T_dst^{-1} * Hn * T_src
     Mat3 mat_H = transform_dst.inverse() * mat_Hn * transform_src;
     // Fix scale

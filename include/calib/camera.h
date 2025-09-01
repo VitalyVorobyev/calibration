@@ -17,7 +17,8 @@ class Camera final {
     DistortionT distortion;   ///< Distortion model
 
     Camera() = default;
-    Camera(const CameraMatrixT<Scalar>& matrix, const DistortionT& distortion_model) : K(matrix), distortion(distortion_model) {}
+    Camera(const CameraMatrixT<Scalar>& matrix, const DistortionT& distortion_model)
+        : K(matrix), distortion(distortion_model) {}
 
     template <typename Derived>
     Camera(const CameraMatrixT<Scalar>& matrix, const Eigen::MatrixBase<Derived>& coeffs)

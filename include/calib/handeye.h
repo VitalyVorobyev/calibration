@@ -18,11 +18,11 @@ struct MotionPair final {
     Eigen::Vector3d tA, tB;
 };
 
-auto build_all_pairs(
-    const std::vector<Eigen::Affine3d>& base_to_gripper, const std::vector<Eigen::Affine3d>& camera_to_target,
-    double min_angle_deg = 1.0,        // discard too-small motions
-    bool reject_axis_parallel = true,  // guard against ill-conditioning
-    double axis_parallel_epsilon = 1e-3) -> std::vector<MotionPair>;
+auto build_all_pairs(const std::vector<Eigen::Affine3d>& base_to_gripper,
+                     const std::vector<Eigen::Affine3d>& camera_to_target,
+                     double min_angle_deg = 1.0,        // discard too-small motions
+                     bool reject_axis_parallel = true,  // guard against ill-conditioning
+                     double axis_parallel_epsilon = 1e-3) -> std::vector<MotionPair>;
 
 /**
  * @brief Estimates the hand-eye transformation using the Tsai-Lenz algorithm
@@ -53,8 +53,8 @@ auto build_all_pairs(
  *         if there are insufficient valid pairs for the estimation.
  */
 auto estimate_handeye_dlt(const std::vector<Eigen::Affine3d>& base_T_gripper,
-                         const std::vector<Eigen::Affine3d>& camera_T_target,
-                         double min_angle_deg = 1.0) -> Eigen::Affine3d;
+                          const std::vector<Eigen::Affine3d>& camera_T_target,
+                          double min_angle_deg = 1.0) -> Eigen::Affine3d;
 
 struct HandeyeOptions final : public OptimOptions {};
 
@@ -82,9 +82,9 @@ struct HandeyeResult final : public OptimResult {
  * @return The refined hand-eye transformation as an Eigen::Affine3d object.
  */
 auto optimize_handeye(const std::vector<Eigen::Affine3d>& base_T_gripper,
-                     const std::vector<Eigen::Affine3d>& camera_T_target,
-                     const Eigen::Affine3d& init_gripper_T_ref,
-                     const HandeyeOptions& opts = {}) -> HandeyeResult;
+                      const std::vector<Eigen::Affine3d>& camera_T_target,
+                      const Eigen::Affine3d& init_gripper_T_ref,
+                      const HandeyeOptions& opts = {}) -> HandeyeResult;
 
 /**
  * @brief Estimates and refines the hand-eye transformation.
@@ -106,8 +106,8 @@ auto optimize_handeye(const std::vector<Eigen::Affine3d>& base_T_gripper,
  * @return The estimated hand-eye transformation as an Eigen::Affine3d object.
  */
 auto estimate_and_refine_hand_eye(const std::vector<Eigen::Affine3d>& base_T_gripper,
-                                 const std::vector<Eigen::Affine3d>& camera_T_target,
-                                 double min_angle_deg = 1.0,
-                                 const HandeyeOptions& options = {}) -> HandeyeResult;
+                                  const std::vector<Eigen::Affine3d>& camera_T_target,
+                                  double min_angle_deg = 1.0,
+                                  const HandeyeOptions& options = {}) -> HandeyeResult;
 
 }  // namespace calib

@@ -18,9 +18,13 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
     for (size_t view_idx = 0; view_idx < num_views; ++view_idx) {
         for (size_t cam_idx = 0; cam_idx < num_cameras; ++cam_idx) {
             const auto& obs = views[view_idx];
-            if (cam_idx >= obs.size()) { continue; }
+            if (cam_idx >= obs.size()) {
+                continue;
+            }
             const auto& obs_cam = obs[cam_idx];
-            if (obs_cam.size() < 4) { continue; }
+            if (obs_cam.size() < 4) {
+                continue;
+            }
             std::vector<Eigen::Vector2d> obj_xy, img_uv;
             obj_xy.reserve(obs_cam.size());
             img_uv.reserve(obs_cam.size());
@@ -28,7 +32,8 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
                 obj_xy.push_back(obs_elem.object_xy);
                 img_uv.push_back(obs_elem.image_uv);
             }
-            cam_T_ref[view_idx][cam_idx] = estimate_planar_pose_dlt(obj_xy, img_uv, cameras[cam_idx].K);
+            cam_T_ref[view_idx][cam_idx] =
+                estimate_planar_pose_dlt(obj_xy, img_uv, cameras[cam_idx].K);
         }
     }
 
@@ -46,7 +51,8 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
             const auto& obs0 = views[view_idx][0];
             const auto& obs_cam = views[view_idx][cam_idx];
             if (obs0.size() < 4 || obs_cam.size() < 4) {
-                std::cerr << "Insufficient observations for view " << view_idx << " and camera " << cam_idx << "\n";
+                std::cerr << "Insufficient observations for view " << view_idx << " and camera "
+                          << cam_idx << "\n";
                 continue;
             }
             rels.push_back(cam_T_ref[view_idx][cam_idx] * cam_T_ref[view_idx][0].inverse());
@@ -60,9 +66,13 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
     for (size_t view_idx = 0; view_idx < num_views; ++view_idx) {
         std::vector<Eigen::Affine3d> tposes;
         for (size_t cam_idx = 0; cam_idx < num_cameras; ++cam_idx) {
-            if (cam_idx >= views[view_idx].size()) { continue; }
+            if (cam_idx >= views[view_idx].size()) {
+                continue;
+            }
             const auto& obs_cam = views[view_idx][cam_idx];
-            if (obs_cam.size() < 4) { continue; }
+            if (obs_cam.size() < 4) {
+                continue;
+            }
             tposes.push_back(guess.c_T_r[cam_idx].inverse() * cam_T_ref[view_idx][cam_idx]);
         }
         if (!tposes.empty()) {

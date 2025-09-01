@@ -13,13 +13,13 @@ enum class OptimizerType : std::uint8_t {
 
 struct OptimOptions {
     OptimizerType optimizer = OptimizerType::DEFAULT;
-    double huber_delta = 1.0;        ///< Huber loss delta. L2 loss is used if huber_delta < 0
+    double huber_delta = 1.0;  ///< Huber loss delta. L2 loss is used if huber_delta < 0
     static constexpr double kDefaultEpsilon = 1e-9;
-    double epsilon = kDefaultEpsilon; ///< Solver convergence tolerance
+    double epsilon = kDefaultEpsilon;  ///< Solver convergence tolerance
     static constexpr int kDefaultMaxIterations = 1000;
-    int max_iterations = kDefaultMaxIterations; ///< Maximum number of iterations
-    bool compute_covariance = true;  ///< Compute covariance matrix
-    bool verbose = false;            ///< Verbose solver output
+    int max_iterations = kDefaultMaxIterations;  ///< Maximum number of iterations
+    bool compute_covariance = true;              ///< Compute covariance matrix
+    bool verbose = false;                        ///< Verbose solver output
 };
 
 struct OptimResult {

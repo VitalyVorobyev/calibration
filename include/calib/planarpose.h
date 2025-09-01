@@ -21,11 +21,12 @@ auto pose_from_homography_normalized(const Eigen::Matrix3d& homography) -> Eigen
 
 // Convenience: one-shot planar pose from pixels & K
 auto estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& object_xy,
-                             const std::vector<Eigen::Vector2d>& image_uv,
-                             const CameraMatrix& intrinsics) -> Eigen::Affine3d;
+                              const std::vector<Eigen::Vector2d>& image_uv,
+                              const CameraMatrix& intrinsics) -> Eigen::Affine3d;
 
 // Convenience: one-shot planar pose from pixels & K
-auto estimate_planar_pose_dlt(const PlanarView& observations, const CameraMatrix& intrinsics) -> Eigen::Affine3d;
+auto estimate_planar_pose_dlt(const PlanarView& observations,
+                              const CameraMatrix& intrinsics) -> Eigen::Affine3d;
 
 struct PlanarPoseOptions final : public OptimOptions {
     int num_radial = 2;  ///< Number of radial distortion coefficients
@@ -38,8 +39,8 @@ struct PlanarPoseResult final : public OptimResult {
 };
 
 auto optimize_planar_pose(const std::vector<Eigen::Vector2d>& object_xy,
-                         const std::vector<Eigen::Vector2d>& image_uv,
-                         const CameraMatrix& intrinsics,
-                         const PlanarPoseOptions& opts = {}) -> PlanarPoseResult;
+                          const std::vector<Eigen::Vector2d>& image_uv,
+                          const CameraMatrix& intrinsics,
+                          const PlanarPoseOptions& opts = {}) -> PlanarPoseResult;
 
 }  // namespace calib

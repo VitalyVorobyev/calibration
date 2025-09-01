@@ -53,43 +53,43 @@ struct ScheimpflugCamera final {
     [[nodiscard]]
     auto project(const Eigen::Matrix<T, 3, 1>& X_camera) const -> Eigen::Matrix<T, 2, 1> {
         // Build rotation that aligns the tilted sensor basis
-    const T tau_x_val = T(tau_x);
-    const T tau_y_val = T(tau_y);
-    const T cos_tau_x = ceres::cos(tau_x_val);
-    const T sin_tau_x = ceres::sin(tau_x_val);
-    const T cos_tau_y = ceres::cos(tau_y_val);
-    const T sin_tau_y = ceres::sin(tau_y_val);
+        const T tau_x_val = T(tau_x);
+        const T tau_y_val = T(tau_y);
+        const T cos_tau_x = ceres::cos(tau_x_val);
+        const T sin_tau_x = ceres::sin(tau_x_val);
+        const T cos_tau_y = ceres::cos(tau_y_val);
+        const T sin_tau_y = ceres::sin(tau_y_val);
 
-    Eigen::Matrix<T, 3, 3> rot_x;
-    rot_x << T(1), T(0), T(0), T(0), cos_tau_x, -sin_tau_x, T(0), sin_tau_x, cos_tau_x;
-    Eigen::Matrix<T, 3, 3> rot_y;
-    rot_y << cos_tau_y, T(0), sin_tau_y, T(0), T(1), T(0), -sin_tau_y, T(0), cos_tau_y;
-    Eigen::Matrix<T, 3, 3> rot_sensor = rot_y * rot_x;
+        Eigen::Matrix<T, 3, 3> rot_x;
+        rot_x << T(1), T(0), T(0), T(0), cos_tau_x, -sin_tau_x, T(0), sin_tau_x, cos_tau_x;
+        Eigen::Matrix<T, 3, 3> rot_y;
+        rot_y << cos_tau_y, T(0), sin_tau_y, T(0), T(1), T(0), -sin_tau_y, T(0), cos_tau_y;
+        Eigen::Matrix<T, 3, 3> rot_sensor = rot_y * rot_x;
 
-    // Basis vectors of the tilted sensor plane
-    Eigen::Matrix<T, 3, 1> axis_sensor = rot_sensor.col(0);
-    Eigen::Matrix<T, 3, 1> base_sensor = rot_sensor.col(1);
-    Eigen::Matrix<T, 3, 1> normal_sensor = rot_sensor.col(2);
+        // Basis vectors of the tilted sensor plane
+        Eigen::Matrix<T, 3, 1> axis_sensor = rot_sensor.col(0);
+        Eigen::Matrix<T, 3, 1> base_sensor = rot_sensor.col(1);
+        Eigen::Matrix<T, 3, 1> normal_sensor = rot_sensor.col(2);
 
-    // Ray-plane intersection (d=1)
-    T sden = normal_sensor.dot(X_camera);
-    T mx = axis_sensor.dot(X_camera) / sden;
-    T my = base_sensor.dot(X_camera) / sden;
+        // Ray-plane intersection (d=1)
+        T sden = normal_sensor.dot(X_camera);
+        T mx = axis_sensor.dot(X_camera) / sden;
+        T my = base_sensor.dot(X_camera) / sden;
 
-    // Principal ray intersection with the plane
-    const T s0 = normal_sensor.z();
-    const T mx0 = axis_sensor.z() / s0;
-    const T my0 = base_sensor.z() / s0;
+        // Principal ray intersection with the plane
+        const T s0 = normal_sensor.z();
+        const T mx0 = axis_sensor.z() / s0;
+        const T my0 = base_sensor.z() / s0;
 
-    // Distortion in plane coordinates
-    Eigen::Matrix<T, 2, 1> dxy(mx - mx0, my - my0);
-    dxy = camera.distortion.distort(dxy);
-    mx = dxy.x() + mx0;
-    my = dxy.y() + my0;
+        // Distortion in plane coordinates
+        Eigen::Matrix<T, 2, 1> dxy(mx - mx0, my - my0);
+        dxy = camera.distortion.distort(dxy);
+        mx = dxy.x() + mx0;
+        my = dxy.y() + my0;
 
-    T u = T(camera.K.fx) * mx + T(camera.K.skew) * my + T(camera.K.cx);
-    T v = T(camera.K.fy) * my + T(camera.K.cy);
-    return {u, v};
+        T u = T(camera.K.fx) * mx + T(camera.K.skew) * my + T(camera.K.cx);
+        T v = T(camera.K.fy) * my + T(camera.K.cy);
+        return {u, v};
     }
 };
 
@@ -109,7 +109,8 @@ struct CameraTraits<ScheimpflugCamera<DistortionT>> {
     static auto from_array(const T* intr) -> ScheimpflugCamera<BrownConrady<T>> {
         CameraMatrixT<T> k_matrix{intr[0], intr[1], intr[2], intr[3], intr[4]};
         Eigen::Matrix<T, Eigen::Dynamic, 1> dist(kNumDistCoeffs);
-        dist << intr[kDistStartIdx], intr[kDistStartIdx+1], intr[kDistStartIdx+2], intr[kDistStartIdx+3], intr[kDistStartIdx+4];
+        dist << intr[kDistStartIdx], intr[kDistStartIdx + 1], intr[kDistStartIdx + 2],
+            intr[kDistStartIdx + 3], intr[kDistStartIdx + 4];
         Camera<BrownConrady<T>> cam(k_matrix, dist);
         return ScheimpflugCamera<BrownConrady<T>>(cam, intr[kTauXIdx], intr[kTauYIdx]);
     }

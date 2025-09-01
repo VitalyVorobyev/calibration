@@ -14,14 +14,15 @@
 namespace calib {
 
 template <typename D>
-concept distortion_model = requires(const D& distortion, const Eigen::Matrix<typename D::Scalar, 2, 1>& point2d) {
-    {
-        distortion.template distort<typename D::Scalar>(point2d)
-    } -> std::same_as<Eigen::Matrix<typename D::Scalar, 2, 1>>;
-    {
-        distortion.template undistort<typename D::Scalar>(point2d)
-    } -> std::same_as<Eigen::Matrix<typename D::Scalar, 2, 1>>;
-};
+concept distortion_model =
+    requires(const D& distortion, const Eigen::Matrix<typename D::Scalar, 2, 1>& point2d) {
+        {
+            distortion.template distort<typename D::Scalar>(point2d)
+        } -> std::same_as<Eigen::Matrix<typename D::Scalar, 2, 1>>;
+        {
+            distortion.template undistort<typename D::Scalar>(point2d)
+        } -> std::same_as<Eigen::Matrix<typename D::Scalar, 2, 1>>;
+    };
 
 template <typename T>
 struct Observation final {
@@ -32,7 +33,7 @@ struct Observation final {
 template <typename T>
 [[nodiscard]]
 auto apply_distortion(const Eigen::Matrix<T, 2, 1>& norm_xy,
-                     const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs) -> Eigen::Matrix<T, 2, 1> {
+                      const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs) -> Eigen::Matrix<T, 2, 1> {
     if (coeffs.size() < 2) {
         throw std::runtime_error("Insufficient distortion coefficients");
     }
@@ -49,8 +50,10 @@ auto apply_distortion(const Eigen::Matrix<T, 2, 1>& norm_xy,
     }
     T tangential1 = T(coeffs[num_radial_coeffs]);
     T tangential2 = T(coeffs[num_radial_coeffs + 1]);
-    T x_distorted = x_coord * radial + T(2) * tangential1 * x_coord * y_coord + tangential2 * (r2_val + T(2) * x_coord * x_coord);
-    T y_distorted = y_coord * radial + tangential1 * (r2_val + T(2) * y_coord * y_coord) + T(2) * tangential2 * x_coord * y_coord;
+    T x_distorted = x_coord * radial + T(2) * tangential1 * x_coord * y_coord +
+                    tangential2 * (r2_val + T(2) * x_coord * x_coord);
+    T y_distorted = y_coord * radial + tangential1 * (r2_val + T(2) * y_coord * y_coord) +
+                    T(2) * tangential2 * x_coord * y_coord;
     return {x_distorted, y_distorted};
 }
 
@@ -102,8 +105,8 @@ struct BrownConrady final {
 using BrownConradyd = BrownConrady<double>;
 
 template <typename Scalar>
-inline auto invert_brown_conrady(
-    const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& forward) -> Eigen::Matrix<Scalar, Eigen::Dynamic, 1> {
+inline auto invert_brown_conrady(const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& forward)
+    -> Eigen::Matrix<Scalar, Eigen::Dynamic, 1> {
     if (forward.size() < 2) {
         throw std::runtime_error("Insufficient distortion coefficients");
     }
@@ -116,7 +119,8 @@ inline auto invert_brown_conrady(
     for (int i = 0; i < grid; ++i) {
         Scalar x_coord = -lim + 2.0 * lim * static_cast<Scalar>(i) / static_cast<Scalar>(grid - 1);
         for (int j = 0; j < grid; ++j) {
-            Scalar y_coord = -lim + 2.0 * lim * static_cast<Scalar>(j) / static_cast<Scalar>(grid - 1);
+            Scalar y_coord =
+                -lim + 2.0 * lim * static_cast<Scalar>(j) / static_cast<Scalar>(grid - 1);
             Eigen::Matrix<Scalar, 2, 1> und(x_coord, y_coord);
             Eigen::Matrix<Scalar, 2, 1> dst = apply_distortion(und, forward);
             obs.push_back({dst.x(), dst.y(), x_coord, y_coord});
@@ -164,8 +168,9 @@ struct DualDistortionWithResiduals final {
 // TODO: refactor for camera_model as a template parameter
 template <typename T>
 [[nodiscard]]
-auto fit_distortion_full(
-    const std::vector<Observation<T>>& observations, T focal_x, T focal_y, T center_x, T center_y, T skew_param, int num_radial = 2) -> std::optional<DistortionWithResiduals<T>> {
+auto fit_distortion_full(const std::vector<Observation<T>>& observations, T focal_x, T focal_y,
+                         T center_x, T center_y, T skew_param,
+                         int num_radial = 2) -> std::optional<DistortionWithResiduals<T>> {
     if (observations.size() < 8) {
         return std::nullopt;
     }
@@ -206,8 +211,10 @@ auto fit_distortion_full(
         }
 
         // Tangential terms
-        design_matrix(ru, idx_p1) = focal_x * (T(2.0) * x_coord * y_coord) + skew_param * (r2_val + T(2.0) * y_coord * y_coord);
-        design_matrix(ru, idx_p2) = focal_x * (r2_val + T(2.0) * x_coord * x_coord) + skew_param * (T(2.0) * x_coord * y_coord);
+        design_matrix(ru, idx_p1) = focal_x * (T(2.0) * x_coord * y_coord) +
+                                    skew_param * (r2_val + T(2.0) * y_coord * y_coord);
+        design_matrix(ru, idx_p2) = focal_x * (r2_val + T(2.0) * x_coord * x_coord) +
+                                    skew_param * (T(2.0) * x_coord * y_coord);
         design_matrix(rv, idx_p1) = focal_y * (r2_val + T(2.0) * y_coord * y_coord);
         design_matrix(rv, idx_p2) = focal_y * (T(2.0) * x_coord * y_coord);
 
@@ -230,10 +237,12 @@ std::optional<DistortionWithResiduals<T>> fit_distortion(const std::vector<Obser
     return fit_distortion_full(obs, fx, fy, cx, cy, skew, num_radial);
 }
 
-inline auto fit_distortion_dual(
-    const std::vector<Observation<double>>& observations, double focal_x, double focal_y, double center_x, double center_y,
-    double skew_param, int num_radial = 2) -> std::optional<DualDistortionWithResiduals> {
-    auto forward = fit_distortion_full(observations, focal_x, focal_y, center_x, center_y, skew_param, num_radial);
+inline auto fit_distortion_dual(const std::vector<Observation<double>>& observations,
+                                double focal_x, double focal_y, double center_x, double center_y,
+                                double skew_param,
+                                int num_radial = 2) -> std::optional<DualDistortionWithResiduals> {
+    auto forward = fit_distortion_full(observations, focal_x, focal_y, center_x, center_y,
+                                       skew_param, num_radial);
     if (!forward) {
         return std::nullopt;
     }
@@ -248,7 +257,8 @@ inline auto fit_distortion_dual(
         inv_observations.push_back({x_dist, y_dist, u_undist, v_undist});
     }
 
-    auto inverse = fit_distortion_full(inv_observations, focal_x, focal_y, center_x, center_y, skew_param, num_radial);
+    auto inverse = fit_distortion_full(inv_observations, focal_x, focal_y, center_x, center_y,
+                                       skew_param, num_radial);
     if (!inverse) {
         return std::nullopt;
     }

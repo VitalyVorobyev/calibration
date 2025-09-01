@@ -22,9 +22,9 @@ namespace calib {
 // point and the observed pixel coordinates (u,v).  The function returns
 // an optional CameraMatrix: std::nullopt is returned if there are not
 // enough observations or the linear system is degenerate.
-auto estimate_intrinsics_linear(
-    const std::vector<Observation<double>>& observations,
-    std::optional<CalibrationBounds> bounds = std::nullopt, bool use_skew = false) -> std::optional<CameraMatrix>;
+auto estimate_intrinsics_linear(const std::vector<Observation<double>>& observations,
+                                std::optional<CalibrationBounds> bounds = std::nullopt,
+                                bool use_skew = false) -> std::optional<CameraMatrix>;
 
 // Improved linear initialization that alternates between estimating
 // distortion coefficients (fit_distortion) and re-solving for camera
@@ -33,7 +33,8 @@ auto estimate_intrinsics_linear(
 // coefficients and the number of refinement iterations can be specified.
 constexpr int kDefaultMaxIterations = 5;
 auto estimate_intrinsics_linear_iterative(
-    const std::vector<Observation<double>>& observations, int num_radial, int max_iterations = kDefaultMaxIterations,
+    const std::vector<Observation<double>>& observations, int num_radial,
+    int max_iterations = kDefaultMaxIterations,
     bool use_skew = false) -> std::optional<Camera<BrownConradyd>>;
 
 struct IntrinsicsOptions final : public OptimOptions {
@@ -54,9 +55,9 @@ auto optimize_intrinsics_semidlt(
     const IntrinsicsOptions& opts = {}) -> IntrinsicsOptimizationResult<Camera<BrownConradyd>>;
 
 template <camera_model CameraT>
-auto optimize_intrinsics(const std::vector<PlanarView>& views,
-                        const CameraT& init_camera,
-                        std::vector<Eigen::Affine3d> init_c_T_t,
-                        const IntrinsicsOptions& opts = {}) -> IntrinsicsOptimizationResult<CameraT>;
+auto optimize_intrinsics(const std::vector<PlanarView>& views, const CameraT& init_camera,
+                         std::vector<Eigen::Affine3d> init_c_T_t,
+                         const IntrinsicsOptions& opts = {})
+    -> IntrinsicsOptimizationResult<CameraT>;
 
 }  // namespace calib

@@ -28,8 +28,8 @@ struct BundleBlocks final : public ProblemParamBlocks {
           intr(numcams) {}
 
     static auto create(const std::vector<CameraT>& cameras,
-                      const std::vector<Eigen::Affine3d>& g_T_c,
-                      const Eigen::Affine3d& b_T_t) -> BundleBlocks {
+                       const std::vector<Eigen::Affine3d>& g_T_c,
+                       const Eigen::Affine3d& b_T_t) -> BundleBlocks {
         const size_t num_cams = g_T_c.size();
         BundleBlocks blocks(num_cams);
         populate_quat_tran(b_T_t, blocks.b_q_t, blocks.b_t_t);
@@ -47,7 +47,8 @@ struct BundleBlocks final : public ProblemParamBlocks {
             blocks.emplace_back(intr_block.data(), intr_block.size(), kIntrSize);
         }
         for (const auto& quat_block : g_q_c) {
-            blocks.emplace_back(quat_block.data(), quat_block.size(), 3);  // 3 dof in unit quaternion
+            blocks.emplace_back(quat_block.data(), quat_block.size(),
+                                3);  // 3 dof in unit quaternion
         }
         for (const auto& tran_block : g_t_c) {
             blocks.emplace_back(tran_block.data(), tran_block.size(), 3);
@@ -64,21 +65,24 @@ struct BundleBlocks final : public ProblemParamBlocks {
         result.cameras.resize(num_cams);
         for (size_t cam_idx = 0; cam_idx < num_cams; ++cam_idx) {
             result.g_T_c[cam_idx] = restore_pose(g_q_c[cam_idx], g_t_c[cam_idx]);
-            result.cameras[cam_idx] = CameraTraits<CameraT>::template from_array<double>(intr[cam_idx].data());
+            result.cameras[cam_idx] =
+                CameraTraits<CameraT>::template from_array<double>(intr[cam_idx].data());
         }
     }
 };
 
 template <camera_model CameraT>
 static auto build_problem(const std::vector<BundleObservation>& observations,
-                         const BundleOptions& opts, BundleBlocks<CameraT>& blocks) -> ceres::Problem {
+                          const BundleOptions& opts,
+                          BundleBlocks<CameraT>& blocks) -> ceres::Problem {
     ceres::Problem problem;
     for (const auto& obs : observations) {
         const size_t cam_idx = obs.camera_index;
         auto* loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
         problem.AddResidualBlock(BundleReprojResidual<CameraT>::create(obs.view, obs.b_T_g), loss,
-                                blocks.b_q_t.data(), blocks.b_t_t.data(), blocks.g_q_c[cam_idx].data(),
-                                blocks.g_t_c[cam_idx].data(), blocks.intr[cam_idx].data());
+                                 blocks.b_q_t.data(), blocks.b_t_t.data(),
+                                 blocks.g_q_c[cam_idx].data(), blocks.g_t_c[cam_idx].data(),
+                                 blocks.intr[cam_idx].data());
     }
 
     problem.SetManifold(blocks.b_q_t.data(), new ceres::QuaternionManifold());
@@ -104,12 +108,14 @@ static auto build_problem(const std::vector<BundleObservation>& observations,
         }
     } else {
         for (size_t cam_idx = 0; cam_idx < blocks.intr.size(); ++cam_idx) {
-            problem.SetParameterLowerBound(blocks.intr[cam_idx].data(), CameraTraits<CameraT>::idx_fx, 0.0);
-            problem.SetParameterLowerBound(blocks.intr[cam_idx].data(), CameraTraits<CameraT>::idx_fy, 0.0);
+            problem.SetParameterLowerBound(blocks.intr[cam_idx].data(),
+                                           CameraTraits<CameraT>::idx_fx, 0.0);
+            problem.SetParameterLowerBound(blocks.intr[cam_idx].data(),
+                                           CameraTraits<CameraT>::idx_fy, 0.0);
             if (!opts.optimize_skew) {
                 problem.SetManifold(blocks.intr[cam_idx].data(),
-                                   new ceres::SubsetManifold(BundleBlocks<CameraT>::kIntrSize,
-                                                            {CameraTraits<CameraT>::idx_skew}));
+                                    new ceres::SubsetManifold(BundleBlocks<CameraT>::kIntrSize,
+                                                              {CameraTraits<CameraT>::idx_skew}));
             }
         }
     }
