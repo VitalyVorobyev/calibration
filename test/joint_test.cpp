@@ -2,17 +2,19 @@
 
 #include <Eigen/Geometry>
 
-#include "calib/jointintrextr.h"
+#include "calib/extrinsics.h"
 
 using namespace calib;
 
 TEST(JointCalibration, RecoverAllParameters) {
     const int kCams = 2;
     CameraMatrix K{100.0, 100.0, 0.0, 0.0};
-    Eigen::VectorXd dist(2);
-    dist << 0.0, 0.0;
-    DualDistortion dd; dd.forward = dist; dd.inverse = dist;
-    std::vector<Camera<DualDistortion>> cameras_gt = {Camera<DualDistortion>{K, dd}, Camera<DualDistortion>{K, dd}};
+    Eigen::VectorXd dist(5);
+    dist << 0.0, 0.0, 0.0, 0.0, 0.0; // no distortion
+    std::vector<Camera<BrownConradyd>> cameras_gt = {
+        Camera<BrownConradyd>{K, dist}, 
+        Camera<BrownConradyd>{K, dist}
+    };
 
     Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
     Eigen::Affine3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Affine3d::Identity();
@@ -46,38 +48,45 @@ TEST(JointCalibration, RecoverAllParameters) {
     }
 
     // Perturbed intrinsics for initialization
-    std::vector<Camera<DualDistortion>> cam_init = {
-        Camera<DualDistortion>{CameraMatrix{90.0, 95.0, 1.0, -1.0}, dd},
-        Camera<DualDistortion>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dd}
+    std::vector<Camera<BrownConradyd>> cam_init = {
+        Camera<BrownConradyd>{CameraMatrix{90.0, 95.0, 1.0, -1.0}, Eigen::VectorXd::Zero(5)},
+        Camera<BrownConradyd>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, Eigen::VectorXd::Zero(5)}
     };
 
-    auto guess = estimate_extrinsic_dlt(views, cam_init);
-    ASSERT_TRUE(guess.camera_poses.front().isApprox(Eigen::Affine3d::Identity()));
+    // Change cameras to BrownConradyd for the estimate function
+    std::vector<Camera<DualDistortion>> cameras_for_estimate = {
+        Camera<DualDistortion>{K, DualDistortion{Eigen::VectorXd::Zero(2)}}, 
+        Camera<DualDistortion>{K, DualDistortion{Eigen::VectorXd::Zero(2)}}
+    };
+
+    auto guess = estimate_extrinsic_dlt(views, cameras_for_estimate);
+    ASSERT_TRUE(guess.c_T_r.front().isApprox(Eigen::Affine3d::Identity()));
 
     // Anchor the first target pose to its ground truth to fix the scale.
-    guess.target_poses[0] = target_gt[0];
+    guess.r_T_t[0] = target_gt[0];
 
-    JointOptions opts; opts.verbose = false;
-    auto res = optimize_joint_intrinsics_extrinsics(views, cam_init, guess.camera_poses, guess.target_poses, opts);
-    std::cout << res.summary << std::endl;
+    ExtrinsicOptions opts; opts.verbose = false;
+    auto res = optimize_extrinsics(views, cam_init, guess.c_T_r, guess.r_T_t, opts);
+    std::cout << res.report << std::endl;
 
-    EXPECT_LT(res.reprojection_error, 1e-6);
-    ASSERT_EQ(res.intrinsics.size(), static_cast<size_t>(kCams));
-    EXPECT_NEAR(res.intrinsics[0].fx, 100.0, 1e-3);
-    EXPECT_NEAR(res.intrinsics[0].fy, 100.0, 1e-3);
-    EXPECT_TRUE(res.camera_poses[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
-    EXPECT_TRUE(res.target_poses[0].translation().isApprox(target_gt[0].translation(), 1e-3));
-    ASSERT_EQ(res.intrinsic_covariances.size(), static_cast<size_t>(kCams));
-    EXPECT_GT(res.intrinsic_covariances[0].trace(), 0.0);
+    EXPECT_LT(res.final_cost, 1e-6);
+    ASSERT_EQ(res.cameras.size(), static_cast<size_t>(kCams));
+    EXPECT_NEAR(res.cameras[0].K.fx, 100.0, 1e-3);
+    EXPECT_NEAR(res.cameras[0].K.fy, 100.0, 1e-3);
+    EXPECT_TRUE(res.c_T_r[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
+    EXPECT_TRUE(res.r_T_t[0].translation().isApprox(target_gt[0].translation(), 1e-3));
+    EXPECT_GT(res.covariance.trace(), 0.0);
 }
 
 TEST(JointCalibration, FirstTargetPoseFixed) {
     const int kCams = 2;
     CameraMatrix K{100.0, 100.0, 0.0, 0.0};
-    Eigen::VectorXd dist(2);
-    dist << 0.0, 0.0;
-    DualDistortion dd; dd.forward = dist; dd.inverse = dist;
-    std::vector<Camera<DualDistortion>> cameras_gt = {Camera<DualDistortion>{K, dd}, Camera<DualDistortion>{K, dd}};
+    Eigen::VectorXd dist(5);
+    dist << 0.0, 0.0, 0.0, 0.0, 0.0; // no distortion
+    std::vector<Camera<BrownConradyd>> cameras_gt = {
+        Camera<BrownConradyd>{K, dist}, 
+        Camera<BrownConradyd>{K, dist}
+    };
 
     Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
     Eigen::Affine3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Affine3d::Identity();
@@ -108,19 +117,25 @@ TEST(JointCalibration, FirstTargetPoseFixed) {
         views.push_back(std::move(view));
     }
 
-    std::vector<Camera<DualDistortion>> cam_init = {
-        Camera<DualDistortion>{CameraMatrix{90.0, 95.0, 1.0, -1.0}, dd},
-        Camera<DualDistortion>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, dd}
+    std::vector<Camera<BrownConradyd>> cam_init = {
+        Camera<BrownConradyd>{CameraMatrix{90.0, 95.0, 1.0, -1.0}, Eigen::VectorXd::Zero(5)},
+        Camera<BrownConradyd>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, Eigen::VectorXd::Zero(5)}
     };
 
-    auto guess = estimate_extrinsic_dlt(views, cam_init);
+    // Change cameras to DualDistortion for the estimate function
+    std::vector<Camera<DualDistortion>> cameras_for_estimate = {
+        Camera<DualDistortion>{CameraMatrix{90.0, 95.0, 1.0, -1.0}, DualDistortion{Eigen::VectorXd::Zero(2)}},
+        Camera<DualDistortion>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, DualDistortion{Eigen::VectorXd::Zero(2)}}
+    };
+
+    auto guess = estimate_extrinsic_dlt(views, cameras_for_estimate);
     // Deliberately set an incorrect scale for the first target pose. This pose
     // should remain unchanged by the optimisation.
-    guess.target_poses[0].translation() = Eigen::Vector3d(0.0, 0.0, 3.0);
+    guess.r_T_t[0].translation() = Eigen::Vector3d(0.0, 0.0, 3.0);
 
-    JointOptions opts; opts.verbose = false;
-    auto res = optimize_joint_intrinsics_extrinsics(views, cam_init, guess.camera_poses, guess.target_poses, opts);
+    ExtrinsicOptions opts; opts.verbose = false;
+    auto res = optimize_extrinsics(views, cam_init, guess.c_T_r, guess.r_T_t, opts);
 
-    EXPECT_TRUE(res.target_poses[0].translation().isApprox(guess.target_poses[0].translation(), 1e-12));
-    EXPECT_GT(res.reprojection_error, 0.1);
+    EXPECT_TRUE(res.r_T_t[0].translation().isApprox(guess.r_T_t[0].translation(), 1e-12));
+    EXPECT_GT(res.final_cost, 0.1);
 }

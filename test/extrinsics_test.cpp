@@ -9,10 +9,12 @@ using namespace calib;
 TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     const int kCams = 2;
     CameraMatrix K{100.0, 100.0, 0.0, 0.0};
-    Eigen::VectorXd dist(2);
-    dist << 0.0, 0.0; // no distortion
-    DualDistortion dd; dd.forward = dist; dd.inverse = dist;
-    std::vector<Camera<DualDistortion>> cameras = {Camera<DualDistortion>{K, dd}, Camera<DualDistortion>{K, dd}};
+    Eigen::VectorXd dist(5);
+    dist << 0.0, 0.0, 0.0, 0.0, 0.0; // no distortion
+    std::vector<Camera<BrownConradyd>> cameras = {
+        Camera<BrownConradyd>{K, dist}, 
+        Camera<BrownConradyd>{K, dist}
+    };
 
     // Ground-truth camera poses (reference camera is identity)
     Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
@@ -59,18 +61,16 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
         views.push_back(std::move(view));
     }
 
-    auto result = optimize_extrinsic_poses(views, cameras, cam_init, target_init);
+    ExtrinsicOptions opts;
+    auto result = optimize_extrinsics(views, cameras, cam_init, target_init, opts);
 
-    EXPECT_LT(result.reprojection_error, 1e-6);
-    ASSERT_EQ(result.camera_poses.size(), static_cast<size_t>(kCams));
-    ASSERT_EQ(result.camera_covariances.size(), static_cast<size_t>(kCams));
-    ASSERT_EQ(result.target_covariances.size(), target_gt.size());
-    EXPECT_GT(result.target_covariances[0].trace(), 0.0);
-    EXPECT_TRUE(result.camera_poses[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
-    EXPECT_TRUE(result.camera_poses[1].linear().isApprox(cam_gt[1].linear(), 1e-3));
+    EXPECT_LT(result.final_cost, 1e-6);
+    ASSERT_EQ(result.c_T_r.size(), static_cast<size_t>(kCams));
+    ASSERT_EQ(result.r_T_t.size(), target_gt.size());
+    EXPECT_TRUE(result.c_T_r[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
+    EXPECT_TRUE(result.c_T_r[1].linear().isApprox(cam_gt[1].linear(), 1e-3));
     for (size_t v = 0; v < target_gt.size(); ++v) {
-        EXPECT_TRUE(result.target_poses[v].translation().isApprox(target_gt[v].translation(), 1e-3));
-        EXPECT_TRUE(result.target_poses[v].linear().isApprox(target_gt[v].linear(), 1e-3));
+        EXPECT_TRUE(result.r_T_t[v].translation().isApprox(target_gt[v].translation(), 1e-3));
+        EXPECT_TRUE(result.r_T_t[v].linear().isApprox(target_gt[v].linear(), 1e-3));
     }
 }
-

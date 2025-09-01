@@ -141,7 +141,7 @@ static void validate_input(const std::vector<CameraT>& init_cameras,
 }
 
 template<camera_model CameraT>
-ExtrinsicOptimizationResult<CameraT> optimize_joint_intrinsics_extrinsics(
+ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
     const std::vector<MulticamPlanarView>& views,
     const std::vector<CameraT>& init_cameras,
     const std::vector<Eigen::Affine3d>& init_c_T_r,
@@ -167,14 +167,14 @@ ExtrinsicOptimizationResult<CameraT> optimize_joint_intrinsics_extrinsics(
     return result;
 }
 
-template ExtrinsicOptimizationResult<Camera<BrownConradyd>> optimize_joint_intrinsics_extrinsics(
+template ExtrinsicOptimizationResult<Camera<BrownConradyd>> optimize_extrinsics(
     const std::vector<MulticamPlanarView>&,
     const std::vector<Camera<BrownConradyd>>&,
     const std::vector<Eigen::Affine3d>&,
     const std::vector<Eigen::Affine3d>&,
     const ExtrinsicOptions&);
 
-template ExtrinsicOptimizationResult<ScheimpflugCamera<BrownConradyd>> optimize_joint_intrinsics_extrinsics(
+template ExtrinsicOptimizationResult<ScheimpflugCamera<BrownConradyd>> optimize_extrinsics(
     const std::vector<MulticamPlanarView>&,
     const std::vector<ScheimpflugCamera<BrownConradyd>>&,
     const std::vector<Eigen::Affine3d>&,
