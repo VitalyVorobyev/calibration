@@ -62,6 +62,7 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     }
 
     ExtrinsicOptions opts;
+    opts.optimize_intrinsics = false;
     auto result = optimize_extrinsics(views, cameras, cam_init, target_init, opts);
 
     EXPECT_LT(result.final_cost, 1e-6);
@@ -124,7 +125,7 @@ TEST(Extrinsics, RecoverAllParameters) {
 
     // Change cameras to BrownConradyd for the estimate function
     std::vector<Camera<DualDistortion>> cameras_for_estimate = {
-        Camera<DualDistortion>{K, DualDistortion{Eigen::VectorXd::Zero(2)}}, 
+        Camera<DualDistortion>{K, DualDistortion{Eigen::VectorXd::Zero(2)}},
         Camera<DualDistortion>{K, DualDistortion{Eigen::VectorXd::Zero(2)}}
     };
 

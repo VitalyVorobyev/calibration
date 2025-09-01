@@ -97,11 +97,25 @@ static ceres::Problem build_problem(
 
     if (!options.optimize_intrinsics) {
         for (auto& intr : blocks.intr) p.SetParameterBlockConstant(intr.data());
+    } else {
+       std::cerr << "Fixing first target pose for scale" << std::endl;
+        if (!blocks.r_q_t.empty()) {
+            p.SetParameterBlockConstant(blocks.r_q_t[0].data());
+            p.SetParameterBlockConstant(blocks.r_t_t[0].data());
+        }
     }
 
+    std::cout << "Number of cameras: " << cameras.size() << std::endl;
     if (!options.optimize_extrinsics) {
         for (auto& c_q_r : blocks.c_q_r) p.SetParameterBlockConstant(c_q_r.data());
-        for (auto& r_q_t : blocks.r_q_t) p.SetParameterBlockConstant(r_q_t.data());
+        for (auto& c_t_r : blocks.c_t_r) p.SetParameterBlockConstant(c_t_r.data());
+    } else {
+        // Fix the reference frame to avoid gauge ambiguity
+        // Fix the first camera pose (reference camera)
+        if (!blocks.c_q_r.empty()) {
+            p.SetParameterBlockConstant(blocks.c_q_r[0].data());
+            p.SetParameterBlockConstant(blocks.c_t_r[0].data());
+        }
     }
 
     static constexpr size_t IntrSize = CameraTraits<CameraT>::param_count;
