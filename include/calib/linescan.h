@@ -1,8 +1,8 @@
 #pragma once
 
 // std
-#include <vector>
 #include <string>
+#include <vector>
 
 // eigen
 #include <Eigen/Core>
@@ -22,11 +22,11 @@ struct LineScanObservation final {
 };
 
 struct LineScanCalibrationResult final {
-    Eigen::Vector4d plane;                  // Normalized plane coefficients [nx, ny, nz, d]
-    Eigen::Matrix4d covariance;             // Covariance of plane coefficients
-    Eigen::Matrix3d homography;             // Homography (norm pix -> plane frame)
-    double rms_error;                       // RMS distance of used points to fitted plane
-    std::string summary;                    // Optimizer report
+    Eigen::Vector4d plane;       // Normalized plane coefficients [nx, ny, nz, d]
+    Eigen::Matrix4d covariance;  // Covariance of plane coefficients
+    Eigen::Matrix3d homography;  // Homography (norm pix -> plane frame)
+    double rms_error;            // RMS distance of used points to fitted plane
+    std::string summary;         // Optimizer report
 };
 
 /**
@@ -40,8 +40,7 @@ struct LineScanCalibrationResult final {
  * this frame is returned. The plane coefficients are normalised so that
  * ||n|| = 1.
  */
-LineScanCalibrationResult calibrate_laser_plane(
-    const std::vector<LineScanObservation>& views,
-    const Camera<DualDistortion>& camera);
+LineScanCalibrationResult calibrate_laser_plane(const std::vector<LineScanObservation>& views,
+                                                const Camera<DualDistortion>& camera);
 
 }  // namespace calib

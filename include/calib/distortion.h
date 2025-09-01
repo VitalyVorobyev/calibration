@@ -3,34 +3,35 @@
 #pragma once
 
 // std
+#include <concepts>
 #include <optional>
 #include <vector>
-#include <concepts>
 
 // eigen
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-
 namespace calib {
 
-template<typename D>
-concept distortion_model = requires(const D& d, const Eigen::Matrix<typename D::Scalar,2,1>& p) {
-    { d.template distort<typename D::Scalar>(p) } -> std::same_as<Eigen::Matrix<typename D::Scalar,2,1>>;
-    { d.template undistort<typename D::Scalar>(p) } -> std::same_as<Eigen::Matrix<typename D::Scalar,2,1>>;
+template <typename D>
+concept distortion_model = requires(const D& d, const Eigen::Matrix<typename D::Scalar, 2, 1>& p) {
+    {
+        d.template distort<typename D::Scalar>(p)
+    } -> std::same_as<Eigen::Matrix<typename D::Scalar, 2, 1>>;
+    {
+        d.template undistort<typename D::Scalar>(p)
+    } -> std::same_as<Eigen::Matrix<typename D::Scalar, 2, 1>>;
 };
 
-template<typename T>
+template <typename T>
 struct Observation final {
-    T x, y;   // normalized undistorted coords
-    T u, v;   // observed distorted pixel coords
+    T x, y;  // normalized undistorted coords
+    T u, v;  // observed distorted pixel coords
 };
 
-template<typename T>
-Eigen::Matrix<T, 2, 1> apply_distortion(
-    const Eigen::Matrix<T, 2, 1>& norm_xy,
-    const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs
-) {
+template <typename T>
+Eigen::Matrix<T, 2, 1> apply_distortion(const Eigen::Matrix<T, 2, 1>& norm_xy,
+                                        const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs) {
     if (coeffs.size() < 2) {
         throw std::runtime_error("Insufficient distortion coefficients");
     }
@@ -53,11 +54,9 @@ Eigen::Matrix<T, 2, 1> apply_distortion(
 }
 
 // Normalize and undistort pixel coordinates
-template<typename T>
-Eigen::Matrix<T, 2, 1> undistort(
-    Eigen::Matrix<T, 2, 1> norm_xy,
-    const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs
-) {
+template <typename T>
+Eigen::Matrix<T, 2, 1> undistort(Eigen::Matrix<T, 2, 1> norm_xy,
+                                 const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs) {
     if (coeffs.size() < 2) {
         throw std::runtime_error("Insufficient distortion coefficients");
     }
@@ -70,35 +69,36 @@ Eigen::Matrix<T, 2, 1> undistort(
     return xp;
 }
 
-template<typename T>
+template <typename T>
 struct DistortionWithResiduals final {
     Eigen::Matrix<T, Eigen::Dynamic, 1> distortion;
     Eigen::Matrix<T, Eigen::Dynamic, 1> residuals;
 };
 
-template<typename Scalar_>
+template <typename Scalar_>
 struct BrownConrady final {
     using Scalar = Scalar_;
-    Eigen::Matrix<Scalar, Eigen::Dynamic,1> coeffs;
+    Eigen::Matrix<Scalar, Eigen::Dynamic, 1> coeffs;
 
     BrownConrady() = default;
-    template<typename Derived>
+    template <typename Derived>
     explicit BrownConrady(const Eigen::MatrixBase<Derived>& c) : coeffs(c) {}
 
-    template<typename T>
-    Eigen::Matrix<T,2,1> distort(const Eigen::Matrix<T,2,1>& norm_xy) const {
+    template <typename T>
+    Eigen::Matrix<T, 2, 1> distort(const Eigen::Matrix<T, 2, 1>& norm_xy) const {
         return apply_distortion(norm_xy, coeffs.template cast<T>().eval());
     }
 
-    template<typename T>
-    Eigen::Matrix<T,2,1> undistort(const Eigen::Matrix<T,2,1>& dist_xy) const {
+    template <typename T>
+    Eigen::Matrix<T, 2, 1> undistort(const Eigen::Matrix<T, 2, 1>& dist_xy) const {
         return calib::undistort(dist_xy, coeffs.template cast<T>().eval());
     }
 };
 using BrownConradyd = BrownConrady<double>;
 
-template<typename Scalar>
-inline Eigen::Matrix<Scalar,Eigen::Dynamic,1> invert_brown_conrady(const Eigen::Matrix<Scalar,Eigen::Dynamic,1>& forward) {
+template <typename Scalar>
+inline Eigen::Matrix<Scalar, Eigen::Dynamic, 1> invert_brown_conrady(
+    const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& forward) {
     if (forward.size() < 2) {
         throw std::runtime_error("Insufficient distortion coefficients");
     }
@@ -123,24 +123,24 @@ inline Eigen::Matrix<Scalar,Eigen::Dynamic,1> invert_brown_conrady(const Eigen::
     return Eigen::Matrix<Scalar, Eigen::Dynamic, 1>::Zero(forward.size());
 }
 
-template<typename Scalar_>
+template <typename Scalar_>
 struct DualBrownConrady final {
     using Scalar = Scalar_;
-    Eigen::Matrix<Scalar,Eigen::Dynamic,1> forward;  ///< Coefficients for distortion
-    Eigen::Matrix<Scalar,Eigen::Dynamic,1> inverse;  ///< Coefficients for undistortion
+    Eigen::Matrix<Scalar, Eigen::Dynamic, 1> forward;  ///< Coefficients for distortion
+    Eigen::Matrix<Scalar, Eigen::Dynamic, 1> inverse;  ///< Coefficients for undistortion
 
     DualBrownConrady() = default;
 
-    explicit DualBrownConrady(const Eigen::Matrix<Scalar,Eigen::Dynamic,1>& coeffs)
+    explicit DualBrownConrady(const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& coeffs)
         : forward(coeffs), inverse(invert_brown_conrady(coeffs)) {}
 
-    template<typename T>
-    Eigen::Matrix<T,2,1> distort(const Eigen::Matrix<T,2,1>& norm_xy) const {
+    template <typename T>
+    Eigen::Matrix<T, 2, 1> distort(const Eigen::Matrix<T, 2, 1>& norm_xy) const {
         return apply_distortion(norm_xy, forward.template cast<T>().eval());
     }
 
-    template<typename T>
-    Eigen::Matrix<T,2,1> undistort(const Eigen::Matrix<T,2,1>& dist_xy) const {
+    template <typename T>
+    Eigen::Matrix<T, 2, 1> undistort(const Eigen::Matrix<T, 2, 1>& dist_xy) const {
         return apply_distortion(dist_xy, inverse.template cast<T>().eval());
     }
 };
@@ -153,12 +153,9 @@ struct DualDistortionWithResiduals final {
 };
 
 // TODO: refactor for camera_model as a template parameter
-template<typename T>
+template <typename T>
 std::optional<DistortionWithResiduals<T>> fit_distortion_full(
-    const std::vector<Observation<T>>& obs,
-    T fx, T fy, T cx, T cy, T skew,
-    int num_radial = 2
-) {
+    const std::vector<Observation<T>>& obs, T fx, T fy, T cx, T cy, T skew, int num_radial = 2) {
     if (obs.size() < 8) {
         return std::nullopt;
     }
@@ -216,20 +213,16 @@ std::optional<DistortionWithResiduals<T>> fit_distortion_full(
     return DistortionWithResiduals<T>{alpha, r};
 }
 
-template<typename T>
-std::optional<DistortionWithResiduals<T>> fit_distortion(
-    const std::vector<Observation<T>>& obs,
-    T fx, T fy, T cx, T cy, T skew,
-    int num_radial = 2
-) {
+template <typename T>
+std::optional<DistortionWithResiduals<T>> fit_distortion(const std::vector<Observation<T>>& obs,
+                                                         T fx, T fy, T cx, T cy, T skew,
+                                                         int num_radial = 2) {
     return fit_distortion_full(obs, fx, fy, cx, cy, skew, num_radial);
 }
 
 inline std::optional<DualDistortionWithResiduals> fit_distortion_dual(
-    const std::vector<Observation<double>>& obs,
-    double fx, double fy, double cx, double cy, double skew,
-    int num_radial = 2
-) {
+    const std::vector<Observation<double>>& obs, double fx, double fy, double cx, double cy,
+    double skew, int num_radial = 2) {
     auto forward = fit_distortion_full(obs, fx, fy, cx, cy, skew, num_radial);
     if (!forward) {
         return std::nullopt;

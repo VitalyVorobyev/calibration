@@ -25,23 +25,21 @@ Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj
                                          const CameraMatrix& intrinsics);
 
 // Convenience: one-shot planar pose from pixels & K
-Eigen::Affine3d estimate_planar_pose_dlt(const PlanarView& obs,
-                                         const CameraMatrix& intrinsics);
+Eigen::Affine3d estimate_planar_pose_dlt(const PlanarView& obs, const CameraMatrix& intrinsics);
 
 struct PlanarPoseOptions final : public OptimOptions {
-    int num_radial = 2; ///< Number of radial distortion coefficients
+    int num_radial = 2;  ///< Number of radial distortion coefficients
 };
 
 struct PlanarPoseResult final : public OptimResult {
-    Eigen::Affine3d pose;        ///< Estimated pose of the plane
-    Eigen::VectorXd distortion;  ///< Estimated distortion coefficients
-    double reprojection_error = 0.0; ///< RMS reprojection error
+    Eigen::Affine3d pose;             ///< Estimated pose of the plane
+    Eigen::VectorXd distortion;       ///< Estimated distortion coefficients
+    double reprojection_error = 0.0;  ///< RMS reprojection error
 };
 
-PlanarPoseResult optimize_planar_pose(
-    const std::vector<Eigen::Vector2d>& obj_xy,
-    const std::vector<Eigen::Vector2d>& img_uv,
-    const CameraMatrix& intrinsics,
-    const PlanarPoseOptions& opts = {});
+PlanarPoseResult optimize_planar_pose(const std::vector<Eigen::Vector2d>& obj_xy,
+                                      const std::vector<Eigen::Vector2d>& img_uv,
+                                      const CameraMatrix& intrinsics,
+                                      const PlanarPoseOptions& opts = {});
 
 }  // namespace calib

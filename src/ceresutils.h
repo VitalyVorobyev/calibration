@@ -4,26 +4,24 @@
 
 // std
 #include <cmath>
-#include <thread>
 #include <optional>
+#include <thread>
 
 // eigen
 #include <Eigen/Core>
 
 // ceres
-#include "ceres/solver.h"
-#include "ceres/covariance.h"
-
 #include "calib/optimize.h"
+#include "ceres/covariance.h"
+#include "ceres/solver.h"
 
 namespace calib {
 
 static const std::map<OptimizerType, ceres::LinearSolverType> optim_to_ceres = {
-    { OptimizerType::DEFAULT, ceres::SPARSE_NORMAL_CHOLESKY },
-    { OptimizerType::SPARSE_SCHUR, ceres::SPARSE_SCHUR },
-    { OptimizerType::DENSE_SCHUR, ceres::DENSE_SCHUR },
-    { OptimizerType::DENSE_QR, ceres::DENSE_QR }
-};
+    {OptimizerType::DEFAULT, ceres::SPARSE_NORMAL_CHOLESKY},
+    {OptimizerType::SPARSE_SCHUR, ceres::SPARSE_SCHUR},
+    {OptimizerType::DENSE_SCHUR, ceres::DENSE_SCHUR},
+    {OptimizerType::DENSE_QR, ceres::DENSE_QR}};
 
 inline void solve_problem(ceres::Problem& p, const OptimOptions& opts, OptimResult* result) {
     ceres::Solver::Options copts;
@@ -44,11 +42,11 @@ inline void solve_problem(ceres::Problem& p, const OptimOptions& opts, OptimResu
 }
 
 struct ParamBlock final {
-    const double *data;
+    const double* data;
     size_t size;
     size_t dof;
-    
-    ParamBlock(const double* data_, size_t size_, size_t dof_) 
+
+    ParamBlock(const double* data_, size_t size_, size_t dof_)
         : data(data_), size(size_), dof(dof_) {}
 };
 
@@ -66,11 +64,8 @@ struct ProblemParamBlocks {
 
 // Compute and populate the covariance matrix
 inline std::optional<Eigen::MatrixXd> compute_covariance(
-    const ProblemParamBlocks& problem_param_blocks,
-    ceres::Problem& problem,
-    size_t total_residuals = 0,
-    double sum_squared_residuals = 0
-) {
+    const ProblemParamBlocks& problem_param_blocks, ceres::Problem& problem,
+    size_t total_residuals = 0, double sum_squared_residuals = 0) {
     auto param_blocks = problem_param_blocks.get_param_blocks();
     const size_t total_params = problem_param_blocks.total_params();
 
@@ -88,7 +83,8 @@ inline std::optional<Eigen::MatrixXd> compute_covariance(
         return std::nullopt;
     }
 
-    Eigen::MatrixXd cov_matrix = Eigen::MatrixXd::Zero(static_cast<Eigen::Index>(total_params), static_cast<Eigen::Index>(total_params));
+    Eigen::MatrixXd cov_matrix = Eigen::MatrixXd::Zero(static_cast<Eigen::Index>(total_params),
+                                                       static_cast<Eigen::Index>(total_params));
     size_t row_offset = 0;
 
     for (size_t i = 0; i < param_blocks.size(); ++i) {
@@ -99,17 +95,17 @@ inline std::optional<Eigen::MatrixXd> compute_covariance(
             size_t block_j_size = param_blocks[j].size;
             std::vector<double> block_cov(block_i_size * block_j_size);
 
-            covariance.GetCovarianceBlock(
-                param_blocks[i].data,
-                param_blocks[j].data,
-                block_cov.data());
+            covariance.GetCovarianceBlock(param_blocks[i].data, param_blocks[j].data,
+                                          block_cov.data());
 
             for (size_t r = 0; r < block_i_size; ++r) {
                 for (size_t c = 0; c < block_j_size; ++c) {
                     double value = block_cov[r * block_j_size + c];
-                    cov_matrix(static_cast<Eigen::Index>(row_offset + r), static_cast<Eigen::Index>(col_offset + c)) = value;
+                    cov_matrix(static_cast<Eigen::Index>(row_offset + r),
+                               static_cast<Eigen::Index>(col_offset + c)) = value;
                     if (j < i) {
-                        cov_matrix(static_cast<Eigen::Index>(col_offset + c), static_cast<Eigen::Index>(row_offset + r)) = value;
+                        cov_matrix(static_cast<Eigen::Index>(col_offset + c),
+                                   static_cast<Eigen::Index>(row_offset + r)) = value;
                     }
                 }
             }
@@ -120,7 +116,8 @@ inline std::optional<Eigen::MatrixXd> compute_covariance(
 
     if (total_residuals > 0) {
         // Scale covariance by variance factor
-        int degrees_of_freedom = std::max(1, static_cast<int>(total_residuals) - static_cast<int>(total_params));
+        int degrees_of_freedom =
+            std::max(1, static_cast<int>(total_residuals) - static_cast<int>(total_params));
         double variance_factor = sum_squared_residuals / degrees_of_freedom;
         cov_matrix *= variance_factor;
     }

@@ -151,6 +151,24 @@ jobs:
             src/ include/ \
             || (echo "::error::cppcheck found issues" && exit 1)
 
+  format-check:
+    name: Code Formatting
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Check formatting
+        run: |
+          find src include -name "*.cpp" -o -name "*.h" | \
+          xargs clang-format --dry-run --Werror --style=file \
+          || (echo "::error::Code formatting issues found. Run 'clang-format -i src/*.cpp include/calib/*.h' to fix." && exit 1)
+
   coverage:
     name: Test Coverage
     runs-on: ubuntu-24.04

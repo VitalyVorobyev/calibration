@@ -1,16 +1,16 @@
 #include "calib/linescan.h"
 
 // std
+#include <cmath>
 #include <numeric>
 #include <stdexcept>
-#include <cmath>
 
 // ceres
 #include <ceres/ceres.h>
 
+#include "calib/distortion.h"
 #include "calib/homography.h"
 #include "calib/planarpose.h"
-#include "calib/distortion.h"
 
 namespace calib {
 
@@ -43,16 +43,16 @@ struct PlaneResidual final {
         T nx = plane[0];
         T ny = plane[1];
         T nz = plane[2];
-        T d  = plane[3];
-        T denom = ceres::sqrt(nx*nx + ny*ny + nz*nz);
-        residual[0] = (nx*T(p_.x()) + ny*T(p_.y()) + nz*T(p_.z()) + d) / denom;
+        T d = plane[3];
+        T denom = ceres::sqrt(nx * nx + ny * ny + nz * nz);
+        residual[0] = (nx * T(p_.x()) + ny * T(p_.y()) + nz * T(p_.z()) + d) / denom;
         return true;
     }
 
     Vec3 p_;
 
     static auto create(const Vec3& p) {
-        auto* cost = new ceres::AutoDiffCostFunction<PlaneResidual,1,4>(new PlaneResidual(p));
+        auto* cost = new ceres::AutoDiffCostFunction<PlaneResidual, 1, 4>(new PlaneResidual(p));
         return cost;
     }
 };
@@ -72,20 +72,14 @@ static void validate_observations(const std::vector<LineScanObservation>& views)
 }
 
 // Processes a single view to extract 3D points
-static std::vector<Vec3> process_view(
-    const LineScanObservation& view,
-    const Camera<DualDistortion>& camera) {
-
+static std::vector<Vec3> process_view(const LineScanObservation& view,
+                                      const Camera<DualDistortion>& camera) {
     std::vector<Vec3> points;
 
     // Normalize and undistort target pixel coordinates
     std::vector<Vec2> img_norm(view.target_uv.size());
-    std::transform(
-        view.target_uv.begin(),
-        view.target_uv.end(),
-        img_norm.begin(),
-        [&camera](const Vec2& uv) { return camera.unproject(uv); }
-    );
+    std::transform(view.target_uv.begin(), view.target_uv.end(), img_norm.begin(),
+                   [&camera](const Vec2& uv) { return camera.unproject(uv); });
 
     // Homography from normalized pixels to plane
     // TODO: consider homography optimization
@@ -131,25 +125,22 @@ static Eigen::Vector4d fit_plane(const std::vector<Vec3>& points, std::string& s
     summary = solver_summary.BriefReport();
 
     // Normalize the plane parameters
-    double nrm = std::sqrt(params[0]*params[0]+params[1]*params[1]+params[2]*params[2]);
-    return Eigen::Vector4d(params[0]/nrm, params[1]/nrm, params[2]/nrm, params[3]/nrm);
+    double nrm = std::sqrt(params[0] * params[0] + params[1] * params[1] + params[2] * params[2]);
+    return Eigen::Vector4d(params[0] / nrm, params[1] / nrm, params[2] / nrm, params[3] / nrm);
 }
 
 // Computes statistics for the fitted plane
-static void compute_plane_statistics(
-    const std::vector<Vec3>& points,
-    const Eigen::Vector4d& plane,
-    LineScanCalibrationResult& result) {
-
+static void compute_plane_statistics(const std::vector<Vec3>& points, const Eigen::Vector4d& plane,
+                                     LineScanCalibrationResult& result) {
     // Denormalized plane parameters for covariance computation
     double nrm = plane.head<3>().norm();
-    double params[4] = {plane[0]*nrm, plane[1]*nrm, plane[2]*nrm, plane[3]*nrm};
+    double params[4] = {plane[0] * nrm, plane[1] * nrm, plane[2] * nrm, plane[3] * nrm};
 
     // Compute residual stats
     double ssr = 0.0;
     for (const auto& p : points) {
-        double r = (plane[0]*p.x() + plane[1]*p.y() + plane[2]*p.z() + plane[3]);
-        ssr += r*r;
+        double r = (plane[0] * p.x() + plane[1] * p.y() + plane[2] * p.z() + plane[3]);
+        ssr += r * r;
     }
     int m = static_cast<int>(points.size());
     int dof = std::max(1, m - 3);
@@ -169,11 +160,11 @@ static void compute_plane_statistics(
     // Covariance of plane params
     ceres::Covariance::Options copt;
     ceres::Covariance cov(copt);
-    std::vector<std::pair<const double*, const double*>> blocks = { {params, params} };
+    std::vector<std::pair<const double*, const double*>> blocks = {{params, params}};
     if (cov.Compute(blocks, &problem)) {
         double Cov4[16];
         cov.GetCovarianceBlock(params, params, Cov4);
-        Eigen::Map<Eigen::Matrix<double,4,4>> C(Cov4);
+        Eigen::Map<Eigen::Matrix<double, 4, 4>> C(Cov4);
         C *= sigma2;
         result.covariance = C;
     } else {
@@ -184,7 +175,7 @@ static void compute_plane_statistics(
 // Builds homography from normalized pixels to plane coordinates
 static Mat3 build_plane_homography(const Eigen::Vector4d& plane) {
     Vec3 nvec = plane.head<3>();
-    Vec3 p0 = -plane[3] * nvec; // closest point to camera
+    Vec3 p0 = -plane[3] * nvec;  // closest point to camera
     Vec3 tmp = (std::abs(nvec.z()) < 0.9) ? Vec3::UnitZ() : Vec3::UnitX();
     Vec3 e1 = nvec.cross(tmp).normalized();
     Vec3 e2 = nvec.cross(e1).normalized();
@@ -195,10 +186,8 @@ static Mat3 build_plane_homography(const Eigen::Vector4d& plane) {
     return H_plane_to_norm.inverse();
 }
 
-LineScanCalibrationResult calibrate_laser_plane(
-    const std::vector<LineScanObservation>& views,
-    const Camera<DualDistortion>& camera) {
-
+LineScanCalibrationResult calibrate_laser_plane(const std::vector<LineScanObservation>& views,
+                                                const Camera<DualDistortion>& camera) {
     // Validate input observations
     validate_observations(views);
 

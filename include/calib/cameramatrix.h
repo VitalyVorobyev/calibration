@@ -9,7 +9,7 @@
 
 namespace calib {
 
-template<typename Scalar>
+template <typename Scalar>
 struct CameraMatrixT final {
     Scalar fx, fy, cx, cy;
     Scalar skew = Scalar(0);
@@ -26,8 +26,8 @@ struct CameraMatrixT final {
      * @param pix The 2D pixel coordinate to be normalized.
      * @return Eigen::Matrix<T, 2, 1> The normalized 2D coordinate.
      */
-    template<typename T>
-    Eigen::Matrix<T,2,1> normalize(const Eigen::Matrix<T,2,1>& pix) const {
+    template <typename T>
+    Eigen::Matrix<T, 2, 1> normalize(const Eigen::Matrix<T, 2, 1>& pix) const {
         T y = (pix.y() - T(cy)) / T(fy);
         T x = (pix.x() - T(cx) - T(skew) * y) / T(fx);
         return {x, y};
@@ -36,19 +36,16 @@ struct CameraMatrixT final {
     /**
      * @brief Denormalizes a 2D point using the camera's intrinsic parameters.
      *
-     * This function applies the camera's intrinsic parameters (focal lengths and principal point offsets)
-     * to transform a normalized 2D point into its corresponding pixel coordinates.
+     * This function applies the camera's intrinsic parameters (focal lengths and principal point
+     * offsets) to transform a normalized 2D point into its corresponding pixel coordinates.
      *
      * @tparam T The scalar type of the input and output (e.g., float, double).
      * @param xy The normalized 2D point as an Eigen::Matrix<T, 2, 1>.
      * @return Eigen::Matrix<T, 2, 1> The denormalized 2D point in pixel coordinates.
      */
-    template<typename T>
-    Eigen::Matrix<T,2,1> denormalize(const Eigen::Matrix<T,2,1>& xy) const {
-        return {
-            T(fx) * xy.x() + T(skew) * xy.y() + T(cx),
-            T(fy) * xy.y() + T(cy)
-        };
+    template <typename T>
+    Eigen::Matrix<T, 2, 1> denormalize(const Eigen::Matrix<T, 2, 1>& xy) const {
+        return {T(fx) * xy.x() + T(skew) * xy.y() + T(cx), T(fy) * xy.y() + T(cy)};
     }
 };
 
@@ -64,7 +61,7 @@ struct CalibrationBounds final {
     double cy_min = 0;
     double cy_max = 720.0;
     double skew_min = -0.01;
-    double skew_max =  0.01;
+    double skew_max = 0.01;
 };
 
-} // namespace calib
+}  // namespace calib

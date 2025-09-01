@@ -2,14 +2,13 @@
 
 #include "calib/distortion.h"
 #include "calib/scheimpflug.h"
-
-#include "residuals/extrinsicsresidual.h"
-#include "observationutils.h"
 #include "ceresutils.h"
+#include "observationutils.h"
+#include "residuals/extrinsicsresidual.h"
 
 namespace calib {
 
-template<camera_model CameraT>
+template <camera_model CameraT>
 struct ExtrinsicBlocks final : public ProblemParamBlocks {
     static constexpr size_t IntrSize = CameraTraits<CameraT>::param_count;
     std::vector<std::array<double, 4>> c_q_r;
@@ -18,15 +17,12 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
     std::vector<std::array<double, 3>> r_t_t;
     std::vector<std::array<double, IntrSize>> intr;
 
-    ExtrinsicBlocks(size_t numcams, size_t numviews) :
-        c_q_r(numcams), c_t_r(numcams), r_q_t(numviews), r_t_t(numviews),
-        intr(numcams) {}
+    ExtrinsicBlocks(size_t numcams, size_t numviews)
+        : c_q_r(numcams), c_t_r(numcams), r_q_t(numviews), r_t_t(numviews), intr(numcams) {}
 
-    static ExtrinsicBlocks create(
-        const std::vector<CameraT>& cameras,
-        const std::vector<Eigen::Affine3d>& init_c_T_r,
-        const std::vector<Eigen::Affine3d>& init_r_T_t
-    ) {
+    static ExtrinsicBlocks create(const std::vector<CameraT>& cameras,
+                                  const std::vector<Eigen::Affine3d>& init_c_T_r,
+                                  const std::vector<Eigen::Affine3d>& init_r_T_t) {
         const size_t num_cams = cameras.size();
         const size_t num_views = init_r_T_t.size();
         ExtrinsicBlocks blocks(num_cams, num_views);
@@ -44,9 +40,11 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
     std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
         for (const auto& i : intr) blocks.emplace_back(i.data(), i.size(), IntrSize);
-        for (const auto& i : c_q_r) blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
+        for (const auto& i : c_q_r)
+            blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
         for (const auto& i : c_t_r) blocks.emplace_back(i.data(), i.size(), 3);
-        for (const auto& i : r_q_t) blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
+        for (const auto& i : r_q_t)
+            blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
         for (const auto& i : r_t_t) blocks.emplace_back(i.data(), i.size(), 3);
         return blocks;
     }
@@ -69,26 +67,23 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
     }
 };
 
-template<camera_model CameraT>
-static ceres::Problem build_problem(
-    const std::vector<MulticamPlanarView>& views,
-    const std::vector<CameraT>& cameras,
-    const ExtrinsicOptions& options,
-    ExtrinsicBlocks<CameraT>& blocks
-) {
+template <camera_model CameraT>
+static ceres::Problem build_problem(const std::vector<MulticamPlanarView>& views,
+                                    const std::vector<CameraT>& cameras,
+                                    const ExtrinsicOptions& options,
+                                    ExtrinsicBlocks<CameraT>& blocks) {
     ceres::Problem p;
     for (size_t view_idx = 0; view_idx < views.size(); ++view_idx) {
         const auto& multicam_view = views[view_idx];
         for (size_t cam_idx = 0; cam_idx < cameras.size(); ++cam_idx) {
             if (multicam_view[cam_idx].empty()) continue;
 
-            auto loss = options.huber_delta > 0 ? new ceres::HuberLoss(options.huber_delta) : nullptr;
-            p.AddResidualBlock(
-                ExtrinsicResidual<CameraT>::create(multicam_view[cam_idx]),
-                loss,
-                blocks.c_q_r[cam_idx].data(), blocks.c_t_r[cam_idx].data(),
-                blocks.r_q_t[view_idx].data(), blocks.r_t_t[view_idx].data(),
-                blocks.intr[cam_idx].data());
+            auto loss =
+                options.huber_delta > 0 ? new ceres::HuberLoss(options.huber_delta) : nullptr;
+            p.AddResidualBlock(ExtrinsicResidual<CameraT>::create(multicam_view[cam_idx]), loss,
+                               blocks.c_q_r[cam_idx].data(), blocks.c_t_r[cam_idx].data(),
+                               blocks.r_q_t[view_idx].data(), blocks.r_t_t[view_idx].data(),
+                               blocks.intr[cam_idx].data());
         }
     }
 
@@ -129,27 +124,23 @@ static ceres::Problem build_problem(
     return p;
 }
 
-template<camera_model CameraT>
+template <camera_model CameraT>
 static void validate_input(const std::vector<CameraT>& init_cameras,
                            const std::vector<Eigen::Affine3d>& init_c_T_r,
                            const std::vector<Eigen::Affine3d>& init_r_T_t,
                            const std::vector<MulticamPlanarView>& views) {
     const size_t num_cams = init_cameras.size();
     const size_t num_views = views.size();
-    if (init_c_T_r.size() != num_cams ||
-        init_r_T_t.size() != num_views) {
+    if (init_c_T_r.size() != num_cams || init_r_T_t.size() != num_views) {
         throw std::invalid_argument("Incompatible pose vector sizes for joint optimization");
     }
 }
 
-template<camera_model CameraT>
+template <camera_model CameraT>
 ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
-    const std::vector<MulticamPlanarView>& views,
-    const std::vector<CameraT>& init_cameras,
-    const std::vector<Eigen::Affine3d>& init_c_T_r,
-    const std::vector<Eigen::Affine3d>& init_r_T_t,
-    const ExtrinsicOptions& opts
-) {
+    const std::vector<MulticamPlanarView>& views, const std::vector<CameraT>& init_cameras,
+    const std::vector<Eigen::Affine3d>& init_c_T_r, const std::vector<Eigen::Affine3d>& init_r_T_t,
+    const ExtrinsicOptions& opts) {
     validate_input(init_cameras, init_c_T_r, init_r_T_t, views);
 
     auto blocks = ExtrinsicBlocks<CameraT>::create(init_cameras, init_c_T_r, init_r_T_t);
@@ -170,17 +161,13 @@ ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
 }
 
 template ExtrinsicOptimizationResult<Camera<BrownConradyd>> optimize_extrinsics(
-    const std::vector<MulticamPlanarView>&,
-    const std::vector<Camera<BrownConradyd>>&,
-    const std::vector<Eigen::Affine3d>&,
-    const std::vector<Eigen::Affine3d>&,
+    const std::vector<MulticamPlanarView>&, const std::vector<Camera<BrownConradyd>>&,
+    const std::vector<Eigen::Affine3d>&, const std::vector<Eigen::Affine3d>&,
     const ExtrinsicOptions&);
 
 template ExtrinsicOptimizationResult<ScheimpflugCamera<BrownConradyd>> optimize_extrinsics(
-    const std::vector<MulticamPlanarView>&,
-    const std::vector<ScheimpflugCamera<BrownConradyd>>&,
-    const std::vector<Eigen::Affine3d>&,
-    const std::vector<Eigen::Affine3d>&,
+    const std::vector<MulticamPlanarView>&, const std::vector<ScheimpflugCamera<BrownConradyd>>&,
+    const std::vector<Eigen::Affine3d>&, const std::vector<Eigen::Affine3d>&,
     const ExtrinsicOptions&);
 
 }  // namespace calib

@@ -1,10 +1,19 @@
 # Calibration Library
 
-[![CI](https://github.com/VitalyVorobyv/calibration/actions/workflows/ci.yml/badge.svg)](https://github.com/VitalyVorobyv/calibration/actions/workflows/ci.yml)
-[![Static Analysis](https://github.com/VitalyVorobyv/calibration/actions/workflows/ci.yml/badge.svg?job=static-analysis)](https://github.com/VitalyVorobyv/calibration/actions/workflows/ci.yml)
+[![CI](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml/badge.svg)](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml)
+[![Static Analysis](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml/badge.svg?job=static-analysis)](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml)
 [![Test Coverage](https://codecov.io/gh/VitalyVorobyv/calibration/branch/main/graph/badge.svg)](https://codecov.io/gh/VitalyVorobyv/calibration)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENCE)
 [![C++](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
+
+A C++ library for camera calibration and vision-related geometric transformations.ion Library
+
+[![Build Status](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml/badge.svg)](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml)
+[![Static Analysis](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml/badge.svg?job=static-analysis)](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/VitalyVorobyev/calibration/branch/main/graph/badge.svg)](https://codecov.io/gh/VitalyVorobyev/calibration)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENCE)alibration Library
+
+[![Build Status](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml/badge.svg)](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml)
 
 A C++ library for camera calibration and vision-related geometric transformations.
 
@@ -125,34 +134,9 @@ The config file specifies the calibration input and task type, while the
 command-line options provided by CLI11 allow overriding the task mode or the
 output file.
 
-## Code Quality
-
-This project maintains high code quality through:
-
-- **Static Analysis**: clang-tidy and cppcheck integration in CI
-- **Test Coverage**: Comprehensive unit tests with coverage reporting
-- **Code Formatting**: Consistent style with clang-format
-- **Pre-commit Hooks**: Automated quality checks before commits
-
-### Running Static Analysis Locally
-
-```bash
-# Install tools
-sudo apt install clang-tidy cppcheck clang-format
-
-# Run static analysis
-make lint
-
-# Format code
-make format
-
-# Generate coverage report
-make coverage
-```
-
 ## Documentation
 
-For detailed documentation, see the [doc](doc/) directory.
+For detailed documentation, see the [docs](docs/) directory.
 
 ## License
 

@@ -43,7 +43,8 @@ struct OptimizeHomographyResult final : OptimResult {
  * @param src A vector of 2D points (Eigen::Vector2d) representing the source coordinates.
  * @param dst A vector of 2D points (Eigen::Vector2d) representing the destination coordinates.
  * @param options Optional optimization parameters (default is OptimOptions()).
- * @return OptimizeHomographyResult The result of the optimization, including the estimated homography matrix and optimization status.
+ * @return OptimizeHomographyResult The result of the optimization, including the estimated
+ * homography matrix and optimization status.
  *
  * @note The input vectors `src` and `dst` must have the same size and contain at least four points.
  */

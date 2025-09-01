@@ -2,18 +2,17 @@
 
 // std
 #include <algorithm>
-#include <numeric>
 #include <array>
+#include <numeric>
 
 // ceres
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-#include "calib/homography.h"
 #include "calib/distortion.h"
-
-#include "observationutils.h"
+#include "calib/homography.h"
 #include "ceresutils.h"
+#include "observationutils.h"
 
 namespace calib {
 
@@ -43,8 +42,9 @@ Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
         R = svd.matrixU() * V.transpose();
     }
     Eigen::Vector3d t = h3 / s;
-    if (R(2, 2) < 0) { // enforce cheirality (Z forward)
-        R = -R; t = -t;
+    if (R(2, 2) < 0) {  // enforce cheirality (Z forward)
+        R = -R;
+        t = -t;
     }
 
     auto pose = Eigen::Affine3d::Identity();
@@ -53,8 +53,7 @@ Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
     return pose;
 }
 
-Eigen::Affine3d estimate_planar_pose_dlt(const PlanarView& obs,
-                                         const CameraMatrix& intrinsics) {
+Eigen::Affine3d estimate_planar_pose_dlt(const PlanarView& obs, const CameraMatrix& intrinsics) {
     if (obs.size() < 4) {
         return Eigen::Affine3d::Identity();
     }
@@ -79,9 +78,7 @@ Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj
 
     std::vector<Eigen::Vector2d> img_norm(img_uv.size());
     std::transform(img_uv.begin(), img_uv.end(), img_norm.begin(),
-        [&intrinsics](const Eigen::Vector2d& pix) {
-            return intrinsics.normalize(pix);
-        });
+                   [&intrinsics](const Eigen::Vector2d& pix) { return intrinsics.normalize(pix); });
 
     Eigen::Matrix3d H = estimate_homography_dlt(obj_xy, img_norm);
     return pose_from_homography_normalized(H);
@@ -90,9 +87,9 @@ Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
 struct PlanarPoseBlocks final : public ProblemParamBlocks {
-    std::array<double,6> pose6;
+    std::array<double, 6> pose6;
     std::vector<ParamBlock> get_param_blocks() const override {
-        return { {pose6.data(), pose6.size(), 6} };
+        return {{pose6.data(), pose6.size(), 6}};
     }
 };
 
@@ -101,12 +98,10 @@ struct PlanarPoseBlocks final : public ProblemParamBlocks {
 // variable projection system to eliminate distortion coefficients.
 struct PlanarPoseVPResidual {
     PlanarView obs_;
-    double K_[5]; // fx, fy, cx, cy, skew
+    double K_[5];  // fx, fy, cx, cy, skew
     int num_radial_;
 
-    PlanarPoseVPResidual(PlanarView obs,
-                         int num_radial,
-                         const CameraMatrix& intrinsics)
+    PlanarPoseVPResidual(PlanarView obs, int num_radial, const CameraMatrix& intrinsics)
         : obs_(std::move(obs)),
           K_{intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy, intrinsics.skew},
           num_radial_(num_radial) {}
@@ -121,7 +116,7 @@ struct PlanarPoseVPResidual {
 
         std::vector<Observation<T>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(),
-            [pose6](const PlanarObservation& s) { return to_observation(s, pose6); });
+                       [pose6](const PlanarObservation& s) { return to_observation(s, pose6); });
 
         auto dr = fit_distortion_full(o, fx, fy, cx, cy, skew_param, num_radial_);
         if (!dr) return false;
@@ -133,8 +128,9 @@ struct PlanarPoseVPResidual {
     // Helper used after optimization to compute best distortion coefficients.
     Eigen::VectorXd SolveDistortionFor(const Pose6& pose6) const {
         std::vector<Observation<double>> o(obs_.size());
-        std::transform(obs_.begin(), obs_.end(), o.begin(),
-            [pose6](const PlanarObservation& s) { return to_observation(s, pose6.data()); });
+        std::transform(obs_.begin(), obs_.end(), o.begin(), [pose6](const PlanarObservation& s) {
+            return to_observation(s, pose6.data());
+        });
 
         auto d = fit_distortion(o, K_[0], K_[1], K_[2], K_[3], K_[4], num_radial_);
         return d ? d->distortion : Eigen::VectorXd{};
@@ -152,32 +148,34 @@ static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
     return transform;
 }
 
-PlanarPoseResult optimize_planar_pose(
-    const std::vector<Eigen::Vector2d>& obj_xy,
-    const std::vector<Eigen::Vector2d>& img_uv,
-    const CameraMatrix& intrinsics,
-    const PlanarPoseOptions& opts) {
+PlanarPoseResult optimize_planar_pose(const std::vector<Eigen::Vector2d>& obj_xy,
+                                      const std::vector<Eigen::Vector2d>& img_uv,
+                                      const CameraMatrix& intrinsics,
+                                      const PlanarPoseOptions& opts) {
     PlanarPoseResult result;
 
     auto init_pose = estimate_planar_pose_dlt(obj_xy, img_uv, intrinsics);
     PlanarPoseBlocks blocks;
-    ceres::RotationMatrixToAngleAxis(reinterpret_cast<const double*>(init_pose.rotation().data()), blocks.pose6.data());
+    ceres::RotationMatrixToAngleAxis(reinterpret_cast<const double*>(init_pose.rotation().data()),
+                                     blocks.pose6.data());
     blocks.pose6[3] = init_pose.translation().x();
     blocks.pose6[4] = init_pose.translation().y();
     blocks.pose6[5] = init_pose.translation().z();
 
     PlanarView view(obj_xy.size());
     std::transform(obj_xy.begin(), obj_xy.end(), img_uv.begin(), view.begin(),
-        [](const Eigen::Vector2d& xy, const Eigen::Vector2d& uv) { return PlanarObservation{xy, uv}; });
+                   [](const Eigen::Vector2d& xy, const Eigen::Vector2d& uv) {
+                       return PlanarObservation{xy, uv};
+                   });
 
     auto* functor = new PlanarPoseVPResidual(view, opts.num_radial, intrinsics);
     auto* cost = new ceres::AutoDiffCostFunction<PlanarPoseVPResidual, ceres::DYNAMIC, 6>(
         functor, static_cast<int>(view.size()) * 2);
 
     ceres::Problem problem;
-    problem.AddResidualBlock(cost,
-                             opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr,
-                             blocks.pose6.data());
+    problem.AddResidualBlock(
+        cost, opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr,
+        blocks.pose6.data());
 
     solve_problem(problem, opts, &result);
 

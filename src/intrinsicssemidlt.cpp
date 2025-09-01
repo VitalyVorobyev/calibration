@@ -8,9 +8,8 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-#include "observationutils.h"
 #include "ceresutils.h"
-
+#include "observationutils.h"
 #include "residuals/intrinsicsemidltresidual.h"
 
 namespace calib {
@@ -28,20 +27,13 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
     std::vector<std::array<double, 4>> c_q_t;
     std::vector<std::array<double, 3>> c_t_t;
 
-    static IntrinsicBlocks create(
-        const std::vector<PlanarView>& views,
-        const CameraMatrix& initial_guess
-    ) {
+    static IntrinsicBlocks create(const std::vector<PlanarView>& views,
+                                  const CameraMatrix& initial_guess) {
         IntrinsicBlocks blocks;
         blocks.c_q_t.resize(views.size());
         blocks.c_t_t.resize(views.size());
-        blocks.intrinsics = {
-            initial_guess.fx,
-            initial_guess.fy,
-            initial_guess.cx,
-            initial_guess.cy,
-            initial_guess.skew
-        };
+        blocks.intrinsics = {initial_guess.fx, initial_guess.fy, initial_guess.cx, initial_guess.cy,
+                             initial_guess.skew};
 
         for (size_t i = 0; i < views.size(); ++i) {
             Eigen::Affine3d pose = estimate_planar_pose_dlt(views[i], initial_guess);
@@ -53,12 +45,12 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
 
     std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
-        blocks.emplace_back(ParamBlock{ intrinsics.data(), intrinsics.size(), 5 });
+        blocks.emplace_back(ParamBlock{intrinsics.data(), intrinsics.size(), 5});
         for (const auto& q : c_q_t) {
-            blocks.emplace_back(ParamBlock{ q.data(), q.size(), 3 });
+            blocks.emplace_back(ParamBlock{q.data(), q.size(), 3});
         }
         for (const auto& t : c_t_t) {
-            blocks.emplace_back(ParamBlock{ t.data(), t.size(), 3 });
+            blocks.emplace_back(ParamBlock{t.data(), t.size(), 3});
         }
         return blocks;
     }
@@ -78,10 +70,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
 };
 
 static std::optional<DistortionWithResiduals<double>> solve_full(
-        const std::vector<PlanarView>& views,
-        int num_radial,
-        const IntrinsicBlocks& blocks
-) {
+    const std::vector<PlanarView>& views, int num_radial, const IntrinsicBlocks& blocks) {
     std::vector<Observation<double>> obs;
     for (size_t i = 0; i < views.size(); ++i) {
         auto c_T_t = restore_pose(blocks.c_q_t[i], blocks.c_t_t[i]);
@@ -89,15 +78,14 @@ static std::optional<DistortionWithResiduals<double>> solve_full(
         planar_observables_to_observables(views[i], new_obs, c_T_t);
         obs.insert(obs.end(), new_obs.begin(), new_obs.end());
     }
-    return fit_distortion_full(obs, blocks.intrinsics[0], blocks.intrinsics[1], blocks.intrinsics[2], blocks.intrinsics[3], blocks.intrinsics[4], num_radial);
+    return fit_distortion_full(obs, blocks.intrinsics[0], blocks.intrinsics[1],
+                               blocks.intrinsics[2], blocks.intrinsics[3], blocks.intrinsics[4],
+                               num_radial);
 }
 
 // Set up the Ceres optimization problem
-static ceres::Problem build_problem(
-    const std::vector<PlanarView>& obs_views,
-    IntrinsicBlocks& blocks,
-    const IntrinsicsOptions& opts
-) {
+static ceres::Problem build_problem(const std::vector<PlanarView>& obs_views,
+                                    IntrinsicBlocks& blocks, const IntrinsicsOptions& opts) {
     ceres::Problem problem;
     auto* cost = CalibVPResidual::create(obs_views, opts.num_radial);
 
@@ -130,18 +118,17 @@ static ceres::Problem build_problem(
         problem.SetParameterUpperBound(blocks.intrinsics.data(), 3, bounds.cy_max);
     }
     if (!opts.optimize_skew) {
-        problem.SetManifold(blocks.intrinsics.data(),
-                            new ceres::SubsetManifold(5, {CameraTraits<Camera<BrownConradyd>>::idx_skew}));
+        problem.SetManifold(
+            blocks.intrinsics.data(),
+            new ceres::SubsetManifold(5, {CameraTraits<Camera<BrownConradyd>>::idx_skew}));
     }
 
     return problem;
 }
 
-static void compute_per_view_errors(
-    const std::vector<PlanarView>& obs_views,
-    const Eigen::VectorXd& residuals,
-    IntrinsicsOptimizationResult<Camera<BrownConradyd>>& result
-) {
+static void compute_per_view_errors(const std::vector<PlanarView>& obs_views,
+                                    const Eigen::VectorXd& residuals,
+                                    IntrinsicsOptimizationResult<Camera<BrownConradyd>>& result) {
     const size_t num_views = obs_views.size();
     result.view_errors.resize(num_views);
     int residual_idx = 0;
@@ -158,10 +145,8 @@ static void compute_per_view_errors(
 }
 
 IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics_semidlt(
-    const std::vector<PlanarView>& views,
-    const CameraMatrix& initial_guess,
-    const IntrinsicsOptions& opts
-) {
+    const std::vector<PlanarView>& views, const CameraMatrix& initial_guess,
+    const IntrinsicsOptions& opts) {
     IntrinsicsOptimizationResult<Camera<BrownConradyd>> result;
 
     // Prepare observations per view
@@ -190,10 +175,8 @@ IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics_semidlt(
 
     double sum_squared_residuals = dr_opt->residuals.squaredNorm();
     size_t total_residuals = total_obs * 2;
-    result.covariance = compute_covariance(
-        blocks, problem,
-        total_residuals,
-        sum_squared_residuals).value_or(Eigen::MatrixXd{});
+    result.covariance = compute_covariance(blocks, problem, total_residuals, sum_squared_residuals)
+                            .value_or(Eigen::MatrixXd{});
 
     return result;
 }

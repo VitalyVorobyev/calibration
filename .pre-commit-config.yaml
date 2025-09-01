@@ -1,0 +1,29 @@
+# Pre-commit configuration for code quality
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v16.0.6
+    hooks:
+      - id: clang-format
+        args: [--style=file]
+        files: \.(cpp|h|hpp|c|cc|cxx)$
+
+  - repo: local
+    hooks:
+      - id: cppcheck
+        name: cppcheck
+        entry: cppcheck
+        language: system
+        files: \.(cpp|h|hpp|c|cc|cxx)$
+        args:
+          - --enable=style,performance,portability
+          - --suppress=missingIncludeSystem
+          - --suppress=unusedFunction
+          - --error-exitcode=1

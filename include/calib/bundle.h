@@ -7,10 +7,10 @@
 #include <Eigen/Geometry>
 
 #include "calib/camera.h"
-#include "calib/planarpose.h"  // PlanarObservation
-#include "calib/scheimpflug.h"
 #include "calib/cameramodel.h"
 #include "calib/optimize.h"
+#include "calib/planarpose.h"  // PlanarObservation
+#include "calib/scheimpflug.h"
 
 namespace calib {
 
@@ -37,7 +37,7 @@ struct BundleOptions final : public OptimOptions {
 };
 
 /** Result returned by hand-eye calibration. */
-template<camera_model CameraT>
+template <camera_model CameraT>
 struct BundleResult final : public OptimResult {
     std::vector<CameraT> cameras;        ///< Estimated camera parameters per camera
     std::vector<Eigen::Affine3d> g_T_c;  ///< Estimated camera->gripper extrinsics
@@ -55,12 +55,11 @@ struct BundleResult final : public OptimResult {
  * @param opts Optimization options
  * @return Calibration result containing optimized parameters and error metrics
  */
-template<camera_model CameraT>
-BundleResult<CameraT> optimize_bundle(
-    const std::vector<BundleObservation>& observations,
-    const std::vector<CameraT>& initial_cameras,
-    const std::vector<Eigen::Affine3d>& init_g_T_c,
-    const Eigen::Affine3d& init_b_T_t,
-    const BundleOptions& opts = {});
+template <camera_model CameraT>
+BundleResult<CameraT> optimize_bundle(const std::vector<BundleObservation>& observations,
+                                      const std::vector<CameraT>& initial_cameras,
+                                      const std::vector<Eigen::Affine3d>& init_g_T_c,
+                                      const Eigen::Affine3d& init_b_T_t,
+                                      const BundleOptions& opts = {});
 
 }  // namespace calib
