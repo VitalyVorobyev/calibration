@@ -12,26 +12,9 @@ using namespace calib;
 using Vec2 = Eigen::Vector2d;
 using Mat3 = Eigen::Matrix3d;
 
-namespace {
-
-// Custom matcher for floating point matrix comparisons
-MATCHER_P(IsMatrixNear, expected, "") {
-    bool result = arg.rows() == expected.rows() && arg.cols() == expected.cols();
-    if (!result) return false;
-
-    for (int i = 0; i < arg.rows() && result; ++i) {
-        for (int j = 0; j < arg.cols() && result; ++j) {
-            result = std::abs(arg(i, j) - expected(i, j)) < 1e-6;
-        }
-    }
-    return result;
-}
-
 // Helper to apply a homography to a point
-Vec2 apply_homography(const Mat3& H, const Vec2& p) {
-    Eigen::Vector3d ph(p.x(), p.y(), 1.0);
-    Eigen::Vector3d q = H * ph;
-    return Vec2(q.x() / q.z(), q.y() / q.z());
+static Vec2 apply_homography(const Mat3& H, const Vec2& p) {
+    return (H * p.homogeneous()).hnormalized();
 }
 
 // Generate synthetic data with a known homography
@@ -39,7 +22,7 @@ void generate_synthetic_data(std::vector<Vec2>& src,
                              std::vector<Vec2>& dst,
                              Mat3& true_H,
                              int n_points = 50,
-                             double noise_level = 0.5) {
+                             double noise_level = -1) {
     // Create a non-trivial homography (rotation + translation + perspective)
     const double angle = 0.1;  // radians
     const double c = std::cos(angle), s = std::sin(angle);
@@ -67,11 +50,12 @@ void generate_synthetic_data(std::vector<Vec2>& src,
         Vec2 exact_dst = apply_homography(true_H, src[i]);
 
         // Add noise to destination points
-        dst[i] = Vec2(exact_dst.x() + noise(rng), exact_dst.y() + noise(rng));
+        dst[i] = exact_dst;
+        if (noise_level > 0) {
+            dst[i] += Vec2(noise(rng), noise(rng));
+        }
     }
 }
-
-} // anonymous namespace
 
 TEST(HomographyTest, ExactHomography) {
     // Create a simple homography (pure translation)
@@ -94,10 +78,12 @@ TEST(HomographyTest, ExactHomography) {
     }
 
     // Estimate homography
-    Mat3 H_est = fit_homography(src, dst);
+    Mat3 h0 = estimate_homography_dlt(src, dst);
+    auto result = optimize_homography(src, dst, h0);
+    ASSERT_TRUE(result.success);
 
     // The estimated homography should be very close to the true one
-    EXPECT_THAT(H_est, IsMatrixNear(H_true));
+    ASSERT_TRUE(result.homography.isApprox(H_true, 1e-6));
 }
 
 TEST(HomographyTest, NoisyHomography) {
@@ -108,22 +94,19 @@ TEST(HomographyTest, NoisyHomography) {
     generate_synthetic_data(src, dst, H_true, 50, 0.1);
 
     // Estimate homography
-    Mat3 H_est = fit_homography(src, dst);
+    Mat3 h0 = estimate_homography_dlt(src, dst);
+    auto result = optimize_homography(src, dst, h0);
+    ASSERT_TRUE(result.success);
 
     // Verify that the estimated homography is close to the ground truth
     // with some tolerance for noise
     double tolerance = 1e-2;
-    for (int i = 0; i < 3; ++i) {
-        for (int j = 0; j < 3; ++j) {
-            EXPECT_NEAR(H_est(i, j), H_true(i, j), tolerance)
-                << "Matrix differs at (" << i << "," << j << ")";
-        }
-    }
+    ASSERT_TRUE(result.homography.isApprox(H_true, tolerance));
 
     // Check the reprojection error
     double avg_error = 0.0;
     for (size_t i = 0; i < src.size(); ++i) {
-        Vec2 projected = apply_homography(H_est, src[i]);
+        Vec2 projected = apply_homography(result.homography, src[i]);
         avg_error += (projected - dst[i]).norm();
     }
     avg_error /= src.size();
@@ -137,7 +120,7 @@ TEST(HomographyTest, InsufficientPoints) {
     std::vector<Vec2> src = {{0.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}};
     std::vector<Vec2> dst = {{10.0, 0.0}, {11.0, 0.0}, {10.0, 1.0}};
 
-    EXPECT_THROW(fit_homography(src, dst), std::invalid_argument);
+    EXPECT_THROW(optimize_homography(src, dst, Mat3::Identity()), std::invalid_argument);
 }
 
 TEST(HomographyTest, MismatchedSizes) {
@@ -145,5 +128,5 @@ TEST(HomographyTest, MismatchedSizes) {
     std::vector<Vec2> src = {{0.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}};
     std::vector<Vec2> dst = {{10.0, 0.0}, {11.0, 0.0}, {10.0, 1.0}};
 
-    EXPECT_THROW(fit_homography(src, dst), std::invalid_argument);
+    EXPECT_THROW(optimize_homography(src, dst, Mat3::Identity()), std::invalid_argument);
 }

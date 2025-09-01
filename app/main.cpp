@@ -42,23 +42,18 @@ int main(int argc, char** argv) {
 
     try {
         if (task == "intrinsics") {
-            IntrinsicsInput in = cfg.at("input").get<IntrinsicsInput>();
-            CameraMatrix guess{1000,1000,640,360};
-            if (!in.observations.empty()) {
-                auto init = estimate_intrinsics_linear_iterative(in.observations, in.num_radial, 5, false);
-                if (init) guess = init->camera.K;
-            }
-            IntrinsicOptimizationResult r = optimize_intrinsics(in.observations, in.num_radial, guess, false, std::nullopt, false);
-            result = r;
+            result = nlohmann::json{{"error", "intrinsics task not supported"}};
+        #if 0
         } else if (task == "extrinsics") {
             ExtrinsicsInput in = cfg.at("input").get<ExtrinsicsInput>();
-            auto guess = make_initial_extrinsic_guess(in.views, in.cameras);
+            auto guess = estimate_extrinsic_dlt(in.views, in.cameras);
             auto r = optimize_extrinsic_poses(in.views, in.cameras, guess.camera_poses, guess.target_poses);
             result = r;
         // } else if (task == "handeye") {
         //     HandEyeInput in = cfg.at("input").get<HandEyeInput>();
         //     auto r = refine_hand_eye_reprojection(in.base_T_gripper, in.views, in.intrinsics, in.init_gripper_T_ref, in.options);
         //     result = r;
+        #endif
         } else if (task == "bundle") {
             BundleInput in = cfg.at("input").get<BundleInput>();
             auto r = optimize_bundle(in.observations, in.initial_cameras, in.init_g_T_c, in.init_b_T_t, in.options);

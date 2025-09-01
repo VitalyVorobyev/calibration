@@ -5,7 +5,7 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calib/intrinsics.h"
+#include "calib/cameramatrix.h"
 
 namespace calib {
 

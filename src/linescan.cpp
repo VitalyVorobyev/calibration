@@ -88,7 +88,8 @@ static std::vector<Vec3> process_view(
     );
 
     // Homography from normalized pixels to plane
-    Mat3 H_norm_to_obj = fit_homography(img_norm, view.target_xy);
+    // TODO: consider homography optimization
+    Mat3 H_norm_to_obj = estimate_homography_dlt(img_norm, view.target_xy);
 
     // Pose of plane (world->camera)
     Eigen::Affine3d pose = estimate_planar_pose_dlt(view.target_xy, view.target_uv, camera.K);

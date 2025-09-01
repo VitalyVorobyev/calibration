@@ -258,7 +258,7 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
     EXPECT_LT((res.g_T_c[0].translation() - g_T_c.translation()).norm(),1e-3);
     Eigen::AngleAxisd diff(res.g_T_c[0].linear()*g_T_c.linear().transpose());
     EXPECT_LT(diff.angle(),1e-3);
-    EXPECT_LT(res.reprojection_error, 0.01);
+    EXPECT_LT(res.final_cost, 0.01);
 }
 
 TEST(OptimizeBundle, SingleCameraTargetPose) {

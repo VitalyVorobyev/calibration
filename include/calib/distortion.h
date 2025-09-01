@@ -5,12 +5,12 @@
 // std
 #include <optional>
 #include <vector>
+#include <concepts>
 
 // eigen
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include <concepts>
 
 namespace calib {
 
@@ -152,6 +152,7 @@ struct DualDistortionWithResiduals final {
     Eigen::VectorXd residuals;
 };
 
+// TODO: refactor for camera_model as a template parameter
 template<typename T>
 std::optional<DistortionWithResiduals<T>> fit_distortion_full(
     const std::vector<Observation<T>>& obs,

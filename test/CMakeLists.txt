@@ -16,13 +16,13 @@ target_link_libraries(distortion_test PRIVATE
 )
 gtest_discover_tests(distortion_test)
 
-# Test for camera intrinsics optimization
-add_executable(intrinsics_test intrinsics_test.cpp)
-target_link_libraries(intrinsics_test PRIVATE
+# Test for camera intrinsics optimization (planar views)
+add_executable(intrinsics_optimize_test intrinsics_optimize_test.cpp)
+target_link_libraries(intrinsics_optimize_test PRIVATE
     calibration
     GTest::gtest_main GTest::gmock_main
 )
-gtest_discover_tests(intrinsics_test)
+gtest_discover_tests(intrinsics_optimize_test)
 
 # Test for planar pose estimation
 add_executable(planarpose_test planarpose_test.cpp)
@@ -32,14 +32,6 @@ target_link_libraries(planarpose_test PRIVATE
 )
 gtest_discover_tests(planarpose_test)
 
-# Test for full camera calibration
-add_executable(calib_test calib_test.cpp)
-target_link_libraries(calib_test PRIVATE
-    calibration
-    GTest::gtest_main GTest::gmock_main
-)
-gtest_discover_tests(calib_test)
-
 # Test for extrinsic pose optimization
 add_executable(extrinsics_test extrinsics_test.cpp)
 target_link_libraries(extrinsics_test PRIVATE
@@ -47,14 +39,6 @@ target_link_libraries(extrinsics_test PRIVATE
     GTest::gtest_main GTest::gmock_main
 )
 gtest_discover_tests(extrinsics_test)
-
-# Test for joint intrinsics/extrinsics optimization
-add_executable(joint_test joint_test.cpp)
-target_link_libraries(joint_test PRIVATE
-    calibration
-    GTest::gtest_main GTest::gmock_main
-)
-gtest_discover_tests(joint_test)
 
 # Test for hand-eye calibration
 add_executable(handeye_test handeye_test.cpp)

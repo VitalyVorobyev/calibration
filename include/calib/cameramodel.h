@@ -2,7 +2,6 @@
 
 #include <Eigen/Core>
 #include <concepts>
-#include <array>
 
 namespace calib {
 

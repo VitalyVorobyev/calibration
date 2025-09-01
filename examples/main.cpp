@@ -33,7 +33,7 @@ int main() {
         dst[i] = Vec2(u, v);
     }
 
-    auto H = fit_homography(src, dst);
+    auto H = estimate_homography_dlt(src, dst);
 
     std::cout.setf(std::ios::fixed); std::cout.precision(10);
     std::cout << "Refined H:\n";

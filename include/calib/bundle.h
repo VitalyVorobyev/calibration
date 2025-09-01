@@ -10,6 +10,7 @@
 #include "calib/planarpose.h"  // PlanarObservation
 #include "calib/scheimpflug.h"
 #include "calib/cameramodel.h"
+#include "calib/optimize.h"
 
 namespace calib {
 
@@ -26,36 +27,21 @@ struct BundleObservation final {
     size_t camera_index = 0;  ///< Which camera acquired this view
 };
 
-enum class OptimizerType {
-    DEFAULT,  // SPARSE_NORMAL_CHOLESKY
-    SPARSE_SCHUR,  // for large problems
-    DENSE_SCHUR,  // for small multiple camera problems
-    DENSE_QR  // for small single camera problems
-};
-
 /** Options controlling the hand-eye calibration optimisation. */
 // TODO: add optimize_distortion
-struct BundleOptions final {
+struct BundleOptions final : public OptimOptions {
     bool optimize_intrinsics = false;  ///< Solve for camera intrinsics
     bool optimize_skew = false;        ///< Solve for skew parameter
     bool optimize_target_pose = true;  ///< Solve for base->target pose
     bool optimize_hand_eye = true;     ///< Solve for camera->gripper poses
-    double huber_delta = 1.0;          ///< Huber loss delta
-    double epsilon = 1e-9;             ///< Solver convergence tolerance
-    int max_iterations = 1000;         ///< Maximum number of iterations
-    OptimizerType optimizer = OptimizerType::DEFAULT;
-    bool verbose = false;              ///< Verbose solver output
 };
 
 /** Result returned by hand-eye calibration. */
 template<camera_model CameraT>
-struct BundleResult final {
-    std::vector<CameraT> cameras;               ///< Estimated camera parameters per camera
-    std::vector<Eigen::Affine3d> g_T_c;        ///< Estimated camera->gripper extrinsics
-    Eigen::Affine3d b_T_t;                     ///< Pose of target in base frame
-    double reprojection_error = 0.0;           ///< RMSE of reprojection
-    Eigen::MatrixXd covariance;                ///< Covariance of pose parameters
-    std::string report;                        ///< Ceres summary
+struct BundleResult final : public OptimResult {
+    std::vector<CameraT> cameras;        ///< Estimated camera parameters per camera
+    std::vector<Eigen::Affine3d> g_T_c;  ///< Estimated camera->gripper extrinsics
+    Eigen::Affine3d b_T_t;               ///< Pose of target in base frame
 };
 
 /**

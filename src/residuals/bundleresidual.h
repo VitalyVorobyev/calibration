@@ -6,10 +6,9 @@
 #include <ceres/ceres.h>
 
 #include "calib/planarpose.h"
-#include "calib/camera.h"
-#include "calib/scheimpflug.h"
 #include "calib/cameramodel.h"
-#include "observationutils.h"
+
+#include "../observationutils.h"
 
 namespace calib {
 
@@ -27,6 +26,7 @@ static std::pair<Eigen::Matrix<T, 3, 3>, Eigen::Matrix<T, 3, 1>> get_camera_T_ta
     return {c_R_t, c_t_t};
 }
 
+#if 0
 static Eigen::Affine3d get_camera_T_target(
     const Eigen::Affine3d& b_T_t,
     const Eigen::Affine3d& g_T_c,
@@ -35,19 +35,19 @@ static Eigen::Affine3d get_camera_T_target(
     auto c_T_t = g_T_c.inverse() * b_T_g.inverse() * b_T_t;
     return c_T_t;
 }
+#endif
 
 template<camera_model CameraT>
 struct BundleReprojResidual final {
-    PlanarView view;
-    Eigen::Affine3d base_T_gripper;
-    BundleReprojResidual(PlanarView v, const Eigen::Affine3d& b_T_g)
-        : view(std::move(v)), base_T_gripper(b_T_g) {}
+    const PlanarView view;
+    const Eigen::Affine3d base_T_gripper;
+    BundleReprojResidual(const PlanarView& v, const Eigen::Affine3d& b_T_g)
+        : view(v), base_T_gripper(b_T_g) {}
 
     template <typename T>
     bool operator()(const T* b_q_t, const T* b_t_t,
                     const T* g_q_c, const T* g_t_c,
-                    const T* intrinsics,
-                    T* residuals) const {
+                    const T* intrinsics, T* residuals) const {
         const Eigen::Matrix<T, 3, 3> b_R_g = base_T_gripper.linear().template cast<T>();
         const Eigen::Matrix<T, 3, 1> b_t_g = base_T_gripper.translation().template cast<T>();
         const auto [c_R_t, c_t_t] = get_camera_T_target(
@@ -69,11 +69,11 @@ struct BundleReprojResidual final {
         return true;
     }
 
-    static auto* create(PlanarView v, const Eigen::Affine3d& base_T_gripper) {
+    static auto* create(const PlanarView& v, const Eigen::Affine3d& base_T_gripper) {
         if (v.empty()) {
             throw std::invalid_argument("No observations provided");
         }
-        auto* functor = new BundleReprojResidual(std::move(v), base_T_gripper);
+        auto* functor = new BundleReprojResidual(v, base_T_gripper);
         constexpr int intr_size = CameraTraits<CameraT>::param_count;
         auto* cost = new ceres::AutoDiffCostFunction<
             BundleReprojResidual, ceres::DYNAMIC,4,3,4,3,intr_size>(
