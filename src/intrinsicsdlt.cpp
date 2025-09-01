@@ -116,7 +116,7 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(
 // subsequent non-linear optimization when moderate distortion is
 // present.  If the initial linear estimate fails, std::nullopt is
 // returned.
-std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
+std::optional<Camera<BrownConradyd>> estimate_intrinsics_linear_iterative(
     const std::vector<Observation<double>>& obs,
     int num_radial,
     int max_iterations,
@@ -172,7 +172,7 @@ std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
     cam.K = K;
     cam.distortion.coeffs = dual_opt->distortion;
 
-    return LinearInitResult{cam};
+    return cam;
 }
 
 }  // namespace calib

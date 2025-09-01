@@ -42,7 +42,7 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
     }
 
     std::vector<ParamBlock> get_param_blocks() const override {
-        ParamBlock blocks;
+        std::vector<ParamBlock> blocks;
         for (const auto& i : intr) blocks.emplace_back(i.data(), i.size(), IntrSize);
         for (const auto& i : c_q_r) blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
         for (const auto& i : c_t_r) blocks.emplace_back(i.data(), i.size(), 3);
@@ -52,8 +52,8 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
     }
 
     size_t total_params() const override {
-        const size_t num_cams = cameras.size();
-        const size_t num_views = init_r_T_t.size();
+        const size_t num_cams = intr.size();
+        const size_t num_views = r_q_t.size();
         return num_cams * (IntrSize + 6) + num_views * 6;
     }
 
@@ -84,13 +84,13 @@ static ceres::Problem build_problem(
 ) {
     ceres::Problem p;
     for (size_t view_idx = 0; view_idx < views.size(); ++view_idx) {
-        const auto& view = views[view_idx];
+        const auto& multicam_view = views[view_idx];
         for (size_t cam_idx = 0; cam_idx < cameras.size(); ++cam_idx) {
-            if (view[cam_idx].empty()) continue;
+            if (multicam_view[cam_idx].empty()) continue;
 
-            auto loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
+            auto loss = options.huber_delta > 0 ? new ceres::HuberLoss(options.huber_delta) : nullptr;
             p.AddResidualBlock(
-                ExtrinsicResidual<CameraT>::create(view),
+                ExtrinsicResidual<CameraT>::create(multicam_view[cam_idx]),
                 loss,
                 blocks.c_q_r[cam_idx].data(), blocks.c_t_r[cam_idx].data(),
                 blocks.r_q_t[view_idx].data(), blocks.r_t_t[view_idx].data(),
@@ -150,15 +150,18 @@ ExtrinsicOptimizationResult<CameraT> optimize_joint_intrinsics_extrinsics(
 ) {
     validate_input(init_cameras, init_c_T_r, init_r_T_t, views);
 
-    ExtrinsicBlocks<CameraT> blocks = initialize_blocks(init_cameras, init_c_T_r, init_r_T_t);
+    auto blocks = ExtrinsicBlocks<CameraT>::create(init_cameras, init_c_T_r, init_r_T_t);
     ceres::Problem problem = build_problem(views, init_cameras, opts, blocks);
 
     ExtrinsicOptimizationResult<CameraT> result;
-    solve_problem(problem, opts, result);
+    solve_problem(problem, opts, &result);
 
     blocks.populate_result(result);
     if (opts.compute_covariance) {
-        compute_covariance(problem, blocks, result);
+        auto optcov = compute_covariance(blocks, problem);
+        if (optcov.has_value()) {
+            result.covariance = std::move(optcov.value());
+        }
     }
 
     return result;

@@ -9,20 +9,13 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include "calib/distortion.h"  // Observation
-#include "calib/cameramatrix.h"
+#include "calib/planarpose.h"
 #include "calib/camera.h"
-#include "calib/planarpose.h"  // PlanarView
+#include "calib/cameramodel.h"
 
 #include "calib/optimize.h"
 
 namespace calib {
-
-// Result of an iterative linear initialization that alternates between
-// estimating camera intrinsics and lens distortion parameters.
-struct LinearInitResult {
-    Camera<BrownConradyd> camera;
-};
 
 // Estimate camera intrinsics (fx, fy, cx, cy[, skew]) by solving a linear
 // least-squares system that ignores lens distortion.  The input
@@ -40,7 +33,7 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(
 // intrinsics (estimate_intrinsics_linear).  Returns std::nullopt if the
 // initial linear estimation fails.  The number of radial distortion
 // coefficients and the number of refinement iterations can be specified.
-std::optional<LinearInitResult> estimate_intrinsics_linear_iterative(
+std::optional<Camera<BrownConradyd>> estimate_intrinsics_linear_iterative(
     const std::vector<Observation<double>>& obs,
     int num_radial,
     int max_iterations = 5,
@@ -52,15 +45,23 @@ struct IntrinsicsOptions final : public OptimOptions {
     std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Parameter bounds
 };
 
-struct IntrinsicsResult final : public OptimResult {
-    Camera<BrownConradyd> camera;        ///< Estimated camera parameters
-    std::vector<Eigen::Affine3d> poses;  ///< Estimated pose of each view
+template<camera_model CameraT>
+struct IntrinsicsOptimizationResult final : public OptimResult {
+    CameraT camera;                      ///< Estimated camera parameters
+    std::vector<Eigen::Affine3d> c_T_t;  ///< Estimated pose of each view
     std::vector<double> view_errors;     ///< Per-view reprojection errors
 };
 
-IntrinsicsResult optimize_intrinsics(
+IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics_semidlt(
     const std::vector<PlanarView>& views,
     const CameraMatrix& initial_guess,
+    const IntrinsicsOptions& opts = {});
+
+template<camera_model CameraT>
+IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(
+    const std::vector<PlanarView>& views,
+    const CameraT& init_camera,
+    std::vector<Eigen::Affine3d> init_c_T_t,
     const IntrinsicsOptions& opts = {});
 
 }  // namespace calib

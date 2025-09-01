@@ -67,16 +67,16 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
         return blocks;
     }
 
-    void populate_result(IntrinsicsResult& result) const {
+    void populate_result(IntrinsicsOptimizationResult<Camera<BrownConradyd>>& result) const {
         result.camera.K.fx = intrinsics[0];
         result.camera.K.fy = intrinsics[1];
         result.camera.K.cx = intrinsics[2];
         result.camera.K.cy = intrinsics[3];
         result.camera.K.skew = intrinsics[4];
 
-        result.poses.resize(c_q_t.size());
+        result.c_T_t.resize(c_q_t.size());
         for (size_t i = 0; i < c_q_t.size(); ++i) {
-            result.poses[i] = restore_pose(c_q_t[i], c_t_t[i]);
+            result.c_T_t[i] = restore_pose(c_q_t[i], c_t_t[i]);
         }
     }
 };
@@ -142,7 +142,7 @@ static ceres::Problem build_problem(
 static void compute_per_view_errors(
     const std::vector<PlanarView>& obs_views,
     const Eigen::VectorXd& residuals,
-    IntrinsicsResult& result
+    IntrinsicsOptimizationResult<Camera<BrownConradyd>>& result
 ) {
     const size_t num_views = obs_views.size();
     result.view_errors.resize(num_views);
@@ -159,12 +159,12 @@ static void compute_per_view_errors(
     }
 }
 
-IntrinsicsResult optimize_intrinsics(
+IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics(
     const std::vector<PlanarView>& views,
     const CameraMatrix& initial_guess,
     const IntrinsicsOptions& opts
 ) {
-    IntrinsicsResult result;
+    IntrinsicsOptimizationResult<Camera<BrownConradyd>> result;
 
     // Prepare observations per view
     const size_t total_obs = count_total_observations(views);
@@ -193,10 +193,9 @@ IntrinsicsResult optimize_intrinsics(
     double sum_squared_residuals = dr_opt->residuals.squaredNorm();
     size_t total_residuals = total_obs * 2;
     result.covariance = compute_covariance(
-        blocks,
+        blocks, problem,
         total_residuals,
-        sum_squared_residuals,
-        problem).value_or(Eigen::MatrixXd{});
+        sum_squared_residuals).value_or(Eigen::MatrixXd{});
 
     return result;
 }

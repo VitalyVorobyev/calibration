@@ -7,8 +7,12 @@
 #include <thread>
 #include <optional>
 
+// eigen
+#include <Eigen/Core>
+
 // ceres
 #include "ceres/solver.h"
+#include "ceres/covariance.h"
 
 #include "calib/optimize.h"
 
@@ -53,9 +57,9 @@ struct ProblemParamBlocks {
 // Compute and populate the covariance matrix
 inline std::optional<Eigen::MatrixXd> compute_covariance(
     const ProblemParamBlocks& problem_param_blocks,
-    size_t total_residuals,
-    double sum_squared_residuals,
-    ceres::Problem& problem
+    ceres::Problem& problem,
+    size_t total_residuals = 0,
+    double sum_squared_residuals = 0
 ) {
     auto param_blocks = problem_param_blocks.get_param_blocks();
     const size_t total_params = problem_param_blocks.total_params();
@@ -104,10 +108,12 @@ inline std::optional<Eigen::MatrixXd> compute_covariance(
         row_offset += block_i_size;
     }
 
-    // Scale covariance by variance factor
-    int degrees_of_freedom = std::max(1, static_cast<int>(total_residuals) - static_cast<int>(total_params));
-    double variance_factor = sum_squared_residuals / degrees_of_freedom;
-    cov_matrix *= variance_factor;
+    if (total_residuals > 0) {
+        // Scale covariance by variance factor
+        int degrees_of_freedom = std::max(1, static_cast<int>(total_residuals) - static_cast<int>(total_params));
+        double variance_factor = sum_squared_residuals / degrees_of_freedom;
+        cov_matrix *= variance_factor;
+    }
 
     return cov_matrix;
 }

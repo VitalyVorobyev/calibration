@@ -39,7 +39,7 @@ struct BundleBlocks final : public ProblemParamBlocks {
     }
 
     std::vector<ParamBlock> get_param_blocks() const override {
-        ParamBlock blocks;
+        std::vector<ParamBlock> blocks;
         for (const auto& i : intr) blocks.emplace_back(i.data(), i.size(), IntrSize);
         for (const auto& i : g_q_c) blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
         for (const auto& i : g_t_c) blocks.emplace_back(i.data(), i.size(), 3);
@@ -133,15 +133,18 @@ BundleResult<CameraT> optimize_bundle(
 {
     validate_input(observations, initial_cameras);
 
-    BundleBlocks<CameraT> blocks = initialize_blocks(initial_cameras, init_g_T_c, init_b_T_t);
+    auto blocks = BundleBlocks<CameraT>::create(initial_cameras, init_g_T_c, init_b_T_t);
     ceres::Problem problem = build_problem(observations, opts, blocks);
 
     BundleResult<CameraT> result;
-    solve_problem(problem, opts, result);
+    solve_problem(problem, opts, &result);
 
     blocks.populate_results(result);
     if (opts.compute_covariance) {
-        compute_covariance(problem, blocks, result);
+        auto optcov = compute_covariance(blocks, problem);
+        if (optcov.has_value()) {
+            result.covariance = std::move(optcov.value());
+        }
     }
 
     return result;

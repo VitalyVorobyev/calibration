@@ -38,13 +38,10 @@ struct BundleOptions final : public OptimOptions {
 
 /** Result returned by hand-eye calibration. */
 template<camera_model CameraT>
-struct BundleResult final {
+struct BundleResult final : public OptimResult {
     std::vector<CameraT> cameras;        ///< Estimated camera parameters per camera
     std::vector<Eigen::Affine3d> g_T_c;  ///< Estimated camera->gripper extrinsics
     Eigen::Affine3d b_T_t;               ///< Pose of target in base frame
-    double reprojection_error = 0.0;     ///< RMSE of reprojection
-    Eigen::MatrixXd covariance;          ///< Covariance of pose parameters
-    std::string report;                  ///< Ceres summary
 };
 
 /**

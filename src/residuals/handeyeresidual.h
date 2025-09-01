@@ -9,14 +9,11 @@
 // eigen
 #include <Eigen/Geometry>
 
+#include "calib/handeye.h"  // MotionPair
+
 #include "../observationutils.h"
 
 namespace calib {
-
-struct MotionPair final {
-    Eigen::Matrix3d RA, RB;
-    Eigen::Vector3d tA, tB;
-};
 
 // ---------- Ceres residual (AX = XB): rotation log + translation eq ----------
 struct AX_XBResidual final {
@@ -53,7 +50,8 @@ struct AX_XBResidual final {
     }
 
     static auto create(const MotionPair& mp) {
-        return new ceres::AutoDiffCostFunction<AX_XBResidual, 6, 4, 3>(new AX_XBResidual(mp));
+        return new ceres::AutoDiffCostFunction<AX_XBResidual, 6, 4, 3>(
+            new AX_XBResidual(mp));
     }
 };
 

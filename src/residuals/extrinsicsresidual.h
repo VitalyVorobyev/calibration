@@ -25,7 +25,7 @@ template<camera_model CameraT>
 struct ExtrinsicResidual final {
     const PlanarView view;
 
-    ExtrinsicResidual(PlanarView&& v) : view(std::move(v)) {}
+    ExtrinsicResidual(const PlanarView& v) : view(v) {}
 
     template <typename T>
     bool operator()(const T* c_q_r, const T* c_t_r,
@@ -45,16 +45,17 @@ struct ExtrinsicResidual final {
             residuals[idx++] = uv.x() - T(ob.image_uv.x());
             residuals[idx++] = uv.y() - T(ob.image_uv.y());
         }
+        return true;
     }
 
-    static auto* create(PlanarView&& view) {
+    static auto* create(const PlanarView& view) {
         if (view.empty()) throw std::invalid_argument("No observations provided");
 
-        auto* functor = new ExtrinsicResidual(std::move(view));
+        auto* functor = new ExtrinsicResidual(view);
         constexpr int intr_size = CameraTraits<CameraT>::param_count;
         auto* cost = new ceres::AutoDiffCostFunction<
             ExtrinsicResidual, ceres::DYNAMIC,4,3,4,3,intr_size>(
-                functor, static_cast<int>(obs.size()) * 2);
+                functor, static_cast<int>(view.size()) * 2);
         return cost;
     }
 };

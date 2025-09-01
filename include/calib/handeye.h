@@ -12,6 +12,19 @@
 
 namespace calib {
 
+struct MotionPair final {
+    Eigen::Matrix3d RA, RB;
+    Eigen::Vector3d tA, tB;
+};
+
+std::vector<MotionPair> build_all_pairs(
+    const std::vector<Eigen::Affine3d>& b_T_g,
+    const std::vector<Eigen::Affine3d>& c_T_t,
+    double min_angle_deg = 1.0,          // discard too-small motions
+    bool reject_axis_parallel = true,    // guard against ill-conditioning
+    double axis_parallel_eps = 1e-3
+);
+
 /**
  * @brief Estimates the hand-eye transformation using the Tsai-Lenz algorithm
  *        with all pairs of input transformations and weighted averaging.
