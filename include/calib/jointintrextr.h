@@ -18,12 +18,18 @@ struct JointOptimizationResult final : public OptimResult {
     #endif
 };
 
+struct JointIntrExtrOptions final : public OptimOptions {
+    bool optimize_intrinsics = true;  ///< Solve for camera intrinsics
+    bool optimize_skew = false;       ///< Solve for skew parameter
+    bool optimize_extrinsics = true;  ///< Solve for camera and target extrinsics
+};
+
 template<camera_model CameraT>
 JointOptimizationResult<CameraT> optimize_joint_intrinsics_extrinsics(
     const std::vector<ExtrinsicPlanarView>& views,
     const std::vector<CameraT>& initial_cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
-    const OptimOptions& opts = {});
+    const JointIntrExtrOptions& opts = {});
 
 }  // namespace calib
