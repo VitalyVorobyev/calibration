@@ -186,7 +186,7 @@ PlanarPoseResult optimize_planar_pose(const std::vector<Eigen::Vector2d>& obj_xy
     cost->Evaluate(parameter_blocks, residuals.data(), nullptr);
 
     const double ssr = std::accumulate(residuals.begin(), residuals.end(), 0.0,
-                                        [](double sum, double r) { return sum + r * r; });
+                                       [](double sum, double r) { return sum + r * r; });
     result.reprojection_error = std::sqrt(ssr / m);
 
     if (opts.compute_covariance) {

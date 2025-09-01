@@ -3,8 +3,9 @@
 
 // std
 #include <array>
-#include <thread>
 #include <numbers>
+#include <numeric>
+#include <thread>
 
 // ceres
 #include <ceres/ceres.h>
@@ -194,9 +195,8 @@ OptimizeHomographyResult optimize_homography(const std::vector<Vec2>& src,
         std::vector<double> residuals(src.size() * 2);
         ceres::Problem::EvaluateOptions evopts;
         problem.Evaluate(evopts, nullptr, &residuals, nullptr, nullptr);
-        const double ssr = std::accumulate(
-            residuals.begin(), residuals.end(), 0.0,
-            [](double sum, double r) { return sum + r * r; });
+        const double ssr = std::accumulate(residuals.begin(), residuals.end(), 0.0,
+                                           [](double sum, double r) { return sum + r * r; });
         auto optcov = compute_covariance(blocks, problem, ssr, residuals.size());
         if (optcov.has_value()) {
             result.covariance = std::move(optcov.value());
