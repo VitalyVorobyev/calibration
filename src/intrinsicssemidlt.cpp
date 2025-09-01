@@ -51,10 +51,6 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
         return blocks;
     }
 
-    size_t total_params() const override {
-        return intrinsics.size() + c_q_t.size() * 3 + c_t_t.size() * 3;
-    }
-
     std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
         blocks.emplace_back(ParamBlock{ intrinsics.data(), intrinsics.size(), 5 });
@@ -159,7 +155,7 @@ static void compute_per_view_errors(
     }
 }
 
-IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics(
+IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics_semidlt(
     const std::vector<PlanarView>& views,
     const CameraMatrix& initial_guess,
     const IntrinsicsOptions& opts

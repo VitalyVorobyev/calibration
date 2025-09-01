@@ -51,7 +51,14 @@ struct ParamBlock final {
 
 struct ProblemParamBlocks {
     virtual std::vector<ParamBlock> get_param_blocks() const = 0;
-    virtual size_t total_params() const = 0;
+
+    size_t total_params() const {
+        size_t total = 0;
+        for (const auto& block : get_param_blocks()) {
+            total += block.size;
+        }
+        return total;
+    }
 };
 
 // Compute and populate the covariance matrix

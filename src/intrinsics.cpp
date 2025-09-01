@@ -40,11 +40,6 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
         return blocks;
     }
 
-    size_t total_params() const override {
-        const size_t num_views = c_q_t.size();
-        return IntrSize + num_views * 6;
-    }
-
     void populate_result(IntrinsicsOptimizationResult<CameraT>& result) const {
         const size_t num_views = c_q_t.size();
         result.c_T_t.resize(num_views);
