@@ -129,6 +129,7 @@ TEST(CeresAXXBRefine, ImprovesOverInitializer) {
     double err0_tr  = (X0.translation() - X_gt.translation()).norm();
 
     HandeyeOptions ro;
+    ro.optimizer = OptimizerType::DENSE_QR;
     ro.max_iterations = 60;
     ro.huber_delta = 1.0;
     ro.verbose = false;

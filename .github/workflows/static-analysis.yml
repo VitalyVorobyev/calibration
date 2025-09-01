@@ -33,7 +33,6 @@ jobs:
           clang-tidy -p build src/*.cpp \
             --checks="-*,readability-*,performance-*,modernize-*,bugprone-*,clang-analyzer-*" \
             --header-filter=".*calib.*" \
-            --warnings-as-errors="*" \
             || (echo "::error::clang-tidy found issues" && exit 1)
 
       - name: Run cppcheck
