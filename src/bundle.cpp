@@ -48,10 +48,6 @@ struct BundleBlocks final : public ProblemParamBlocks {
         return blocks;
     }
 
-    size_t total_params() const override {
-        return intr.size() * (IntrSize + 6) + 6;
-    }
-
     void populate_results(BundleResult<CameraT>& result) const {
         result.b_T_t = restore_pose(b_q_t, b_t_t);
         const size_t num_cams = intr.size();

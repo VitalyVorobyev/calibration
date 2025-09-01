@@ -51,12 +51,6 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
         return blocks;
     }
 
-    size_t total_params() const override {
-        const size_t num_cams = intr.size();
-        const size_t num_views = r_q_t.size();
-        return num_cams * (IntrSize + 6) + num_views * 6;
-    }
-
     void populate_result(ExtrinsicOptimizationResult<CameraT>& result) const {
         const size_t num_cams = c_q_r.size();
         const size_t num_views = r_q_t.size();
