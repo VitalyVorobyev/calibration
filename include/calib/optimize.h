@@ -2,9 +2,16 @@
 
 #pragma once
 
+// std
+#include <cstdint>
+#include <string>
+
+// eigen
+#include <Eigen/Core>
+
 namespace calib {
 
-enum class OptimizerType : std::uint8_t {
+enum class OptimizerType : uint8_t {
     DEFAULT,       // SPARSE_NORMAL_CHOLESKY
     SPARSE_SCHUR,  // for large problems
     DENSE_SCHUR,   // for small multiple camera problems

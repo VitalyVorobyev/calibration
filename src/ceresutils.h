@@ -3,6 +3,7 @@
 #pragma once
 
 // std
+#include <map>
 #include <cmath>
 #include <optional>
 #include <thread>
@@ -58,16 +59,17 @@ struct ProblemParamBlocks {
     [[nodiscard]]
     auto total_params() const -> size_t {
         const auto blocks = get_param_blocks();
-        return std::accumulate(blocks.begin(), blocks.end(), size_t{0},
-            [](size_t sum, const ParamBlock& block) { return sum + block.size; }
-        );
+        return std::accumulate(
+            blocks.begin(), blocks.end(), size_t{0},
+            [](size_t sum, const ParamBlock& block) { return sum + block.size; });
     }
 };
 
 // Compute and populate the covariance matrix
-inline auto compute_covariance(
-    const ProblemParamBlocks& problem_param_blocks, ceres::Problem& problem,
-    double sum_squared_residuals = 0, size_t total_residuals = 0) -> std::optional<Eigen::MatrixXd> { // NOLINT(bugprone-easily-swappable-parameters)
+inline auto compute_covariance(const ProblemParamBlocks& problem_param_blocks,
+                               ceres::Problem& problem, double sum_squared_residuals = 0,
+                               size_t total_residuals = 0)
+    -> std::optional<Eigen::MatrixXd> {  // NOLINT(bugprone-easily-swappable-parameters)
     auto param_blocks = problem_param_blocks.get_param_blocks();
     const size_t total_params = problem_param_blocks.total_params();
 

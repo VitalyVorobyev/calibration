@@ -3,8 +3,8 @@
 #pragma once
 
 // std
-#include <vector>
 #include <numeric>
+#include <vector>
 
 // ceres
 #include <ceres/ceres.h>
@@ -22,9 +22,11 @@ struct CalibVPResidual final {
     const size_t total_obs_;
 
     CalibVPResidual(const std::vector<PlanarView>& v, int num_radial)
-        : views(v), num_radial_(num_radial),
-          total_obs_(std::accumulate(v.begin(), v.end(), size_t(0),
-                     [](size_t sum, const PlanarView& view) { return sum + view.size(); })) {}
+        : views(v),
+          num_radial_(num_radial),
+          total_obs_(std::accumulate(
+              v.begin(), v.end(), size_t(0),
+              [](size_t sum, const PlanarView& view) { return sum + view.size(); })) {}
 
     template <typename T>
     bool operator()(T const* const* params, T* residuals) const {
@@ -57,9 +59,9 @@ struct CalibVPResidual final {
             cost->AddParameterBlock(4);  // Quaternion for each view
             cost->AddParameterBlock(3);  // Translation for each view
         }
-        const size_t total_obs = std::accumulate(
-            views.begin(), views.end(), size_t(0),
-            [](size_t sum, const PlanarView& v) { return sum + v.size(); });
+        const size_t total_obs =
+            std::accumulate(views.begin(), views.end(), size_t(0),
+                            [](size_t sum, const PlanarView& v) { return sum + v.size(); });
         cost->SetNumResiduals(static_cast<int>(total_obs * 2));
         return cost;
     }

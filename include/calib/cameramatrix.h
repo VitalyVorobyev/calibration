@@ -54,16 +54,27 @@ struct CameraMatrixT final {
 using CameraMatrix = CameraMatrixT<double>;
 
 struct CalibrationBounds final {
-    double fx_min = 0;
-    double fx_max = 2000.0;
-    double fy_min = 0;
-    double fy_max = 2000.0;
-    double cx_min = 0;
-    double cx_max = 1280.0;
-    double cy_min = 0;
-    double cy_max = 720.0;
-    double skew_min = -0.01;
-    double skew_max = 0.01;
+    static constexpr double k_fx_min = 0.0;
+    static constexpr double k_fx_max = 2000.0;
+    static constexpr double k_fy_min = 0.0;
+    static constexpr double k_fy_max = 2000.0;
+    static constexpr double k_cx_min = 0.0;
+    static constexpr double k_cx_max = 1280.0;
+    static constexpr double k_cy_min = 0.0;
+    static constexpr double k_cy_max = 720.0;
+    static constexpr double k_skew_min = -0.01;
+    static constexpr double k_skew_max = 0.01;
+
+    double fx_min = k_fx_min;
+    double fx_max = k_fx_max;
+    double fy_min = k_fy_min;
+    double fy_max = k_fy_max;
+    double cx_min = k_cx_min;
+    double cx_max = k_cx_max;
+    double cy_min = k_cy_min;
+    double cy_max = k_cy_max;
+    double skew_min = k_skew_min;
+    double skew_max = k_skew_max;
 };
 
 }  // namespace calib

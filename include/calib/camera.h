@@ -76,12 +76,13 @@ struct CameraTraits<Camera<DistortionT>> {
     static constexpr int idx_fy = 1;    ///< Index of focal length in y
     static constexpr int idx_skew = 4;  ///< Index of skew parameter
 
-    static constexpr int kNumDistCoeffs = 5;
+    static constexpr int k_num_dist_coeffs = 5;
     template <typename T>
     static auto from_array(const T* intr) -> Camera<BrownConrady<T>> {
         CameraMatrixT<T> k_matrix{intr[0], intr[1], intr[2], intr[3], intr[4]};
-        Eigen::Matrix<T, Eigen::Dynamic, 1> dist(kNumDistCoeffs);
-        dist << intr[5], intr[6], intr[7], intr[8], intr[9];
+        Eigen::Matrix<T, Eigen::Dynamic, 1> dist(k_num_dist_coeffs);
+    constexpr int k_intr_offset = 5;
+    dist << intr[k_intr_offset], intr[k_intr_offset + 1], intr[k_intr_offset + 2], intr[k_intr_offset + 3], intr[k_intr_offset + 4];
         return Camera<BrownConrady<T>>(k_matrix, dist);
     }
 
@@ -91,8 +92,9 @@ struct CameraTraits<Camera<DistortionT>> {
         arr[2] = cam.K.cx;
         arr[3] = cam.K.cy;
         arr[4] = cam.K.skew;
-        for (int i = 0; i < kNumDistCoeffs; ++i) {
-            arr[5 + i] = cam.distortion.coeffs[i];
+        constexpr int k_intr_offset = 5;
+        for (int i = 0; i < k_num_dist_coeffs; ++i) {
+            arr[k_intr_offset + i] = cam.distortion.coeffs[i];
         }
     }
 };
