@@ -43,6 +43,7 @@ int main(int argc, char** argv) {
     try {
         if (task == "intrinsics") {
             result = nlohmann::json{{"error", "intrinsics task not supported"}};
+        #if 0
         } else if (task == "extrinsics") {
             ExtrinsicsInput in = cfg.at("input").get<ExtrinsicsInput>();
             auto guess = estimate_extrinsic_dlt(in.views, in.cameras);
@@ -52,6 +53,7 @@ int main(int argc, char** argv) {
         //     HandEyeInput in = cfg.at("input").get<HandEyeInput>();
         //     auto r = refine_hand_eye_reprojection(in.base_T_gripper, in.views, in.intrinsics, in.init_gripper_T_ref, in.options);
         //     result = r;
+        #endif
         } else if (task == "bundle") {
             BundleInput in = cfg.at("input").get<BundleInput>();
             auto r = optimize_bundle(in.observations, in.initial_cameras, in.init_g_T_c, in.init_b_T_t, in.options);
