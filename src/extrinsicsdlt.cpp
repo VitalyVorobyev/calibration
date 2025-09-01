@@ -7,10 +7,8 @@
 
 namespace calib {
 
-ExtrinsicPoses estimate_extrinsic_dlt(
-    const std::vector<MulticamPlanarView>& views,
-    const std::vector<Camera<DualDistortion>>& cameras
-) {
+ExtrinsicPoses estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
+                                      const std::vector<Camera<DualDistortion>>& cameras) {
     const size_t num_cams = cameras.size();
     const size_t num_views = views.size();
     std::vector<std::vector<Eigen::Affine3d>> c_T_t(
@@ -48,8 +46,8 @@ ExtrinsicPoses estimate_extrinsic_dlt(
             const auto& obs0 = views[v][0];
             const auto& obsC = views[v][c];
             if (obs0.size() < 4 || obsC.size() < 4) {
-                std::cerr << "Insufficient observations for view " << v
-                    << " and camera " << c << std::endl;
+                std::cerr << "Insufficient observations for view " << v << " and camera " << c
+                          << std::endl;
                 continue;
             }
             rels.push_back(c_T_t[v][c] * c_T_t[v][0].inverse());

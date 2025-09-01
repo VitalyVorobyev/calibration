@@ -1,18 +1,17 @@
 #include "calib/bundle.h"
 
 // std
-#include <numeric>
 #include <array>
+#include <numeric>
 
 #include "calib/planarpose.h"
-
-#include "residuals/bundleresidual.h"
-#include "observationutils.h"
 #include "ceresutils.h"
+#include "observationutils.h"
+#include "residuals/bundleresidual.h"
 
 namespace calib {
 
-template<camera_model CameraT>
+template <camera_model CameraT>
 struct BundleBlocks final : public ProblemParamBlocks {
     static constexpr size_t IntrSize = CameraTraits<CameraT>::param_count;
     std::array<double, 4> b_q_t;
@@ -21,13 +20,16 @@ struct BundleBlocks final : public ProblemParamBlocks {
     std::vector<std::array<double, 3>> g_t_c;
     std::vector<std::array<double, IntrSize>> intr;
 
-    BundleBlocks(size_t numcams): g_q_c(numcams), g_t_c(numcams), intr(numcams) {}
+    explicit BundleBlocks(size_t numcams)
+        : b_q_t{0.0, 0.0, 0.0, 1.0},
+          b_t_t{0.0, 0.0, 0.0},
+          g_q_c(numcams),
+          g_t_c(numcams),
+          intr(numcams) {}
 
-    static BundleBlocks create(
-        const std::vector<CameraT>& cameras,
-        const std::vector<Eigen::Affine3d>& g_T_c,
-        const Eigen::Affine3d& b_T_t)
-    {
+    static BundleBlocks create(const std::vector<CameraT>& cameras,
+                               const std::vector<Eigen::Affine3d>& g_T_c,
+                               const Eigen::Affine3d& b_T_t) {
         const size_t numcams = g_T_c.size();
         BundleBlocks blocks(numcams);
         populate_quat_tran(b_T_t, blocks.b_q_t, blocks.b_t_t);
@@ -41,7 +43,8 @@ struct BundleBlocks final : public ProblemParamBlocks {
     std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
         for (const auto& i : intr) blocks.emplace_back(i.data(), i.size(), IntrSize);
-        for (const auto& i : g_q_c) blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
+        for (const auto& i : g_q_c)
+            blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
         for (const auto& i : g_t_c) blocks.emplace_back(i.data(), i.size(), 3);
         blocks.emplace_back(b_q_t.data(), b_q_t.size(), 3);  // 3 dof in unit quaternion
         blocks.emplace_back(b_t_t.data(), b_t_t.size(), 3);
@@ -61,22 +64,16 @@ struct BundleBlocks final : public ProblemParamBlocks {
     }
 };
 
-template<camera_model CameraT>
-static ceres::Problem build_problem(
-    const std::vector<BundleObservation>& observations,
-    const BundleOptions& opts,
-    BundleBlocks<CameraT>& blocks)
-{
+template <camera_model CameraT>
+static ceres::Problem build_problem(const std::vector<BundleObservation>& observations,
+                                    const BundleOptions& opts, BundleBlocks<CameraT>& blocks) {
     ceres::Problem p;
     for (const auto& obs : observations) {
         const size_t cam = obs.camera_index;
         auto loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
-        p.AddResidualBlock(
-            BundleReprojResidual<CameraT>::create(obs.view, obs.b_T_g),
-            loss,
-            blocks.b_q_t.data(), blocks.b_t_t.data(),
-            blocks.g_q_c[cam].data(), blocks.g_t_c[cam].data(),
-            blocks.intr[cam].data());
+        p.AddResidualBlock(BundleReprojResidual<CameraT>::create(obs.view, obs.b_T_g), loss,
+                           blocks.b_q_t.data(), blocks.b_t_t.data(), blocks.g_q_c[cam].data(),
+                           blocks.g_t_c[cam].data(), blocks.intr[cam].data());
     }
 
     p.SetManifold(blocks.b_q_t.data(), new ceres::QuaternionManifold());
@@ -108,7 +105,7 @@ static ceres::Problem build_problem(
     return p;
 }
 
-template<camera_model CameraT>
+template <camera_model CameraT>
 void validate_input(const std::vector<BundleObservation>& observations,
                     const std::vector<CameraT>& initial_cameras) {
     const size_t num_cams = initial_cameras.size();
@@ -120,14 +117,12 @@ void validate_input(const std::vector<BundleObservation>& observations,
     }
 }
 
-template<camera_model CameraT>
-BundleResult<CameraT> optimize_bundle(
-    const std::vector<BundleObservation>& observations,
-    const std::vector<CameraT>& initial_cameras,
-    const std::vector<Eigen::Affine3d>& init_g_T_c,
-    const Eigen::Affine3d& init_b_T_t,
-    const BundleOptions& opts)
-{
+template <camera_model CameraT>
+BundleResult<CameraT> optimize_bundle(const std::vector<BundleObservation>& observations,
+                                      const std::vector<CameraT>& initial_cameras,
+                                      const std::vector<Eigen::Affine3d>& init_g_T_c,
+                                      const Eigen::Affine3d& init_b_T_t,
+                                      const BundleOptions& opts) {
     validate_input(observations, initial_cameras);
 
     auto blocks = BundleBlocks<CameraT>::create(initial_cameras, init_g_T_c, init_b_T_t);
@@ -148,17 +143,11 @@ BundleResult<CameraT> optimize_bundle(
 }
 
 template BundleResult<Camera<BrownConradyd>> optimize_bundle(
-    const std::vector<BundleObservation>&,
-    const std::vector<Camera<BrownConradyd>>&,
-    const std::vector<Eigen::Affine3d>&,
-    const Eigen::Affine3d&,
-    const BundleOptions&);
+    const std::vector<BundleObservation>&, const std::vector<Camera<BrownConradyd>>&,
+    const std::vector<Eigen::Affine3d>&, const Eigen::Affine3d&, const BundleOptions&);
 
 template BundleResult<ScheimpflugCamera<BrownConradyd>> optimize_bundle(
-    const std::vector<BundleObservation>&,
-    const std::vector<ScheimpflugCamera<BrownConradyd>>&,
-    const std::vector<Eigen::Affine3d>&,
-    const Eigen::Affine3d&,
-    const BundleOptions&);
+    const std::vector<BundleObservation>&, const std::vector<ScheimpflugCamera<BrownConradyd>>&,
+    const std::vector<Eigen::Affine3d>&, const Eigen::Affine3d&, const BundleOptions&);
 
 }  // namespace calib

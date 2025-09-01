@@ -1,11 +1,10 @@
 #pragma once
 
-#include <type_traits>
 #include <array>
-#include <string_view>
-
 #include <boost/pfr.hpp>
 #include <nlohmann/json.hpp>
+#include <string_view>
+#include <type_traits>
 
 namespace calib {
 
@@ -34,4 +33,3 @@ void from_json(const nlohmann::json& j, T& value) {
 }
 
 }  // namespace calib
-

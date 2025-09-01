@@ -1,0 +1,63 @@
+name: Static Analysis
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev libcli11-dev clang-tidy cppcheck
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Build
+        run: |
+          cmake --build build -j 2
+
+      - name: Run clang-tidy
+        run: |
+          clang-tidy -p build src/*.cpp \
+            --checks="-*,readability-*,performance-*,modernize-*,bugprone-*,clang-analyzer-*" \
+            --header-filter=".*calib.*" \
+            --warnings-as-errors="*" \
+            || (echo "::error::clang-tidy found issues" && exit 1)
+
+      - name: Run cppcheck
+        run: |
+          cppcheck --enable=all --inconclusive --std=c++20 \
+            --suppress=missingIncludeSystem --suppress=unusedFunction --suppress=missingInclude \
+            --error-exitcode=1 \
+            src/ include/ \
+            || (echo "::error::cppcheck found issues" && exit 1)
+
+  format-check:
+    name: Code Formatting
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Check formatting
+        run: |
+          find src include -name "*.cpp" -o -name "*.h" | \
+          xargs clang-format --dry-run --Werror --style=file \
+          || (echo "::error::Code formatting issues found. Run 'clang-format -i src/*.cpp include/calib/*.h' to fix." && exit 1)

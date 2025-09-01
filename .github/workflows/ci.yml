@@ -61,7 +61,8 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           cmake -S . -B "$BUILD_DIR" -G "Ninja" \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: Build (Unix)
         if: runner.os != 'Windows'
@@ -83,7 +84,8 @@ jobs:
           # Configure with MSVC
           cmake -S . -B "$env:BUILD_DIR" -G "Ninja" `
             -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} `
-            -DCMAKE_TOOLCHAIN_FILE="$vcpkgRoot\scripts\buildsystems\vcpkg.cmake"
+            -DCMAKE_TOOLCHAIN_FILE="$vcpkgRoot\scripts\buildsystems\vcpkg.cmake" `
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
       - name: Build (Windows)
         if: runner.os == 'Windows'
@@ -110,3 +112,46 @@ jobs:
         shell: pwsh
         run: |
           ctest --test-dir "$env:BUILD_DIR" -C ${{ matrix.build_type }} --output-on-failure
+
+  coverage:
+    name: Test Coverage
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev libcli11-dev lcov
+
+      - name: Configure with coverage
+        run: |
+          cmake -S . -B build -G "Ninja" \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_CXX_FLAGS="--coverage -fprofile-arcs -ftest-coverage -fprofile-update=atomic" \
+            -DCMAKE_EXE_LINKER_FLAGS="--coverage"
+
+      - name: Build
+        run: |
+          cmake --build build -j 2
+
+      - name: Run tests
+        run: |
+          ctest --test-dir build --output-on-failure
+
+      - name: Generate coverage report
+        run: |
+          lcov --capture --directory build --output-file coverage.info --ignore-errors negative,gcov
+          lcov --remove coverage.info '/usr/*' --output-file coverage.info --ignore-errors negative,gcov
+          lcov --remove coverage.info '*/test/*' --output-file coverage.info --ignore-errors negative,gcov
+          lcov --remove coverage.info '*/build/_deps/*' --output-file coverage.info --ignore-errors negative,gcov
+          lcov --list coverage.info
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false

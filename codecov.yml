@@ -1,0 +1,19 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 80%
+        threshold: 5%
+    patch:
+      default:
+        target: 80%
+
+ignore:
+  - "test/**/*"
+  - "examples/**/*"
+  - "build/**/*"
+  - "app/**/*"
+
+comment:
+  layout: "reach, diff, flags, files"
+  behavior: default

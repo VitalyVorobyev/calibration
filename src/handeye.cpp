@@ -2,21 +2,21 @@
 
 // std
 #include <array>
-#include <vector>
 #include <stdexcept>
+#include <vector>
 
 // ceres
 #include <ceres/ceres.h>
 
+#include "ceresutils.h"
 #include "observationutils.h"
 #include "residuals/handeyeresidual.h"
-#include "ceresutils.h"
 
 namespace calib {
 
 struct HandeyeBlocks final : public ProblemParamBlocks {
-    std::array<double,4> q;
-    std::array<double,3> t;
+    std::array<double, 4> q;
+    std::array<double, 3> t;
 
     static HandeyeBlocks create(const Eigen::Affine3d& X0) {
         HandeyeBlocks b;
@@ -27,7 +27,7 @@ struct HandeyeBlocks final : public ProblemParamBlocks {
     }
 
     std::vector<ParamBlock> get_param_blocks() const override {
-        return { {q.data(), q.size(), 3}, {t.data(), t.size(), 3} };
+        return {{q.data(), q.size(), 3}, {t.data(), t.size(), 3}};
     }
 
     void populate_result(HandeyeResult& res) const {
@@ -41,26 +41,26 @@ struct HandeyeBlocks final : public ProblemParamBlocks {
 };
 
 static ceres::Problem build_problem(const std::vector<MotionPair>& pairs,
-                                    const HandeyeOptions& opts,
-                                    HandeyeBlocks& blocks) {
+                                    const HandeyeOptions& opts, HandeyeBlocks& blocks) {
     ceres::Problem problem;
     for (const auto& mp : pairs) {
         auto* cost = AX_XBResidual::create(mp);
-        ceres::LossFunction* loss = opts.huber_delta > 0 ?
-            static_cast<ceres::LossFunction*>(new ceres::HuberLoss(opts.huber_delta)) : nullptr;
+        ceres::LossFunction* loss =
+            opts.huber_delta > 0
+                ? static_cast<ceres::LossFunction*>(new ceres::HuberLoss(opts.huber_delta))
+                : nullptr;
         problem.AddResidualBlock(cost, loss, blocks.q.data(), blocks.t.data());
     }
     problem.SetManifold(blocks.q.data(), new ceres::QuaternionManifold());
     return problem;
 }
 
-HandeyeResult optimize_handeye(
-    const std::vector<Eigen::Affine3d>& base_T_gripper,
-    const std::vector<Eigen::Affine3d>& camera_T_target,
-    const Eigen::Affine3d& X0,
-    const HandeyeOptions& opts) {
-    auto pairs = build_all_pairs(base_T_gripper, camera_T_target, /*min_angle_deg*/0.5);
-    auto blocks = HandeyeBlocks::create(X0);
+HandeyeResult optimize_handeye(const std::vector<Eigen::Affine3d>& base_T_gripper,
+                               const std::vector<Eigen::Affine3d>& camera_T_target,
+                               const Eigen::Affine3d& init_gripper_T_ref,
+                               const HandeyeOptions& opts) {
+    auto pairs = build_all_pairs(base_T_gripper, camera_T_target, /*min_angle_deg*/ 0.5);
+    auto blocks = HandeyeBlocks::create(init_gripper_T_ref);
     ceres::Problem problem = build_problem(pairs, opts, blocks);
 
     HandeyeResult result;
@@ -76,13 +76,11 @@ HandeyeResult optimize_handeye(
     return result;
 }
 
-HandeyeResult estimate_and_refine_hand_eye(
-    const std::vector<Eigen::Affine3d>& base_T_gripper,
-    const std::vector<Eigen::Affine3d>& camera_T_target,
-    double min_angle_deg,
-    const HandeyeOptions& ro) {
+HandeyeResult estimate_and_refine_hand_eye(const std::vector<Eigen::Affine3d>& base_T_gripper,
+                                           const std::vector<Eigen::Affine3d>& camera_T_target,
+                                           double min_angle_deg, const HandeyeOptions& ro) {
     Eigen::Affine3d X0 = estimate_handeye_dlt(base_T_gripper, camera_T_target, min_angle_deg);
     return optimize_handeye(base_T_gripper, camera_T_target, X0, ro);
 }
 
-} // namespace calib
+}  // namespace calib

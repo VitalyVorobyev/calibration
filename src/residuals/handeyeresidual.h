@@ -9,9 +9,8 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calib/handeye.h"  // MotionPair
-
 #include "../observationutils.h"
+#include "calib/handeye.h"  // MotionPair
 
 namespace calib {
 
@@ -20,8 +19,7 @@ struct AX_XBResidual final {
     Eigen::Matrix3d RA_, RB_;
     Eigen::Vector3d tA_, tB_;
 
-    AX_XBResidual(const MotionPair& mp) :
-        RA_(mp.RA), RB_(mp.RB), tA_(mp.tA), tB_(mp.tB) {}
+    explicit AX_XBResidual(const MotionPair& mp) : RA_(mp.RA), RB_(mp.RB), tA_(mp.tA), tB_(mp.tB) {}
 
     template <typename T>
     bool operator()(const T* const q, const T* const t, T* residuals) const {
@@ -50,8 +48,7 @@ struct AX_XBResidual final {
     }
 
     static auto create(const MotionPair& mp) {
-        return new ceres::AutoDiffCostFunction<AX_XBResidual, 6, 4, 3>(
-            new AX_XBResidual(mp));
+        return new ceres::AutoDiffCostFunction<AX_XBResidual, 6, 4, 3>(new AX_XBResidual(mp));
     }
 };
 

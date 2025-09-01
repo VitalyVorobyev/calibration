@@ -1,17 +1,17 @@
 #pragma once
 
-#include <nlohmann/json.hpp>
 #include <Eigen/Geometry>
+#include <nlohmann/json.hpp>
 #include <vector>
 
+#include "calib/bundle.h"
+#include "calib/camera.h"
 #include "calib/cameramatrix.h"
 #include "calib/distortion.h"
-#include "calib/camera.h"
-#include "calib/planarpose.h"
-#include "calib/intrinsics.h"
 #include "calib/extrinsics.h"
 #include "calib/handeye.h"
-#include "calib/bundle.h"
+#include "calib/intrinsics.h"
+#include "calib/planarpose.h"
 
 namespace calib {
 
@@ -32,8 +32,7 @@ inline Eigen::MatrixXd json_to_eigen_matrix(const nlohmann::json& j) {
     const int cols = rows ? static_cast<int>(j[0].size()) : 0;
     Eigen::MatrixXd m(rows, cols);
     for (int r = 0; r < rows; ++r)
-        for (int c = 0; c < cols; ++c)
-            m(r, c) = j[r][c].get<double>();
+        for (int c = 0; c < cols; ++c) m(r, c) = j[r][c].get<double>();
     return m;
 }
 
@@ -62,8 +61,7 @@ inline nlohmann::json affine_to_json(const Eigen::Affine3d& T) {
 inline Eigen::Affine3d json_to_affine(const nlohmann::json& j) {
     Eigen::Matrix4d m;
     for (int r = 0; r < 4; ++r)
-        for (int c = 0; c < 4; ++c)
-            m(r, c) = j[r][c].get<double>();
+        for (int c = 0; c < 4; ++c) m(r, c) = j[r][c].get<double>();
     Eigen::Affine3d T;
     T.matrix() = m;
     return T;
@@ -97,10 +95,8 @@ inline void from_json(const nlohmann::json& j, CameraMatrix& c) {
 }
 
 inline void to_json(nlohmann::json& j, const DualDistortion& d) {
-    j = {
-        {"forward", eigen_vector_to_json(d.forward)},
-        {"inverse", eigen_vector_to_json(d.inverse)}
-    };
+    j = {{"forward", eigen_vector_to_json(d.forward)},
+         {"inverse", eigen_vector_to_json(d.inverse)}};
 }
 
 inline void from_json(const nlohmann::json& j, DualDistortion& d) {
@@ -109,31 +105,27 @@ inline void from_json(const nlohmann::json& j, DualDistortion& d) {
 }
 
 inline void to_json(nlohmann::json& j, const BrownConradyd& d) {
-    j = {
-        {"coeffs", eigen_vector_to_json(d.coeffs)}
-    };
+    j = {{"coeffs", eigen_vector_to_json(d.coeffs)}};
 }
 
 inline void from_json(const nlohmann::json& j, BrownConradyd& d) {
     if (j.contains("coeffs")) d.coeffs = json_to_eigen_vector(j.at("coeffs"));
 }
 
-template<distortion_model DistortionT>
+template <distortion_model DistortionT>
 inline void to_json(nlohmann::json& j, const Camera<DistortionT>& cam) {
     j = {{"K", cam.K}, {"distortion", cam.distortion}};
 }
 
-template<distortion_model DistortionT>
+template <distortion_model DistortionT>
 inline void from_json(const nlohmann::json& j, Camera<DistortionT>& cam) {
     j.at("K").get_to(cam.K);
     if (j.contains("distortion")) j.at("distortion").get_to(cam.distortion);
 }
 
 inline void to_json(nlohmann::json& j, const PlanarObservation& p) {
-    j = {
-        {"object", {p.object_xy.x(), p.object_xy.y()}},
-        {"image", {p.image_uv.x(), p.image_uv.y()}}
-    };
+    j = {{"object", {p.object_xy.x(), p.object_xy.y()}},
+         {"image", {p.image_uv.x(), p.image_uv.y()}}};
 }
 
 inline void from_json(const nlohmann::json& j, PlanarObservation& p) {
@@ -144,13 +136,11 @@ inline void from_json(const nlohmann::json& j, PlanarObservation& p) {
 }
 
 inline void to_json(nlohmann::json& j, const BundleOptions& o) {
-    j = {
-        {"optimize_intrinsics", o.optimize_intrinsics},
-        {"optimize_skew", o.optimize_skew},
-        {"optimize_target_pose", o.optimize_target_pose},
-        {"optimize_hand_eye", o.optimize_hand_eye},
-        {"verbose", o.verbose}
-    };
+    j = {{"optimize_intrinsics", o.optimize_intrinsics},
+         {"optimize_skew", o.optimize_skew},
+         {"optimize_target_pose", o.optimize_target_pose},
+         {"optimize_hand_eye", o.optimize_hand_eye},
+         {"verbose", o.verbose}};
 }
 
 inline void from_json(const nlohmann::json& j, BundleOptions& o) {
@@ -162,11 +152,7 @@ inline void from_json(const nlohmann::json& j, BundleOptions& o) {
 }
 
 inline void to_json(nlohmann::json& j, const BundleObservation& bo) {
-    j = {
-        {"view", bo.view},
-        {"b_T_g", affine_to_json(bo.b_T_g)},
-        {"camera_index", bo.camera_index}
-    };
+    j = {{"view", bo.view}, {"b_T_g", affine_to_json(bo.b_T_g)}, {"camera_index", bo.camera_index}};
 }
 
 inline void from_json(const nlohmann::json& j, BundleObservation& bo) {
@@ -216,13 +202,11 @@ struct BundleInput final {
 inline void to_json(nlohmann::json& j, const BundleInput& in) {
     nlohmann::json gtc = nlohmann::json::array();
     for (const auto& T : in.init_g_T_c) gtc.push_back(affine_to_json(T));
-    j = {
-        {"observations", in.observations},
-        {"initial_cameras", in.initial_cameras},
-        {"init_g_T_c", gtc},
-        {"init_b_T_t", affine_to_json(in.init_b_T_t)},
-        {"options", in.options}
-    };
+    j = {{"observations", in.observations},
+         {"initial_cameras", in.initial_cameras},
+         {"init_g_T_c", gtc},
+         {"init_b_T_t", affine_to_json(in.init_b_T_t)},
+         {"options", in.options}};
 }
 
 inline void from_json(const nlohmann::json& j, BundleInput& in) {
@@ -237,21 +221,19 @@ inline void from_json(const nlohmann::json& j, BundleInput& in) {
 
 // ----- Result serialization -----
 
-template<camera_model CameraT>
+template <camera_model CameraT>
 inline void to_json(nlohmann::json& j, const IntrinsicsOptimizationResult<CameraT>& r) {
     nlohmann::json pose_arr = nlohmann::json::array();
     for (const auto& T : r.c_T_t) pose_arr.push_back(affine_to_json(T));
-    j = {
-        {"camera", r.camera},
-        {"poses", pose_arr},
-        {"covariance", eigen_matrix_to_json(r.covariance)},
-        {"view_errors", r.view_errors},
-        {"final_cost", r.final_cost},
-        {"report", r.report}
-    };
+    j = {{"camera", r.camera},
+         {"poses", pose_arr},
+         {"covariance", eigen_matrix_to_json(r.covariance)},
+         {"view_errors", r.view_errors},
+         {"final_cost", r.final_cost},
+         {"report", r.report}};
 }
 
-template<camera_model CameraT>
+template <camera_model CameraT>
 inline void from_json(const nlohmann::json& j, IntrinsicsOptimizationResult<CameraT>& r) {
     j.at("camera").get_to(r.camera);
     r.c_T_t.clear();
@@ -263,7 +245,7 @@ inline void from_json(const nlohmann::json& j, IntrinsicsOptimizationResult<Came
     r.report = j.value("report", std::string{});
 }
 
-template<camera_model CameraT>
+template <camera_model CameraT>
 inline void to_json(nlohmann::json& j, const ExtrinsicOptimizationResult<CameraT>& r) {
     nlohmann::json cps = nlohmann::json::array();
     for (const auto& T : r.c_T_r) cps.push_back(affine_to_json(T));
@@ -271,17 +253,15 @@ inline void to_json(nlohmann::json& j, const ExtrinsicOptimizationResult<CameraT
     for (const auto& T : r.r_T_t) tps.push_back(affine_to_json(T));
     nlohmann::json cameras = nlohmann::json::array();
     for (const auto& cam : r.cameras) cameras.push_back(cam);
-    j = {
-        {"cameras", cameras},
-        {"c_T_r", cps},
-        {"r_T_t", tps},
-        {"covariance", eigen_matrix_to_json(r.covariance)},
-        {"final_cost", r.final_cost},
-        {"report", r.report}
-    };
+    j = {{"cameras", cameras},
+         {"c_T_r", cps},
+         {"r_T_t", tps},
+         {"covariance", eigen_matrix_to_json(r.covariance)},
+         {"final_cost", r.final_cost},
+         {"report", r.report}};
 }
 
-template<camera_model CameraT>
+template <camera_model CameraT>
 inline void from_json(const nlohmann::json& j, ExtrinsicOptimizationResult<CameraT>& r) {
     r.c_T_r.clear();
     for (const auto& jt : j.at("c_T_r")) r.c_T_r.push_back(json_to_affine(jt));
@@ -299,14 +279,12 @@ inline void to_json(nlohmann::json& j, const BundleResult<Camera<BrownConradyd>>
     for (const auto& cam : r.cameras) cams.push_back(cam);
     nlohmann::json gtc = nlohmann::json::array();
     for (const auto& T : r.g_T_c) gtc.push_back(affine_to_json(T));
-    j = {
-        {"cameras", cams},
-        {"g_T_c", gtc},
-        {"b_T_t", affine_to_json(r.b_T_t)},
-        {"final_cost", r.final_cost},
-        {"covariance", eigen_matrix_to_json(r.covariance)},
-        {"report", r.report}
-    };
+    j = {{"cameras", cams},
+         {"g_T_c", gtc},
+         {"b_T_t", affine_to_json(r.b_T_t)},
+         {"final_cost", r.final_cost},
+         {"covariance", eigen_matrix_to_json(r.covariance)},
+         {"report", r.report}};
 }
 
 inline void from_json(const nlohmann::json& j, BundleResult<Camera<BrownConradyd>>& r) {
@@ -320,4 +298,4 @@ inline void from_json(const nlohmann::json& j, BundleResult<Camera<BrownConradyd
     r.report = j.value("report", std::string{});
 }
 
-} // namespace calib
+}  // namespace calib

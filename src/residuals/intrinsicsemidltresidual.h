@@ -8,10 +8,9 @@
 // ceres
 #include <ceres/ceres.h>
 
-#include "calib/planarpose.h"
-#include "calib/distortion.h"
-
 #include "../observationutils.h"
+#include "calib/distortion.h"
+#include "calib/planarpose.h"
 
 namespace calib {
 
@@ -27,9 +26,8 @@ struct CalibVPResidual final {
         for (const auto& view : v) total_obs_ += view.size();
     }
 
-    template<typename T>
+    template <typename T>
     bool operator()(T const* const* params, T* residuals) const {
-
         std::vector<Observation<T>> o;
         o.reserve(total_obs_);
 

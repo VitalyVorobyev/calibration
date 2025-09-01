@@ -1,10 +1,10 @@
 #include "calib/intrinsics.h"
 
 // std
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <random>
-#include <cmath>
-#include <algorithm>
 
 // ceres
 #include <ceres/ceres.h>
@@ -19,10 +19,9 @@ namespace calib {
 //   v = fy * y + cy
 // If there are insufficient observations or the design matrix is
 // degenerate, std::nullopt is returned.
-std::optional<CameraMatrix> estimate_intrinsics_linear(
-    const std::vector<Observation<double>>& obs,
-    std::optional<CalibrationBounds> bounds_opt,
-    bool use_skew) {
+std::optional<CameraMatrix> estimate_intrinsics_linear(const std::vector<Observation<double>>& obs,
+                                                       std::optional<CalibrationBounds> bounds_opt,
+                                                       bool use_skew) {
     if (obs.size() < 2) {
         return std::nullopt;
     }
@@ -77,14 +76,13 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(
     CalibrationBounds bounds = bounds_opt.value_or(CalibrationBounds{});
 
     if (use_skew) {
-        if (xu[0] < bounds.fx_min || xv[0] < bounds.fy_min ||
-            xu[0] > bounds.fx_max || xv[0] > bounds.fy_max ||
-            xu[2] < bounds.cx_min || xv[1] < bounds.cy_min ||
-            xu[2] > bounds.cx_max || xv[1] > bounds.cy_max ||
-            xu[1] < bounds.skew_min || xu[1] > bounds.skew_max) {
+        if (xu[0] < bounds.fx_min || xv[0] < bounds.fy_min || xu[0] > bounds.fx_max ||
+            xv[0] > bounds.fy_max || xu[2] < bounds.cx_min || xv[1] < bounds.cy_min ||
+            xu[2] > bounds.cx_max || xv[1] > bounds.cy_max || xu[1] < bounds.skew_min ||
+            xu[1] > bounds.skew_max) {
             std::cerr << "Warning: Linear calibration produced unreasonable intrinsics\n";
-            double avg_u = bu.sum() / obs.size();
-            double avg_v = bv.sum() / obs.size();
+            double avg_u = bu.sum() / static_cast<double>(obs.size());
+            double avg_v = bv.sum() / static_cast<double>(obs.size());
             xu[0] = std::clamp(std::max(500.0, xu[0]), bounds.fx_min, bounds.fx_max);
             xv[0] = std::clamp(std::max(500.0, xv[0]), bounds.fy_min, bounds.fy_max);
             xu[2] = std::clamp(avg_u / 2.0, bounds.cx_min, bounds.cx_max);
@@ -94,13 +92,12 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(
         CameraMatrix K{xu[0], xv[0], xu[2], xv[1], xu[1]};
         return K;
     } else {
-        if (xu[0] < bounds.fx_min || xv[0] < bounds.fy_min ||
-            xu[0] > bounds.fx_max || xv[0] > bounds.fy_max ||
-            xu[1] < bounds.cx_min || xv[1] < bounds.cy_min ||
+        if (xu[0] < bounds.fx_min || xv[0] < bounds.fy_min || xu[0] > bounds.fx_max ||
+            xv[0] > bounds.fy_max || xu[1] < bounds.cx_min || xv[1] < bounds.cy_min ||
             xu[1] > bounds.cx_max || xv[1] > bounds.cy_max) {
             std::cerr << "Warning: Linear calibration produced unreasonable intrinsics\n";
-            double avg_u = bu.sum() / obs.size();
-            double avg_v = bv.sum() / obs.size();
+            double avg_u = bu.sum() / static_cast<double>(obs.size());
+            double avg_v = bv.sum() / static_cast<double>(obs.size());
             xu[0] = std::clamp(std::max(500.0, xu[0]), bounds.fx_min, bounds.fx_max);
             xv[0] = std::clamp(std::max(500.0, xv[0]), bounds.fy_min, bounds.fy_max);
             xu[1] = std::clamp(avg_u / 2.0, bounds.cx_min, bounds.cx_max);
@@ -117,9 +114,7 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(
 // present.  If the initial linear estimate fails, std::nullopt is
 // returned.
 std::optional<Camera<BrownConradyd>> estimate_intrinsics_linear_iterative(
-    const std::vector<Observation<double>>& obs,
-    int num_radial,
-    int max_iterations,
+    const std::vector<Observation<double>>& obs, int num_radial, int max_iterations,
     bool use_skew) {
     auto K_opt = estimate_intrinsics_linear(obs, std::nullopt, use_skew);
     if (!K_opt) {
