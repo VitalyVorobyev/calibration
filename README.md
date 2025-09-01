@@ -1,8 +1,8 @@
 # Calibration Library
 
-[![CI](https://github.com/VitalyVorobyv/calibration/actions/workflows/ci.yml/badge.svg)](https://github.com/VitalyVorobyv/calibration/actions/workflows/ci.yml)
-[![Static Analysis](https://github.com/VitalyVorobyv/calibration/actions/workflows/ci.yml/badge.svg?job=static-analysis)](https://github.com/VitalyVorobyv/calibration/actions/workflows/ci.yml)
-[![Test Coverage](https://codecov.io/gh/VitalyVorobyv/calibration/branch/main/graph/badge.svg)](https://codecov.io/gh/VitalyVorobyv/calibration)
+[![CI](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml/badge.svg)](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml)
+[![Static Analysis](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml/badge.svg?job=static-analysis)](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml)
+[![Test Coverage](https://codecov.io/gh/VitalyVorobyev/calibration/branch/main/graph/badge.svg)](https://codecov.io/gh/VitalyVorobyev/calibration)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENCE)
 [![C++](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 
