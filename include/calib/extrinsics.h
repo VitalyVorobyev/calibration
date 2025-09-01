@@ -34,8 +34,8 @@ struct ExtrinsicPoses final {
  * the views.
  * @return ExtrinsicPoses The estimated extrinsic poses (rotation and translation) for each camera.
  */
-ExtrinsicPoses estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
-                                      const std::vector<Camera<DualDistortion>>& cameras);
+auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
+                            const std::vector<Camera<DualDistortion>>& cameras) -> ExtrinsicPoses;
 
 template <camera_model CameraT>
 struct ExtrinsicOptimizationResult final : public OptimResult {
@@ -51,9 +51,9 @@ struct ExtrinsicOptions final : public OptimOptions {
 };
 
 template <camera_model CameraT>
-ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
+auto optimize_extrinsics(
     const std::vector<MulticamPlanarView>& views, const std::vector<CameraT>& init_cameras,
     const std::vector<Eigen::Affine3d>& init_c_T_r, const std::vector<Eigen::Affine3d>& init_r_T_t,
-    const ExtrinsicOptions& opts = {});
+    const ExtrinsicOptions& opts = {}) -> ExtrinsicOptimizationResult<CameraT>;
 
 }  // namespace calib

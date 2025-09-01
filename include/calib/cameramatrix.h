@@ -27,10 +27,11 @@ struct CameraMatrixT final {
      * @return Eigen::Matrix<T, 2, 1> The normalized 2D coordinate.
      */
     template <typename T>
-    Eigen::Matrix<T, 2, 1> normalize(const Eigen::Matrix<T, 2, 1>& pix) const {
-        T y = (pix.y() - T(cy)) / T(fy);
-        T x = (pix.x() - T(cx) - T(skew) * y) / T(fx);
-        return {x, y};
+    [[nodiscard]]
+    auto normalize(const Eigen::Matrix<T, 2, 1>& pixel) const -> Eigen::Matrix<T, 2, 1> {
+        T y_coord = (pixel.y() - T(cy)) / T(fy);
+        T x_coord = (pixel.x() - T(cx) - T(skew) * y_coord) / T(fx);
+        return {x_coord, y_coord};
     }
 
     /**
@@ -44,8 +45,9 @@ struct CameraMatrixT final {
      * @return Eigen::Matrix<T, 2, 1> The denormalized 2D point in pixel coordinates.
      */
     template <typename T>
-    Eigen::Matrix<T, 2, 1> denormalize(const Eigen::Matrix<T, 2, 1>& xy) const {
-        return {T(fx) * xy.x() + T(skew) * xy.y() + T(cx), T(fy) * xy.y() + T(cy)};
+    [[nodiscard]]
+    auto denormalize(const Eigen::Matrix<T, 2, 1>& norm_xy) const -> Eigen::Matrix<T, 2, 1> {
+        return {T(fx) * norm_xy.x() + T(skew) * norm_xy.y() + T(cx), T(fy) * norm_xy.y() + T(cy)};
     }
 };
 

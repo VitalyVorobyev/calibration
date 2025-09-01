@@ -15,119 +15,113 @@ namespace calib {
 
 using Vec2 = Eigen::Vector2d;
 using Mat3 = Eigen::Matrix3d;
-using Params = std::array<double, 8>;
+using HomographyParams = std::array<double, 8>;
 
 struct HomographyBlocks final : public ProblemParamBlocks {
-    Params h;
+    HomographyParams params;
 
-    static HomographyBlocks create(const Eigen::Matrix3d& init_h) {
-        HomographyBlocks b;
-        b.h = {init_h(0, 0), init_h(0, 1), init_h(0, 2), init_h(1, 0),
-               init_h(1, 1), init_h(1, 2), init_h(2, 0), init_h(2, 1)};
-        return b;
+    static auto create(const Eigen::Matrix3d& init_h) -> HomographyBlocks {
+        HomographyBlocks blocks;
+        blocks.params = {init_h(0, 0), init_h(0, 1), init_h(0, 2), init_h(1, 0),
+                        init_h(1, 1), init_h(1, 2), init_h(2, 0), init_h(2, 1)};
+        return blocks;
     }
 
-    std::vector<ParamBlock> get_param_blocks() const override { return {{h.data(), h.size(), 8}}; }
+    [[nodiscard]]
+    auto get_param_blocks() const -> std::vector<ParamBlock> override { return {{params.data(), params.size(), 8}}; }
 };
 
-static Mat3 params_to_h(const Params& h) {
-    Mat3 H;
-    H << h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1.0;
-    return H;
+static auto params_to_h(const HomographyParams& params) -> Mat3 {
+    Mat3 mat_h;
+    mat_h << params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7], 1.0;
+    return mat_h;
 }
 
 // Normalize points (Hartley): translate to centroid, scale to mean distance sqrt(2).
-static void normalize_points(const std::vector<Vec2>& pts, std::vector<Vec2>& norm_pts, Mat3& T) {
-    norm_pts.resize(pts.size());
-    if (pts.empty()) {
-        T.setIdentity();
+static void normalize_points(const std::vector<Vec2>& points, std::vector<Vec2>& norm_points, Mat3& transform) {
+    norm_points.resize(points.size());
+    if (points.empty()) {
+        transform.setIdentity();
         return;
     }
-
     // Centroid
-    double cx = 0, cy = 0;
-    for (const auto& p : pts) {
-        cx += p.x();
-        cy += p.y();
+    double centroid_x = 0, centroid_y = 0;
+    for (const auto& pt : points) {
+        centroid_x += pt.x();
+        centroid_y += pt.y();
     }
-    cx /= static_cast<double>(pts.size());
-    cy /= static_cast<double>(pts.size());
-
+    centroid_x /= static_cast<double>(points.size());
+    centroid_y /= static_cast<double>(points.size());
     // Mean distance to origin
     double mean_dist = 0.0;
-    for (const auto& p : pts) {
-        double dx = p.x() - cx, dy = p.y() - cy;
+    for (const auto& pt : points) {
+        double dx = pt.x() - centroid_x, dy = pt.y() - centroid_y;
         mean_dist += std::sqrt(dx * dx + dy * dy);
     }
-    mean_dist /= static_cast<double>(pts.size());
-    double s = (mean_dist > 1e-12) ? std::sqrt(2.0) / mean_dist : 1.0;
-
+    mean_dist /= static_cast<double>(points.size());
+    constexpr double kEps = 1e-12;
+    constexpr double kSqrt2 = std::numbers::sqrt2;
+    double scale = (mean_dist > kEps) ? kSqrt2 / mean_dist : 1.0;
     // Similarity transform
-    T << s, 0, -s * cx, 0, s, -s * cy, 0, 0, 1;
-
+    transform << scale, 0, -scale * centroid_x, 0, scale, -scale * centroid_y, 0, 0, 1;
     // Apply
-    for (size_t i = 0; i < pts.size(); ++i) {
-        Eigen::Vector3d ph(pts[i].x(), pts[i].y(), 1.0);
-        Eigen::Vector3d q = T * ph;
-        norm_pts[i] = Vec2(q.x() / q.z(), q.y() / q.z());
+    for (size_t idx = 0; idx < points.size(); ++idx) {
+        Eigen::Vector3d ph(points[idx].x(), points[idx].y(), 1.0);
+        Eigen::Vector3d q = transform * ph;
+        norm_points[idx] = Vec2(q.x() / q.z(), q.y() / q.z());
     }
 }
 
 // DLT initial estimate with normalization
-Mat3 estimate_homography_dlt(const std::vector<Vec2>& src, const std::vector<Vec2>& dst) {
-    const int N = static_cast<int>(src.size());
-    std::vector<Vec2> src_n, dst_n;
-    Mat3 T_src, T_dst;
-    normalize_points(src, src_n, T_src);
-    normalize_points(dst, dst_n, T_dst);
-
+auto estimate_homography_dlt(const std::vector<Vec2>& src, const std::vector<Vec2>& dst) -> Mat3 {
+    const int num_pts = static_cast<int>(src.size());
+    std::vector<Vec2> src_norm, dst_norm;
+    Mat3 transform_src, transform_dst;
+    normalize_points(src, src_norm, transform_src);
+    normalize_points(dst, dst_norm, transform_dst);
     // Build A (2N x 9)
-    Eigen::MatrixXd A(2 * N, 9);
-    for (int i = 0; i < N; ++i) {
-        const double x = src_n[i].x();
-        const double y = src_n[i].y();
-        const double u = dst_n[i].x();
-        const double v = dst_n[i].y();
-
+    Eigen::MatrixXd mat_A(2 * num_pts, 9);
+    for (int idx = 0; idx < num_pts; ++idx) {
+        const double x = src_norm[idx].x();
+        const double y = src_norm[idx].y();
+        const double u = dst_norm[idx].x();
+        const double v = dst_norm[idx].y();
         // Row 2i
-        A(static_cast<Eigen::Index>(2 * i), 0) = 0.0;
-        A(static_cast<Eigen::Index>(2 * i), 1) = 0.0;
-        A(static_cast<Eigen::Index>(2 * i), 2) = 0.0;
-        A(static_cast<Eigen::Index>(2 * i), 3) = -x;
-        A(static_cast<Eigen::Index>(2 * i), 4) = -y;
-        A(static_cast<Eigen::Index>(2 * i), 5) = -1.0;
-        A(static_cast<Eigen::Index>(2 * i), 6) = v * x;
-        A(static_cast<Eigen::Index>(2 * i), 7) = v * y;
-        A(static_cast<Eigen::Index>(2 * i), 8) = v;
-
+        mat_A(static_cast<Eigen::Index>(2 * idx), 0) = 0.0;
+        mat_A(static_cast<Eigen::Index>(2 * idx), 1) = 0.0;
+        mat_A(static_cast<Eigen::Index>(2 * idx), 2) = 0.0;
+        mat_A(static_cast<Eigen::Index>(2 * idx), 3) = -x;
+        mat_A(static_cast<Eigen::Index>(2 * idx), 4) = -y;
+        mat_A(static_cast<Eigen::Index>(2 * idx), 5) = -1.0;
+        mat_A(static_cast<Eigen::Index>(2 * idx), 6) = v * x;
+        mat_A(static_cast<Eigen::Index>(2 * idx), 7) = v * y;
+        mat_A(static_cast<Eigen::Index>(2 * idx), 8) = v;
         // Row 2i+1
-        A(static_cast<Eigen::Index>(2 * i + 1), 0) = x;
-        A(static_cast<Eigen::Index>(2 * i + 1), 1) = y;
-        A(static_cast<Eigen::Index>(2 * i + 1), 2) = 1.0;
-        A(static_cast<Eigen::Index>(2 * i + 1), 3) = 0.0;
-        A(static_cast<Eigen::Index>(2 * i + 1), 4) = 0.0;
-        A(static_cast<Eigen::Index>(2 * i + 1), 5) = 0.0;
-        A(static_cast<Eigen::Index>(2 * i + 1), 6) = -u * x;
-        A(static_cast<Eigen::Index>(2 * i + 1), 7) = -u * y;
-        A(static_cast<Eigen::Index>(2 * i + 1), 8) = -u;
+        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 0) = x;
+        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 1) = y;
+        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 2) = 1.0;
+        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 3) = 0.0;
+        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 4) = 0.0;
+        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 5) = 0.0;
+        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 6) = -u * x;
+        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 7) = -u * y;
+        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 8) = -u;
     }
-
     // Solve Ah = 0, h = last singular vector
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullV);
-    Eigen::VectorXd h = svd.matrixV().col(8);
-    Mat3 Hn;
-    Hn << h(0), h(1), h(2), h(3), h(4), h(5), h(6), h(7), h(8);
-
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(mat_A, Eigen::ComputeFullV);
+    Eigen::VectorXd vec_h = svd.matrixV().col(8);
+    Mat3 mat_Hn;
+    mat_Hn << vec_h(0), vec_h(1), vec_h(2), vec_h(3), vec_h(4), vec_h(5), vec_h(6), vec_h(7), vec_h(8);
     // Denormalize: H = T_dst^{-1} * Hn * T_src
-    Mat3 H = T_dst.inverse() * Hn * T_src;
-
+    Mat3 mat_H = transform_dst.inverse() * mat_Hn * transform_src;
     // Fix scale
-    if (std::abs(H(2, 2)) > 1e-15)
-        H /= H(2, 2);
-    else
-        H /= (H.norm() + 1e-15);
-
-    return H;
+    constexpr double kEps = 1e-15;
+    if (std::abs(mat_H(2, 2)) > kEps) {
+        mat_H /= mat_H(2, 2);
+    } else {
+        mat_H /= (mat_H.norm() + kEps);
+    }
+    return mat_H;
 }
 
 // Ceres residual: maps (x,y) -> (u,v) using H(h) and compares to (u*, v*)
@@ -167,7 +161,7 @@ static ceres::Problem build_problem(const std::vector<Vec2>& src, const std::vec
         problem.AddResidualBlock(
             HomographyResidual::create(src[i].x(), src[i].y(), dst[i].x(), dst[i].y()),
             options.huber_delta > 0 ? new ceres::HuberLoss(options.huber_delta) : nullptr,
-            blocks.h.data());
+            blocks.params.data());
     }
     return problem;
 }
@@ -186,7 +180,7 @@ OptimizeHomographyResult optimize_homography(const std::vector<Vec2>& src,
     OptimizeHomographyResult result;
     solve_problem(problem, options, &result);
 
-    Mat3 H = params_to_h(blocks.h);
+    Mat3 H = params_to_h(blocks.params);
     if (std::abs(H(2, 2)) > 1e-15) H /= H(2, 2);
     result.homography = H;
 

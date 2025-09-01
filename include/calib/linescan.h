@@ -40,7 +40,7 @@ struct LineScanCalibrationResult final {
  * this frame is returned. The plane coefficients are normalised so that
  * ||n|| = 1.
  */
-LineScanCalibrationResult calibrate_laser_plane(const std::vector<LineScanObservation>& views,
-                                                const Camera<DualDistortion>& camera);
+auto calibrate_laser_plane(const std::vector<LineScanObservation>& views,
+                          const Camera<DualDistortion>& camera) -> LineScanCalibrationResult;
 
 }  // namespace calib

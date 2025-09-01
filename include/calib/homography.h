@@ -25,8 +25,8 @@ namespace calib {
  *
  * @note Both src and dst must contain at least 4 points and have the same size.
  */
-Eigen::Matrix3d estimate_homography_dlt(const std::vector<Eigen::Vector2d>& src,
-                                        const std::vector<Eigen::Vector2d>& dst);
+auto estimate_homography_dlt(const std::vector<Eigen::Vector2d>& src,
+                            const std::vector<Eigen::Vector2d>& dst) -> Eigen::Matrix3d;
 
 struct HomographyOptions final : public OptimOptions {};
 
@@ -48,9 +48,9 @@ struct OptimizeHomographyResult final : OptimResult {
  *
  * @note The input vectors `src` and `dst` must have the same size and contain at least four points.
  */
-OptimizeHomographyResult optimize_homography(const std::vector<Eigen::Vector2d>& src,
-                                             const std::vector<Eigen::Vector2d>& dst,
-                                             const Eigen::Matrix3d& init_h,
-                                             const HomographyOptions& options = {});
+auto optimize_homography(const std::vector<Eigen::Vector2d>& src,
+                        const std::vector<Eigen::Vector2d>& dst,
+                        const Eigen::Matrix3d& init_h,
+                        const HomographyOptions& options = {}) -> OptimizeHomographyResult;
 
 }  // namespace calib

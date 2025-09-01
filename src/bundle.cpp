@@ -13,12 +13,12 @@ namespace calib {
 
 template <camera_model CameraT>
 struct BundleBlocks final : public ProblemParamBlocks {
-    static constexpr size_t IntrSize = CameraTraits<CameraT>::param_count;
+    static constexpr size_t kIntrSize = CameraTraits<CameraT>::param_count;
     std::array<double, 4> b_q_t;
     std::array<double, 3> b_t_t;
     std::vector<std::array<double, 4>> g_q_c;
     std::vector<std::array<double, 3>> g_t_c;
-    std::vector<std::array<double, IntrSize>> intr;
+    std::vector<std::array<double, kIntrSize>> intr;
 
     explicit BundleBlocks(size_t numcams)
         : b_q_t{0.0, 0.0, 0.0, 1.0},
@@ -27,25 +27,31 @@ struct BundleBlocks final : public ProblemParamBlocks {
           g_t_c(numcams),
           intr(numcams) {}
 
-    static BundleBlocks create(const std::vector<CameraT>& cameras,
-                               const std::vector<Eigen::Affine3d>& g_T_c,
-                               const Eigen::Affine3d& b_T_t) {
-        const size_t numcams = g_T_c.size();
-        BundleBlocks blocks(numcams);
+    static auto create(const std::vector<CameraT>& cameras,
+                      const std::vector<Eigen::Affine3d>& g_T_c,
+                      const Eigen::Affine3d& b_T_t) -> BundleBlocks {
+        const size_t num_cams = g_T_c.size();
+        BundleBlocks blocks(num_cams);
         populate_quat_tran(b_T_t, blocks.b_q_t, blocks.b_t_t);
-        for (size_t i = 0; i < numcams; ++i) {
-            populate_quat_tran(g_T_c[i], blocks.g_q_c[i], blocks.g_t_c[i]);
-            CameraTraits<CameraT>::to_array(cameras[i], blocks.intr[i]);
+        for (size_t idx = 0; idx < num_cams; ++idx) {
+            populate_quat_tran(g_T_c[idx], blocks.g_q_c[idx], blocks.g_t_c[idx]);
+            CameraTraits<CameraT>::to_array(cameras[idx], blocks.intr[idx]);
         }
         return blocks;
     }
 
-    std::vector<ParamBlock> get_param_blocks() const override {
+    [[nodiscard]]
+    auto get_param_blocks() const -> std::vector<ParamBlock> override {
         std::vector<ParamBlock> blocks;
-        for (const auto& i : intr) blocks.emplace_back(i.data(), i.size(), IntrSize);
-        for (const auto& i : g_q_c)
-            blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
-        for (const auto& i : g_t_c) blocks.emplace_back(i.data(), i.size(), 3);
+        for (const auto& intr_block : intr) {
+            blocks.emplace_back(intr_block.data(), intr_block.size(), kIntrSize);
+        }
+        for (const auto& quat_block : g_q_c) {
+            blocks.emplace_back(quat_block.data(), quat_block.size(), 3);  // 3 dof in unit quaternion
+        }
+        for (const auto& tran_block : g_t_c) {
+            blocks.emplace_back(tran_block.data(), tran_block.size(), 3);
+        }
         blocks.emplace_back(b_q_t.data(), b_q_t.size(), 3);  // 3 dof in unit quaternion
         blocks.emplace_back(b_t_t.data(), b_t_t.size(), 3);
         return blocks;
@@ -56,53 +62,58 @@ struct BundleBlocks final : public ProblemParamBlocks {
         const size_t num_cams = intr.size();
         result.g_T_c.resize(num_cams);
         result.cameras.resize(num_cams);
-
-        for (size_t c = 0; c < num_cams; ++c) {
-            result.g_T_c[c] = restore_pose(g_q_c[c], g_t_c[c]);
-            result.cameras[c] = CameraTraits<CameraT>::template from_array<double>(intr[c].data());
+        for (size_t cam_idx = 0; cam_idx < num_cams; ++cam_idx) {
+            result.g_T_c[cam_idx] = restore_pose(g_q_c[cam_idx], g_t_c[cam_idx]);
+            result.cameras[cam_idx] = CameraTraits<CameraT>::template from_array<double>(intr[cam_idx].data());
         }
     }
 };
 
 template <camera_model CameraT>
-static ceres::Problem build_problem(const std::vector<BundleObservation>& observations,
-                                    const BundleOptions& opts, BundleBlocks<CameraT>& blocks) {
-    ceres::Problem p;
+static auto build_problem(const std::vector<BundleObservation>& observations,
+                         const BundleOptions& opts, BundleBlocks<CameraT>& blocks) -> ceres::Problem {
+    ceres::Problem problem;
     for (const auto& obs : observations) {
-        const size_t cam = obs.camera_index;
-        auto loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
-        p.AddResidualBlock(BundleReprojResidual<CameraT>::create(obs.view, obs.b_T_g), loss,
-                           blocks.b_q_t.data(), blocks.b_t_t.data(), blocks.g_q_c[cam].data(),
-                           blocks.g_t_c[cam].data(), blocks.intr[cam].data());
+        const size_t cam_idx = obs.camera_index;
+        auto* loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
+        problem.AddResidualBlock(BundleReprojResidual<CameraT>::create(obs.view, obs.b_T_g), loss,
+                                blocks.b_q_t.data(), blocks.b_t_t.data(), blocks.g_q_c[cam_idx].data(),
+                                blocks.g_t_c[cam_idx].data(), blocks.intr[cam_idx].data());
     }
 
-    p.SetManifold(blocks.b_q_t.data(), new ceres::QuaternionManifold());
-    for (size_t cam = 0; cam < blocks.g_q_c.size(); ++cam) {
-        p.SetManifold(blocks.g_q_c[cam].data(), new ceres::QuaternionManifold());
+    problem.SetManifold(blocks.b_q_t.data(), new ceres::QuaternionManifold());
+    for (size_t cam_idx = 0; cam_idx < blocks.g_q_c.size(); ++cam_idx) {
+        problem.SetManifold(blocks.g_q_c[cam_idx].data(), new ceres::QuaternionManifold());
     }
 
     if (!opts.optimize_target_pose) {
-        p.SetParameterBlockConstant(blocks.b_q_t.data());
-        p.SetParameterBlockConstant(blocks.b_t_t.data());
+        problem.SetParameterBlockConstant(blocks.b_q_t.data());
+        problem.SetParameterBlockConstant(blocks.b_t_t.data());
     }
     if (!opts.optimize_hand_eye) {
-        for (auto& e : blocks.g_q_c) p.SetParameterBlockConstant(e.data());
-        for (auto& e : blocks.g_t_c) p.SetParameterBlockConstant(e.data());
+        for (auto& quat_block : blocks.g_q_c) {
+            problem.SetParameterBlockConstant(quat_block.data());
+        }
+        for (auto& tran_block : blocks.g_t_c) {
+            problem.SetParameterBlockConstant(tran_block.data());
+        }
     }
     if (!opts.optimize_intrinsics) {
-        for (auto& e : blocks.intr) p.SetParameterBlockConstant(e.data());
+        for (auto& intr_block : blocks.intr) {
+            problem.SetParameterBlockConstant(intr_block.data());
+        }
     } else {
-        for (size_t c = 0; c < blocks.intr.size(); ++c) {
-            p.SetParameterLowerBound(blocks.intr[c].data(), CameraTraits<CameraT>::idx_fx, 0.0);
-            p.SetParameterLowerBound(blocks.intr[c].data(), CameraTraits<CameraT>::idx_fy, 0.0);
+        for (size_t cam_idx = 0; cam_idx < blocks.intr.size(); ++cam_idx) {
+            problem.SetParameterLowerBound(blocks.intr[cam_idx].data(), CameraTraits<CameraT>::idx_fx, 0.0);
+            problem.SetParameterLowerBound(blocks.intr[cam_idx].data(), CameraTraits<CameraT>::idx_fy, 0.0);
             if (!opts.optimize_skew) {
-                p.SetManifold(blocks.intr[c].data(),
-                              new ceres::SubsetManifold(BundleBlocks<CameraT>::IntrSize,
-                                                        {CameraTraits<CameraT>::idx_skew}));
+                problem.SetManifold(blocks.intr[cam_idx].data(),
+                                   new ceres::SubsetManifold(BundleBlocks<CameraT>::kIntrSize,
+                                                            {CameraTraits<CameraT>::idx_skew}));
             }
         }
     }
-    return p;
+    return problem;
 }
 
 template <camera_model CameraT>
