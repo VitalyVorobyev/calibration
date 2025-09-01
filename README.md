@@ -6,10 +6,11 @@ A C++ library for camera calibration and vision-related geometric transformation
 
 ## Features
 
-- Camera intrinsic and extrinsic calibration from planar targets
-- Distortion correction utilities
-- Hand-eye calibration with bundle adjustment (single or multi-camera)
-- Support for various camera models
+- Intrinsic and extrinsic calibration from planar targets
+- Hand-eye calibration with bundle adjustment
+- Homography and planar pose refinement utilities
+- Support for multiple camera models, including Scheimpflug projection
+- Unified optimisation interface with covariance estimation
 - JSON configuration import/export
 - Automatic JSON serialization for aggregate types
 
@@ -79,35 +80,33 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release `
 cmake --build build --config Release -j2
 ```
 
-## Usage *TODO: update this section*
+## Usage
 
-The library exposes lightweight C++ APIs.  The most common entry points are:
+The library exposes lightweight C++ APIs with a common optimisation interface.
+Typical entry points include:
 
-- `calibrate_camera_planar` – full camera calibration from several planar views.
-- `optimize_planar_pose` – single planar pose refinement.
-- `calibrate_hand_eye` – bundle adjustment for hand‑eye calibration.
+- `optimize_intrinsics` – refine camera intrinsics and poses from planar views
+- `optimize_extrinsics` – calibrate camera poses relative to a target
+- `optimize_handeye` – refine gripper→camera transform from motion pairs
+- `optimize_planar_pose` – estimate single planar pose with distortion
 
 Example for hand‑eye calibration:
 
 ```cpp
-#include <calibration/handeye.h>
+#include <calib/handeye.h>
 using namespace calib;
 
-std::vector<HandEyeObservation> observations = ...; // fill with data
-std::vector<CameraMatrix> intrinsics = ...;         // initial intrinsics
-Eigen::Affine3d hand_eye_guess = ...;               // gripper->reference camera
-std::vector<Eigen::Affine3d> extrinsics = ...;      // reference->camera (for cams>0)
+std::vector<Eigen::Affine3d> base_T_gripper = ...;
+std::vector<Eigen::Affine3d> camera_T_target = ...;
+Eigen::Affine3d guess = ...; // initial gripper->camera transform
 
-HandEyeOptions opts; // customise which parameters to optimise
-HandEyeResult result = calibrate_hand_eye(observations, intrinsics,
-                                          hand_eye_guess, extrinsics,
-                                          Eigen::Affine3d::Identity(), opts);
+HandeyeOptions opts;
+auto result = optimize_handeye(base_T_gripper, camera_T_target, guess, opts);
+if (result.success) {
+    std::cout << result.report << std::endl;
+    std::cout << "Estimated transform:\n" << result.g_T_c.matrix() << std::endl;
+}
 ```
-
-The first camera in `intrinsics` is treated as the reference camera.  The
-`hand_eye_guess` specifies the gripper pose relative to this camera.  For any
-additional cameras, provide their poses relative to the reference camera via
-`extrinsics`.
 
 ### Command-line tool
 

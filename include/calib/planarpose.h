@@ -6,6 +6,7 @@
 #include <Eigen/Geometry>
 
 #include "calib/cameramatrix.h"
+#include "calib/optimize.h"
 
 namespace calib {
 
@@ -27,20 +28,20 @@ Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj
 Eigen::Affine3d estimate_planar_pose_dlt(const PlanarView& obs,
                                          const CameraMatrix& intrinsics);
 
-struct PlanarPoseFitResult {
-    Eigen::Affine3d pose;
-    Eigen::VectorXd distortion;
-    Eigen::Matrix<double, 6, 6> covariance;  // Covariance matrix of axis-and-angle and translation
-    double reprojection_error;
-    std::string summary;  // Summary of optimization results
+struct PlanarPoseOptions final : public OptimOptions {
+    int num_radial = 2; ///< Number of radial distortion coefficients
 };
 
-PlanarPoseFitResult optimize_planar_pose(
+struct PlanarPoseResult final : public OptimResult {
+    Eigen::Affine3d pose;        ///< Estimated pose of the plane
+    Eigen::VectorXd distortion;  ///< Estimated distortion coefficients
+    double reprojection_error = 0.0; ///< RMS reprojection error
+};
+
+PlanarPoseResult optimize_planar_pose(
     const std::vector<Eigen::Vector2d>& obj_xy,
     const std::vector<Eigen::Vector2d>& img_uv,
     const CameraMatrix& intrinsics,
-    int num_radial = 2,
-    bool verbose = false
-);
+    const PlanarPoseOptions& opts = {});
 
 }  // namespace calib

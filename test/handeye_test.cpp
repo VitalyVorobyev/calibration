@@ -128,12 +128,13 @@ TEST(CeresAXXBRefine, ImprovesOverInitializer) {
     double err0_rot = rad2deg(rotation_angle(X0.linear().transpose()*X_gt.linear()));
     double err0_tr  = (X0.translation() - X_gt.translation()).norm();
 
-    RefinementOptions ro;
+    HandeyeOptions ro;
     ro.max_iterations = 60;
     ro.huber_delta = 1.0;
     ro.verbose = false;
 
-    Eigen::Affine3d Xr = optimize_handeye(base_T_gripper, camera_T_target, X0, ro);
+    auto res = optimize_handeye(base_T_gripper, camera_T_target, X0, ro);
+    Eigen::Affine3d Xr = res.g_T_c;
 
     double err1_rot = rad2deg(rotation_angle(Xr.linear().transpose()*X_gt.linear()));
     double err1_tr  = (Xr.translation() - X_gt.translation()).norm();

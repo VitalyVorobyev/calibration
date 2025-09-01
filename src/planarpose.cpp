@@ -3,6 +3,7 @@
 // std
 #include <algorithm>
 #include <numeric>
+#include <array>
 
 // ceres
 #include <ceres/ceres.h>
@@ -12,6 +13,7 @@
 #include "calib/distortion.h"
 
 #include "observationutils.h"
+#include "ceresutils.h"
 
 namespace calib {
 
@@ -87,6 +89,13 @@ Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
+struct PlanarPoseBlocks final : public ProblemParamBlocks {
+    std::array<double,6> pose6;
+    std::vector<ParamBlock> get_param_blocks() const override {
+        return { {pose6.data(), pose6.size(), 6} };
+    }
+};
+
 // Residual functor used with AutoDiffCostFunction for planar pose
 // estimation.  For a given pose (angle-axis + translation) it builds the
 // variable projection system to eliminate distortion coefficients.
@@ -143,82 +152,53 @@ static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
     return transform;
 }
 
-PlanarPoseFitResult optimize_planar_pose(
+PlanarPoseResult optimize_planar_pose(
     const std::vector<Eigen::Vector2d>& obj_xy,
     const std::vector<Eigen::Vector2d>& img_uv,
     const CameraMatrix& intrinsics,
-    int num_radial,
-    bool verbose
-) {
-    PlanarPoseFitResult result;
+    const PlanarPoseOptions& opts) {
+    PlanarPoseResult result;
 
-    // Step 1: Estimate initial pose using DLT
     auto init_pose = estimate_planar_pose_dlt(obj_xy, img_uv, intrinsics);
-
-    // Step 2: Optimize pose using non-linear least squares
-    Pose6 pose6;
-    ceres::RotationMatrixToAngleAxis(reinterpret_cast<const double*>(init_pose.rotation().data()), pose6.data());
-    pose6[3] = init_pose.translation().x();
-    pose6[4] = init_pose.translation().y();
-    pose6[5] = init_pose.translation().z();
+    PlanarPoseBlocks blocks;
+    ceres::RotationMatrixToAngleAxis(reinterpret_cast<const double*>(init_pose.rotation().data()), blocks.pose6.data());
+    blocks.pose6[3] = init_pose.translation().x();
+    blocks.pose6[4] = init_pose.translation().y();
+    blocks.pose6[5] = init_pose.translation().z();
 
     PlanarView view(obj_xy.size());
     std::transform(obj_xy.begin(), obj_xy.end(), img_uv.begin(), view.begin(),
-        [](const Eigen::Vector2d& xy, const Eigen::Vector2d& uv) {
-            return PlanarObservation{xy, uv};
-        });
+        [](const Eigen::Vector2d& xy, const Eigen::Vector2d& uv) { return PlanarObservation{xy, uv}; });
 
-    ceres::Problem p;
-    auto* functor = new PlanarPoseVPResidual(view, num_radial, intrinsics);
-    auto* cost = new ceres::AutoDiffCostFunction<PlanarPoseVPResidual,
-                                                 ceres::DYNAMIC, 6>(functor,
-                                                                    static_cast<int>(view.size()) * 2);
-    p.AddResidualBlock(cost, /*loss=*/nullptr, pose6.data());
+    auto* functor = new PlanarPoseVPResidual(view, opts.num_radial, intrinsics);
+    auto* cost = new ceres::AutoDiffCostFunction<PlanarPoseVPResidual, ceres::DYNAMIC, 6>(
+        functor, static_cast<int>(view.size()) * 2);
 
-    ceres::Solver::Options opts;
-    opts.linear_solver_type = ceres::DENSE_QR;
-    opts.minimizer_progress_to_stdout = verbose;
-    opts.function_tolerance = 1e-12;
-    opts.gradient_tolerance = 1e-12;
-    opts.parameter_tolerance = 1e-12;
+    ceres::Problem problem;
+    problem.AddResidualBlock(cost,
+                             opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr,
+                             blocks.pose6.data());
 
-    ceres::Solver::Summary sum;
-    ceres::Solve(opts, &p, &sum);
-    result.summary = sum.BriefReport();
+    solve_problem(problem, opts, &result);
 
-    // Best-fit distortion for the refined pose (if you want it)
-    result.distortion = functor->SolveDistortionFor(pose6); // [k1..kK, p1, p2]
-
-    // Residual stats & covariance (6x6 on pose)
+    // Compute residuals for statistics and covariance
     const int m = static_cast<int>(view.size()) * 2;
-    std::vector<double> r(m);
-
-    const double* parameter_blocks[] = {pose6.data()};
-    cost->Evaluate(parameter_blocks, r.data(), nullptr);
-
+    std::vector<double> residuals(m);
+    const double* parameter_blocks[] = {blocks.pose6.data()};
+    cost->Evaluate(parameter_blocks, residuals.data(), nullptr);
     double ssr = 0.0;
-    for (double e : r) ssr += e*e;
-    const int dof = std::max(1, m - 6);
-    const double sigma2 = ssr / dof;
+    for (double r : residuals) ssr += r * r;
     result.reprojection_error = std::sqrt(ssr / m);
 
-    // Covariance block on pose
-    ceres::Covariance::Options copt;
-    ceres::Covariance cov(copt);
-    std::vector<std::pair<const double*, const double*>> blocks = { {pose6.data(), pose6.data()} };
-    if (!cov.Compute(blocks, &p)) {
-        std::cerr << "Covariance computation failed.\n";
-        return result;
+    if (opts.compute_covariance) {
+        auto optcov = compute_covariance(blocks, problem, residuals.size(), ssr);
+        if (optcov.has_value()) {
+            result.covariance = std::move(optcov.value());
+        }
     }
 
-    double Cov6x6[36];
-    cov.GetCovarianceBlock(pose6.data(), pose6.data(), Cov6x6);
-
-    // Scale by residual variance (unit weights)
-    Eigen::Map<Eigen::Matrix<double, 6, 6>> Cpose(Cov6x6);
-    Cpose *= sigma2;
-    result.covariance = Cpose;
-    result.pose = axisangle_to_pose(pose6);
+    result.pose = axisangle_to_pose(Eigen::Map<const Pose6>(blocks.pose6.data()));
+    result.distortion = functor->SolveDistortionFor(Eigen::Map<const Pose6>(blocks.pose6.data()));
 
     return result;
 }

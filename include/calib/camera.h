@@ -65,6 +65,9 @@ public:
 template<distortion_model DistortionT>
 struct CameraTraits<Camera<DistortionT>> {
     static constexpr size_t param_count = 10;
+    static constexpr int idx_fx = 0;   ///< Index of focal length in x
+    static constexpr int idx_fy = 1;   ///< Index of focal length in y
+    static constexpr int idx_skew = 4; ///< Index of skew parameter
 
     template<typename T>
     static Camera<BrownConrady<T>> from_array(const T* intr) {

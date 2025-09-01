@@ -96,11 +96,12 @@ static ceres::Problem build_problem(
         for (auto& e : blocks.intr) p.SetParameterBlockConstant(e.data());
     } else {
         for (size_t c = 0; c < blocks.intr.size(); ++c) {
-            p.SetParameterLowerBound(blocks.intr[c].data(), 0, 0.0);
-            p.SetParameterLowerBound(blocks.intr[c].data(), 1, 0.0);
+            p.SetParameterLowerBound(blocks.intr[c].data(), CameraTraits<CameraT>::idx_fx, 0.0);
+            p.SetParameterLowerBound(blocks.intr[c].data(), CameraTraits<CameraT>::idx_fy, 0.0);
             if (!opts.optimize_skew) {
-                // TODO: get skew index from camera traits!
-                p.SetManifold(blocks.intr[c].data(), new ceres::SubsetManifold(BundleBlocks<CameraT>::IntrSize, {4}));
+                p.SetManifold(blocks.intr[c].data(),
+                              new ceres::SubsetManifold(BundleBlocks<CameraT>::IntrSize,
+                                                        {CameraTraits<CameraT>::idx_skew}));
             }
         }
     }

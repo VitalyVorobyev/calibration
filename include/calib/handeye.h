@@ -9,6 +9,7 @@
 #include <Eigen/Geometry>
 
 #include "calib/planarpose.h"
+#include "calib/optimize.h"
 
 namespace calib {
 
@@ -58,10 +59,10 @@ Eigen::Affine3d estimate_handeye_dlt(
     const std::vector<Eigen::Affine3d>& camera_T_target,
     double min_angle_deg = 1.0);
 
-struct RefinementOptions final {
-    double huber_delta = 1.0; // robust loss for residuals (radians & meters in same block)
-    int max_iterations = 50;
-    bool verbose = false;
+struct HandeyeOptions final : public OptimOptions {};
+
+struct HandeyeResult final : public OptimResult {
+    Eigen::Affine3d g_T_c; ///< Estimated hand-eye transform (gripper -> camera)
 };
 
 /**
@@ -83,11 +84,11 @@ struct RefinementOptions final {
  *             an empty set of options.
  * @return The refined hand-eye transformation as an Eigen::Affine3d object.
  */
-Eigen::Affine3d optimize_handeye(
+HandeyeResult optimize_handeye(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
     const std::vector<Eigen::Affine3d>& camera_T_target,
     const Eigen::Affine3d& init_gripper_T_ref,
-    const RefinementOptions& opts = {});
+    const HandeyeOptions& opts = {});
 
 
 /**
@@ -109,10 +110,10 @@ Eigen::Affine3d optimize_handeye(
  *
  * @return The estimated hand-eye transformation as an Eigen::Affine3d object.
  */
-Eigen::Affine3d estimate_and_refine_hand_eye(
+HandeyeResult estimate_and_refine_hand_eye(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
     const std::vector<Eigen::Affine3d>& camera_T_target,
     double min_angle_deg = 1.0,
-    const RefinementOptions& ro = {});
+    const HandeyeOptions& ro = {});
 
 }  // namespace calib

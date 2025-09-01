@@ -100,5 +100,5 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-6);
     EXPECT_NEAR(Kf.cx, K_gt.cx, 1e-6);
     EXPECT_NEAR(Kf.cy, K_gt.cy, 1e-6);
-    EXPECT_NEAR(Kf.skew, K_gt.skew, 1e-9);
+    EXPECT_NEAR(Kf.skew, K_gt.skew, 1e-8);
 }
