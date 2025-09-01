@@ -92,30 +92,24 @@ static ceres::Problem build_problem(
         }
     }
 
-    for (auto& c_q_r : blocks.c_q_r) {
-        p.SetManifold(c_q_r.data(), new ceres::QuaternionManifold());
-    }
-    for (auto& r_q_t : blocks.r_q_t) {
-        p.SetManifold(r_q_t.data(), new ceres::QuaternionManifold());
-    }
+    for (auto& c_q_r : blocks.c_q_r) p.SetManifold(c_q_r.data(), new ceres::QuaternionManifold());
+    for (auto& r_q_t : blocks.r_q_t) p.SetManifold(r_q_t.data(), new ceres::QuaternionManifold());
 
     if (!options.optimize_intrinsics) {
-        for (auto& intr : blocks.intr) {
-            p.SetParameterBlockConstant(intr.data());
-        }
+        for (auto& intr : blocks.intr) p.SetParameterBlockConstant(intr.data());
     }
 
     if (!options.optimize_extrinsics) {
-        for (auto& c_q_r : blocks.c_q_r) {
-            p.SetParameterBlockConstant(c_q_r.data());
-        }
-        for (auto& r_q_t : blocks.r_q_t) {
-            p.SetParameterBlockConstant(r_q_t.data());
-        }
+        for (auto& c_q_r : blocks.c_q_r) p.SetParameterBlockConstant(c_q_r.data());
+        for (auto& r_q_t : blocks.r_q_t) p.SetParameterBlockConstant(r_q_t.data());
     }
 
+    static constexpr size_t IntrSize = CameraTraits<CameraT>::param_count;
     if (!options.optimize_skew) {
         // TODO: figure out how to handle different camera models
+        for (auto& intr : blocks.intr) {
+            p.SetManifold(intr.data(), new ceres::SubsetManifold(IntrSize, {4}));
+        }
     }
 
     return p;

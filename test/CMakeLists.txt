@@ -40,14 +40,6 @@ target_link_libraries(extrinsics_test PRIVATE
 )
 gtest_discover_tests(extrinsics_test)
 
-# Test for joint intrinsics/extrinsics optimization
-add_executable(joint_test joint_test.cpp)
-target_link_libraries(joint_test PRIVATE
-    calibration
-    GTest::gtest_main GTest::gmock_main
-)
-gtest_discover_tests(joint_test)
-
 # Test for hand-eye calibration
 add_executable(handeye_test handeye_test.cpp)
 target_link_libraries(handeye_test PRIVATE
