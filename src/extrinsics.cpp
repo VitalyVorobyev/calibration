@@ -98,14 +98,12 @@ static ceres::Problem build_problem(
     if (!options.optimize_intrinsics) {
         for (auto& intr : blocks.intr) p.SetParameterBlockConstant(intr.data());
     } else {
-       std::cerr << "Fixing first target pose for scale" << std::endl;
         if (!blocks.r_q_t.empty()) {
             p.SetParameterBlockConstant(blocks.r_q_t[0].data());
             p.SetParameterBlockConstant(blocks.r_t_t[0].data());
         }
     }
 
-    std::cout << "Number of cameras: " << cameras.size() << std::endl;
     if (!options.optimize_extrinsics) {
         for (auto& c_q_r : blocks.c_q_r) p.SetParameterBlockConstant(c_q_r.data());
         for (auto& c_t_r : blocks.c_t_r) p.SetParameterBlockConstant(c_t_r.data());
@@ -119,10 +117,12 @@ static ceres::Problem build_problem(
     }
 
     static constexpr size_t IntrSize = CameraTraits<CameraT>::param_count;
-    if (!options.optimize_skew) {
-        // TODO: figure out how to handle different camera models
-        for (auto& intr : blocks.intr) {
-            p.SetManifold(intr.data(), new ceres::SubsetManifold(IntrSize, {4}));
+    for (auto& intr : blocks.intr) {
+        p.SetParameterLowerBound(intr.data(), CameraTraits<CameraT>::idx_fx, 0.0);
+        p.SetParameterLowerBound(intr.data(), CameraTraits<CameraT>::idx_fy, 0.0);
+        if (!options.optimize_skew) {
+            p.SetManifold(intr.data(),
+                          new ceres::SubsetManifold(IntrSize, {CameraTraits<CameraT>::idx_skew}));
         }
     }
 

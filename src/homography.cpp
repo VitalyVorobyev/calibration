@@ -17,6 +17,22 @@ using Vec2 = Eigen::Vector2d;
 using Mat3 = Eigen::Matrix3d;
 using Params = std::array<double, 8>;
 
+struct HomographyBlocks final : public ProblemParamBlocks {
+    Params h;
+
+    static HomographyBlocks create(const Eigen::Matrix3d& init_h) {
+        HomographyBlocks b;
+        b.h = {init_h(0,0), init_h(0,1), init_h(0,2),
+               init_h(1,0), init_h(1,1), init_h(1,2),
+               init_h(2,0), init_h(2,1)};
+        return b;
+    }
+
+    std::vector<ParamBlock> get_param_blocks() const override {
+        return { {h.data(), h.size(), 8} };
+    }
+};
+
 static Mat3 params_to_h(const Params& h) {
     Mat3 H;
     H << h[0], h[1], h[2],
@@ -153,15 +169,16 @@ struct HomographyResidual {
     }
 };
 
-ceres::Problem build_problem(const std::vector<Vec2>& src,
-                             const std::vector<Vec2>& dst,
-                             const OptimOptions& options, Params& h) {
+static ceres::Problem build_problem(const std::vector<Vec2>& src,
+                                    const std::vector<Vec2>& dst,
+                                    const HomographyOptions& options,
+                                    HomographyBlocks& blocks) {
     ceres::Problem problem;
     for (size_t i = 0; i < src.size(); ++i) {
         problem.AddResidualBlock(
             HomographyResidual::create(src[i].x(), src[i].y(), dst[i].x(), dst[i].y()),
             options.huber_delta > 0 ? new ceres::HuberLoss(options.huber_delta) : nullptr,
-            h.data());
+            blocks.h.data());
     }
     return problem;
 }
@@ -169,29 +186,35 @@ ceres::Problem build_problem(const std::vector<Vec2>& src,
 OptimizeHomographyResult optimize_homography(const std::vector<Vec2>& src,
                                              const std::vector<Vec2>& dst,
                                              const Eigen::Matrix3d& init_h,
-                                             const OptimOptions& options)
+                                             const HomographyOptions& options)
 {
     if (src.size() < 4 || src.size() != dst.size()) {
         throw std::invalid_argument("At least 4 correspondences are required.");
     }
 
-    // Convert to 8-parameter vector with H22 fixed to 1
-    Params h = {
-        init_h(0,0), init_h(0,1), init_h(0,2),
-        init_h(1,0), init_h(1,1), init_h(1,2),
-        init_h(2,0), init_h(2,1)
-    };
-
-    ceres::Problem problem = build_problem(src, dst, options, h);
+    auto blocks = HomographyBlocks::create(init_h);
+    ceres::Problem problem = build_problem(src, dst, options, blocks);
 
     OptimizeHomographyResult result;
     solve_problem(problem, options, &result);
 
-    // Reconstruct H and normalize scale
-    Mat3 H = params_to_h(h);
+    Mat3 H = params_to_h(blocks.h);
     if (std::abs(H(2, 2)) > 1e-15) H /= H(2, 2);
-
     result.homography = H;
+
+    if (options.compute_covariance) {
+        std::vector<double> residuals(src.size() * 2);
+        ceres::Problem::EvaluateOptions evopts;
+        evopts.residuals = &residuals;
+        problem.Evaluate(evopts, nullptr, &residuals, nullptr, nullptr);
+        double ssr = 0.0;
+        for (double r : residuals) ssr += r * r;
+        auto optcov = compute_covariance(blocks, problem, residuals.size(), ssr);
+        if (optcov.has_value()) {
+            result.covariance = std::move(optcov.value());
+        }
+    }
+
     return result;
 }
 

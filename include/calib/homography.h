@@ -28,6 +28,8 @@ namespace calib {
 Eigen::Matrix3d estimate_homography_dlt(const std::vector<Eigen::Vector2d>& src,
                                         const std::vector<Eigen::Vector2d>& dst);
 
+struct HomographyOptions final : public OptimOptions {};
+
 struct OptimizeHomographyResult final : OptimResult {
     Eigen::Matrix3d homography;
 };
@@ -48,6 +50,6 @@ struct OptimizeHomographyResult final : OptimResult {
 OptimizeHomographyResult optimize_homography(const std::vector<Eigen::Vector2d>& src,
                                              const std::vector<Eigen::Vector2d>& dst,
                                              const Eigen::Matrix3d& init_h,
-                                             const OptimOptions& options=OptimOptions());
+                                             const HomographyOptions& options = {});
 
 }  // namespace calib

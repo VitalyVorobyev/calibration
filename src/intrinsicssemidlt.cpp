@@ -117,19 +117,21 @@ static ceres::Problem build_problem(
 
     if (opts.bounds.has_value()) {
         CalibrationBounds bounds = opts.bounds.value_or(CalibrationBounds{});
-        problem.SetParameterLowerBound(blocks.intrinsics.data(), 0, bounds.fx_min);
-        problem.SetParameterLowerBound(blocks.intrinsics.data(), 1, bounds.fy_min);
+        using Traits = CameraTraits<Camera<BrownConradyd>>;
+        problem.SetParameterLowerBound(blocks.intrinsics.data(), Traits::idx_fx, bounds.fx_min);
+        problem.SetParameterLowerBound(blocks.intrinsics.data(), Traits::idx_fy, bounds.fy_min);
         problem.SetParameterLowerBound(blocks.intrinsics.data(), 2, bounds.cx_min);
         problem.SetParameterLowerBound(blocks.intrinsics.data(), 3, bounds.cy_min);
-        problem.SetParameterLowerBound(blocks.intrinsics.data(), 4, bounds.skew_min);
-        problem.SetParameterUpperBound(blocks.intrinsics.data(), 4, bounds.skew_max);
-        problem.SetParameterUpperBound(blocks.intrinsics.data(), 0, bounds.fx_max);
-        problem.SetParameterUpperBound(blocks.intrinsics.data(), 1, bounds.fy_max);
+        problem.SetParameterLowerBound(blocks.intrinsics.data(), Traits::idx_skew, bounds.skew_min);
+        problem.SetParameterUpperBound(blocks.intrinsics.data(), Traits::idx_skew, bounds.skew_max);
+        problem.SetParameterUpperBound(blocks.intrinsics.data(), Traits::idx_fx, bounds.fx_max);
+        problem.SetParameterUpperBound(blocks.intrinsics.data(), Traits::idx_fy, bounds.fy_max);
         problem.SetParameterUpperBound(blocks.intrinsics.data(), 2, bounds.cx_max);
         problem.SetParameterUpperBound(blocks.intrinsics.data(), 3, bounds.cy_max);
     }
     if (!opts.optimize_skew) {
-        problem.SetManifold(blocks.intrinsics.data(), new ceres::SubsetManifold(5, {4}));
+        problem.SetManifold(blocks.intrinsics.data(),
+                            new ceres::SubsetManifold(5, {CameraTraits<Camera<BrownConradyd>>::idx_skew}));
     }
 
     return problem;

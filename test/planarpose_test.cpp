@@ -243,7 +243,9 @@ TEST(PlanarPoseTest, OptimizePlanarPose) {
     ASSERT_EQ(obj_points.size(), img_points.size());
 
     // Optimize the pose
-    PlanarPoseFitResult result = optimize_planar_pose(obj_points, img_points, intrinsics, 0, false);
+    PlanarPoseOptions opts;
+    opts.num_radial = 0;
+    PlanarPoseResult result = optimize_planar_pose(obj_points, img_points, intrinsics, opts);
 
     // Check if optimization was successful
     EXPECT_LT(result.reprojection_error, 1e-3);
@@ -324,7 +326,9 @@ TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
     ASSERT_EQ(obj_points.size(), img_points.size());
 
     // Optimize the pose with distortion
-    PlanarPoseFitResult result = optimize_planar_pose(obj_points, img_points, intrinsics, 1, false);
+    PlanarPoseOptions opts;
+    opts.num_radial = 1;
+    PlanarPoseResult result = optimize_planar_pose(obj_points, img_points, intrinsics, opts);
 
     // Check if optimization was successful
     EXPECT_LT(result.reprojection_error, 1e-2);
@@ -388,7 +392,9 @@ TEST(PlanarPoseTest, BasicOptimizePlanarPoseTest) {
 
     // Try to optimize the pose (minimal test - just check it doesn't crash)
     try {
-        PlanarPoseFitResult result = optimize_planar_pose(obj_points, img_points, intrinsics, 0, false);
+        PlanarPoseOptions opts;
+        opts.num_radial = 0;
+        PlanarPoseResult result = optimize_planar_pose(obj_points, img_points, intrinsics, opts);
         // Test passed if we get here
         SUCCEED() << "Optimization ran without crashing";
     } catch (const std::exception& e) {

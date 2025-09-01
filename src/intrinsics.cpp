@@ -72,8 +72,12 @@ static ceres::Problem build_problem(
         p.SetManifold(c_q_t.data(), new ceres::QuaternionManifold());
     }
 
+    p.SetParameterLowerBound(blocks.intr.data(), CameraTraits<CameraT>::idx_fx, 0.0);
+    p.SetParameterLowerBound(blocks.intr.data(), CameraTraits<CameraT>::idx_fy, 0.0);
     if (!opts.optimize_skew) {
-        // TODO: figure out how to handle different camera models
+        p.SetManifold(blocks.intr.data(),
+                      new ceres::SubsetManifold(IntrinsicBlocks<CameraT>::IntrSize,
+                                                {CameraTraits<CameraT>::idx_skew}));
     }
 
     return p;

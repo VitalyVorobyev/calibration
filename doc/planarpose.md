@@ -10,8 +10,7 @@ camera from pixel observations.
 * **Direct DLT Pose** – `estimate_planar_pose_dlt` forms a homography from
   object and image points using the camera matrix and decomposes it to a pose.
 * **Non-linear Refinement** – `optimize_planar_pose` jointly estimates target
-  pose and lens distortion by minimising reprojection error and returns
-  covariance information.
+  pose and lens distortion using least-squares with covariance estimation.
 
 ## API
 
@@ -23,10 +22,9 @@ Eigen::Affine3d estimate_planar_pose_dlt(
     const std::vector<Eigen::Vector2d>& img_uv,
     const CameraMatrix& intrinsics);
 
-PlanarPoseFitResult optimize_planar_pose(
+PlanarPoseResult optimize_planar_pose(
     const std::vector<Eigen::Vector2d>& obj_xy,
     const std::vector<Eigen::Vector2d>& img_uv,
     const CameraMatrix& intrinsics,
-    int num_radial = 2,
-    bool verbose = false);
+    const PlanarPoseOptions& opts = {});
 ```
