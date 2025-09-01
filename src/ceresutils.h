@@ -28,7 +28,7 @@ static const std::map<OptimizerType, ceres::LinearSolverType> optim_to_ceres = {
 inline void solve_problem(ceres::Problem& p, const OptimOptions& opts, OptimResult* result) {
     ceres::Solver::Options copts;
     copts.linear_solver_type = optim_to_ceres.at(opts.optimizer);
-    copts.num_threads = std::max(1u, std::thread::hardware_concurrency());
+    copts.num_threads = static_cast<int>(std::max(1u, std::thread::hardware_concurrency()));
     copts.minimizer_progress_to_stdout = opts.verbose;
     copts.function_tolerance = opts.epsilon;
     copts.gradient_tolerance = opts.epsilon;
@@ -88,7 +88,7 @@ inline std::optional<Eigen::MatrixXd> compute_covariance(
         return std::nullopt;
     }
 
-    Eigen::MatrixXd cov_matrix = Eigen::MatrixXd::Zero(total_params, total_params);
+    Eigen::MatrixXd cov_matrix = Eigen::MatrixXd::Zero(static_cast<Eigen::Index>(total_params), static_cast<Eigen::Index>(total_params));
     size_t row_offset = 0;
 
     for (size_t i = 0; i < param_blocks.size(); ++i) {
@@ -107,9 +107,9 @@ inline std::optional<Eigen::MatrixXd> compute_covariance(
             for (size_t r = 0; r < block_i_size; ++r) {
                 for (size_t c = 0; c < block_j_size; ++c) {
                     double value = block_cov[r * block_j_size + c];
-                    cov_matrix(static_cast<size_t>(row_offset + r), static_cast<size_t>(col_offset + c)) = value;
+                    cov_matrix(static_cast<Eigen::Index>(row_offset + r), static_cast<Eigen::Index>(col_offset + c)) = value;
                     if (j < i) {
-                        cov_matrix(static_cast<size_t>(col_offset + c), static_cast<size_t>(row_offset + r)) = value;
+                        cov_matrix(static_cast<Eigen::Index>(col_offset + c), static_cast<Eigen::Index>(row_offset + r)) = value;
                     }
                 }
             }

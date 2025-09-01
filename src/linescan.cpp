@@ -24,9 +24,9 @@ static Eigen::Vector4d fit_plane_svd(const std::vector<Vec3>& pts) {
     for (const auto& p : pts) centroid += p;
     centroid /= static_cast<double>(pts.size());
 
-    Eigen::MatrixXd A(pts.size(), 3);
+    Eigen::MatrixXd A(static_cast<Eigen::Index>(pts.size()), 3);
     for (size_t i = 0; i < pts.size(); ++i) {
-        A.row(i) = (pts[i] - centroid).transpose();
+        A.row(static_cast<Eigen::Index>(i)) = (pts[i] - centroid).transpose();
     }
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullV);
     Vec3 normal = svd.matrixV().col(2);
@@ -35,7 +35,7 @@ static Eigen::Vector4d fit_plane_svd(const std::vector<Vec3>& pts) {
 }
 
 struct PlaneResidual final {
-    PlaneResidual(const Vec3& p) : p_(p) {}
+    explicit PlaneResidual(const Vec3& p) : p_(p) {}
 
     template <typename T>
     bool operator()(const T* plane, T* residual) const {

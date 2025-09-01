@@ -84,8 +84,8 @@ static Eigen::Matrix3d estimate_rotation_allpairs_weighted(const std::vector<Mot
         Eigen::Vector3d beta  = logSO3(pairs[k].RB);
         constexpr double s = 1;  // pairs[k].sqrt_weight;
 
-        M.block<3,3>(3*k, 0) = s * skew(alpha + beta);
-        d.segment<3>(3*k)    = s * (beta - alpha);
+        M.block<3,3>(static_cast<Eigen::Index>(3*k), 0) = s * skew(alpha + beta);
+        d.segment<3>(static_cast<Eigen::Index>(3*k))    = s * (beta - alpha);
     }
 
     Eigen::Vector3d r = ridge_llsq(M, d, 1e-12);
@@ -106,8 +106,8 @@ static Eigen::Vector3d estimate_translation_allpairs_weighted(
         const Eigen::Vector3d& tB = pairs[k].tB;
         constexpr double s = 1;  // pairs[k].sqrt_weight;
 
-        C.block<3,3>(3*k, 0) = s * (RA - Eigen::Matrix3d::Identity());
-        w.segment<3>(3*k)    = s * (RX * tB - tA);
+        C.block<3,3>(static_cast<Eigen::Index>(3*k), 0) = s * (RA - Eigen::Matrix3d::Identity());
+        w.segment<3>(static_cast<Eigen::Index>(3*k))    = s * (RX * tB - tA);
     }
 
     return ridge_llsq(C, w, 1e-12);

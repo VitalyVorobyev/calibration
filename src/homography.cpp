@@ -55,7 +55,7 @@ static void normalize_points(const std::vector<Vec2>& pts,
     // Centroid
     double cx = 0, cy = 0;
     for (const auto& p : pts) { cx += p.x(); cy += p.y(); }
-    cx /= pts.size(); cy /= pts.size();
+    cx /= static_cast<double>(pts.size()); cy /= static_cast<double>(pts.size());
 
     // Mean distance to origin
     double mean_dist = 0.0;
@@ -63,7 +63,7 @@ static void normalize_points(const std::vector<Vec2>& pts,
         double dx = p.x() - cx, dy = p.y() - cy;
         mean_dist += std::sqrt(dx*dx + dy*dy);
     }
-    mean_dist /= pts.size();
+    mean_dist /= static_cast<double>(pts.size());
     double s = (mean_dist > 1e-12) ? std::sqrt(2.0) / mean_dist : 1.0;
 
     // Similarity transform
@@ -98,26 +98,26 @@ Mat3 estimate_homography_dlt(const std::vector<Vec2>& src,
         const double v  = dst_n[i].y();
 
         // Row 2i
-        A(2*i, 0) = 0.0;
-        A(2*i, 1) = 0.0;
-        A(2*i, 2) = 0.0;
-        A(2*i, 3) = -x;
-        A(2*i, 4) = -y;
-        A(2*i, 5) = -1.0;
-        A(2*i, 6) = v*x;
-        A(2*i, 7) = v*y;
-        A(2*i, 8) = v;
+        A(static_cast<Eigen::Index>(2*i), 0) = 0.0;
+        A(static_cast<Eigen::Index>(2*i), 1) = 0.0;
+        A(static_cast<Eigen::Index>(2*i), 2) = 0.0;
+        A(static_cast<Eigen::Index>(2*i), 3) = -x;
+        A(static_cast<Eigen::Index>(2*i), 4) = -y;
+        A(static_cast<Eigen::Index>(2*i), 5) = -1.0;
+        A(static_cast<Eigen::Index>(2*i), 6) = v*x;
+        A(static_cast<Eigen::Index>(2*i), 7) = v*y;
+        A(static_cast<Eigen::Index>(2*i), 8) = v;
 
         // Row 2i+1
-        A(2*i+1, 0) = x;
-        A(2*i+1, 1) = y;
-        A(2*i+1, 2) = 1.0;
-        A(2*i+1, 3) = 0.0;
-        A(2*i+1, 4) = 0.0;
-        A(2*i+1, 5) = 0.0;
-        A(2*i+1, 6) = -u*x;
-        A(2*i+1, 7) = -u*y;
-        A(2*i+1, 8) = -u;
+        A(static_cast<Eigen::Index>(2*i+1), 0) = x;
+        A(static_cast<Eigen::Index>(2*i+1), 1) = y;
+        A(static_cast<Eigen::Index>(2*i+1), 2) = 1.0;
+        A(static_cast<Eigen::Index>(2*i+1), 3) = 0.0;
+        A(static_cast<Eigen::Index>(2*i+1), 4) = 0.0;
+        A(static_cast<Eigen::Index>(2*i+1), 5) = 0.0;
+        A(static_cast<Eigen::Index>(2*i+1), 6) = -u*x;
+        A(static_cast<Eigen::Index>(2*i+1), 7) = -u*y;
+        A(static_cast<Eigen::Index>(2*i+1), 8) = -u;
     }
 
     // Solve Ah = 0, h = last singular vector

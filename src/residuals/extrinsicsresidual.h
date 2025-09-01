@@ -25,7 +25,7 @@ template<camera_model CameraT>
 struct ExtrinsicResidual final {
     const PlanarView view;
 
-    ExtrinsicResidual(const PlanarView& v) : view(v) {}
+    explicit ExtrinsicResidual(const PlanarView& v) : view(v) {}
 
     template <typename T>
     bool operator()(const T* c_q_r, const T* c_t_r,

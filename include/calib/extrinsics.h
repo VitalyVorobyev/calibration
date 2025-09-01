@@ -52,9 +52,9 @@ struct ExtrinsicOptions final : public OptimOptions {
 template<camera_model CameraT>
 ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
     const std::vector<MulticamPlanarView>& views,
-    const std::vector<CameraT>& initial_cameras,
-    const std::vector<Eigen::Affine3d>& initial_camera_poses,
-    const std::vector<Eigen::Affine3d>& initial_target_poses,
+    const std::vector<CameraT>& init_cameras,
+    const std::vector<Eigen::Affine3d>& init_c_T_r,
+    const std::vector<Eigen::Affine3d>& init_r_T_t,
     const ExtrinsicOptions& opts = {});
 
 }  // namespace calib

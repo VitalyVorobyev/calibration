@@ -57,10 +57,10 @@ static ceres::Problem build_problem(const std::vector<MotionPair>& pairs,
 HandeyeResult optimize_handeye(
     const std::vector<Eigen::Affine3d>& base_T_gripper,
     const std::vector<Eigen::Affine3d>& camera_T_target,
-    const Eigen::Affine3d& X0,
+    const Eigen::Affine3d& init_gripper_T_ref,
     const HandeyeOptions& opts) {
     auto pairs = build_all_pairs(base_T_gripper, camera_T_target, /*min_angle_deg*/0.5);
-    auto blocks = HandeyeBlocks::create(X0);
+    auto blocks = HandeyeBlocks::create(init_gripper_T_ref);
     ceres::Problem problem = build_problem(pairs, opts, blocks);
 
     HandeyeResult result;

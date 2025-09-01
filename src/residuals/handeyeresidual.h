@@ -20,7 +20,7 @@ struct AX_XBResidual final {
     Eigen::Matrix3d RA_, RB_;
     Eigen::Vector3d tA_, tB_;
 
-    AX_XBResidual(const MotionPair& mp) :
+    explicit AX_XBResidual(const MotionPair& mp) :
         RA_(mp.RA), RB_(mp.RB), tA_(mp.tA), tB_(mp.tB) {}
 
     template <typename T>

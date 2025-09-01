@@ -83,8 +83,8 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(
             xu[2] > bounds.cx_max || xv[1] > bounds.cy_max ||
             xu[1] < bounds.skew_min || xu[1] > bounds.skew_max) {
             std::cerr << "Warning: Linear calibration produced unreasonable intrinsics\n";
-            double avg_u = bu.sum() / obs.size();
-            double avg_v = bv.sum() / obs.size();
+            double avg_u = bu.sum() / static_cast<double>(obs.size());
+            double avg_v = bv.sum() / static_cast<double>(obs.size());
             xu[0] = std::clamp(std::max(500.0, xu[0]), bounds.fx_min, bounds.fx_max);
             xv[0] = std::clamp(std::max(500.0, xv[0]), bounds.fy_min, bounds.fy_max);
             xu[2] = std::clamp(avg_u / 2.0, bounds.cx_min, bounds.cx_max);
@@ -99,8 +99,8 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(
             xu[1] < bounds.cx_min || xv[1] < bounds.cy_min ||
             xu[1] > bounds.cx_max || xv[1] > bounds.cy_max) {
             std::cerr << "Warning: Linear calibration produced unreasonable intrinsics\n";
-            double avg_u = bu.sum() / obs.size();
-            double avg_v = bv.sum() / obs.size();
+            double avg_u = bu.sum() / static_cast<double>(obs.size());
+            double avg_v = bv.sum() / static_cast<double>(obs.size());
             xu[0] = std::clamp(std::max(500.0, xu[0]), bounds.fx_min, bounds.fx_max);
             xv[0] = std::clamp(std::max(500.0, xv[0]), bounds.fy_min, bounds.fy_max);
             xu[1] = std::clamp(avg_u / 2.0, bounds.cx_min, bounds.cx_max);

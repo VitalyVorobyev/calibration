@@ -117,13 +117,13 @@ struct PlanarPoseVPResidual {
         const T fy = T(K_[1]);
         const T cx = T(K_[2]);
         const T cy = T(K_[3]);
-        const T skew = T(K_[4]);
+        const T skew_param = T(K_[4]);
 
         std::vector<Observation<T>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(),
             [pose6](const PlanarObservation& s) { return to_observation(s, pose6); });
 
-        auto dr = fit_distortion_full(o, fx, fy, cx, cy, skew, num_radial_);
+        auto dr = fit_distortion_full(o, fx, fy, cx, cy, skew_param, num_radial_);
         if (!dr) return false;
         const auto& r = dr->residuals;
         for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];

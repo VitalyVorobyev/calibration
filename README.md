@@ -1,6 +1,11 @@
 # Calibration Library
 
 [![Build Status](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml/badge.svg)](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml)
+[![Static Analysis](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml/badge.svg?job=static-analysis)](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/VitalyVorobyev/calibration/branch/main/graph/badge.svg)](https://codecov.io/gh/VitalyVorobyev/calibration)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENCE)alibration Library
+
+[![Build Status](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml/badge.svg)](https://github.com/VitalyVorobyev/calibration/actions/workflows/ci.yml)
 
 A C++ library for camera calibration and vision-related geometric transformations.
 

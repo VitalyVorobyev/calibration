@@ -16,7 +16,7 @@ template<camera_model CameraT>
 struct IntrinsicResidual final {
     const PlanarView view;
 
-    IntrinsicResidual(const PlanarView& v) : view(v) {}
+    explicit IntrinsicResidual(const PlanarView& v) : view(v) {}
 
     template <typename T>
     bool operator()(const T* c_q_t_, const T* c_t_t_,

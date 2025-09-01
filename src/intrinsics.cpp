@@ -16,7 +16,8 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
     std::vector<std::array<double, 3>> c_t_t;
     std::array<double, IntrSize> intr;
 
-    IntrinsicBlocks(size_t numviews) : c_q_t(numviews), c_t_t(numviews) {}
+    explicit IntrinsicBlocks(size_t numviews) : 
+        c_q_t(numviews), c_t_t(numviews), intr{} {}
 
     static IntrinsicBlocks create(
         const CameraT& camera,

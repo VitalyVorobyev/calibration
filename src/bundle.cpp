@@ -21,7 +21,9 @@ struct BundleBlocks final : public ProblemParamBlocks {
     std::vector<std::array<double, 3>> g_t_c;
     std::vector<std::array<double, IntrSize>> intr;
 
-    BundleBlocks(size_t numcams): g_q_c(numcams), g_t_c(numcams), intr(numcams) {}
+    explicit BundleBlocks(size_t numcams): 
+        b_q_t{0.0, 0.0, 0.0, 1.0}, b_t_t{0.0, 0.0, 0.0}, 
+        g_q_c(numcams), g_t_c(numcams), intr(numcams) {}
 
     static BundleBlocks create(
         const std::vector<CameraT>& cameras,
