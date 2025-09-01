@@ -205,7 +205,6 @@ OptimizeHomographyResult optimize_homography(const std::vector<Vec2>& src,
     if (options.compute_covariance) {
         std::vector<double> residuals(src.size() * 2);
         ceres::Problem::EvaluateOptions evopts;
-        evopts.residuals = &residuals;
         problem.Evaluate(evopts, nullptr, &residuals, nullptr, nullptr);
         double ssr = 0.0;
         for (double r : residuals) ssr += r * r;
