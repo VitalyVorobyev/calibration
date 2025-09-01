@@ -1,293 +1,181 @@
 #include "calib/extrinsics.h"
 
-// std
-#include <numeric>
-#include <algorithm>
-#include <array>
-
-// ceres
-#include <ceres/ceres.h>
-#include <ceres/rotation.h>
-
+#include "calib/distortion.h"
 #include "calib/scheimpflug.h"
 
+#include "residuals/extrinsicsresidual.h"
 #include "observationutils.h"
+#include "ceresutils.h"
 
 namespace calib {
 
-ExtrinsicPoses estimate_extrinsic_dlt(
-    const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera<DualDistortion>>& cameras
-) {
-    const size_t num_cams = cameras.size();
-    const size_t num_views = views.size();
-    std::vector<std::vector<Eigen::Affine3d>> c_T_t(
-        num_views, std::vector<Eigen::Affine3d>(num_cams, Eigen::Affine3d::Identity()));
+template<camera_model CameraT>
+struct ExtrinsicBlocks final : public ProblemParamBlocks {
+    static constexpr size_t IntrSize = CameraTraits<CameraT>::param_count;
+    std::vector<std::array<double, 4>> c_q_r;
+    std::vector<std::array<double, 3>> c_t_r;
+    std::vector<std::array<double, 4>> r_q_t;
+    std::vector<std::array<double, 3>> r_t_t;
+    std::vector<std::array<double, IntrSize>> intr;
 
-    // Estimate per-camera target poses via DLT
-    for (size_t v = 0; v < num_views; ++v) {
-        for (size_t c = 0; c < num_cams; ++c) {
-            const auto& obs = views[v];
-            if (c >= obs.size()) continue;
-            const auto& ob_c = obs[c];
-            if (ob_c.size() < 4) continue;
-            std::vector<Eigen::Vector2d> obj_xy, img_uv;
-            obj_xy.reserve(ob_c.size());
-            img_uv.reserve(ob_c.size());
-            for (const auto& o : ob_c) {
-                obj_xy.push_back(o.object_xy);
-                img_uv.push_back(o.image_uv);
-            }
-            c_T_t[v][c] = estimate_planar_pose_dlt(obj_xy, img_uv, cameras[c].K);
+    ExtrinsicBlocks(size_t numcams, size_t numviews) :
+        c_q_r(numcams), c_t_r(numcams), r_q_t(numviews), r_t_t(numviews),
+        intr(numcams) {}
+
+    static ExtrinsicBlocks create(
+        const std::vector<CameraT>& cameras,
+        const std::vector<Eigen::Affine3d>& init_c_T_r,
+        const std::vector<Eigen::Affine3d>& init_r_T_t
+    ) {
+        const size_t num_cams = cameras.size();
+        const size_t num_views = init_r_T_t.size();
+        ExtrinsicBlocks blocks(num_cams, num_views);
+
+        for (size_t i = 0; i < num_cams; ++i) {
+            populate_quat_tran(init_c_T_r[i], blocks.c_q_r[i], blocks.c_t_r[i]);
+            CameraTraits<CameraT>::to_array(cameras[i], blocks.intr[i]);
         }
-    }
-
-    ExtrinsicPoses guess;
-    guess.c_T_r.assign(num_cams, Eigen::Affine3d::Identity());
-    guess.r_T_t.assign(num_views, Eigen::Affine3d::Identity());
-
-    // Compute camera poses relative to first camera (reference)
-    for (size_t c = 1; c < num_cams; ++c) {
-        std::vector<Eigen::Affine3d> rels;
         for (size_t v = 0; v < num_views; ++v) {
-            if (c >= views[v].size()) {
-                throw std::runtime_error("Camera index out of bounds");
-            }
-            const auto& obs0 = views[v][0];
-            const auto& obsC = views[v][c];
-            if (obs0.size() < 4 || obsC.size() < 4) {
-                std::cerr << "Insufficient observations for view " << v
-                    << " and camera " << c << std::endl;
-                continue;
-            }
-            rels.push_back(c_T_t[v][c] * c_T_t[v][0].inverse());
+            populate_quat_tran(init_r_T_t[v], blocks.r_q_t[v], blocks.r_t_t[v]);
         }
-        if (!rels.empty()) {
-            guess.c_T_r[c] = average_affines(rels);
+        return blocks;
+    }
+
+    std::vector<ParamBlock> get_param_blocks() const override {
+        ParamBlock blocks;
+        for (const auto& i : intr) blocks.emplace_back(i.data(), i.size(), IntrSize);
+        for (const auto& i : c_q_r) blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
+        for (const auto& i : c_t_r) blocks.emplace_back(i.data(), i.size(), 3);
+        for (const auto& i : r_q_t) blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
+        for (const auto& i : r_t_t) blocks.emplace_back(i.data(), i.size(), 3);
+        return blocks;
+    }
+
+    size_t total_params() const override {
+        const size_t num_cams = cameras.size();
+        const size_t num_views = init_r_T_t.size();
+        return num_cams * (IntrSize + 6) + num_views * 6;
+    }
+
+    void populate_result(ExtrinsicOptimizationResult<CameraT>& result) const {
+        const size_t num_cams = c_q_r.size();
+        const size_t num_views = r_q_t.size();
+
+        result.cameras.resize(num_cams);
+        result.c_T_r.resize(num_cams);
+        result.r_T_t.resize(num_views);
+
+        for (size_t i = 0; i < num_cams; ++i) {
+            result.cameras[i] = CameraTraits<CameraT>::template from_array<double>(intr[i].data());
+            result.c_T_r[i] = restore_pose(c_q_r[i], c_t_r[i]);
         }
-    }
-
-    // Compute target poses in reference frame
-    for (size_t v = 0; v < num_views; ++v) {
-        std::vector<Eigen::Affine3d> tposes;
-        for (size_t c = 0; c < num_cams; ++c) {
-            if (c >= views[v].size()) continue;
-            const auto& ob_c = views[v][c];
-            if (ob_c.size() < 4) continue;
-            tposes.push_back(guess.c_T_r[c].inverse() * c_T_t[v][c]);
-        }
-        if (!tposes.empty()) {
-            guess.r_T_t[v] = average_affines(tposes);
-        }
-    }
-
-    return guess;
-}
-
-static void initialize_pose_vectors(const std::vector<Eigen::Affine3d>& initial_camera_poses,
-                                    const std::vector<Eigen::Affine3d>& initial_target_poses,
-                                    std::vector<Pose6>& cam_poses,
-                                    std::vector<Pose6>& targ_poses) {
-    for (size_t i = 0; i < initial_camera_poses.size(); ++i) {
-        ceres::RotationMatrixToAngleAxis(initial_camera_poses[i].rotation().data(), cam_poses[i].data());
-        cam_poses[i][3] = initial_camera_poses[i].translation().x();
-        cam_poses[i][4] = initial_camera_poses[i].translation().y();
-        cam_poses[i][5] = initial_camera_poses[i].translation().z();
-    }
-    for (size_t j = 0; j < initial_target_poses.size(); ++j) {
-        ceres::RotationMatrixToAngleAxis(initial_target_poses[j].rotation().data(), targ_poses[j].data());
-        targ_poses[j][3] = initial_target_poses[j].translation().x();
-        targ_poses[j][4] = initial_target_poses[j].translation().y();
-        targ_poses[j][5] = initial_target_poses[j].translation().z();
-    }
-}
-
-static void setup_problem(const std::vector<ExtrinsicPlanarView>& views,
-                          const std::vector<Camera<DualDistortion>>& cameras,
-                          std::vector<Pose6>& cam_poses,
-                          std::vector<Pose6>& targ_poses,
-                          ceres::Problem& problem) {
-    const size_t num_cams = cameras.size();
-    const size_t num_views = views.size();
-
-    for (size_t i = 0; i < num_cams; ++i) {
-        problem.AddParameterBlock(cam_poses[i].data(), 6);
-    }
-    if (!cam_poses.empty()) {
-        problem.SetParameterBlockConstant(cam_poses[0].data());
-    }
-    for (size_t j = 0; j < num_views; ++j) {
-        problem.AddParameterBlock(targ_poses[j].data(), 6);
-    }
-
-    for (size_t v = 0; v < num_views; ++v) {
-        const auto& view = views[v];
-        if (view.size() != num_cams) continue;
-        for (size_t c = 0; c < num_cams; ++c) {
-            const auto& obs = view[c];
-            if (obs.empty()) continue;
-            auto* cost = ExtrinsicResidual::create(obs, cameras[c]);
-            problem.AddResidualBlock(cost, nullptr, cam_poses[c].data(), targ_poses[v].data());
+        for (size_t v = 0; v < num_views; ++v) {
+            result.r_T_t[v] = restore_pose(r_q_t[v], r_t_t[v]);
         }
     }
-}
+};
 
-static void extract_solution(const std::vector<Pose6>& cam_poses,
-                             const std::vector<Pose6>& targ_poses,
-                             ExtrinsicOptimizationResult& result) {
-    result.camera_poses.resize(cam_poses.size());
-    for (size_t i = 0; i < cam_poses.size(); ++i) {
-        result.camera_poses[i] = pose6_to_affine(cam_poses[i]);
-    }
-    result.target_poses.resize(targ_poses.size());
-    for (size_t j = 0; j < targ_poses.size(); ++j) {
-        result.target_poses[j] = pose6_to_affine(targ_poses[j]);
-    }
-}
-
-static std::pair<double, size_t> compute_residual_stats(
-    const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<Camera<DualDistortion>>& cameras,
-    const ExtrinsicOptimizationResult& result) {
-    double ssr = 0.0;
-    size_t count = 0;
-    const size_t num_cams = cameras.size();
-    const size_t num_views = views.size();
-    for (size_t v = 0; v < num_views; ++v) {
-        const auto& view = views[v];
-        if (view.size() != num_cams) continue;
-        for (size_t c = 0; c < num_cams; ++c) {
-            const auto& obs = view[c];
-            for (const auto& ob : obs) {
-                Eigen::Vector3d P = result.camera_poses[c] * result.target_poses[v]
-                                    * Eigen::Vector3d(ob.object_xy.x(), ob.object_xy.y(), 0.0);
-                Eigen::Vector2d xyn{P.x()/P.z(), P.y()/P.z()};
-                Eigen::Vector2d pred = cameras[c].project(xyn);
-                Eigen::Vector2d diff = pred - ob.image_uv;
-                ssr += diff.squaredNorm();
-                count += 2;
-            }
-        }
-    }
-    return {ssr, count};
-}
-
-static void compute_covariances(ceres::Problem& problem,
-                                const std::vector<Pose6>& cam_poses,
-                                const std::vector<Pose6>& targ_poses,
-                                double sigma2,
-                                ExtrinsicOptimizationResult& result) {
-    const size_t num_cams = cam_poses.size();
-    const size_t num_views = targ_poses.size();
-    result.camera_covariances.assign(num_cams, Eigen::Matrix<double,6,6>::Zero());
-    result.target_covariances.assign(num_views, Eigen::Matrix<double,6,6>::Zero());
-
-    ceres::Covariance::Options copt;
-    ceres::Covariance cov(copt);
-    std::vector<std::pair<const double*, const double*>> blocks;
-    for (size_t i = 0; i < num_cams; ++i) {
-        if (!problem.IsParameterBlockConstant(cam_poses[i].data())) {
-            blocks.emplace_back(cam_poses[i].data(), cam_poses[i].data());
-        }
-    }
-    for (size_t j = 0; j < num_views; ++j) {
-        blocks.emplace_back(targ_poses[j].data(), targ_poses[j].data());
-    }
-    if (blocks.empty() || !cov.Compute(blocks, &problem)) {
-        return; // covariances remain zero
-    }
-    for (size_t i = 0; i < num_cams; ++i) {
-        if (problem.IsParameterBlockConstant(cam_poses[i].data())) continue;
-        double Cov6x6[36];
-        cov.GetCovarianceBlock(cam_poses[i].data(), cam_poses[i].data(), Cov6x6);
-        Eigen::Map<Eigen::Matrix<double,6,6>> C(Cov6x6);
-        result.camera_covariances[i] = sigma2 * C;
-    }
-    for (size_t j = 0; j < num_views; ++j) {
-        double Cov6x6[36];
-        cov.GetCovarianceBlock(targ_poses[j].data(), targ_poses[j].data(), Cov6x6);
-        Eigen::Map<Eigen::Matrix<double,6,6>> C(Cov6x6);
-        result.target_covariances[j] = sigma2 * C;
-    }
-}
-
-void consistency_check(
-    const std::vector<Camera<DualDistortion>>& cameras,
-    const std::vector<ExtrinsicPlanarView>& views,
-    const ExtrinsicPoses& initial_camera_poses,
-    const ExtrinsicPoses& initial_target_poses
+template<camera_model CameraT>
+static ceres::Problem build_problem(
+    const std::vector<MulticamPlanarView>& views,
+    const std::vector<CameraT>& cameras,
+    const ExtrinsicOptions& options,
+    ExtrinsicBlocks<CameraT>& blocks
 ) {
-    const size_t num_cams = cameras.size();
+    ceres::Problem p;
+    for (size_t view_idx = 0; view_idx < views.size(); ++view_idx) {
+        const auto& view = views[view_idx];
+        for (size_t cam_idx = 0; cam_idx < cameras.size(); ++cam_idx) {
+            if (view[cam_idx].empty()) continue;
+
+            auto loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
+            p.AddResidualBlock(
+                ExtrinsicResidual<CameraT>::create(view),
+                loss,
+                blocks.c_q_r[cam_idx].data(), blocks.c_t_r[cam_idx].data(),
+                blocks.r_q_t[view_idx].data(), blocks.r_t_t[view_idx].data(),
+                blocks.intr[cam_idx].data());
+        }
+    }
+
+    for (auto& c_q_r : blocks.c_q_r) {
+        p.SetManifold(c_q_r.data(), new ceres::QuaternionManifold());
+    }
+    for (auto& r_q_t : blocks.r_q_t) {
+        p.SetManifold(r_q_t.data(), new ceres::QuaternionManifold());
+    }
+
+    if (!options.optimize_intrinsics) {
+        for (auto& intr : blocks.intr) {
+            p.SetParameterBlockConstant(intr.data());
+        }
+    }
+
+    if (!options.optimize_extrinsics) {
+        for (auto& c_q_r : blocks.c_q_r) {
+            p.SetParameterBlockConstant(c_q_r.data());
+        }
+        for (auto& r_q_t : blocks.r_q_t) {
+            p.SetParameterBlockConstant(r_q_t.data());
+        }
+    }
+
+    if (!options.optimize_skew) {
+        // TODO: figure out how to handle different camera models
+    }
+
+    return p;
+}
+
+template<camera_model CameraT>
+static void validate_input(const std::vector<CameraT>& init_cameras,
+                           const std::vector<Eigen::Affine3d>& init_c_T_r,
+                           const std::vector<Eigen::Affine3d>& init_r_T_t,
+                           const std::vector<MulticamPlanarView>& views) {
+    const size_t num_cams = init_cameras.size();
     const size_t num_views = views.size();
-    if (initial_camera_poses.size() != num_cams ||
-        initial_target_poses.size() != num_views) {
-        throw std::invalid_argument("Incompatible pose vector sizes: "
-                                    "cameras: " + std::to_string(num_cams) +
-                                    ", views: " + std::to_string(num_views) +
-                                    ", initial_camera_poses: " + std::to_string(initial_camera_poses.size()) +
-                                    ", initial_target_poses: " + std::to_string(initial_target_poses.size()) +
-                                    " are not compatible.");
+    if (init_c_T_r.size() != num_cams ||
+        init_r_T_t.size() != num_views) {
+        throw std::invalid_argument("Incompatible pose vector sizes for joint optimization");
     }
 }
 
 template<camera_model CameraT>
-ExtrinsicOptimizationResult optimize_extrinsics(
-    const std::vector<ExtrinsicPlanarView>& views,
-    const std::vector<CameraT>& cameras,
-    const ExtrinsicPoses& init_poses,
-    const OptimOptions& options
+ExtrinsicOptimizationResult<CameraT> optimize_joint_intrinsics_extrinsics(
+    const std::vector<MulticamPlanarView>& views,
+    const std::vector<CameraT>& init_cameras,
+    const std::vector<Eigen::Affine3d>& init_c_T_r,
+    const std::vector<Eigen::Affine3d>& init_r_T_t,
+    const ExtrinsicOptions& opts
 ) {
-    consistency_check(cameras, views, init_poses.camera_poses, init_poses.target_poses);
-    ExtrinsicOptimizationResult result;
-    const size_t num_cams = cameras.size();
-    const size_t num_views = views.size();
+    validate_input(init_cameras, init_c_T_r, init_r_T_t, views);
 
-    std::vector<Pose6> cam_poses(num_cams);
-    std::vector<Pose6> targ_poses(num_views);
-    initialize_pose_vectors(initial_camera_poses, initial_target_poses, cam_poses, targ_poses);
+    ExtrinsicBlocks<CameraT> blocks = initialize_blocks(init_cameras, init_c_T_r, init_r_T_t);
+    ceres::Problem problem = build_problem(views, init_cameras, opts, blocks);
 
-    ceres::Problem problem;
-    setup_problem(views, cameras, cam_poses, targ_poses, problem);
+    ExtrinsicOptimizationResult<CameraT> result;
+    solve_problem(problem, opts, result);
 
-    ceres::Solver::Options opts;
-    opts.linear_solver_type = ceres::DENSE_QR;
-    opts.minimizer_progress_to_stdout = verbose;
-    constexpr double eps = 1e-6;
-    opts.function_tolerance = eps;
-    opts.gradient_tolerance = eps;
-    opts.parameter_tolerance = eps;
-    opts.max_num_iterations = 1000;
-
-    ceres::Solver::Summary summary;
-    ceres::Solve(opts, &problem, &summary);
-    result.summary = summary.BriefReport();
-
-    extract_solution(cam_poses, targ_poses, result);
-
-    auto [ssr, count] = compute_residual_stats(views, cameras, result);
-    if (count > 0) {
-        result.reprojection_error = std::sqrt(ssr / count);
+    blocks.populate_result(result);
+    if (opts.compute_covariance) {
+        compute_covariance(problem, blocks, result);
     }
-
-    const int num_params = static_cast<int>((num_cams ? num_cams - 1 : 0) + num_views) * 6;
-    const int dof = std::max(1, static_cast<int>(count) - num_params);
-    const double sigma2 = ssr / dof;
-
-    compute_covariances(problem, cam_poses, targ_poses, sigma2, result);
 
     return result;
 }
 
-template ExtrinsicOptimizationResult optimize_extrinsics(
-    const std::vector<ExtrinsicPlanarView>&,
+template ExtrinsicOptimizationResult<Camera<BrownConradyd>> optimize_joint_intrinsics_extrinsics(
+    const std::vector<MulticamPlanarView>&,
     const std::vector<Camera<BrownConradyd>>&,
-    const ExtrinsicPoses&,
-    const OptimOptions&);
+    const std::vector<Eigen::Affine3d>&,
+    const std::vector<Eigen::Affine3d>&,
+    const ExtrinsicOptions&);
 
-template ExtrinsicOptimizationResult optimize_extrinsics(
-    const std::vector<ExtrinsicPlanarView>&,
+template ExtrinsicOptimizationResult<ScheimpflugCamera<BrownConradyd>> optimize_joint_intrinsics_extrinsics(
+    const std::vector<MulticamPlanarView>&,
     const std::vector<ScheimpflugCamera<BrownConradyd>>&,
-    const ExtrinsicPoses&,
-    const OptimOptions&);
+    const std::vector<Eigen::Affine3d>&,
+    const std::vector<Eigen::Affine3d>&,
+    const ExtrinsicOptions&);
 
-} // namespace calib
+}  // namespace calib

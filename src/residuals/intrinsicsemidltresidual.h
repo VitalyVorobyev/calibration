@@ -11,6 +11,8 @@
 #include "calib/planarpose.h"
 #include "calib/distortion.h"
 
+#include "../observationutils.h"
+
 namespace calib {
 
 // Variable projection residual for full camera calibration.

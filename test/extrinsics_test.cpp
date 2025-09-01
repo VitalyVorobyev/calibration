@@ -43,9 +43,9 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
         {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}
     };
 
-    std::vector<ExtrinsicPlanarView> views;
+    std::vector<MulticamPlanarView> views;
     for (size_t v = 0; v < target_gt.size(); ++v) {
-        ExtrinsicPlanarView view;
+        MulticamPlanarView view;
         view.resize(kCams);
         for (int c = 0; c < kCams; ++c) {
             Eigen::Affine3d T = cam_gt[c] * target_gt[v]; // target -> camera

@@ -22,10 +22,10 @@ static std::pair<Eigen::Matrix<T, 3, 3>, Eigen::Matrix<T, 3, 1>> get_camera_T_ta
 }
 
 template<camera_model CameraT>
-struct JointIntrExtrResidual final {
+struct ExtrinsicResidual final {
     const PlanarView view;
 
-    JointIntrExtrResidual(PlanarView&& v) : view(std::move(v)) {}
+    ExtrinsicResidual(PlanarView&& v) : view(std::move(v)) {}
 
     template <typename T>
     bool operator()(const T* c_q_r, const T* c_t_r,
@@ -50,10 +50,10 @@ struct JointIntrExtrResidual final {
     static auto* create(PlanarView&& view) {
         if (view.empty()) throw std::invalid_argument("No observations provided");
 
-        auto* functor = new JointIntrExtrResidual(std::move(view));
+        auto* functor = new ExtrinsicResidual(std::move(view));
         constexpr int intr_size = CameraTraits<CameraT>::param_count;
         auto* cost = new ceres::AutoDiffCostFunction<
-            JointIntrExtrResidual, ceres::DYNAMIC,4,3,4,3,intr_size>(
+            ExtrinsicResidual, ceres::DYNAMIC,4,3,4,3,intr_size>(
                 functor, static_cast<int>(obs.size()) * 2);
         return cost;
     }

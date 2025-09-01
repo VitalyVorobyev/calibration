@@ -193,7 +193,7 @@ inline void from_json(const nlohmann::json& j, IntrinsicsInput& in) {
 
 struct ExtrinsicsInput final {
     std::vector<Camera<DualDistortion>> cameras;
-    std::vector<ExtrinsicPlanarView> views;
+    std::vector<MulticamPlanarView> views;
 };
 
 inline void to_json(nlohmann::json& j, const ExtrinsicsInput& in) {

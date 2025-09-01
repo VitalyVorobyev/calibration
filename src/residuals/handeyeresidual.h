@@ -9,23 +9,17 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calib/planarpose.h"
-#include "calib/camera.h"
-#include "calib/scheimpflug.h"
-#include "observationutils.h"
+#include "../observationutils.h"
 
 namespace calib {
 
 struct MotionPair final {
     Eigen::Matrix3d RA, RB;
     Eigen::Vector3d tA, tB;
-    #if 0
-    double sqrt_weight; // sqrt of weight used to scale rows/residuals
-    #endif
 };
 
 // ---------- Ceres residual (AX = XB): rotation log + translation eq ----------
-struct AX_XBResidual {
+struct AX_XBResidual final {
     Eigen::Matrix3d RA_, RB_;
     Eigen::Vector3d tA_, tB_;
 
@@ -34,18 +28,20 @@ struct AX_XBResidual {
 
     template <typename T>
     bool operator()(const T* const q, const T* const t, T* residuals) const {
+        using Vec3 = Eigen::Matrix<T, 3, 1>;
+        using Mat3 = Eigen::Matrix<T, 3, 3>;
         // q = [w, x, y, z], t = [tx, ty, tz]
-        const Eigen::Matrix<T,3,3> RX = quat_array_to_rotmat(q);
-        const Eigen::Matrix<T,3,3> RA = RA_.cast<T>();
-        const Eigen::Matrix<T,3,3> RB = RB_.cast<T>();
-        const Eigen::Matrix<T,3,3> RS = RA * RX * RB.transpose() * RX.transpose();
+        const Mat3 RX = quat_array_to_rotmat(q);
+        const Mat3 RA = RA_.cast<T>();
+        const Mat3 RB = RB_.cast<T>();
+        const Mat3 RS = RA * RX * RB.transpose() * RX.transpose();
         Eigen::AngleAxis<T> aa(RS);
 
         // trans residual from (RA - I) tX = RX tB - tA
-        const Eigen::Matrix<T,3,1> tX(t[0], t[1], t[2]);
-        const Eigen::Matrix<T,3,1> tA = tA_.cast<T>();
-        const Eigen::Matrix<T,3,1> tB = tB_.cast<T>();
-        const Eigen::Matrix<T,3,1> et = (RA - Eigen::Matrix<T,3,3>::Identity()) * tX - (RX * tB - tA);
+        const Vec3 tX(t[0], t[1], t[2]);
+        const Vec3 tA = tA_.cast<T>();
+        const Vec3 tB = tB_.cast<T>();
+        const Vec3 et = (RA - Mat3::Identity()) * tX - (RX * tB - tA);
 
         residuals[0] = aa.angle() * aa.axis()(0);
         residuals[1] = aa.angle() * aa.axis()(1);

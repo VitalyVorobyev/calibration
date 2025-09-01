@@ -29,9 +29,9 @@ TEST(JointCalibration, RecoverAllParameters) {
         {0.5, 0.5}, {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5}
     };
 
-    std::vector<ExtrinsicPlanarView> views;
+    std::vector<MulticamPlanarView> views;
     for (size_t v = 0; v < target_gt.size(); ++v) {
-        ExtrinsicPlanarView view;
+        MulticamPlanarView view;
         view.resize(kCams);
         for (int c = 0; c < kCams; ++c) {
             Eigen::Affine3d T = cam_gt[c] * target_gt[v];
@@ -92,9 +92,9 @@ TEST(JointCalibration, FirstTargetPoseFixed) {
         {0.5, 0.5}, {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5}
     };
 
-    std::vector<ExtrinsicPlanarView> views;
+    std::vector<MulticamPlanarView> views;
     for (size_t v = 0; v < target_gt.size(); ++v) {
-        ExtrinsicPlanarView view;
+        MulticamPlanarView view;
         view.resize(kCams);
         for (int c = 0; c < kCams; ++c) {
             Eigen::Affine3d T = (c==0?cam0:cam1) * target_gt[v];

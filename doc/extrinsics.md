@@ -18,18 +18,18 @@ observations from multiple cameras.
 
 ```
 InitialExtrinsicGuess estimate_extrinsic_dlt(
-    const std::vector<ExtrinsicPlanarView>& views,
+    const std::vector<MulticamPlanarView>& views,
     const std::vector<Camera>& cameras);
 
-JointOptimizationResult optimize_joint_intrinsics_extrinsics(
-    const std::vector<ExtrinsicPlanarView>& views,
+ExtrinsicOptimizationResult optimize_joint_intrinsics_extrinsics(
+    const std::vector<MulticamPlanarView>& views,
     const std::vector<Camera>& initial_cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,
     bool verbose = false);
 
 ExtrinsicOptimizationResult optimize_extrinsic_poses(
-    const std::vector<ExtrinsicPlanarView>& views,
+    const std::vector<MulticamPlanarView>& views,
     const std::vector<Camera>& cameras,
     const std::vector<Eigen::Affine3d>& initial_camera_poses,
     const std::vector<Eigen::Affine3d>& initial_target_poses,

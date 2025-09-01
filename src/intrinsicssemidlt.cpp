@@ -10,7 +10,8 @@
 
 #include "observationutils.h"
 #include "ceresutils.h"
-#include "intrinsicsemidltresidual.h"
+
+#include "residuals/intrinsicsemidltresidual.h"
 
 namespace calib {
 
