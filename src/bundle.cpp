@@ -28,13 +28,13 @@ struct BundleBlocks final : public ProblemParamBlocks {
           intr(numcams) {}
 
     static auto create(const std::vector<CameraT>& cameras,
-                       const std::vector<Eigen::Affine3d>& g_T_c,
-                       const Eigen::Affine3d& b_T_t) -> BundleBlocks {
-        const size_t num_cams = g_T_c.size();
+                       const std::vector<Eigen::Affine3d>& g_se3_c,
+                       const Eigen::Affine3d& b_se3_t) -> BundleBlocks {
+        const size_t num_cams = g_se3_c.size();
         BundleBlocks blocks(num_cams);
-        populate_quat_tran(b_T_t, blocks.b_q_t, blocks.b_t_t);
+        populate_quat_tran(b_se3_t, blocks.b_q_t, blocks.b_t_t);
         for (size_t idx = 0; idx < num_cams; ++idx) {
-            populate_quat_tran(g_T_c[idx], blocks.g_q_c[idx], blocks.g_t_c[idx]);
+            populate_quat_tran(g_se3_c[idx], blocks.g_q_c[idx], blocks.g_t_c[idx]);
             CameraTraits<CameraT>::to_array(cameras[idx], blocks.intr[idx]);
         }
         return blocks;
@@ -59,12 +59,12 @@ struct BundleBlocks final : public ProblemParamBlocks {
     }
 
     void populate_results(BundleResult<CameraT>& result) const {
-        result.b_T_t = restore_pose(b_q_t, b_t_t);
+        result.b_se3_t = restore_pose(b_q_t, b_t_t);
         const size_t num_cams = intr.size();
-        result.g_T_c.resize(num_cams);
+        result.g_se3_c.resize(num_cams);
         result.cameras.resize(num_cams);
         for (size_t cam_idx = 0; cam_idx < num_cams; ++cam_idx) {
-            result.g_T_c[cam_idx] = restore_pose(g_q_c[cam_idx], g_t_c[cam_idx]);
+            result.g_se3_c[cam_idx] = restore_pose(g_q_c[cam_idx], g_t_c[cam_idx]);
             result.cameras[cam_idx] =
                 CameraTraits<CameraT>::template from_array<double>(intr[cam_idx].data());
         }
@@ -79,7 +79,7 @@ static auto build_problem(const std::vector<BundleObservation>& observations,
     for (const auto& obs : observations) {
         const size_t cam_idx = obs.camera_index;
         auto* loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
-        problem.AddResidualBlock(BundleReprojResidual<CameraT>::create(obs.view, obs.b_T_g), loss,
+        problem.AddResidualBlock(BundleReprojResidual<CameraT>::create(obs.view, obs.b_se3_g), loss,
                                  blocks.b_q_t.data(), blocks.b_t_t.data(),
                                  blocks.g_q_c[cam_idx].data(), blocks.g_t_c[cam_idx].data(),
                                  blocks.intr[cam_idx].data());
@@ -137,12 +137,12 @@ void validate_input(const std::vector<BundleObservation>& observations,
 template <camera_model CameraT>
 BundleResult<CameraT> optimize_bundle(const std::vector<BundleObservation>& observations,
                                       const std::vector<CameraT>& initial_cameras,
-                                      const std::vector<Eigen::Affine3d>& init_g_T_c,
-                                      const Eigen::Affine3d& init_b_T_t,
+                                      const std::vector<Eigen::Affine3d>& init_g_se3_c,
+                                      const Eigen::Affine3d& init_b_se3_t,
                                       const BundleOptions& opts) {
     validate_input(observations, initial_cameras);
 
-    auto blocks = BundleBlocks<CameraT>::create(initial_cameras, init_g_T_c, init_b_T_t);
+    auto blocks = BundleBlocks<CameraT>::create(initial_cameras, init_g_se3_c, init_b_se3_t);
     ceres::Problem problem = build_problem(observations, opts, blocks);
 
     BundleResult<CameraT> result;

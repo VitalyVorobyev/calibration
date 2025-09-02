@@ -17,8 +17,8 @@ and a camera using planar target observations.
 
 ```
 Eigen::Affine3d estimate_hand_eye_initial(
-    const std::vector<Eigen::Affine3d>& base_T_gripper,
-    const std::vector<Eigen::Affine3d>& target_T_camera);
+    const std::vector<Eigen::Affine3d>& base_se3_gripper,
+    const std::vector<Eigen::Affine3d>& target_se3_camera);
 
 HandEyeResult calibrate_hand_eye(
     const std::vector<HandEyeObservation>& observations,

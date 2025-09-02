@@ -42,12 +42,12 @@ inline PlanarView make_view(const std::vector<Eigen::Vector2d>& obj,
     return view;
 }
 
-inline Eigen::Affine3d compute_camera_T_target(
-    const Eigen::Affine3d& b_T_t,
-    const Eigen::Affine3d& g_T_c,
-    const Eigen::Affine3d& b_T_g) {
-    Eigen::Affine3d c_T_t = g_T_c.inverse() * b_T_g.inverse() * b_T_t;
-    return c_T_t;
+inline Eigen::Affine3d compute_camera_se3_target(
+    const Eigen::Affine3d& b_se3_t,
+    const Eigen::Affine3d& g_se3_c,
+    const Eigen::Affine3d& b_se3_g) {
+    Eigen::Affine3d c_se3_t = g_se3_c.inverse() * b_se3_g.inverse() * b_se3_t;
+    return c_se3_t;
 }
 
 inline Eigen::Matrix3d axis_angle_to_R(const Eigen::Vector3d& axis, double angle){
@@ -106,30 +106,30 @@ inline std::vector<Eigen::Affine3d> make_circle_poses(int n, double radius, doub
  *
  * @tparam DistortionT The distortion model type used by the ScheimpflugCamera.
  * @param scs Vector of ScheimpflugCamera objects, each representing a camera with distortion.
- * @param g_T_cs Vector of transformations from global to each camera coordinate system.
- * @param b_T_t Transformation from board to target coordinate system.
+ * @param g_se3_cs Vector of transformations from global to each camera coordinate system.
+ * @param b_se3_t Transformation from board to target coordinate system.
  * @param obj Vector of 2D object points (e.g., calibration pattern points) in the target frame.
- * @param b_T_gs Vector of transformations from board to global coordinate system for each pose.
+ * @param b_se3_gs Vector of transformations from board to global coordinate system for each pose.
  * @return std::vector<BundleObservation> Vector of observations, each containing the projected
  *         image points, the corresponding object points, the board pose, and the camera index.
  */
 template <distortion_model DistortionT>
 inline std::vector<BundleObservation> make_scheimpflug_observations(
     const std::vector<ScheimpflugCamera<DistortionT>>& scs,
-    const std::vector<Eigen::Affine3d>& g_T_cs,
-    const Eigen::Affine3d& b_T_t,
+    const std::vector<Eigen::Affine3d>& g_se3_cs,
+    const Eigen::Affine3d& b_se3_t,
     const std::vector<Eigen::Vector2d>& obj,
-    const std::vector<Eigen::Affine3d>& b_T_gs) {
+    const std::vector<Eigen::Affine3d>& b_se3_gs) {
     std::vector<BundleObservation> obs;
-    obs.reserve(b_T_gs.size() * scs.size());
-    for (const auto& btg : b_T_gs) {
+    obs.reserve(b_se3_gs.size() * scs.size());
+    for (const auto& btg : b_se3_gs) {
         for (size_t cam_idx = 0; cam_idx < scs.size(); ++cam_idx) {
-            Eigen::Affine3d c_T_t = compute_camera_T_target(b_T_t, g_T_cs[cam_idx], btg);
+            Eigen::Affine3d c_se3_t = compute_camera_se3_target(b_se3_t, g_se3_cs[cam_idx], btg);
             std::vector<Eigen::Vector2d> img;
             img.reserve(obj.size());
             for (const auto& xy : obj) {
                 Eigen::Vector3d P(xy.x(), xy.y(), 0);
-                P = c_T_t * P;
+                P = c_se3_t * P;
                 img.push_back(scs[cam_idx].project(P));
             }
             obs.push_back({make_view(obj, img), btg, cam_idx});
@@ -141,20 +141,20 @@ inline std::vector<BundleObservation> make_scheimpflug_observations(
 template <distortion_model DistortionT>
 inline std::vector<BundleObservation> make_bundle_observations(
     const std::vector<Camera<DistortionT>>& cams,
-    const std::vector<Eigen::Affine3d>& g_T_cs,
-    const Eigen::Affine3d& b_T_t,
+    const std::vector<Eigen::Affine3d>& g_se3_cs,
+    const Eigen::Affine3d& b_se3_t,
     const std::vector<Eigen::Vector2d>& obj,
-    const std::vector<Eigen::Affine3d>& b_T_gs) {
+    const std::vector<Eigen::Affine3d>& b_se3_gs) {
     std::vector<BundleObservation> obs;
-    obs.reserve(b_T_gs.size() * cams.size());
-    for (const auto& btg : b_T_gs) {
+    obs.reserve(b_se3_gs.size() * cams.size());
+    for (const auto& btg : b_se3_gs) {
         for (size_t cam_idx = 0; cam_idx < cams.size(); ++cam_idx) {
-            Eigen::Affine3d c_T_t = compute_camera_T_target(b_T_t, g_T_cs[cam_idx], btg);
+            Eigen::Affine3d c_se3_t = compute_camera_se3_target(b_se3_t, g_se3_cs[cam_idx], btg);
             std::vector<Eigen::Vector2d> img;
             img.reserve(obj.size());
             for (const auto& xy : obj) {
                 Eigen::Vector3d P(xy.x(), xy.y(), 0);
-                P = c_T_t * P;
+                P = c_se3_t * P;
                 img.push_back(cams[cam_idx].project(P));
             }
             obs.push_back({make_view(obj, img), btg, cam_idx});
@@ -185,29 +185,29 @@ struct RNG final {
 };
 
 struct SimulatedHandEye final {
-    Eigen::Affine3d g_T_c_gt;  // ^gT_c
-    Eigen::Affine3d b_T_t_gt;  // ^bT_t
+    Eigen::Affine3d g_se3_c_gt;  // ^gT_c
+    Eigen::Affine3d b_se3_t_gt;  // ^bT_t
     Camera<BrownConradyd> cam_gt;
 
-    std::vector<Eigen::Affine3d> c_T_t;   // ^cT_t per frame
+    std::vector<Eigen::Affine3d> c_se3_t;   // ^cT_t per frame
     std::vector<Eigen::Vector3d> obj_pts; // target points in t-frame
-    std::vector<BundleObservation> observations;  // per frame {view, b_T_g, cam_idx}
+    std::vector<BundleObservation> observations;  // per frame {view, b_se3_g, cam_idx}
 
-    std::vector<Eigen::Affine3d> b_T_g() const {
+    std::vector<Eigen::Affine3d> b_se3_g() const {
         std::vector<Eigen::Affine3d> out; out.reserve(observations.size());
-        for (const auto& obs : observations) out.push_back(obs.b_T_g);
+        for (const auto& obs : observations) out.push_back(obs.b_se3_g);
         return out;
     }
 
     void make_sequence(size_t n_frames, RNG& rng) {
-        c_T_t.clear();
+        c_se3_t.clear();
         observations.clear();
         observations.reserve(n_frames);
 
         Eigen::Affine3d T = Eigen::Affine3d::Identity(); // ^bT_g at k=0
         for (size_t k = 0; k < n_frames; ++k) {
             observations.push_back({ make_view({}, {}), T, 0 });
-            c_T_t.push_back( g_T_c_gt.inverse() * T.inverse() * b_T_t_gt );
+            c_se3_t.push_back( g_se3_c_gt.inverse() * T.inverse() * b_se3_t_gt );
             if (k + 1 < n_frames) {
                 const double ang = deg2rad(rng.uni(5.0, 25.0));
                 const Eigen::Vector3d ax = rng.rand_unit_axis();
@@ -230,12 +230,12 @@ struct SimulatedHandEye final {
     }
 
     void render_pixels(double noise_px = 0.0, RNG* rng = nullptr) {
-        if (observations.size() != c_T_t.size()) observations.resize(c_T_t.size());
+        if (observations.size() != c_se3_t.size()) observations.resize(c_se3_t.size());
         for (size_t k=0; k<observations.size(); ++k) {
             auto& obs = observations[k];
             obs.view.clear();
             obs.view.reserve(obj_pts.size());
-            const auto& Tct = c_T_t[k];
+            const auto& Tct = c_se3_t[k];
             for (const auto& P : obj_pts) {
                 const Eigen::Vector3d Pc = Tct.linear()*P + Tct.translation();
                 if (Pc.z() <= 1e-6) continue; // optional cull

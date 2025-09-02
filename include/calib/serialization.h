@@ -152,12 +152,12 @@ inline void from_json(const nlohmann::json& j, BundleOptions& o) {
 }
 
 inline void to_json(nlohmann::json& j, const BundleObservation& bo) {
-    j = {{"view", bo.view}, {"b_T_g", affine_to_json(bo.b_T_g)}, {"camera_index", bo.camera_index}};
+    j = {{"view", bo.view}, {"b_se3_g", affine_to_json(bo.b_se3_g)}, {"camera_index", bo.camera_index}};
 }
 
 inline void from_json(const nlohmann::json& j, BundleObservation& bo) {
     j.at("view").get_to(bo.view);
-    bo.b_T_g = json_to_affine(j.at("b_T_g"));
+    bo.b_se3_g = json_to_affine(j.at("b_se3_g"));
     bo.camera_index = j.value("camera_index", 0);
 }
 
@@ -194,28 +194,28 @@ inline void from_json(const nlohmann::json& j, ExtrinsicsInput& in) {
 struct BundleInput final {
     std::vector<BundleObservation> observations;
     std::vector<Camera<BrownConradyd>> initial_cameras;
-    std::vector<Eigen::Affine3d> init_g_T_c;
-    Eigen::Affine3d init_b_T_t = Eigen::Affine3d::Identity();
+    std::vector<Eigen::Affine3d> init_g_se3_c;
+    Eigen::Affine3d init_b_se3_t = Eigen::Affine3d::Identity();
     BundleOptions options;
 };
 
 inline void to_json(nlohmann::json& j, const BundleInput& in) {
     nlohmann::json gtc = nlohmann::json::array();
-    for (const auto& T : in.init_g_T_c) gtc.push_back(affine_to_json(T));
+    for (const auto& T : in.init_g_se3_c) gtc.push_back(affine_to_json(T));
     j = {{"observations", in.observations},
          {"initial_cameras", in.initial_cameras},
-         {"init_g_T_c", gtc},
-         {"init_b_T_t", affine_to_json(in.init_b_T_t)},
+         {"init_g_se3_c", gtc},
+         {"init_b_se3_t", affine_to_json(in.init_b_se3_t)},
          {"options", in.options}};
 }
 
 inline void from_json(const nlohmann::json& j, BundleInput& in) {
     j.at("observations").get_to(in.observations);
     j.at("initial_cameras").get_to(in.initial_cameras);
-    in.init_g_T_c.clear();
-    if (j.contains("init_g_T_c"))
-        for (const auto& jt : j.at("init_g_T_c")) in.init_g_T_c.push_back(json_to_affine(jt));
-    if (j.contains("init_b_T_t")) in.init_b_T_t = json_to_affine(j.at("init_b_T_t"));
+    in.init_g_se3_c.clear();
+    if (j.contains("init_g_se3_c"))
+        for (const auto& jt : j.at("init_g_se3_c")) in.init_g_se3_c.push_back(json_to_affine(jt));
+    if (j.contains("init_b_se3_t")) in.init_b_se3_t = json_to_affine(j.at("init_b_se3_t"));
     if (j.contains("options")) j.at("options").get_to(in.options);
 }
 
@@ -224,7 +224,7 @@ inline void from_json(const nlohmann::json& j, BundleInput& in) {
 template <camera_model CameraT>
 inline void to_json(nlohmann::json& j, const IntrinsicsOptimizationResult<CameraT>& r) {
     nlohmann::json pose_arr = nlohmann::json::array();
-    for (const auto& T : r.c_T_t) pose_arr.push_back(affine_to_json(T));
+    for (const auto& T : r.c_se3_t) pose_arr.push_back(affine_to_json(T));
     j = {{"camera", r.camera},
          {"poses", pose_arr},
          {"covariance", eigen_matrix_to_json(r.covariance)},
@@ -236,9 +236,9 @@ inline void to_json(nlohmann::json& j, const IntrinsicsOptimizationResult<Camera
 template <camera_model CameraT>
 inline void from_json(const nlohmann::json& j, IntrinsicsOptimizationResult<CameraT>& r) {
     j.at("camera").get_to(r.camera);
-    r.c_T_t.clear();
+    r.c_se3_t.clear();
     if (j.contains("poses"))
-        for (const auto& jt : j.at("poses")) r.c_T_t.push_back(json_to_affine(jt));
+        for (const auto& jt : j.at("poses")) r.c_se3_t.push_back(json_to_affine(jt));
     r.covariance = json_to_eigen_matrix(j.at("covariance"));
     r.view_errors = j.value("view_errors", std::vector<double>{});
     r.final_cost = j.value("final_cost", 0.0);
@@ -248,14 +248,14 @@ inline void from_json(const nlohmann::json& j, IntrinsicsOptimizationResult<Came
 template <camera_model CameraT>
 inline void to_json(nlohmann::json& j, const ExtrinsicOptimizationResult<CameraT>& r) {
     nlohmann::json cps = nlohmann::json::array();
-    for (const auto& T : r.c_T_r) cps.push_back(affine_to_json(T));
+    for (const auto& T : r.c_se3_r) cps.push_back(affine_to_json(T));
     nlohmann::json tps = nlohmann::json::array();
-    for (const auto& T : r.r_T_t) tps.push_back(affine_to_json(T));
+    for (const auto& T : r.r_se3_t) tps.push_back(affine_to_json(T));
     nlohmann::json cameras = nlohmann::json::array();
     for (const auto& cam : r.cameras) cameras.push_back(cam);
     j = {{"cameras", cameras},
-         {"c_T_r", cps},
-         {"r_T_t", tps},
+         {"c_se3_r", cps},
+         {"r_se3_t", tps},
          {"covariance", eigen_matrix_to_json(r.covariance)},
          {"final_cost", r.final_cost},
          {"report", r.report}};
@@ -263,10 +263,10 @@ inline void to_json(nlohmann::json& j, const ExtrinsicOptimizationResult<CameraT
 
 template <camera_model CameraT>
 inline void from_json(const nlohmann::json& j, ExtrinsicOptimizationResult<CameraT>& r) {
-    r.c_T_r.clear();
-    for (const auto& jt : j.at("c_T_r")) r.c_T_r.push_back(json_to_affine(jt));
-    r.r_T_t.clear();
-    for (const auto& jt : j.at("r_T_t")) r.r_T_t.push_back(json_to_affine(jt));
+    r.c_se3_r.clear();
+    for (const auto& jt : j.at("c_se3_r")) r.c_se3_r.push_back(json_to_affine(jt));
+    r.r_se3_t.clear();
+    for (const auto& jt : j.at("r_se3_t")) r.r_se3_t.push_back(json_to_affine(jt));
     r.cameras.clear();
     for (const auto& jc : j.at("cameras")) r.cameras.push_back(jc.get<CameraT>());
     r.covariance = json_to_eigen_matrix(j.at("covariance"));
@@ -278,10 +278,10 @@ inline void to_json(nlohmann::json& j, const BundleResult<Camera<BrownConradyd>>
     nlohmann::json cams = nlohmann::json::array();
     for (const auto& cam : r.cameras) cams.push_back(cam);
     nlohmann::json gtc = nlohmann::json::array();
-    for (const auto& T : r.g_T_c) gtc.push_back(affine_to_json(T));
+    for (const auto& T : r.g_se3_c) gtc.push_back(affine_to_json(T));
     j = {{"cameras", cams},
-         {"g_T_c", gtc},
-         {"b_T_t", affine_to_json(r.b_T_t)},
+         {"g_se3_c", gtc},
+         {"b_se3_t", affine_to_json(r.b_se3_t)},
          {"final_cost", r.final_cost},
          {"covariance", eigen_matrix_to_json(r.covariance)},
          {"report", r.report}};
@@ -290,9 +290,9 @@ inline void to_json(nlohmann::json& j, const BundleResult<Camera<BrownConradyd>>
 inline void from_json(const nlohmann::json& j, BundleResult<Camera<BrownConradyd>>& r) {
     r.cameras.clear();
     for (const auto& jc : j.at("cameras")) r.cameras.push_back(jc.get<Camera<BrownConradyd>>());
-    r.g_T_c.clear();
-    for (const auto& jt : j.at("g_T_c")) r.g_T_c.push_back(json_to_affine(jt));
-    r.b_T_t = json_to_affine(j.at("b_T_t"));
+    r.g_se3_c.clear();
+    for (const auto& jt : j.at("g_se3_c")) r.g_se3_c.push_back(json_to_affine(jt));
+    r.b_se3_t = json_to_affine(j.at("b_se3_t"));
     r.final_cost = j.value("final_cost", 0.0);
     r.covariance = json_to_eigen_matrix(j.at("covariance"));
     r.report = j.value("report", std::string{});

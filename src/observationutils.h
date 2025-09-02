@@ -175,13 +175,13 @@ inline Eigen::Affine3d average_affines(const std::vector<Eigen::Affine3d>& poses
 template <typename T>
 static void planar_observables_to_observables(
     const PlanarView& po, std::vector<Observation<T>>& o,
-    const Eigen::Transform<T, 3, Eigen::Affine>& camera_T_target) {
+    const Eigen::Transform<T, 3, Eigen::Affine>& camera_se3_target) {
     if (o.size() != po.size()) o.resize(po.size());
     for (size_t i = 0; i < po.size(); ++i) {
         const auto& p = po[i];
         // Convert pixel coordinates to normalized image coordinates
         Eigen::Matrix<T, 3, 1> P{T(p.object_xy.x()), T(p.object_xy.y()), T(0)};
-        P = camera_T_target * P;
+        P = camera_se3_target * P;
         const T xn = P.x() / P.z();
         const T yn = P.y() / P.z();
         o[i] = Observation<T>{xn, yn, T(p.image_uv.x()), T(p.image_uv.y())};

@@ -11,7 +11,7 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
                             const std::vector<Camera<DualDistortion>>& cameras) -> ExtrinsicPoses {
     const size_t num_cameras = cameras.size();
     const size_t num_views = views.size();
-    std::vector<std::vector<Eigen::Affine3d>> cam_T_ref(
+    std::vector<std::vector<Eigen::Affine3d>> cam_se3_ref(
         num_views, std::vector<Eigen::Affine3d>(num_cameras, Eigen::Affine3d::Identity()));
 
     // Estimate per-camera reference poses via DLT
@@ -32,14 +32,14 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
                 obj_xy.push_back(obs_elem.object_xy);
                 img_uv.push_back(obs_elem.image_uv);
             }
-            cam_T_ref[view_idx][cam_idx] =
+            cam_se3_ref[view_idx][cam_idx] =
                 estimate_planar_pose_dlt(obj_xy, img_uv, cameras[cam_idx].K);
         }
     }
 
     ExtrinsicPoses guess;
-    guess.c_T_r.assign(num_cameras, Eigen::Affine3d::Identity());
-    guess.r_T_t.assign(num_views, Eigen::Affine3d::Identity());
+    guess.c_se3_r.assign(num_cameras, Eigen::Affine3d::Identity());
+    guess.r_se3_t.assign(num_views, Eigen::Affine3d::Identity());
 
     // Compute camera poses relative to first camera (reference)
     for (size_t cam_idx = 1; cam_idx < num_cameras; ++cam_idx) {
@@ -55,10 +55,10 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
                           << cam_idx << "\n";
                 continue;
             }
-            rels.push_back(cam_T_ref[view_idx][cam_idx] * cam_T_ref[view_idx][0].inverse());
+            rels.push_back(cam_se3_ref[view_idx][cam_idx] * cam_se3_ref[view_idx][0].inverse());
         }
         if (!rels.empty()) {
-            guess.c_T_r[cam_idx] = average_affines(rels);
+            guess.c_se3_r[cam_idx] = average_affines(rels);
         }
     }
 
@@ -73,10 +73,10 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
             if (obs_cam.size() < 4) {
                 continue;
             }
-            tposes.push_back(guess.c_T_r[cam_idx].inverse() * cam_T_ref[view_idx][cam_idx]);
+            tposes.push_back(guess.c_se3_r[cam_idx].inverse() * cam_se3_ref[view_idx][cam_idx]);
         }
         if (!tposes.empty()) {
-            guess.r_T_t[view_idx] = average_affines(tposes);
+            guess.r_se3_t[view_idx] = average_affines(tposes);
         }
     }
 

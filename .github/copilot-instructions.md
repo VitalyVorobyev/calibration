@@ -100,7 +100,7 @@ cd build && ctest
 - Support for various distortion models through concept-based design
 
 ### Bundle Adjustment Architecture
-- `BundleObservation` links robot poses (`b_T_g`) with camera views
+- `BundleObservation` links robot poses (`b_se3_g`) with camera views
 - Multi-camera support via `camera_index` and relative `extrinsics`
 - Configurable optimization via `BundleOptions` (what to optimize)
 

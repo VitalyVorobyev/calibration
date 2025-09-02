@@ -26,18 +26,18 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
           intrinsics(num_cams) {}
 
     static auto create(const std::vector<CameraT>& cameras,
-                       const std::vector<Eigen::Affine3d>& init_cam_T_ref,
-                       const std::vector<Eigen::Affine3d>& init_ref_T_tgt) -> ExtrinsicBlocks {
+                       const std::vector<Eigen::Affine3d>& init_cam_se3_ref,
+                       const std::vector<Eigen::Affine3d>& init_ref_se3_tgt) -> ExtrinsicBlocks {
         const size_t num_cams = cameras.size();
-        const size_t num_views = init_ref_T_tgt.size();
+        const size_t num_views = init_ref_se3_tgt.size();
         ExtrinsicBlocks blocks(num_cams, num_views);
         for (size_t cam_idx = 0; cam_idx < num_cams; ++cam_idx) {
-            populate_quat_tran(init_cam_T_ref[cam_idx], blocks.cam_quat_ref[cam_idx],
+            populate_quat_tran(init_cam_se3_ref[cam_idx], blocks.cam_quat_ref[cam_idx],
                                blocks.cam_tran_ref[cam_idx]);
             CameraTraits<CameraT>::to_array(cameras[cam_idx], blocks.intrinsics[cam_idx]);
         }
         for (size_t view_idx = 0; view_idx < num_views; ++view_idx) {
-            populate_quat_tran(init_ref_T_tgt[view_idx], blocks.ref_quat_tgt[view_idx],
+            populate_quat_tran(init_ref_se3_tgt[view_idx], blocks.ref_quat_tgt[view_idx],
                                blocks.ref_tran_tgt[view_idx]);
         }
         return blocks;
@@ -70,15 +70,15 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
         const size_t num_cams = cam_quat_ref.size();
         const size_t num_views = ref_quat_tgt.size();
         result.cameras.resize(num_cams);
-        result.c_T_r.resize(num_cams);
-        result.r_T_t.resize(num_views);
+        result.c_se3_r.resize(num_cams);
+        result.r_se3_t.resize(num_views);
         for (size_t cam_idx = 0; cam_idx < num_cams; ++cam_idx) {
             result.cameras[cam_idx] =
                 CameraTraits<CameraT>::template from_array<double>(intrinsics[cam_idx].data());
-            result.c_T_r[cam_idx] = restore_pose(cam_quat_ref[cam_idx], cam_tran_ref[cam_idx]);
+            result.c_se3_r[cam_idx] = restore_pose(cam_quat_ref[cam_idx], cam_tran_ref[cam_idx]);
         }
         for (size_t view_idx = 0; view_idx < num_views; ++view_idx) {
-            result.r_T_t[view_idx] = restore_pose(ref_quat_tgt[view_idx], ref_tran_tgt[view_idx]);
+            result.r_se3_t[view_idx] = restore_pose(ref_quat_tgt[view_idx], ref_tran_tgt[view_idx]);
         }
     }
 };
@@ -146,12 +146,12 @@ static auto build_problem(const std::vector<MulticamPlanarView>& views,
 
 template <camera_model CameraT>
 static void validate_input(const std::vector<CameraT>& init_cameras,
-                           const std::vector<Eigen::Affine3d>& init_c_T_r,
-                           const std::vector<Eigen::Affine3d>& init_r_T_t,
+                           const std::vector<Eigen::Affine3d>& init_c_se3_r,
+                           const std::vector<Eigen::Affine3d>& init_r_se3_t,
                            const std::vector<MulticamPlanarView>& views) {
     const size_t num_cams = init_cameras.size();
     const size_t num_views = views.size();
-    if (init_c_T_r.size() != num_cams || init_r_T_t.size() != num_views) {
+    if (init_c_se3_r.size() != num_cams || init_r_se3_t.size() != num_views) {
         throw std::invalid_argument("Incompatible pose vector sizes for joint optimization");
     }
 }
@@ -159,11 +159,11 @@ static void validate_input(const std::vector<CameraT>& init_cameras,
 template <camera_model CameraT>
 ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
     const std::vector<MulticamPlanarView>& views, const std::vector<CameraT>& init_cameras,
-    const std::vector<Eigen::Affine3d>& init_c_T_r, const std::vector<Eigen::Affine3d>& init_r_T_t,
+    const std::vector<Eigen::Affine3d>& init_c_se3_r, const std::vector<Eigen::Affine3d>& init_r_se3_t,
     const ExtrinsicOptions& opts) {
-    validate_input(init_cameras, init_c_T_r, init_r_T_t, views);
+    validate_input(init_cameras, init_c_se3_r, init_r_se3_t, views);
 
-    auto blocks = ExtrinsicBlocks<CameraT>::create(init_cameras, init_c_T_r, init_r_T_t);
+    auto blocks = ExtrinsicBlocks<CameraT>::create(init_cameras, init_c_se3_r, init_r_se3_t);
     ceres::Problem problem = build_problem(views, init_cameras, opts, blocks);
 
     ExtrinsicOptimizationResult<CameraT> result;

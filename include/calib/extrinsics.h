@@ -17,8 +17,8 @@ namespace calib {
 using MulticamPlanarView = std::vector<PlanarView>;
 
 struct ExtrinsicPoses final {
-    std::vector<Eigen::Affine3d> c_T_r;  // reference->camera
-    std::vector<Eigen::Affine3d> r_T_t;  // target->reference
+    std::vector<Eigen::Affine3d> c_se3_r;  // reference->camera
+    std::vector<Eigen::Affine3d> r_se3_t;  // target->reference
 };
 
 /**
@@ -40,8 +40,8 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
 template <camera_model CameraT>
 struct ExtrinsicOptimizationResult final : public OptimResult {
     std::vector<CameraT> cameras;        // Optimized camera matrices
-    std::vector<Eigen::Affine3d> c_T_r;  // reference->camera
-    std::vector<Eigen::Affine3d> r_T_t;  // target->reference
+    std::vector<Eigen::Affine3d> c_se3_r;  // reference->camera
+    std::vector<Eigen::Affine3d> r_se3_t;  // target->reference
 };
 
 struct ExtrinsicOptions final : public OptimOptions {
@@ -53,8 +53,8 @@ struct ExtrinsicOptions final : public OptimOptions {
 template <camera_model CameraT>
 auto optimize_extrinsics(const std::vector<MulticamPlanarView>& views,
                          const std::vector<CameraT>& init_cameras,
-                         const std::vector<Eigen::Affine3d>& init_c_T_r,
-                         const std::vector<Eigen::Affine3d>& init_r_T_t,
+                         const std::vector<Eigen::Affine3d>& init_c_se3_r,
+                         const std::vector<Eigen::Affine3d>& init_r_se3_t,
                          const ExtrinsicOptions& opts = {}) -> ExtrinsicOptimizationResult<CameraT>;
 
 }  // namespace calib

@@ -38,7 +38,7 @@ TEST(JsonSerialization, IntrinsicsResultRoundTrip) {
     res.covariance = Eigen::MatrixXd::Identity(5,5);
     res.view_errors = {0.1, 0.2};
     res.report = "ok";
-    res.c_T_t = {Eigen::Affine3d::Identity()};
+    res.c_se3_t = {Eigen::Affine3d::Identity()};
     nlohmann::json j = res;
     auto r2 = j.get<IntrinsicsOptimizationResult<Camera<BrownConradyd>>>();
     EXPECT_NEAR(r2.camera.K.fx, 100, 1e-9);

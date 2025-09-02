@@ -33,13 +33,13 @@ struct CalibVPResidual final {
         std::vector<Observation<T>> o;
         o.reserve(total_obs_);
 
-        auto c_T_t = Eigen::Transform<T, 3, Eigen::Affine>::Identity();
+        auto c_se3_t = Eigen::Transform<T, 3, Eigen::Affine>::Identity();
 
         for (size_t i = 0; i < views.size(); ++i) {
-            c_T_t.linear() = quat_array_to_rotmat<T>(params[2 * i + 1]);
-            c_T_t.translation() = array_to_translation<T>(params[2 * i + 2]);
+            c_se3_t.linear() = quat_array_to_rotmat<T>(params[2 * i + 1]);
+            c_se3_t.translation() = array_to_translation<T>(params[2 * i + 2]);
             std::vector<Observation<T>> new_obs(views[i].size());
-            planar_observables_to_observables(views[i], new_obs, c_T_t);
+            planar_observables_to_observables(views[i], new_obs, c_se3_t);
             o.insert(o.end(), new_obs.begin(), new_obs.end());
         }
 

@@ -66,13 +66,13 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     auto result = optimize_extrinsics(views, cameras, cam_init, target_init, opts);
 
     EXPECT_LT(result.final_cost, 1e-6);
-    ASSERT_EQ(result.c_T_r.size(), static_cast<size_t>(kCams));
-    ASSERT_EQ(result.r_T_t.size(), target_gt.size());
-    EXPECT_TRUE(result.c_T_r[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
-    EXPECT_TRUE(result.c_T_r[1].linear().isApprox(cam_gt[1].linear(), 1e-3));
+    ASSERT_EQ(result.c_se3_r.size(), static_cast<size_t>(kCams));
+    ASSERT_EQ(result.r_se3_t.size(), target_gt.size());
+    EXPECT_TRUE(result.c_se3_r[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
+    EXPECT_TRUE(result.c_se3_r[1].linear().isApprox(cam_gt[1].linear(), 1e-3));
     for (size_t v = 0; v < target_gt.size(); ++v) {
-        EXPECT_TRUE(result.r_T_t[v].translation().isApprox(target_gt[v].translation(), 1e-3));
-        EXPECT_TRUE(result.r_T_t[v].linear().isApprox(target_gt[v].linear(), 1e-3));
+        EXPECT_TRUE(result.r_se3_t[v].translation().isApprox(target_gt[v].translation(), 1e-3));
+        EXPECT_TRUE(result.r_se3_t[v].linear().isApprox(target_gt[v].linear(), 1e-3));
     }
 }
 
@@ -130,21 +130,21 @@ TEST(Extrinsics, RecoverAllParameters) {
     };
 
     auto guess = estimate_extrinsic_dlt(views, cameras_for_estimate);
-    ASSERT_TRUE(guess.c_T_r.front().isApprox(Eigen::Affine3d::Identity()));
+    ASSERT_TRUE(guess.c_se3_r.front().isApprox(Eigen::Affine3d::Identity()));
 
     // Anchor the first target pose to its ground truth to fix the scale.
-    guess.r_T_t[0] = target_gt[0];
+    guess.r_se3_t[0] = target_gt[0];
 
     ExtrinsicOptions opts; opts.verbose = false;
-    auto res = optimize_extrinsics(views, cam_init, guess.c_T_r, guess.r_T_t, opts);
+    auto res = optimize_extrinsics(views, cam_init, guess.c_se3_r, guess.r_se3_t, opts);
     std::cout << res.report << std::endl;
 
     EXPECT_LT(res.final_cost, 1e-6);
     ASSERT_EQ(res.cameras.size(), static_cast<size_t>(kCams));
     EXPECT_NEAR(res.cameras[0].K.fx, 100.0, 1e-3);
     EXPECT_NEAR(res.cameras[0].K.fy, 100.0, 1e-3);
-    EXPECT_TRUE(res.c_T_r[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
-    EXPECT_TRUE(res.r_T_t[0].translation().isApprox(target_gt[0].translation(), 1e-3));
+    EXPECT_TRUE(res.c_se3_r[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
+    EXPECT_TRUE(res.r_se3_t[0].translation().isApprox(target_gt[0].translation(), 1e-3));
     EXPECT_GT(res.covariance.trace(), 0.0);
 }
 
@@ -201,11 +201,11 @@ TEST(Extrinsics, FirstTargetPoseFixed) {
     auto guess = estimate_extrinsic_dlt(views, cameras_for_estimate);
     // Deliberately set an incorrect scale for the first target pose. This pose
     // should remain unchanged by the optimisation.
-    guess.r_T_t[0].translation() = Eigen::Vector3d(0.0, 0.0, 3.0);
+    guess.r_se3_t[0].translation() = Eigen::Vector3d(0.0, 0.0, 3.0);
 
     ExtrinsicOptions opts; opts.verbose = false;
-    auto res = optimize_extrinsics(views, cam_init, guess.c_T_r, guess.r_T_t, opts);
+    auto res = optimize_extrinsics(views, cam_init, guess.c_se3_r, guess.r_se3_t, opts);
 
-    EXPECT_TRUE(res.r_T_t[0].translation().isApprox(guess.r_T_t[0].translation(), 1e-12));
+    EXPECT_TRUE(res.r_se3_t[0].translation().isApprox(guess.r_se3_t[0].translation(), 1e-12));
     EXPECT_GT(res.final_cost, 0.1);
 }

@@ -8,22 +8,22 @@
 
 namespace calib {
 
-auto build_all_pairs(const std::vector<Eigen::Affine3d>& ref_T_gripper,
-                     const std::vector<Eigen::Affine3d>& cam_T_target,
+auto build_all_pairs(const std::vector<Eigen::Affine3d>& base_se3_gripper,
+                     const std::vector<Eigen::Affine3d>& cam_se3_target,
                      double min_angle_deg,       // discard too-small motions
                      bool reject_axis_parallel,  // guard against ill-conditioning
                      double axis_parallel_eps) -> std::vector<MotionPair> {
-    if (ref_T_gripper.size() < 2 || ref_T_gripper.size() != cam_T_target.size()) {
+    if (base_se3_gripper.size() < 2 || base_se3_gripper.size() != cam_se3_target.size()) {
         throw std::runtime_error("Inconsistent hand-eye input sizes");
     }
-    const size_t num_poses = ref_T_gripper.size();
+    const size_t num_poses = base_se3_gripper.size();
     const double min_angle = min_angle_deg * std::numbers::pi / 180.0;
     std::vector<MotionPair> pairs;
     pairs.reserve(num_poses * (num_poses - 1) / 2);
     for (size_t idx_i = 0; idx_i + 1 < num_poses; ++idx_i) {
         for (size_t idx_j = idx_i + 1; idx_j < num_poses; ++idx_j) {
-            Eigen::Affine3d affine_a = ref_T_gripper[idx_i].inverse() * ref_T_gripper[idx_j];
-            Eigen::Affine3d affine_b = cam_T_target[idx_i] * cam_T_target[idx_j].inverse();
+            Eigen::Affine3d affine_a = base_se3_gripper[idx_i].inverse() * base_se3_gripper[idx_j];
+            Eigen::Affine3d affine_b = cam_se3_target[idx_i] * cam_se3_target[idx_j].inverse();
             MotionPair motion_pair;
             motion_pair.RA = projectToSO3(affine_a.linear());
             motion_pair.RB = projectToSO3(affine_b.linear());
@@ -100,10 +100,10 @@ static auto estimate_translation_allpairs_weighted(
 }
 
 // ---------- public API: linear init + non-linear refine ----------
-auto estimate_handeye_dlt(const std::vector<Eigen::Affine3d>& ref_T_gripper,
-                          const std::vector<Eigen::Affine3d>& camera_T_target,
+auto estimate_handeye_dlt(const std::vector<Eigen::Affine3d>& base_se3_gripper,
+                          const std::vector<Eigen::Affine3d>& camera_se3_target,
                           double min_angle_deg) -> Eigen::Affine3d {
-    auto pairs = build_all_pairs(ref_T_gripper, camera_T_target, min_angle_deg);
+    auto pairs = build_all_pairs(base_se3_gripper, camera_se3_target, min_angle_deg);
     const Eigen::Matrix3d rot_X = estimate_rotation_allpairs_weighted(pairs);
     const Eigen::Vector3d g_t_c = estimate_translation_allpairs_weighted(pairs, rot_X);
     Eigen::Affine3d pose = Eigen::Affine3d::Identity();
