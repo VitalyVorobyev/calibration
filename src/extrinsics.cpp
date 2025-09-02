@@ -26,8 +26,8 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
           intrinsics(num_cams) {}
 
     static auto create(const std::vector<CameraT>& cameras,
-                       const std::vector<Eigen::Affine3d>& init_cam_se3_ref,
-                       const std::vector<Eigen::Affine3d>& init_ref_se3_tgt) -> ExtrinsicBlocks {
+                       const std::vector<Eigen::Isometry3d>& init_cam_se3_ref,
+                       const std::vector<Eigen::Isometry3d>& init_ref_se3_tgt) -> ExtrinsicBlocks {
         const size_t num_cams = cameras.size();
         const size_t num_views = init_ref_se3_tgt.size();
         ExtrinsicBlocks blocks(num_cams, num_views);
@@ -146,8 +146,8 @@ static auto build_problem(const std::vector<MulticamPlanarView>& views,
 
 template <camera_model CameraT>
 static void validate_input(const std::vector<CameraT>& init_cameras,
-                           const std::vector<Eigen::Affine3d>& init_c_se3_r,
-                           const std::vector<Eigen::Affine3d>& init_r_se3_t,
+                           const std::vector<Eigen::Isometry3d>& init_c_se3_r,
+                           const std::vector<Eigen::Isometry3d>& init_r_se3_t,
                            const std::vector<MulticamPlanarView>& views) {
     const size_t num_cams = init_cameras.size();
     const size_t num_views = views.size();
@@ -159,7 +159,7 @@ static void validate_input(const std::vector<CameraT>& init_cameras,
 template <camera_model CameraT>
 ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
     const std::vector<MulticamPlanarView>& views, const std::vector<CameraT>& init_cameras,
-    const std::vector<Eigen::Affine3d>& init_c_se3_r, const std::vector<Eigen::Affine3d>& init_r_se3_t,
+    const std::vector<Eigen::Isometry3d>& init_c_se3_r, const std::vector<Eigen::Isometry3d>& init_r_se3_t,
     const ExtrinsicOptions& opts) {
     validate_input(init_cameras, init_c_se3_r, init_r_se3_t, views);
 
@@ -182,12 +182,12 @@ ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
 
 template ExtrinsicOptimizationResult<Camera<BrownConradyd>> optimize_extrinsics(
     const std::vector<MulticamPlanarView>&, const std::vector<Camera<BrownConradyd>>&,
-    const std::vector<Eigen::Affine3d>&, const std::vector<Eigen::Affine3d>&,
+    const std::vector<Eigen::Isometry3d>&, const std::vector<Eigen::Isometry3d>&,
     const ExtrinsicOptions&);
 
 template ExtrinsicOptimizationResult<ScheimpflugCamera<BrownConradyd>> optimize_extrinsics(
     const std::vector<MulticamPlanarView>&, const std::vector<ScheimpflugCamera<BrownConradyd>>&,
-    const std::vector<Eigen::Affine3d>&, const std::vector<Eigen::Affine3d>&,
+    const std::vector<Eigen::Isometry3d>&, const std::vector<Eigen::Isometry3d>&,
     const ExtrinsicOptions&);
 
 }  // namespace calib

@@ -25,10 +25,10 @@ static std::pair<Eigen::Matrix<T, 3, 3>, Eigen::Matrix<T, 3, 1>> get_camera_se3_
 }
 
 #if 0
-static Eigen::Affine3d get_camera_se3_target(
-    const Eigen::Affine3d& b_se3_t,
-    const Eigen::Affine3d& g_se3_c,
-    const Eigen::Affine3d& b_se3_g
+static Eigen::Isometry3d get_camera_se3_target(
+    const Eigen::Isometry3d& b_se3_t,
+    const Eigen::Isometry3d& g_se3_c,
+    const Eigen::Isometry3d& b_se3_g
 ) {
     auto c_se3_t = g_se3_c.inverse() * b_se3_g.inverse() * b_se3_t;
     return c_se3_t;
@@ -38,8 +38,8 @@ static Eigen::Affine3d get_camera_se3_target(
 template <camera_model CameraT>
 struct BundleReprojResidual final {
     const PlanarView view;
-    const Eigen::Affine3d base_se3_gripper;
-    BundleReprojResidual(const PlanarView& v, const Eigen::Affine3d& b_se3_g)
+    const Eigen::Isometry3d base_se3_gripper;
+    BundleReprojResidual(const PlanarView& v, const Eigen::Isometry3d& b_se3_g)
         : view(v), base_se3_gripper(b_se3_g) {}
 
     template <typename T>
@@ -64,7 +64,7 @@ struct BundleReprojResidual final {
         return true;
     }
 
-    static auto* create(const PlanarView& v, const Eigen::Affine3d& base_se3_gripper) {
+    static auto* create(const PlanarView& v, const Eigen::Isometry3d& base_se3_gripper) {
         if (v.empty()) {
             throw std::invalid_argument("No observations provided");
         }

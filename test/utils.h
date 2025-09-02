@@ -42,11 +42,11 @@ inline PlanarView make_view(const std::vector<Eigen::Vector2d>& obj,
     return view;
 }
 
-inline Eigen::Affine3d compute_camera_se3_target(
-    const Eigen::Affine3d& b_se3_t,
-    const Eigen::Affine3d& g_se3_c,
-    const Eigen::Affine3d& b_se3_g) {
-    Eigen::Affine3d c_se3_t = g_se3_c.inverse() * b_se3_g.inverse() * b_se3_t;
+inline Eigen::Isometry3d compute_camera_se3_target(
+    const Eigen::Isometry3d& b_se3_t,
+    const Eigen::Isometry3d& g_se3_c,
+    const Eigen::Isometry3d& b_se3_g) {
+    Eigen::Isometry3d c_se3_t = g_se3_c.inverse() * b_se3_g.inverse() * b_se3_t;
     return c_se3_t;
 }
 
@@ -55,8 +55,8 @@ inline Eigen::Matrix3d axis_angle_to_R(const Eigen::Vector3d& axis, double angle
     return Eigen::AngleAxisd(angle, axis.normalized()).toRotationMatrix();
 }
 
-inline Eigen::Affine3d make_pose(const Eigen::Vector3d& t, const Eigen::Vector3d& axis, double angle) {
-    Eigen::Affine3d T = Eigen::Affine3d::Identity();
+inline Eigen::Isometry3d make_pose(const Eigen::Vector3d& t, const Eigen::Vector3d& axis, double angle) {
+    Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
     T.linear() = axis_angle_to_R(axis, angle);
     T.translation() = t;
     return T;
@@ -65,7 +65,7 @@ inline Eigen::Affine3d make_pose(const Eigen::Vector3d& t, const Eigen::Vector3d
 /**
  * @brief Generates a sequence of 3D poses arranged in a circle with optional elevation and rotation.
  *
- * This function creates a vector of Eigen::Affine3d transformations representing poses
+ * This function creates a vector of Eigen::Isometry3d transformations representing poses
  * distributed evenly along a circle in the XY-plane, with each pose optionally elevated along the Z-axis
  * and rotated around a specified axis.
  *
@@ -75,16 +75,16 @@ inline Eigen::Affine3d make_pose(const Eigen::Vector3d& t, const Eigen::Vector3d
  * @param z_step   Incremental step in Z for each subsequent pose.
  * @param rot_step Incremental rotation (in radians) applied to each pose.
  * @param axis_z   Z-component of the rotation axis (default is 1.0).
- * @return std::vector<Eigen::Affine3d> Vector of generated poses as affine transformations.
+ * @return std::vector<Eigen::Isometry3d> Vector of generated poses as affine transformations.
  */
-inline std::vector<Eigen::Affine3d> make_circle_poses(int n, double radius, double z0,
+inline std::vector<Eigen::Isometry3d> make_circle_poses(int n, double radius, double z0,
                                                       double z_step, double rot_step,
                                                       double axis_z = 1.0) {
-    std::vector<Eigen::Affine3d> poses;
+    std::vector<Eigen::Isometry3d> poses;
     poses.reserve(n);
     for (int i = 0; i < n; ++i) {
         double angle = i * 2.0 * std::numbers::pi / n;
-        Eigen::Affine3d T = Eigen::Affine3d::Identity();
+        Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
         T.translation() = Eigen::Vector3d(radius * std::cos(angle),
                                           radius * std::sin(angle),
                                           z0 + z_step * i);
@@ -116,15 +116,15 @@ inline std::vector<Eigen::Affine3d> make_circle_poses(int n, double radius, doub
 template <distortion_model DistortionT>
 inline std::vector<BundleObservation> make_scheimpflug_observations(
     const std::vector<ScheimpflugCamera<DistortionT>>& scs,
-    const std::vector<Eigen::Affine3d>& g_se3_cs,
-    const Eigen::Affine3d& b_se3_t,
+    const std::vector<Eigen::Isometry3d>& g_se3_cs,
+    const Eigen::Isometry3d& b_se3_t,
     const std::vector<Eigen::Vector2d>& obj,
-    const std::vector<Eigen::Affine3d>& b_se3_gs) {
+    const std::vector<Eigen::Isometry3d>& b_se3_gs) {
     std::vector<BundleObservation> obs;
     obs.reserve(b_se3_gs.size() * scs.size());
     for (const auto& btg : b_se3_gs) {
         for (size_t cam_idx = 0; cam_idx < scs.size(); ++cam_idx) {
-            Eigen::Affine3d c_se3_t = compute_camera_se3_target(b_se3_t, g_se3_cs[cam_idx], btg);
+            Eigen::Isometry3d c_se3_t = compute_camera_se3_target(b_se3_t, g_se3_cs[cam_idx], btg);
             std::vector<Eigen::Vector2d> img;
             img.reserve(obj.size());
             for (const auto& xy : obj) {
@@ -141,15 +141,15 @@ inline std::vector<BundleObservation> make_scheimpflug_observations(
 template <distortion_model DistortionT>
 inline std::vector<BundleObservation> make_bundle_observations(
     const std::vector<Camera<DistortionT>>& cams,
-    const std::vector<Eigen::Affine3d>& g_se3_cs,
-    const Eigen::Affine3d& b_se3_t,
+    const std::vector<Eigen::Isometry3d>& g_se3_cs,
+    const Eigen::Isometry3d& b_se3_t,
     const std::vector<Eigen::Vector2d>& obj,
-    const std::vector<Eigen::Affine3d>& b_se3_gs) {
+    const std::vector<Eigen::Isometry3d>& b_se3_gs) {
     std::vector<BundleObservation> obs;
     obs.reserve(b_se3_gs.size() * cams.size());
     for (const auto& btg : b_se3_gs) {
         for (size_t cam_idx = 0; cam_idx < cams.size(); ++cam_idx) {
-            Eigen::Affine3d c_se3_t = compute_camera_se3_target(b_se3_t, g_se3_cs[cam_idx], btg);
+            Eigen::Isometry3d c_se3_t = compute_camera_se3_target(b_se3_t, g_se3_cs[cam_idx], btg);
             std::vector<Eigen::Vector2d> img;
             img.reserve(obj.size());
             for (const auto& xy : obj) {
@@ -185,16 +185,16 @@ struct RNG final {
 };
 
 struct SimulatedHandEye final {
-    Eigen::Affine3d g_se3_c_gt;  // ^gT_c
-    Eigen::Affine3d b_se3_t_gt;  // ^bT_t
+    Eigen::Isometry3d g_se3_c_gt;  // ^gT_c
+    Eigen::Isometry3d b_se3_t_gt;  // ^bT_t
     Camera<BrownConradyd> cam_gt;
 
-    std::vector<Eigen::Affine3d> c_se3_t;   // ^cT_t per frame
+    std::vector<Eigen::Isometry3d> c_se3_t;   // ^cT_t per frame
     std::vector<Eigen::Vector3d> obj_pts; // target points in t-frame
     std::vector<BundleObservation> observations;  // per frame {view, b_se3_g, cam_idx}
 
-    std::vector<Eigen::Affine3d> b_se3_g() const {
-        std::vector<Eigen::Affine3d> out; out.reserve(observations.size());
+    std::vector<Eigen::Isometry3d> b_se3_g() const {
+        std::vector<Eigen::Isometry3d> out; out.reserve(observations.size());
         for (const auto& obs : observations) out.push_back(obs.b_se3_g);
         return out;
     }
@@ -204,7 +204,7 @@ struct SimulatedHandEye final {
         observations.clear();
         observations.reserve(n_frames);
 
-        Eigen::Affine3d T = Eigen::Affine3d::Identity(); // ^bT_g at k=0
+        Eigen::Isometry3d T = Eigen::Isometry3d::Identity(); // ^bT_g at k=0
         for (size_t k = 0; k < n_frames; ++k) {
             observations.push_back({ make_view({}, {}), T, 0 });
             c_se3_t.push_back( g_se3_c_gt.inverse() * T.inverse() * b_se3_t_gt );
@@ -214,7 +214,7 @@ struct SimulatedHandEye final {
                 const Eigen::Vector3d dt( rng.uni(-0.10, 0.10),
                                           rng.uni(-0.10, 0.10),
                                           rng.uni(-0.10, 0.10) );
-                const Eigen::Affine3d d = make_pose(dt, ax, ang);
+                const Eigen::Isometry3d d = make_pose(dt, ax, ang);
                 T = T * d; // cumulative
             }
         }

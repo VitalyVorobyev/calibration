@@ -18,8 +18,8 @@ struct MotionPair final {
     Eigen::Vector3d tA, tB;
 };
 
-auto build_all_pairs(const std::vector<Eigen::Affine3d>& base_se3_gripper,
-                     const std::vector<Eigen::Affine3d>& cam_se3_target,
+auto build_all_pairs(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
+                     const std::vector<Eigen::Isometry3d>& cam_se3_target,
                      double min_angle_deg = 1.0,        // discard too-small motions
                      bool reject_axis_parallel = true,  // guard against ill-conditioning
                      double axis_parallel_eps = 1e-3) -> std::vector<MotionPair>;
@@ -36,15 +36,15 @@ auto build_all_pairs(const std::vector<Eigen::Affine3d>& base_se3_gripper,
  *
  * @param base_se3_gripper A vector of transformations representing the motion
  *        of the gripper relative to the robot base. Each transformation is
- *        an Eigen::Affine3d object.
+ *        an Eigen::Isometry3d object.
  * @param camera_se3_target A vector of transformations representing the motion
  *        of the calibration target relative to the camera. Each transformation
- *        is an Eigen::Affine3d object.
+ *        is an Eigen::Isometry3d object.
  * @param min_angle_deg The minimum angular difference (in degrees) between
  *        two transformations to be considered for pairing. This parameter
  *        helps to filter out pairs with insufficient motion, which may lead
  *        to numerical instability. Default value is 1.0 degrees.
- * @return The estimated hand-eye transformation as an Eigen::Affine3d object.
+ * @return The estimated hand-eye transformation as an Eigen::Isometry3d object.
  *
  * @note The input vectors `base_se3_gripper` and `camera_se3_target` must have
  *       the same size, and each pair of corresponding transformations must
@@ -52,14 +52,14 @@ auto build_all_pairs(const std::vector<Eigen::Affine3d>& base_se3_gripper,
  * @throws std::invalid_argument If the input vectors have different sizes or
  *         if there are insufficient valid pairs for the estimation.
  */
-auto estimate_handeye_dlt(const std::vector<Eigen::Affine3d>& base_se3_gripper,
-                          const std::vector<Eigen::Affine3d>& camera_se3_target,
-                          double min_angle_deg = 1.0) -> Eigen::Affine3d;
+auto estimate_handeye_dlt(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
+                          const std::vector<Eigen::Isometry3d>& camera_se3_target,
+                          double min_angle_deg = 1.0) -> Eigen::Isometry3d;
 
 struct HandeyeOptions final : public OptimOptions {};
 
 struct HandeyeResult final : public OptimResult {
-    Eigen::Affine3d g_se3_c;  ///< Estimated hand-eye transform (gripper -> camera)
+    Eigen::Isometry3d g_se3_c;  ///< Estimated hand-eye transform (gripper -> camera)
 };
 
 /**
@@ -79,11 +79,11 @@ struct HandeyeResult final : public OptimResult {
  *                           reference frame (hand-eye transformation).
  * @param opts Optional refinement options that control the optimization process. Defaults to
  *             an empty set of options.
- * @return The refined hand-eye transformation as an Eigen::Affine3d object.
+ * @return The refined hand-eye transformation as an Eigen::Isometry3d object.
  */
-auto optimize_handeye(const std::vector<Eigen::Affine3d>& base_se3_gripper,
-                      const std::vector<Eigen::Affine3d>& camera_se3_target,
-                      const Eigen::Affine3d& init_gripper_se3_ref,
+auto optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
+                      const std::vector<Eigen::Isometry3d>& camera_se3_target,
+                      const Eigen::Isometry3d& init_gripper_se3_ref,
                       const HandeyeOptions& opts = {}) -> HandeyeResult;
 
 /**
@@ -103,10 +103,10 @@ auto optimize_handeye(const std::vector<Eigen::Affine3d>& base_se3_gripper,
  * @param ro Options for the refinement process, encapsulated in a
  *        RefinementOptions structure. Default is an empty RefinementOptions object.
  *
- * @return The estimated hand-eye transformation as an Eigen::Affine3d object.
+ * @return The estimated hand-eye transformation as an Eigen::Isometry3d object.
  */
-auto estimate_and_optimize_handeye(const std::vector<Eigen::Affine3d>& base_se3_gripper,
-                                   const std::vector<Eigen::Affine3d>& camera_se3_target,
+auto estimate_and_optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
+                                   const std::vector<Eigen::Isometry3d>& camera_se3_target,
                                    double min_angle_deg = 1.0,
                                    const HandeyeOptions& options = {}) -> HandeyeResult;
 

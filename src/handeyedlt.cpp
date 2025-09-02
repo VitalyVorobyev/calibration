@@ -8,8 +8,8 @@
 
 namespace calib {
 
-auto build_all_pairs(const std::vector<Eigen::Affine3d>& base_se3_gripper,
-                     const std::vector<Eigen::Affine3d>& cam_se3_target,
+auto build_all_pairs(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
+                     const std::vector<Eigen::Isometry3d>& cam_se3_target,
                      double min_angle_deg,       // discard too-small motions
                      bool reject_axis_parallel,  // guard against ill-conditioning
                      double axis_parallel_eps) -> std::vector<MotionPair> {
@@ -22,8 +22,8 @@ auto build_all_pairs(const std::vector<Eigen::Affine3d>& base_se3_gripper,
     pairs.reserve(num_poses * (num_poses - 1) / 2);
     for (size_t idx_i = 0; idx_i + 1 < num_poses; ++idx_i) {
         for (size_t idx_j = idx_i + 1; idx_j < num_poses; ++idx_j) {
-            Eigen::Affine3d affine_a = base_se3_gripper[idx_i].inverse() * base_se3_gripper[idx_j];
-            Eigen::Affine3d affine_b = cam_se3_target[idx_i] * cam_se3_target[idx_j].inverse();
+            Eigen::Isometry3d affine_a = base_se3_gripper[idx_i].inverse() * base_se3_gripper[idx_j];
+            Eigen::Isometry3d affine_b = cam_se3_target[idx_i] * cam_se3_target[idx_j].inverse();
             MotionPair motion_pair;
             motion_pair.RA = projectToSO3(affine_a.linear());
             motion_pair.RB = projectToSO3(affine_b.linear());
@@ -100,13 +100,13 @@ static auto estimate_translation_allpairs_weighted(
 }
 
 // ---------- public API: linear init + non-linear refine ----------
-auto estimate_handeye_dlt(const std::vector<Eigen::Affine3d>& base_se3_gripper,
-                          const std::vector<Eigen::Affine3d>& camera_se3_target,
-                          double min_angle_deg) -> Eigen::Affine3d {
+auto estimate_handeye_dlt(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
+                          const std::vector<Eigen::Isometry3d>& camera_se3_target,
+                          double min_angle_deg) -> Eigen::Isometry3d {
     auto pairs = build_all_pairs(base_se3_gripper, camera_se3_target, min_angle_deg);
     const Eigen::Matrix3d rot_X = estimate_rotation_allpairs_weighted(pairs);
     const Eigen::Vector3d g_t_c = estimate_translation_allpairs_weighted(pairs, rot_X);
-    Eigen::Affine3d pose = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     pose.linear() = rot_X;
     pose.translation() = g_t_c;
     return pose;

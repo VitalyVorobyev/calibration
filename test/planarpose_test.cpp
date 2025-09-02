@@ -18,7 +18,7 @@ using namespace calib;
 
 // Helper function to create a simple synthetic planar target
 std::pair<std::vector<Eigen::Vector2d>, std::vector<Eigen::Vector2d>>
-createSyntheticPlanarData(const Eigen::Affine3d& pose, const CameraMatrix& intrinsics) {
+createSyntheticPlanarData(const Eigen::Isometry3d& pose, const CameraMatrix& intrinsics) {
     // Create a grid of points on the plane Z=0
     std::vector<Eigen::Vector2d> obj_points;
     std::vector<Eigen::Vector2d> img_points;
@@ -106,7 +106,7 @@ TEST(PlanarPoseTest, HomographyDecomposition) {
     H.col(2) = t;
 
     // Decompose the homography
-    Eigen::Affine3d pose = pose_from_homography_normalized(H);
+    Eigen::Isometry3d pose = pose_from_homography_normalized(H);
 
     // Check the rotation part
     Eigen::Matrix3d recovered_R = pose.linear();
@@ -126,7 +126,7 @@ TEST(PlanarPoseTest, DLTEstimation) {
     intrinsics.cy = 500;
 
     // Create a known pose
-    Eigen::Affine3d true_pose = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d true_pose = Eigen::Isometry3d::Identity();
     true_pose.linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
     true_pose.translation() = Eigen::Vector3d(0.1, 0.2, 2.0);
 
@@ -134,7 +134,7 @@ TEST(PlanarPoseTest, DLTEstimation) {
     auto [obj_points, img_points] = createSyntheticPlanarData(true_pose, intrinsics);
 
     // Estimate the pose
-    Eigen::Affine3d estimated_pose = estimate_planar_pose_dlt(obj_points, img_points, intrinsics);
+    Eigen::Isometry3d estimated_pose = estimate_planar_pose_dlt(obj_points, img_points, intrinsics);
 
     // Check rotation (up to sign ambiguity)
     Eigen::Matrix3d true_R = true_pose.linear();
@@ -154,7 +154,7 @@ TEST(PlanarPoseTest, DLTEstimation) {
 
 TEST(PlanarPoseTest, AutoDiffJacobianParity) {
     CameraMatrix intrinsics; intrinsics.fx = intrinsics.fy = 1000; intrinsics.cx = intrinsics.cy = 500;
-    Eigen::Affine3d pose = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     pose.linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d(1,1,1).normalized()).toRotationMatrix();
     pose.translation() = Eigen::Vector3d(0.1,0.2,2.0);
 
@@ -209,7 +209,7 @@ TEST(PlanarPoseTest, OptimizePlanarPose) {
     intrinsics.cy = 500;
 
     // Create a known pose
-    Eigen::Affine3d true_pose = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d true_pose = Eigen::Isometry3d::Identity();
     true_pose.linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
     true_pose.translation() = Eigen::Vector3d(0.1, 0.2, 2.0);
 
@@ -281,7 +281,7 @@ TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
     intrinsics.cy = 500;
 
     // Create a known pose
-    Eigen::Affine3d true_pose = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d true_pose = Eigen::Isometry3d::Identity();
     true_pose.linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
     true_pose.translation() = Eigen::Vector3d(0.1, 0.2, 2.0);
 
@@ -368,7 +368,7 @@ TEST(PlanarPoseTest, BasicOptimizePlanarPoseTest) {
     intrinsics.cy = 500;
 
     // Create a very simple pose (identity rotation, small translation)
-    Eigen::Affine3d pose = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     pose.translation() = Eigen::Vector3d(0.0, 0.0, 1.0);
 
     // Create a few simple points

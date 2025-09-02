@@ -16,12 +16,12 @@ TEST(TsaiLenzAllPairsWeighted, RecoversGroundTruthWithNoise) {
     // Ground truth X (hand-eye)
     Eigen::Vector3d axX = rng.rand_unit_axis();
     double angX = deg2rad(12.0);
-    Eigen::Affine3d X_gt = make_pose(Eigen::Vector3d(0.03, -0.02, 0.10), axX, angX);
+    Eigen::Isometry3d X_gt = make_pose(Eigen::Vector3d(0.03, -0.02, 0.10), axX, angX);
 
     // Ground truth ^bT_t
     Eigen::Vector3d axT = rng.rand_unit_axis();
     double angT = deg2rad(20.0);
-    Eigen::Affine3d b_se3_t_gt = make_pose(Eigen::Vector3d(0.40, 0.10, 0.60), axT, angT);
+    Eigen::Isometry3d b_se3_t_gt = make_pose(Eigen::Vector3d(0.40, 0.10, 0.60), axT, angT);
 
     // Intrinsics (not used by linear step, but for later)
     Camera<BrownConradyd> cam_gt;
@@ -42,7 +42,7 @@ TEST(TsaiLenzAllPairsWeighted, RecoversGroundTruthWithNoise) {
     const auto& camera_se3_target = sim.c_se3_t;
 
     // Estimate with all-pairs weighted Tsai-Lenz
-    Eigen::Affine3d X_est = estimate_handeye_dlt(
+    Eigen::Isometry3d X_est = estimate_handeye_dlt(
         base_se3_gripper, camera_se3_target, /*min_angle_deg*/1.0);
 
     double rot_err = rad2deg(rotation_angle(X_est.linear().transpose() * X_gt.linear()));
@@ -54,8 +54,8 @@ TEST(TsaiLenzAllPairsWeighted, RecoversGroundTruthWithNoise) {
 
 TEST(TsaiLenzAllPairsWeighted, ThrowsOnDegenerateSmallMotions) {
     // All poses identical -> no valid pairs
-    std::vector<Eigen::Affine3d> b_se3_g(5, Eigen::Affine3d::Identity());
-    std::vector<Eigen::Affine3d> c_se3_t(5, Eigen::Affine3d::Identity());
+    std::vector<Eigen::Isometry3d> b_se3_g(5, Eigen::Isometry3d::Identity());
+    std::vector<Eigen::Isometry3d> c_se3_t(5, Eigen::Isometry3d::Identity());
     EXPECT_THROW({
         estimate_handeye_dlt(b_se3_g, c_se3_t, /*min_angle_deg*/2.0);
     }, std::runtime_error);
@@ -64,8 +64,8 @@ TEST(TsaiLenzAllPairsWeighted, ThrowsOnDegenerateSmallMotions) {
 TEST(TsaiLenzAllPairsWeighted, InvariantToBaseFrameLeftMultiply) {
     RNG rng(77);
     // Make simple ground truth and sequence
-    Eigen::Affine3d X_gt = make_pose(Eigen::Vector3d(0.01, 0.02, 0.12), Eigen::Vector3d(0,0,1), deg2rad(15));
-    Eigen::Affine3d b_se3_t_gt = make_pose(Eigen::Vector3d(0.3, 0.2, 0.7), Eigen::Vector3d(1,0,0), deg2rad(10));
+    Eigen::Isometry3d X_gt = make_pose(Eigen::Vector3d(0.01, 0.02, 0.12), Eigen::Vector3d(0,0,1), deg2rad(15));
+    Eigen::Isometry3d b_se3_t_gt = make_pose(Eigen::Vector3d(0.3, 0.2, 0.7), Eigen::Vector3d(1,0,0), deg2rad(10));
     Camera<BrownConradyd> cam_gt;
     cam_gt.K.fx = 1000;
     cam_gt.K.fy = 1000;
@@ -82,12 +82,12 @@ TEST(TsaiLenzAllPairsWeighted, InvariantToBaseFrameLeftMultiply) {
     const auto& camera_se3_target = sim.c_se3_t;
 
     // Left-multiply base poses by a fixed transform
-    Eigen::Affine3d B = make_pose(Eigen::Vector3d(0.5, -0.1, 0.2), Eigen::Vector3d(0.3,0.7,0.2).normalized(), deg2rad(25));
-    std::vector<Eigen::Affine3d> base_se3_gripper2 = base_se3_gripper;
+    Eigen::Isometry3d B = make_pose(Eigen::Vector3d(0.5, -0.1, 0.2), Eigen::Vector3d(0.3,0.7,0.2).normalized(), deg2rad(25));
+    std::vector<Eigen::Isometry3d> base_se3_gripper2 = base_se3_gripper;
     for (auto& T : base_se3_gripper2) T = B * T;
 
-    Eigen::Affine3d X1 = estimate_handeye_dlt(base_se3_gripper,  camera_se3_target, 1.0);
-    Eigen::Affine3d X2 = estimate_handeye_dlt(base_se3_gripper2, camera_se3_target, 1.0);
+    Eigen::Isometry3d X1 = estimate_handeye_dlt(base_se3_gripper,  camera_se3_target, 1.0);
+    Eigen::Isometry3d X2 = estimate_handeye_dlt(base_se3_gripper2, camera_se3_target, 1.0);
 
     double rot_err = rad2deg(rotation_angle(X1.linear().transpose() * X2.linear()));
     double trans_err = (X1.translation() - X2.translation()).norm();
@@ -99,8 +99,8 @@ TEST(TsaiLenzAllPairsWeighted, InvariantToBaseFrameLeftMultiply) {
 TEST(CeresAXXBRefine, ImprovesOverInitializer) {
     RNG rng(2024);
     // Ground truth
-    Eigen::Affine3d X_gt = make_pose(Eigen::Vector3d(0.02, -0.01, 0.09), rng.rand_unit_axis(), deg2rad(10.0));
-    Eigen::Affine3d b_se3_t_gt = make_pose(Eigen::Vector3d(0.25, 0.05, 0.55), rng.rand_unit_axis(), deg2rad(18.0));
+    Eigen::Isometry3d X_gt = make_pose(Eigen::Vector3d(0.02, -0.01, 0.09), rng.rand_unit_axis(), deg2rad(10.0));
+    Eigen::Isometry3d b_se3_t_gt = make_pose(Eigen::Vector3d(0.25, 0.05, 0.55), rng.rand_unit_axis(), deg2rad(18.0));
     Camera<BrownConradyd> cam_gt;
     cam_gt.K.fx = 950;
     cam_gt.K.fy = 960;
@@ -117,7 +117,7 @@ TEST(CeresAXXBRefine, ImprovesOverInitializer) {
     const auto& camera_se3_target = sim.c_se3_t;
 
     // Initializer: perturb X
-    Eigen::Affine3d X0 = X_gt;
+    Eigen::Isometry3d X0 = X_gt;
     {
         Eigen::Vector3d ax = rng.rand_unit_axis();
         double dang = deg2rad(2.0);
@@ -135,7 +135,7 @@ TEST(CeresAXXBRefine, ImprovesOverInitializer) {
     ro.verbose = false;
 
     auto res = optimize_handeye(base_se3_gripper, camera_se3_target, X0, ro);
-    Eigen::Affine3d Xr = res.g_se3_c;
+    Eigen::Isometry3d Xr = res.g_se3_c;
 
     double err1_rot = rad2deg(rotation_angle(Xr.linear().transpose()*X_gt.linear()));
     double err1_tr  = (Xr.translation() - X_gt.translation()).norm();

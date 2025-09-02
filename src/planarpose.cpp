@@ -17,7 +17,7 @@
 namespace calib {
 
 // Decompose homography in normalized camera coords: H = [r1 r2 t]
-Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
+Eigen::Isometry3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
     Eigen::Vector3d h1 = H.col(0);
     Eigen::Vector3d h2 = H.col(1);
     Eigen::Vector3d h3 = H.col(2);
@@ -47,15 +47,15 @@ Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
         t = -t;
     }
 
-    auto pose = Eigen::Affine3d::Identity();
+    auto pose = Eigen::Isometry3d::Identity();
     pose.linear() = R;
     pose.translation() = t;
     return pose;
 }
 
-Eigen::Affine3d estimate_planar_pose_dlt(const PlanarView& obs, const CameraMatrix& intrinsics) {
+Eigen::Isometry3d estimate_planar_pose_dlt(const PlanarView& obs, const CameraMatrix& intrinsics) {
     if (obs.size() < 4) {
-        return Eigen::Affine3d::Identity();
+        return Eigen::Isometry3d::Identity();
     }
 
     std::vector<Eigen::Vector2d> obj_xy, img_uv;
@@ -69,11 +69,11 @@ Eigen::Affine3d estimate_planar_pose_dlt(const PlanarView& obs, const CameraMatr
 
 // Convenience: one-shot planar pose from pixels & K
 // Returns true on success; outputs R (world->cam) and t
-Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj_xy,
-                                         const std::vector<Eigen::Vector2d>& img_uv,
-                                         const CameraMatrix& intrinsics) {
+auto estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj_xy,
+                              const std::vector<Eigen::Vector2d>& img_uv,
+                              const CameraMatrix& intrinsics) -> Eigen::Isometry3d {
     if (obj_xy.size() < 4 || obj_xy.size() != img_uv.size()) {
-        return Eigen::Affine3d::Identity();
+        return Eigen::Isometry3d::Identity();
     }
 
     std::vector<Eigen::Vector2d> img_norm(img_uv.size());
@@ -137,11 +137,11 @@ struct PlanarPoseVPResidual {
     }
 };
 
-static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
+static Eigen::Isometry3d axisangle_to_pose(const Pose6& pose6) {
     Eigen::Matrix3d rotation_matrix;
     ceres::AngleAxisToRotationMatrix(pose6.head<3>().data(), rotation_matrix.data());
 
-    Eigen::Affine3d transform = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d transform = Eigen::Isometry3d::Identity();
     transform.linear() = rotation_matrix;
     transform.translation() = pose6.tail<3>();
 

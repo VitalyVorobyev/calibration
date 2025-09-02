@@ -24,14 +24,14 @@ InitialExtrinsicGuess estimate_extrinsic_dlt(
 ExtrinsicOptimizationResult optimize_joint_intrinsics_extrinsics(
     const std::vector<MulticamPlanarView>& views,
     const std::vector<Camera>& initial_cameras,
-    const std::vector<Eigen::Affine3d>& initial_camera_poses,
-    const std::vector<Eigen::Affine3d>& initial_target_poses,
+    const std::vector<Eigen::Isometry3d>& initial_camera_poses,
+    const std::vector<Eigen::Isometry3d>& initial_target_poses,
     bool verbose = false);
 
 ExtrinsicOptimizationResult optimize_extrinsic_poses(
     const std::vector<MulticamPlanarView>& views,
     const std::vector<Camera>& cameras,
-    const std::vector<Eigen::Affine3d>& initial_camera_poses,
-    const std::vector<Eigen::Affine3d>& initial_target_poses,
+    const std::vector<Eigen::Isometry3d>& initial_camera_poses,
+    const std::vector<Eigen::Isometry3d>& initial_target_poses,
     bool verbose = false);
 ```

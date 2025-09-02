@@ -33,7 +33,7 @@ struct CalibVPResidual final {
         std::vector<Observation<T>> o;
         o.reserve(total_obs_);
 
-        auto c_se3_t = Eigen::Transform<T, 3, Eigen::Affine>::Identity();
+        auto c_se3_t = Eigen::Transform<T, 3, Eigen::Isometry>::Identity();
 
         for (size_t i = 0; i < views.size(); ++i) {
             c_se3_t.linear() = quat_array_to_rotmat<T>(params[2 * i + 1]);

@@ -48,7 +48,7 @@ src/                   # Implementation files
 ### Ceres Optimization Pattern
 - Custom residual structs in `*residual.h` files (e.g., `handeyeresidual.h`)
 - Variable projection for non-linear problems
-- Consistent use of `Eigen::Affine3d` for 3D transformations
+- Consistent use of `Eigen::Isometry3d` for 3D transformations
 - Robust loss functions (Huber) with configurable deltas
 
 ### Error Handling

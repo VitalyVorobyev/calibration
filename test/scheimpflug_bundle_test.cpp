@@ -17,11 +17,11 @@ TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
     const double tauy = -0.015;
     ScheimpflugCamera sc(cam, taux, tauy);
 
-    Eigen::Affine3d g_se3_c = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     g_se3_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
     g_se3_c.translation() = Eigen::Vector3d(0.1, 0.0, 0.05);
 
-    Eigen::Affine3d b_se3_t = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d b_se3_t = Eigen::Isometry3d::Identity();
     b_se3_t.translation() = Eigen::Vector3d(0.2, 0.0, 0.0);
 
     std::vector<Eigen::Vector2d> obj{{-0.1, -0.1}, {0.1, -0.1}, {0.1, 0.1}, {-0.1, 0.1},
@@ -32,7 +32,7 @@ TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
     sc.tau_x += 0.01;
     sc.tau_y -= 0.01;
 
-    Eigen::Affine3d init_g_se3_c = g_se3_c;
+    Eigen::Isometry3d init_g_se3_c = g_se3_c;
     // init_g_se3_c.translation() += Eigen::Vector3d(0.01,-0.01,0.02);
 
     BundleOptions opts;
@@ -60,18 +60,18 @@ TEST(ScheimpflugBundle, HandeyeWithFixedIntrinsics) {
     const double tauy = -0.015;
     ScheimpflugCamera sc(cam, taux, tauy);
 
-    Eigen::Affine3d g_se3_c = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     g_se3_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
     g_se3_c.translation() = Eigen::Vector3d(0.1,0.0,0.05);
 
-    Eigen::Affine3d b_se3_t = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d b_se3_t = Eigen::Isometry3d::Identity();
     b_se3_t.translation() = Eigen::Vector3d(0.2,0.0,0.0);
 
     std::vector<Eigen::Vector2d> obj{{-0.1,-0.1},{0.1,-0.1},{0.1,0.1},{-0.1,0.1},
                                      {0.05,0.0},{-0.05,0.0},{0.0,0.05},{0.0,-0.05}};
     auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
     auto observations = make_scheimpflug_observations<BrownConradyd>({sc}, {g_se3_c}, b_se3_t, obj, poses);
-    Eigen::Affine3d init_g_se3_c = g_se3_c;
+    Eigen::Isometry3d init_g_se3_c = g_se3_c;
     init_g_se3_c.translation() += Eigen::Vector3d(0.01,-0.01,0.02);
 
     BundleOptions opts;

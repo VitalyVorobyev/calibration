@@ -48,7 +48,7 @@ inline Eigen::VectorXd json_to_eigen_vector(const nlohmann::json& j) {
     return v;
 }
 
-inline nlohmann::json affine_to_json(const Eigen::Affine3d& T) {
+inline nlohmann::json affine_to_json(const Eigen::Isometry3d& T) {
     nlohmann::json j = nlohmann::json::array();
     for (int r = 0; r < 4; ++r) {
         nlohmann::json row = nlohmann::json::array();
@@ -58,11 +58,11 @@ inline nlohmann::json affine_to_json(const Eigen::Affine3d& T) {
     return j;
 }
 
-inline Eigen::Affine3d json_to_affine(const nlohmann::json& j) {
+inline Eigen::Isometry3d json_to_affine(const nlohmann::json& j) {
     Eigen::Matrix4d m;
     for (int r = 0; r < 4; ++r)
         for (int c = 0; c < 4; ++c) m(r, c) = j[r][c].get<double>();
-    Eigen::Affine3d T;
+    Eigen::Isometry3d T;
     T.matrix() = m;
     return T;
 }
@@ -194,8 +194,8 @@ inline void from_json(const nlohmann::json& j, ExtrinsicsInput& in) {
 struct BundleInput final {
     std::vector<BundleObservation> observations;
     std::vector<Camera<BrownConradyd>> initial_cameras;
-    std::vector<Eigen::Affine3d> init_g_se3_c;
-    Eigen::Affine3d init_b_se3_t = Eigen::Affine3d::Identity();
+    std::vector<Eigen::Isometry3d> init_g_se3_c;
+    Eigen::Isometry3d init_b_se3_t = Eigen::Isometry3d::Identity();
     BundleOptions options;
 };
 

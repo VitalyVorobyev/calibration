@@ -28,8 +28,8 @@ struct BundleBlocks final : public ProblemParamBlocks {
           intr(numcams) {}
 
     static auto create(const std::vector<CameraT>& cameras,
-                       const std::vector<Eigen::Affine3d>& g_se3_c,
-                       const Eigen::Affine3d& b_se3_t) -> BundleBlocks {
+                       const std::vector<Eigen::Isometry3d>& g_se3_c,
+                       const Eigen::Isometry3d& b_se3_t) -> BundleBlocks {
         const size_t num_cams = g_se3_c.size();
         BundleBlocks blocks(num_cams);
         populate_quat_tran(b_se3_t, blocks.b_q_t, blocks.b_t_t);
@@ -137,8 +137,8 @@ void validate_input(const std::vector<BundleObservation>& observations,
 template <camera_model CameraT>
 BundleResult<CameraT> optimize_bundle(const std::vector<BundleObservation>& observations,
                                       const std::vector<CameraT>& initial_cameras,
-                                      const std::vector<Eigen::Affine3d>& init_g_se3_c,
-                                      const Eigen::Affine3d& init_b_se3_t,
+                                      const std::vector<Eigen::Isometry3d>& init_g_se3_c,
+                                      const Eigen::Isometry3d& init_b_se3_t,
                                       const BundleOptions& opts) {
     validate_input(observations, initial_cameras);
 
@@ -161,10 +161,10 @@ BundleResult<CameraT> optimize_bundle(const std::vector<BundleObservation>& obse
 
 template BundleResult<Camera<BrownConradyd>> optimize_bundle(
     const std::vector<BundleObservation>&, const std::vector<Camera<BrownConradyd>>&,
-    const std::vector<Eigen::Affine3d>&, const Eigen::Affine3d&, const BundleOptions&);
+    const std::vector<Eigen::Isometry3d>&, const Eigen::Isometry3d&, const BundleOptions&);
 
 template BundleResult<ScheimpflugCamera<BrownConradyd>> optimize_bundle(
     const std::vector<BundleObservation>&, const std::vector<ScheimpflugCamera<BrownConradyd>>&,
-    const std::vector<Eigen::Affine3d>&, const Eigen::Affine3d&, const BundleOptions&);
+    const std::vector<Eigen::Isometry3d>&, const Eigen::Isometry3d&, const BundleOptions&);
 
 }  // namespace calib

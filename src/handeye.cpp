@@ -18,7 +18,7 @@ struct HandeyeBlocks final : public ProblemParamBlocks {
     std::array<double, 4> quat;
     std::array<double, 3> tran;
 
-    static auto create(const Eigen::Affine3d& init_pose) -> HandeyeBlocks {
+    static auto create(const Eigen::Isometry3d& init_pose) -> HandeyeBlocks {
         HandeyeBlocks blocks;
         Eigen::Quaterniond quat_init(init_pose.linear());
         blocks.quat = {quat_init.w(), quat_init.x(), quat_init.y(), quat_init.z()};
@@ -35,7 +35,7 @@ struct HandeyeBlocks final : public ProblemParamBlocks {
     void populate_result(HandeyeResult& result) const {
         Eigen::Quaterniond quat_final(quat[0], quat[1], quat[2], quat[3]);
         quat_final.normalize();
-        Eigen::Affine3d pose = Eigen::Affine3d::Identity();
+        Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
         pose.linear() = quat_final.toRotationMatrix();
         pose.translation() = Eigen::Vector3d(tran[0], tran[1], tran[2]);
         result.g_se3_c = pose;
@@ -57,9 +57,9 @@ static auto build_problem(const std::vector<MotionPair>& pairs, const HandeyeOpt
     return problem;
 }
 
-auto optimize_handeye(const std::vector<Eigen::Affine3d>& base_se3_gripper,
-                      const std::vector<Eigen::Affine3d>& camera_se3_target,
-                      const Eigen::Affine3d& init_gripper_se3_ref,
+auto optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
+                      const std::vector<Eigen::Isometry3d>& camera_se3_target,
+                      const Eigen::Isometry3d& init_gripper_se3_ref,
                       const HandeyeOptions& opts) -> HandeyeResult {
     constexpr double k_min_angle_deg = 0.5;
     auto pairs = build_all_pairs(base_se3_gripper, camera_se3_target, k_min_angle_deg);
@@ -77,11 +77,11 @@ auto optimize_handeye(const std::vector<Eigen::Affine3d>& base_se3_gripper,
     return result;
 }
 
-auto estimate_and_optimize_handeye(const std::vector<Eigen::Affine3d>& base_se3_gripper,
-                                   const std::vector<Eigen::Affine3d>& camera_se3_target,
+auto estimate_and_optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
+                                   const std::vector<Eigen::Isometry3d>& camera_se3_target,
                                    double min_angle_deg,
                                    const HandeyeOptions& opts) -> HandeyeResult {
-    Eigen::Affine3d init_pose =
+    Eigen::Isometry3d init_pose =
         estimate_handeye_dlt(base_se3_gripper, camera_se3_target, min_angle_deg);
     return optimize_handeye(base_se3_gripper, camera_se3_target, init_pose, opts);
 }

@@ -23,7 +23,7 @@ namespace calib {
  */
 struct BundleObservation final {
     PlanarView view;          ///< Planar target observations
-    Eigen::Affine3d b_se3_g;    ///< Pose of the gripper in the base frame
+    Eigen::Isometry3d b_se3_g;    ///< Pose of the gripper in the base frame
     size_t camera_index = 0;  ///< Which camera acquired this view
 };
 
@@ -40,8 +40,8 @@ struct BundleOptions final : public OptimOptions {
 template <camera_model CameraT>
 struct BundleResult final : public OptimResult {
     std::vector<CameraT> cameras;        ///< Estimated camera parameters per camera
-    std::vector<Eigen::Affine3d> g_se3_c;  ///< Estimated camera->gripper extrinsics
-    Eigen::Affine3d b_se3_t;               ///< Pose of target in base frame
+    std::vector<Eigen::Isometry3d> g_se3_c;  ///< Estimated camera->gripper extrinsics
+    Eigen::Isometry3d b_se3_t;               ///< Pose of target in base frame
 };
 
 /**
@@ -58,8 +58,8 @@ struct BundleResult final : public OptimResult {
 template <camera_model CameraT>
 auto optimize_bundle(const std::vector<BundleObservation>& observations,
                      const std::vector<CameraT>& initial_cameras,
-                     const std::vector<Eigen::Affine3d>& init_g_se3_c,
-                     const Eigen::Affine3d& init_b_se3_t,
+                     const std::vector<Eigen::Isometry3d>& init_g_se3_c,
+                     const Eigen::Isometry3d& init_b_se3_t,
                      const BundleOptions& opts = {}) -> BundleResult<CameraT>;
 
 }  // namespace calib

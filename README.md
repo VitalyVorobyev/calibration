@@ -100,9 +100,9 @@ Example for hand‑eye calibration:
 #include <calib/handeye.h>
 using namespace calib;
 
-std::vector<Eigen::Affine3d> base_se3_gripper = ...;
-std::vector<Eigen::Affine3d> camera_se3_target = ...;
-Eigen::Affine3d guess = ...; // initial gripper->camera transform
+std::vector<Eigen::Isometry3d> base_se3_gripper = ...;
+std::vector<Eigen::Isometry3d> camera_se3_target = ...;
+Eigen::Isometry3d guess = ...; // initial gripper->camera transform
 
 HandeyeOptions opts;
 auto result = optimize_handeye(base_se3_gripper, camera_se3_target, guess, opts);

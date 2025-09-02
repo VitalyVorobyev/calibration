@@ -17,24 +17,24 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     };
 
     // Ground-truth camera poses (reference camera is identity)
-    Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
-    Eigen::Affine3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Affine3d::Identity();
-    std::vector<Eigen::Affine3d> cam_gt = {cam0, cam1};
+    Eigen::Isometry3d cam0 = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Isometry3d::Identity();
+    std::vector<Eigen::Isometry3d> cam_gt = {cam0, cam1};
 
     // Initial guesses (perturbed)
-    std::vector<Eigen::Affine3d> cam_init = {
+    std::vector<Eigen::Isometry3d> cam_init = {
         cam0,
         Eigen::Translation3d(1.2, -0.1, 0.05) * Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitZ())
     };
 
     // Target poses for three views
-    std::vector<Eigen::Affine3d> target_gt = {
-        Eigen::Translation3d(0.0, 0.0, 5.0) * Eigen::Affine3d::Identity(),
+    std::vector<Eigen::Isometry3d> target_gt = {
+        Eigen::Translation3d(0.0, 0.0, 5.0) * Eigen::Isometry3d::Identity(),
         Eigen::Translation3d(0.5, -0.2, 4.0) * Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitY()),
         Eigen::Translation3d(-0.3, 0.4, 6.0) * Eigen::AngleAxisd(-0.2, Eigen::Vector3d::UnitX())
     };
 
-    std::vector<Eigen::Affine3d> target_init = {
+    std::vector<Eigen::Isometry3d> target_init = {
         target_gt[0] * Eigen::Translation3d(0.1, 0.0, 0.0) * Eigen::AngleAxisd(0.02, Eigen::Vector3d::UnitZ()),
         target_gt[1] * Eigen::Translation3d(-0.05, 0.1, 0.05) * Eigen::AngleAxisd(-0.03, Eigen::Vector3d::UnitY()),
         target_gt[2] * Eigen::Translation3d(0.02, -0.02, -0.1) * Eigen::AngleAxisd(0.01, Eigen::Vector3d::UnitX())
@@ -50,7 +50,7 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
         MulticamPlanarView view;
         view.resize(kCams);
         for (int c = 0; c < kCams; ++c) {
-            Eigen::Affine3d T = cam_gt[c] * target_gt[v]; // target -> camera
+            Eigen::Isometry3d T = cam_gt[c] * target_gt[v]; // target -> camera
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
@@ -86,12 +86,12 @@ TEST(Extrinsics, RecoverAllParameters) {
         Camera<BrownConradyd>{K, dist}
     };
 
-    Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
-    Eigen::Affine3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Affine3d::Identity();
-    std::vector<Eigen::Affine3d> cam_gt = {cam0, cam1};
+    Eigen::Isometry3d cam0 = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Isometry3d::Identity();
+    std::vector<Eigen::Isometry3d> cam_gt = {cam0, cam1};
 
-    std::vector<Eigen::Affine3d> target_gt = {
-        Eigen::Translation3d(0.0, 0.0, 5.0) * Eigen::Affine3d::Identity(),
+    std::vector<Eigen::Isometry3d> target_gt = {
+        Eigen::Translation3d(0.0, 0.0, 5.0) * Eigen::Isometry3d::Identity(),
         Eigen::Translation3d(0.5, -0.2, 4.0) * Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitY()),
     };
 
@@ -106,7 +106,7 @@ TEST(Extrinsics, RecoverAllParameters) {
         MulticamPlanarView view;
         view.resize(kCams);
         for (int c = 0; c < kCams; ++c) {
-            Eigen::Affine3d T = cam_gt[c] * target_gt[v];
+            Eigen::Isometry3d T = cam_gt[c] * target_gt[v];
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x()/P.z(), P.y()/P.z());
@@ -130,7 +130,7 @@ TEST(Extrinsics, RecoverAllParameters) {
     };
 
     auto guess = estimate_extrinsic_dlt(views, cameras_for_estimate);
-    ASSERT_TRUE(guess.c_se3_r.front().isApprox(Eigen::Affine3d::Identity()));
+    ASSERT_TRUE(guess.c_se3_r.front().isApprox(Eigen::Isometry3d::Identity()));
 
     // Anchor the first target pose to its ground truth to fix the scale.
     guess.r_se3_t[0] = target_gt[0];
@@ -158,11 +158,11 @@ TEST(Extrinsics, FirstTargetPoseFixed) {
         Camera<BrownConradyd>{K, dist}
     };
 
-    Eigen::Affine3d cam0 = Eigen::Affine3d::Identity();
-    Eigen::Affine3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Affine3d::Identity();
+    Eigen::Isometry3d cam0 = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Isometry3d::Identity();
 
-    std::vector<Eigen::Affine3d> target_gt = {
-        Eigen::Translation3d(0.0, 0.0, 5.0) * Eigen::Affine3d::Identity(),
+    std::vector<Eigen::Isometry3d> target_gt = {
+        Eigen::Translation3d(0.0, 0.0, 5.0) * Eigen::Isometry3d::Identity(),
         Eigen::Translation3d(0.5, -0.2, 4.0) * Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitY()),
     };
 
@@ -176,7 +176,7 @@ TEST(Extrinsics, FirstTargetPoseFixed) {
         MulticamPlanarView view;
         view.resize(kCams);
         for (int c = 0; c < kCams; ++c) {
-            Eigen::Affine3d T = (c==0?cam0:cam1) * target_gt[v];
+            Eigen::Isometry3d T = (c==0?cam0:cam1) * target_gt[v];
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x()/P.z(), P.y()/P.z());

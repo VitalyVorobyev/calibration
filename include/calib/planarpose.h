@@ -17,23 +17,23 @@ struct PlanarObservation {
 using PlanarView = std::vector<PlanarObservation>;
 
 // Decompose homography in normalized camera coords: H = [r1 r2 t]
-auto pose_from_homography_normalized(const Eigen::Matrix3d& homography) -> Eigen::Affine3d;
+auto pose_from_homography_normalized(const Eigen::Matrix3d& homography) -> Eigen::Isometry3d;
 
 // Convenience: one-shot planar pose from pixels & K
 auto estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& object_xy,
                               const std::vector<Eigen::Vector2d>& image_uv,
-                              const CameraMatrix& intrinsics) -> Eigen::Affine3d;
+                              const CameraMatrix& intrinsics) -> Eigen::Isometry3d;
 
 // Convenience: one-shot planar pose from pixels & K
 auto estimate_planar_pose_dlt(const PlanarView& observations,
-                              const CameraMatrix& intrinsics) -> Eigen::Affine3d;
+                              const CameraMatrix& intrinsics) -> Eigen::Isometry3d;
 
 struct PlanarPoseOptions final : public OptimOptions {
     int num_radial = 2;  ///< Number of radial distortion coefficients
 };
 
 struct PlanarPoseResult final : public OptimResult {
-    Eigen::Affine3d pose;             ///< Estimated pose of the plane
+    Eigen::Isometry3d pose;             ///< Estimated pose of the plane
     Eigen::VectorXd distortion;       ///< Estimated distortion coefficients
     double reprojection_error = 0.0;  ///< RMS reprojection error
 };

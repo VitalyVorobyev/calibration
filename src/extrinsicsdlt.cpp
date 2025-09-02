@@ -11,8 +11,8 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
                             const std::vector<Camera<DualDistortion>>& cameras) -> ExtrinsicPoses {
     const size_t num_cameras = cameras.size();
     const size_t num_views = views.size();
-    std::vector<std::vector<Eigen::Affine3d>> cam_se3_ref(
-        num_views, std::vector<Eigen::Affine3d>(num_cameras, Eigen::Affine3d::Identity()));
+    std::vector<std::vector<Eigen::Isometry3d>> cam_se3_ref(
+        num_views, std::vector<Eigen::Isometry3d>(num_cameras, Eigen::Isometry3d::Identity()));
 
     // Estimate per-camera reference poses via DLT
     for (size_t view_idx = 0; view_idx < num_views; ++view_idx) {
@@ -38,12 +38,12 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
     }
 
     ExtrinsicPoses guess;
-    guess.c_se3_r.assign(num_cameras, Eigen::Affine3d::Identity());
-    guess.r_se3_t.assign(num_views, Eigen::Affine3d::Identity());
+    guess.c_se3_r.assign(num_cameras, Eigen::Isometry3d::Identity());
+    guess.r_se3_t.assign(num_views, Eigen::Isometry3d::Identity());
 
     // Compute camera poses relative to first camera (reference)
     for (size_t cam_idx = 1; cam_idx < num_cameras; ++cam_idx) {
-        std::vector<Eigen::Affine3d> rels;
+        std::vector<Eigen::Isometry3d> rels;
         for (size_t view_idx = 0; view_idx < num_views; ++view_idx) {
             if (cam_idx >= views[view_idx].size()) {
                 throw std::runtime_error("Camera index out of bounds");
@@ -64,7 +64,7 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
 
     // Compute target poses in reference frame
     for (size_t view_idx = 0; view_idx < num_views; ++view_idx) {
-        std::vector<Eigen::Affine3d> tposes;
+        std::vector<Eigen::Isometry3d> tposes;
         for (size_t cam_idx = 0; cam_idx < num_cameras; ++cam_idx) {
             if (cam_idx >= views[view_idx].size()) {
                 continue;

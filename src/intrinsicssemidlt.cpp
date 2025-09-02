@@ -36,7 +36,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
                              initial_guess.skew};
 
         for (size_t i = 0; i < views.size(); ++i) {
-            Eigen::Affine3d pose = estimate_planar_pose_dlt(views[i], initial_guess);
+            Eigen::Isometry3d pose = estimate_planar_pose_dlt(views[i], initial_guess);
             populate_quat_tran(pose, blocks.c_q_t[i], blocks.c_t_t[i]);
         }
 
