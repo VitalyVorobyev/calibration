@@ -152,7 +152,9 @@ inline void from_json(const nlohmann::json& j, BundleOptions& o) {
 }
 
 inline void to_json(nlohmann::json& j, const BundleObservation& bo) {
-    j = {{"view", bo.view}, {"b_se3_g", affine_to_json(bo.b_se3_g)}, {"camera_index", bo.camera_index}};
+    j = {{"view", bo.view},
+         {"b_se3_g", affine_to_json(bo.b_se3_g)},
+         {"camera_index", bo.camera_index}};
 }
 
 inline void from_json(const nlohmann::json& j, BundleObservation& bo) {

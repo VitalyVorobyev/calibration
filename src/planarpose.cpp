@@ -53,34 +53,35 @@ Eigen::Isometry3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
     return pose;
 }
 
-Eigen::Isometry3d estimate_planar_pose_dlt(const PlanarView& obs, const CameraMatrix& intrinsics) {
-    if (obs.size() < 4) {
+auto estimate_planar_pose_dlt(const PlanarView& observations,
+                              const CameraMatrix& intrinsics) -> Eigen::Isometry3d {
+    if (observations.size() < 4) {
         return Eigen::Isometry3d::Identity();
     }
 
-    std::vector<Eigen::Vector2d> obj_xy, img_uv;
-    for (const auto& o : obs) {
-        obj_xy.push_back(o.object_xy);
-        img_uv.push_back(o.image_uv);
+    std::vector<Eigen::Vector2d> object_xy, image_uv;
+    for (const auto& item : observations) {
+        object_xy.push_back(item.object_xy);
+        image_uv.push_back(item.image_uv);
     }
 
-    return estimate_planar_pose_dlt(obj_xy, img_uv, intrinsics);
+    return estimate_planar_pose_dlt(object_xy, image_uv, intrinsics);
 }
 
 // Convenience: one-shot planar pose from pixels & K
 // Returns true on success; outputs R (world->cam) and t
-auto estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj_xy,
-                              const std::vector<Eigen::Vector2d>& img_uv,
+auto estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& object_xy,
+                              const std::vector<Eigen::Vector2d>& image_uv,
                               const CameraMatrix& intrinsics) -> Eigen::Isometry3d {
-    if (obj_xy.size() < 4 || obj_xy.size() != img_uv.size()) {
+    if (object_xy.size() < 4 || object_xy.size() != image_uv.size()) {
         return Eigen::Isometry3d::Identity();
     }
 
-    std::vector<Eigen::Vector2d> img_norm(img_uv.size());
-    std::transform(img_uv.begin(), img_uv.end(), img_norm.begin(),
+    std::vector<Eigen::Vector2d> img_norm(image_uv.size());
+    std::transform(image_uv.begin(), image_uv.end(), img_norm.begin(),
                    [&intrinsics](const Eigen::Vector2d& pix) { return intrinsics.normalize(pix); });
 
-    Eigen::Matrix3d H = estimate_homography_dlt(obj_xy, img_norm);
+    Eigen::Matrix3d H = estimate_homography_dlt(object_xy, img_norm);
     return pose_from_homography_normalized(H);
 }
 
@@ -96,7 +97,7 @@ struct PlanarPoseBlocks final : public ProblemParamBlocks {
 // Residual functor used with AutoDiffCostFunction for planar pose
 // estimation.  For a given pose (angle-axis + translation) it builds the
 // variable projection system to eliminate distortion coefficients.
-struct PlanarPoseVPResidual {
+struct PlanarPoseVPResidual final {
     PlanarView obs_;
     double K_[5];  // fx, fy, cx, cy, skew
     int num_radial_;
@@ -137,7 +138,7 @@ struct PlanarPoseVPResidual {
     }
 };
 
-static Eigen::Isometry3d axisangle_to_pose(const Pose6& pose6) {
+static auto axisangle_to_pose(const Pose6& pose6) -> Eigen::Isometry3d {
     Eigen::Matrix3d rotation_matrix;
     ceres::AngleAxisToRotationMatrix(pose6.head<3>().data(), rotation_matrix.data());
 
@@ -148,13 +149,13 @@ static Eigen::Isometry3d axisangle_to_pose(const Pose6& pose6) {
     return transform;
 }
 
-PlanarPoseResult optimize_planar_pose(const std::vector<Eigen::Vector2d>& obj_xy,
-                                      const std::vector<Eigen::Vector2d>& img_uv,
-                                      const CameraMatrix& intrinsics,
-                                      const PlanarPoseOptions& opts) {
+auto optimize_planar_pose(const std::vector<Eigen::Vector2d>& object_xy,
+                          const std::vector<Eigen::Vector2d>& image_uv,
+                          const CameraMatrix& intrinsics,
+                          const PlanarPoseOptions& opts) -> PlanarPoseResult {
     PlanarPoseResult result;
 
-    auto init_pose = estimate_planar_pose_dlt(obj_xy, img_uv, intrinsics);
+    auto init_pose = estimate_planar_pose_dlt(object_xy, image_uv, intrinsics);
     PlanarPoseBlocks blocks;
     ceres::RotationMatrixToAngleAxis(reinterpret_cast<const double*>(init_pose.rotation().data()),
                                      blocks.pose6.data());
@@ -162,8 +163,8 @@ PlanarPoseResult optimize_planar_pose(const std::vector<Eigen::Vector2d>& obj_xy
     blocks.pose6[4] = init_pose.translation().y();
     blocks.pose6[5] = init_pose.translation().z();
 
-    PlanarView view(obj_xy.size());
-    std::transform(obj_xy.begin(), obj_xy.end(), img_uv.begin(), view.begin(),
+    PlanarView view(object_xy.size());
+    std::transform(object_xy.begin(), object_xy.end(), image_uv.begin(), view.begin(),
                    [](const Eigen::Vector2d& xy, const Eigen::Vector2d& uv) {
                        return PlanarObservation{xy, uv};
                    });

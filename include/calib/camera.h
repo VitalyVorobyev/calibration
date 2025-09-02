@@ -81,8 +81,9 @@ struct CameraTraits<Camera<DistortionT>> {
     static auto from_array(const T* intr) -> Camera<BrownConrady<T>> {
         CameraMatrixT<T> k_matrix{intr[0], intr[1], intr[2], intr[3], intr[4]};
         Eigen::Matrix<T, Eigen::Dynamic, 1> dist(k_num_dist_coeffs);
-    constexpr int k_intr_offset = 5;
-    dist << intr[k_intr_offset], intr[k_intr_offset + 1], intr[k_intr_offset + 2], intr[k_intr_offset + 3], intr[k_intr_offset + 4];
+        constexpr int k_intr_offset = 5;
+        dist << intr[k_intr_offset], intr[k_intr_offset + 1], intr[k_intr_offset + 2],
+            intr[k_intr_offset + 3], intr[k_intr_offset + 4];
         return Camera<BrownConrady<T>>(k_matrix, dist);
     }
 

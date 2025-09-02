@@ -22,9 +22,9 @@ namespace calib {
  * frame.
  */
 struct BundleObservation final {
-    PlanarView view;          ///< Planar target observations
-    Eigen::Isometry3d b_se3_g;    ///< Pose of the gripper in the base frame
-    size_t camera_index = 0;  ///< Which camera acquired this view
+    PlanarView view;            ///< Planar target observations
+    Eigen::Isometry3d b_se3_g;  ///< Pose of the gripper in the base frame
+    size_t camera_index = 0;    ///< Which camera acquired this view
 };
 
 /** Options controlling the hand-eye calibration optimisation. */
@@ -39,7 +39,7 @@ struct BundleOptions final : public OptimOptions {
 /** Result returned by hand-eye calibration. */
 template <camera_model CameraT>
 struct BundleResult final : public OptimResult {
-    std::vector<CameraT> cameras;        ///< Estimated camera parameters per camera
+    std::vector<CameraT> cameras;            ///< Estimated camera parameters per camera
     std::vector<Eigen::Isometry3d> g_se3_c;  ///< Estimated camera->gripper extrinsics
     Eigen::Isometry3d b_se3_t;               ///< Pose of target in base frame
 };

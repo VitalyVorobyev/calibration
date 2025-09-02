@@ -33,7 +33,7 @@ struct PlanarPoseOptions final : public OptimOptions {
 };
 
 struct PlanarPoseResult final : public OptimResult {
-    Eigen::Isometry3d pose;             ///< Estimated pose of the plane
+    Eigen::Isometry3d pose;           ///< Estimated pose of the plane
     Eigen::VectorXd distortion;       ///< Estimated distortion coefficients
     double reprojection_error = 0.0;  ///< RMS reprojection error
 };

@@ -8,6 +8,46 @@
 
 namespace calib {
 
+static auto make_motion_pair(const Eigen::Isometry3d& base_se3_gripper_a,
+                             const Eigen::Isometry3d& cam_se3_target_a,
+                             const Eigen::Isometry3d& base_se3_gripper_b,
+                             const Eigen::Isometry3d& cam_se3_target_b) -> MotionPair {
+    Eigen::Isometry3d affine_a = base_se3_gripper_a.inverse() * base_se3_gripper_b;
+    Eigen::Isometry3d affine_b = cam_se3_target_a * cam_se3_target_b.inverse();
+    MotionPair motion_pair;
+    motion_pair.RA = projectToSO3(affine_a.linear());
+    motion_pair.RB = projectToSO3(affine_b.linear());
+    motion_pair.tA = affine_a.translation();
+    motion_pair.tB = affine_b.translation();
+    return motion_pair;
+}
+
+static auto is_good_pair(const MotionPair& motion_pair, double min_angle, bool reject_axis_parallel,
+                         double axis_parallel_eps) -> bool {
+    Eigen::Vector3d alpha = logSO3(motion_pair.RA);
+    Eigen::Vector3d beta = logSO3(motion_pair.RB);
+    const double norm_a = alpha.norm();
+    const double norm_b = beta.norm();
+    const double min_rot = std::min(norm_a, norm_b);
+    if (min_rot < min_angle) {
+        std::cerr << "Motion pair with too small motion: " << (min_rot * 180.0 / std::numbers::pi)
+                  << " deg\n";
+        return false;
+    }
+    if (reject_axis_parallel) {
+        const double aa = (norm_a < 1e-9) ? 0.0 : 1.0;
+        const double bb = (norm_b < 1e-9) ? 0.0 : 1.0;
+        if (aa * bb > 0.0) {
+            double sin_axis = (alpha.normalized().cross(beta.normalized())).norm();
+            if (sin_axis < axis_parallel_eps) {
+                std::cerr << "Motion pair with near-parallel axes\n";
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 auto build_all_pairs(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
                      const std::vector<Eigen::Isometry3d>& cam_se3_target,
                      double min_angle_deg,       // discard too-small motions
@@ -22,37 +62,15 @@ auto build_all_pairs(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
     pairs.reserve(num_poses * (num_poses - 1) / 2);
     for (size_t idx_i = 0; idx_i + 1 < num_poses; ++idx_i) {
         for (size_t idx_j = idx_i + 1; idx_j < num_poses; ++idx_j) {
-            Eigen::Isometry3d affine_a = base_se3_gripper[idx_i].inverse() * base_se3_gripper[idx_j];
-            Eigen::Isometry3d affine_b = cam_se3_target[idx_i] * cam_se3_target[idx_j].inverse();
-            MotionPair motion_pair;
-            motion_pair.RA = projectToSO3(affine_a.linear());
-            motion_pair.RB = projectToSO3(affine_b.linear());
-            motion_pair.tA = affine_a.translation();
-            motion_pair.tB = affine_b.translation();
-            Eigen::Vector3d alpha = logSO3(motion_pair.RA);
-            Eigen::Vector3d beta = logSO3(motion_pair.RB);
-            const double norm_a = alpha.norm();
-            const double norm_b = beta.norm();
-            const double min_rot = std::min(norm_a, norm_b);
-            if (min_rot < min_angle) {
-                std::cerr << "Skipping pair (" << idx_i << "," << idx_j
-                          << ") with too small motion: " << (min_rot * 180.0 / std::numbers::pi)
-                          << " deg\n";
-                continue;
+            MotionPair motion_pair =
+                make_motion_pair(base_se3_gripper[idx_i], cam_se3_target[idx_i],
+                                 base_se3_gripper[idx_j], cam_se3_target[idx_j]);
+
+            if (is_good_pair(motion_pair, min_angle, reject_axis_parallel, axis_parallel_eps)) {
+                pairs.push_back(std::move(motion_pair));
+            } else {
+                std::cerr << "Skipping pair (" << idx_i << "," << idx_j << '\n';
             }
-            if (reject_axis_parallel) {
-                const double aa = (norm_a < 1e-9) ? 0.0 : 1.0;
-                const double bb = (norm_b < 1e-9) ? 0.0 : 1.0;
-                if (aa * bb > 0.0) {
-                    double sin_axis = (alpha.normalized().cross(beta.normalized())).norm();
-                    if (sin_axis < axis_parallel_eps) {
-                        std::cerr << "Skipping pair (" << idx_i << "," << idx_j
-                                  << ") with near-parallel axes\n";
-                        continue;
-                    }
-                }
-            }
-            pairs.push_back(std::move(motion_pair));
         }
     }
     if (pairs.empty()) {

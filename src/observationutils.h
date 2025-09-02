@@ -52,7 +52,7 @@ inline Eigen::Quaterniond array_to_norm_quat(const std::array<double, 4>& arr) {
 }
 
 inline Eigen::Isometry3d restore_pose(const std::array<double, 4>& q,
-                                    const std::array<double, 3>& t) {
+                                      const std::array<double, 3>& t) {
     auto pose = Eigen::Isometry3d::Identity();
     pose.linear() = array_to_norm_quat(q).toRotationMatrix();
     pose.translation() << t[0], t[1], t[2];

@@ -45,9 +45,9 @@ struct IntrinsicsOptions final : public OptimOptions {
 
 template <camera_model CameraT>
 struct IntrinsicsOptimizationResult final : public OptimResult {
-    CameraT camera;                      ///< Estimated camera parameters
+    CameraT camera;                          ///< Estimated camera parameters
     std::vector<Eigen::Isometry3d> c_se3_t;  ///< Estimated pose of each view
-    std::vector<double> view_errors;     ///< Per-view reprojection errors
+    std::vector<double> view_errors;         ///< Per-view reprojection errors
 };
 
 auto optimize_intrinsics_semidlt(

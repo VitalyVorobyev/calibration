@@ -84,10 +84,9 @@ static void validate_input(const std::vector<PlanarView>& views) {
 }
 
 template <camera_model CameraT>
-IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(const std::vector<PlanarView>& views,
-                                                          const CameraT& init_camera,
-                                                          std::vector<Eigen::Isometry3d> init_c_se3_t,
-                                                          const IntrinsicsOptions& opts) {
+IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(
+    const std::vector<PlanarView>& views, const CameraT& init_camera,
+    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts) {
     validate_input(views);
 
     auto blocks = IntrinsicBlocks<CameraT>::create(init_camera, init_c_se3_t);

@@ -84,10 +84,10 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
 };
 
 template <camera_model CameraT>
-static auto build_problem(const std::vector<MulticamPlanarView>& views,
-                          const std::vector<CameraT>& cameras, const ExtrinsicOptions& options,
-                          ExtrinsicBlocks<CameraT>& blocks) -> ceres::Problem {
-    ceres::Problem problem;
+static void set_residual_blocks(ceres::Problem& problem,
+                                const std::vector<MulticamPlanarView>& views,
+                                const std::vector<CameraT>& cameras,
+                                const ExtrinsicOptions& options, ExtrinsicBlocks<CameraT>& blocks) {
     for (size_t view_index = 0; view_index < views.size(); ++view_index) {
         const auto& multicam_view = views[view_index];
         for (size_t cam_index = 0; cam_index < cameras.size(); ++cam_index) {
@@ -103,6 +103,11 @@ static auto build_problem(const std::vector<MulticamPlanarView>& views,
                 blocks.intrinsics[cam_index].data());
         }
     }
+}
+
+template <camera_model CameraT>
+static void set_param_constraints(ceres::Problem& problem, const ExtrinsicOptions& options,
+                                  ExtrinsicBlocks<CameraT>& blocks) {
     for (auto& cam_quat : blocks.cam_quat_ref) {
         problem.SetManifold(cam_quat.data(), new ceres::QuaternionManifold());
     }
@@ -141,6 +146,15 @@ static auto build_problem(const std::vector<MulticamPlanarView>& views,
                                                  intr_size, {CameraTraits<CameraT>::idx_skew}));
         }
     }
+}
+
+template <camera_model CameraT>
+static auto build_problem(const std::vector<MulticamPlanarView>& views,
+                          const std::vector<CameraT>& cameras, const ExtrinsicOptions& options,
+                          ExtrinsicBlocks<CameraT>& blocks) -> ceres::Problem {
+    ceres::Problem problem;
+    set_residual_blocks(problem, views, cameras, options, blocks);
+    set_param_constraints(problem, options, blocks);
     return problem;
 }
 
@@ -159,8 +173,8 @@ static void validate_input(const std::vector<CameraT>& init_cameras,
 template <camera_model CameraT>
 ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
     const std::vector<MulticamPlanarView>& views, const std::vector<CameraT>& init_cameras,
-    const std::vector<Eigen::Isometry3d>& init_c_se3_r, const std::vector<Eigen::Isometry3d>& init_r_se3_t,
-    const ExtrinsicOptions& opts) {
+    const std::vector<Eigen::Isometry3d>& init_c_se3_r,
+    const std::vector<Eigen::Isometry3d>& init_r_se3_t, const ExtrinsicOptions& opts) {
     validate_input(init_cameras, init_c_se3_r, init_r_se3_t, views);
 
     auto blocks = ExtrinsicBlocks<CameraT>::create(init_cameras, init_c_se3_r, init_r_se3_t);

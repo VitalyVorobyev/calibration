@@ -39,7 +39,7 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
 
 template <camera_model CameraT>
 struct ExtrinsicOptimizationResult final : public OptimResult {
-    std::vector<CameraT> cameras;        // Optimized camera matrices
+    std::vector<CameraT> cameras;            // Optimized camera matrices
     std::vector<Eigen::Isometry3d> c_se3_r;  // reference->camera
     std::vector<Eigen::Isometry3d> r_se3_t;  // target->reference
 };

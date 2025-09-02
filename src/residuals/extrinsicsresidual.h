@@ -30,7 +30,7 @@ struct ExtrinsicResidual final {
                     const T* intrinsics, T* residuals) const {
         const auto [c_R_t, c_t_t] =
             get_camera_se3_target(quat_array_to_rotmat(c_q_r), array_to_translation(c_t_r),
-                                quat_array_to_rotmat(r_q_t), array_to_translation(r_t_t));
+                                  quat_array_to_rotmat(r_q_t), array_to_translation(r_t_t));
         auto cam = CameraTraits<CameraT>::template from_array<T>(intrinsics);
 
         size_t idx = 0;

@@ -3,8 +3,8 @@
 #pragma once
 
 // std
-#include <map>
 #include <cmath>
+#include <map>
 #include <optional>
 #include <thread>
 

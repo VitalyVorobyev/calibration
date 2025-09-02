@@ -118,7 +118,8 @@ inline auto invert_brown_conrady(const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>&
     obs.reserve(grid * grid);
     constexpr Scalar k_two = Scalar(2.0);
     for (int i = 0; i < grid; ++i) {
-        Scalar x_coord = -lim + k_two * lim * static_cast<Scalar>(i) / static_cast<Scalar>(grid - 1);
+        Scalar x_coord =
+            -lim + k_two * lim * static_cast<Scalar>(i) / static_cast<Scalar>(grid - 1);
         for (int j = 0; j < grid; ++j) {
             Scalar y_coord =
                 -lim + k_two * lim * static_cast<Scalar>(j) / static_cast<Scalar>(grid - 1);
@@ -233,10 +234,11 @@ auto fit_distortion_full(const std::vector<Observation<T>>& observations, T foca
 }
 
 template <typename T>
-auto fit_distortion(const std::vector<Observation<T>>& observations,
-                   T focal_x, T focal_y, T center_x, T center_y, T skew_param,
-                   int num_radial = 2) -> std::optional<DistortionWithResiduals<T>> {
-    return fit_distortion_full(observations, focal_x, focal_y, center_x, center_y, skew_param, num_radial);
+auto fit_distortion(const std::vector<Observation<T>>& observations, T focal_x, T focal_y,
+                    T center_x, T center_y, T skew_param,
+                    int num_radial = 2) -> std::optional<DistortionWithResiduals<T>> {
+    return fit_distortion_full(observations, focal_x, focal_y, center_x, center_y, skew_param,
+                               num_radial);
 }
 
 inline auto fit_distortion_dual(const std::vector<Observation<double>>& observations,

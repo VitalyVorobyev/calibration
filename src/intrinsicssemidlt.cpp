@@ -69,8 +69,9 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
     }
 };
 
-static std::optional<DistortionWithResiduals<double>> solve_full(
-    const std::vector<PlanarView>& views, int num_radial, const IntrinsicBlocks& blocks) {
+static auto solve_full(const std::vector<PlanarView>& views, int num_radial,
+                       const IntrinsicBlocks& blocks)
+    -> std::optional<DistortionWithResiduals<double>> {
     std::vector<Observation<double>> obs;
     for (size_t i = 0; i < views.size(); ++i) {
         auto c_se3_t = restore_pose(blocks.c_q_t[i], blocks.c_t_t[i]);
