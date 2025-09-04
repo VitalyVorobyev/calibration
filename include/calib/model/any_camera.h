@@ -5,65 +5,114 @@
 #endif
 
 #include <Eigen/Core>
+#include <algorithm>
+#include <array>
 #include <memory>
 #include <typeinfo>
+#include <variant>
 
+#include "calib/camera.h"
+#include "calib/scheimpflug.h"
+#include "calib/distortion.h"
 #include "calib/cameramodel.h"
 
 namespace calib {
 
+struct CameraModelTraits final {
+  int param_count{0};
+  int idx_fx{0};
+  int idx_fy{0};
+  int idx_skew{0};
+};
+
+// Type-erased camera wrapper with runtime parameters
 class CALIB_EXPORT AnyCamera {
-public:
+ public:
   AnyCamera() = default;
 
   template <CameraModel M>
-  AnyCamera(M cam)
-      : self_(std::make_shared<Model<M>>(std::move(cam))),
-        type_(&typeid(M)) {}
-
-  bool has_value() const noexcept { return static_cast<bool>(self_); }
-
-  Eigen::Vector2d project(const Eigen::Vector3d& Xc) const {
-    return self_->project(Xc);
+  AnyCamera(M cam) : cam_(std::move(cam)) {
+    traits_ = {static_cast<int>(CameraTraits<M>::param_count),
+               CameraTraits<M>::idx_fx,
+               CameraTraits<M>::idx_fy,
+               CameraTraits<M>::idx_skew};
+    params_.resize(traits_.param_count);
+    std::array<double, CameraTraits<M>::param_count> arr{};
+    CameraTraits<M>::to_array(std::get<M>(cam_), arr);
+    for (int i = 0; i < traits_.param_count; ++i) {
+      params_[static_cast<Eigen::Index>(i)] = arr[static_cast<size_t>(i)];
+    }
   }
-  Eigen::Vector3d unproject(const Eigen::Vector2d& xn) const {
-    return self_->unproject(xn);
+
+  bool has_value() const noexcept {
+    return !std::holds_alternative<std::monostate>(cam_);
   }
 
   template <class M>
   bool holds() const noexcept {
-    return type_ && *type_ == typeid(M);
+    return std::holds_alternative<M>(cam_);
   }
 
   template <class M>
   M* as() {
-    if (!holds<M>()) return nullptr;
-    // Safe because we just checked the exact stored type
-    return &static_cast<Model<M>*>(self_.get())->cam;
+    return std::get_if<M>(&cam_);
   }
 
-private:
-  struct Concept {
-    virtual ~Concept() = default;
-    virtual Eigen::Vector2d project(const Eigen::Vector3d&) const = 0;
-    virtual Eigen::Vector3d unproject(const Eigen::Vector2d&) const = 0;
-  };
+  const CameraModelTraits& traits() const { return traits_; }
+  Eigen::VectorXd& params() { return params_; }
+  const Eigen::VectorXd& params() const { return params_; }
 
-  template <CameraModel M>
-  struct Model final : Concept {
-    explicit Model(M c) : cam(std::move(c)) {}
-    Eigen::Vector2d project(const Eigen::Vector3d& X) const override {
-      return cam.project(X);
-    }
-    Eigen::Vector3d unproject(const Eigen::Vector2d& x) const override {
-      return cam.unproject(x);
-    }
-    M cam;
-  };
+  template <typename T>
+  Eigen::Matrix<T, 2, 1> project(const Eigen::Matrix<T, 3, 1>& X,
+                                  const T* intr) const {
+    return std::visit(
+        [&](const auto& cam) -> Eigen::Matrix<T, 2, 1> {
+          using CamT = std::decay_t<decltype(cam)>;
+          if constexpr (std::is_same_v<CamT, std::monostate>) {
+            return Eigen::Matrix<T, 2, 1>::Zero();
+          } else {
+            auto c = CameraTraits<CamT>::template from_array<T>(intr);
+            return c.project(X);
+          }
+        },
+        cam_);
+  }
 
-  std::shared_ptr<Concept> self_;
-  const std::type_info* type_{nullptr};
+  template <typename T>
+  Eigen::Matrix<T, 3, 1> unproject(const Eigen::Matrix<T, 2, 1>& x,
+                                    const T* intr) const {
+    return std::visit(
+        [&](const auto& cam) -> Eigen::Matrix<T, 3, 1> {
+          using CamT = std::decay_t<decltype(cam)>;
+          if constexpr (std::is_same_v<CamT, std::monostate>) {
+            return Eigen::Matrix<T, 3, 1>::Zero();
+          } else {
+            auto c = CameraTraits<CamT>::template from_array<T>(intr);
+            Eigen::Matrix<T, 3, 1> out;
+            auto xy = c.unproject(x);
+            out << xy.x(), xy.y(), T(1);
+            return out;
+          }
+        },
+        cam_);
+  }
+
+  Eigen::Vector2d project(const Eigen::Vector3d& X) const {
+    return project<double>(X, params_.data());
+  }
+
+  Eigen::Vector3d unproject(const Eigen::Vector2d& x) const {
+    return unproject<double>(x, params_.data());
+  }
+
+ private:
+  using CameraVariant =
+      std::variant<std::monostate, Camera<BrownConradyd>,
+                   ScheimpflugCamera<BrownConradyd>, Camera<DualDistortion>>;
+
+  CameraVariant cam_;
+  CameraModelTraits traits_;
+  Eigen::VectorXd params_;
 };
 
-} // namespace calib
-
+}  // namespace calib
