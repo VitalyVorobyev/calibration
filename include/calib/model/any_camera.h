@@ -57,6 +57,11 @@ class CALIB_EXPORT AnyCamera {
         return std::get_if<M>(&cam_);
     }
 
+    template <class M>
+    const M* as() const {
+        return std::get_if<M>(&cam_);
+    }
+
     const CameraModelTraits& traits() const { return traits_; }
     Eigen::VectorXd& params() { return params_; }
     const Eigen::VectorXd& params() const { return params_; }

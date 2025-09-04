@@ -100,4 +100,34 @@ struct CameraTraits<Camera<DistortionT>> {
     }
 };
 
+// Specialization for DualBrownConrady
+template <typename T>
+struct CameraTraits<Camera<DualBrownConrady<T>>> {
+    static constexpr int param_count = 5 + 2;  // 5 intrinsics + 2 forward distortion coeffs
+    static constexpr int idx_fx = 0;
+    static constexpr int idx_fy = 1;
+    static constexpr int idx_skew = 4;
+
+    template <typename U>
+    static auto from_array(const U* intr) -> Camera<DualBrownConrady<U>> {
+        CameraMatrixT<U> k_matrix{intr[0], intr[1], intr[2], intr[3], intr[4]};
+        Eigen::Matrix<U, Eigen::Dynamic, 1> dist(2);
+        constexpr int k_intr_offset = 5;
+        dist << intr[k_intr_offset], intr[k_intr_offset + 1];
+        return Camera<DualBrownConrady<U>>(k_matrix, DualBrownConrady<U>(dist));
+    }
+
+    static void to_array(const Camera<DualBrownConrady<T>>& cam, std::array<double, param_count>& arr) {
+        arr[0] = cam.K.fx;
+        arr[1] = cam.K.fy;
+        arr[2] = cam.K.cx;
+        arr[3] = cam.K.cy;
+        arr[4] = cam.K.skew;
+        constexpr int k_intr_offset = 5;
+        for (int i = 0; i < 2; ++i) {  // DualBrownConrady has 2 forward coefficients
+            arr[k_intr_offset + i] = cam.distortion.forward[i];
+        }
+    }
+};
+
 }  // namespace calib

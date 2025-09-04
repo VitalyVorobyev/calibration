@@ -36,7 +36,7 @@ TEST(JsonSerialization, IntrinsicsResultRoundTrip) {
     Camera<BrownConradyd> cam;
     cam.K = CameraMatrix{100,100,0,0,0};
     cam.distortion.coeffs = Eigen::VectorXd::Zero(5);
-    res.camera = AnyCamera(cam);
+    res.camera = AnyCamera(std::move(cam));
     res.covariance = Eigen::MatrixXd::Identity(5,5);
     res.view_errors = {0.1, 0.2};
     res.report = "ok";

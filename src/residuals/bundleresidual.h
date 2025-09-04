@@ -1,5 +1,4 @@
 /** @brief Residuals for bundle adjustment using AnyCamera */
-
 #pragma once
 
 // ceres
@@ -52,16 +51,16 @@ struct BundleReprojResidual final {
         return true;
     }
 
-    static ceres::CostFunction* create(const PlanarView& v, const Eigen::Isometry3d& b_se3_g,
+    static ceres::CostFunction* create(const PlanarView& v, const Eigen::Isometry3d& cam_se3_tgt,
                                        const AnyCamera& cam) {
         if (v.empty()) {
             throw std::invalid_argument("No observations provided");
         }
-        auto* functor = new BundleReprojResidual(v, b_se3_g, cam);
+        auto* functor = new BundleReprojResidual(v, cam_se3_tgt, cam);
         int intr_size = cam.traits().param_count;
         return new ceres::AutoDiffCostFunction<BundleReprojResidual, ceres::DYNAMIC, 4, 3, 4, 3,
                                                ceres::DYNAMIC>(
-            functor, static_cast<int>(v.size()) * 2, intr_size);
+            functor, static_cast<int>(v.size()) * 2);
     }
 };
 

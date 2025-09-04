@@ -51,7 +51,7 @@ struct ExtrinsicResidual final {
         int intr_size = cam.traits().param_count;
         return new ceres::AutoDiffCostFunction<ExtrinsicResidual, ceres::DYNAMIC, 4, 3, 4, 3,
                                                ceres::DYNAMIC>(
-            functor, static_cast<int>(v.size()) * 2, intr_size);
+            functor, static_cast<int>(v.size()) * 2);
     }
 };
 

@@ -124,7 +124,7 @@ inline void from_json(const nlohmann::json& j, Camera<DistortionT>& cam) {
 }
 
 inline void to_json(nlohmann::json& j, const ScheimpflugCamera<BrownConradyd>& sc) {
-    j = {{"cam", sc.cam}, {"tau_x_angle", sc.tau_x_angle}, {"tau_y_angle", sc.tau_y_angle}};
+    j = {{"cam", sc.camera}, {"tau_x_angle", sc.tau_x}, {"tau_y_angle", sc.tau_y}};
 }
 
 inline void from_json(const nlohmann::json& j, ScheimpflugCamera<BrownConradyd>& sc) {

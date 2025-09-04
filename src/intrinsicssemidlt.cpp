@@ -63,7 +63,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
         cam.K.cy = intrinsics[3];
         cam.K.skew = intrinsics[4];
 
-        result.camera = AnyCamera(cam);
+        result.camera = AnyCamera(std::move(cam));
         result.c_se3_t.resize(c_q_t.size());
         for (size_t i = 0; i < c_q_t.size(); ++i) {
             result.c_se3_t[i] = restore_pose(c_q_t[i], c_t_t[i]);
