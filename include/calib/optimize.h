@@ -21,10 +21,10 @@ enum class OptimizerType : uint8_t {
 struct OptimOptions {
     OptimizerType optimizer = OptimizerType::DEFAULT;
     double huber_delta = 1.0;  ///< Huber loss delta. L2 loss is used if huber_delta < 0
-    static constexpr double kDefaultEpsilon = 1e-9;
-    double epsilon = kDefaultEpsilon;  ///< Solver convergence tolerance
-    static constexpr int kDefaultMaxIterations = 1000;
-    int max_iterations = kDefaultMaxIterations;  ///< Maximum number of iterations
+    static constexpr double k_default_epsilon = 1e-9;
+    double epsilon = k_default_epsilon;  ///< Solver convergence tolerance
+    static constexpr int k_default_max_iterations = 1000;
+    int max_iterations = k_default_max_iterations;  ///< Maximum number of iterations
     bool compute_covariance = true;              ///< Compute covariance matrix
     bool verbose = false;                        ///< Verbose solver output
 };

@@ -11,7 +11,7 @@ TEST(ScheimpflugCamera, ZeroTiltMatchesPinhole) {
     cam.distortion.forward = Eigen::VectorXd::Zero(2);
     cam.distortion.inverse = Eigen::VectorXd::Zero(2);
 
-    ScheimpflugCamera<DualDistortion> sc(cam, 0.0, 0.0);
+    ScheimpflugCamera<DualDistortion> sc(cam, {0.0, 0.0});
 
     Eigen::Vector3d Xc(0.2, -0.1, 1.0);
     Eigen::Vector2d uv_s = sc.project(Xc);
@@ -29,7 +29,7 @@ TEST(ScheimpflugCamera, PrincipalRay) {
 
     const double taux = 0.1;
     const double tauy = -0.2;
-    ScheimpflugCamera<DualDistortion> sc(cam, taux, tauy);
+    ScheimpflugCamera<DualDistortion> sc(cam, {taux, tauy});
 
     Eigen::Vector3d Xc(0.0, 0.0, 1.0);
     Eigen::Vector2d uv = sc.project(Xc);

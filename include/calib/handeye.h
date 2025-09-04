@@ -77,14 +77,14 @@ struct HandeyeResult final : public OptimResult {
  *                        specific pose of the target.
  * @param init_gripper_se3_ref The initial estimate of the transformation from the gripper to the
  *                           reference frame (hand-eye transformation).
- * @param opts Optional refinement options that control the optimization process. Defaults to
- *             an empty set of options.
+ * @param options Optional refinement options that control the optimization process. Defaults to
+ *                an empty set of options.
  * @return The refined hand-eye transformation as an Eigen::Isometry3d object.
  */
 auto optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
                       const std::vector<Eigen::Isometry3d>& camera_se3_target,
                       const Eigen::Isometry3d& init_gripper_se3_ref,
-                      const HandeyeOptions& opts = {}) -> HandeyeResult;
+                      const HandeyeOptions& options = {}) -> HandeyeResult;
 
 /**
  * @brief Estimates and refines the hand-eye transformation.

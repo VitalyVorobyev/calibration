@@ -26,7 +26,7 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(const std::vector<Observa
         return std::nullopt;
     }
 
-    Eigen::MatrixXd Ay(obs.size(), 2);
+    Eigen::MatrixXd ay(obs.size(), 2);
     Eigen::VectorXd bv(obs.size());
 
     Eigen::VectorXd bu(obs.size());
@@ -34,39 +34,39 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(const std::vector<Observa
     Eigen::VectorXd xu;
 
     if (use_skew) {
-        Eigen::MatrixXd Ax(obs.size(), 3);
+        Eigen::MatrixXd ax(obs.size(), 3);
         for (size_t i = 0; i < obs.size(); ++i) {
-            Ax(static_cast<int>(i), 0) = obs[i].x;
-            Ax(static_cast<int>(i), 1) = obs[i].y;
-            Ax(static_cast<int>(i), 2) = 1.0;
-            Ay(static_cast<int>(i), 0) = obs[i].y;
-            Ay(static_cast<int>(i), 1) = 1.0;
+            ax(static_cast<int>(i), 0) = obs[i].x;
+            ax(static_cast<int>(i), 1) = obs[i].y;
+            ax(static_cast<int>(i), 2) = 1.0;
+            ay(static_cast<int>(i), 0) = obs[i].y;
+            ay(static_cast<int>(i), 1) = 1.0;
             bu(static_cast<int>(i)) = obs[i].u;
             bv(static_cast<int>(i)) = obs[i].v;
         }
-        svd_x.compute(Ax, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        svd_x.compute(ax, Eigen::ComputeThinU | Eigen::ComputeThinV);
         if (svd_x.singularValues().minCoeff() < 1e-12) {
             return std::nullopt;
         }
         xu = svd_x.solve(bu);
     } else {
-        Eigen::MatrixXd Ax(obs.size(), 2);
+        Eigen::MatrixXd ax(obs.size(), 2);
         for (size_t i = 0; i < obs.size(); ++i) {
-            Ax(static_cast<int>(i), 0) = obs[i].x;
-            Ax(static_cast<int>(i), 1) = 1.0;
-            Ay(static_cast<int>(i), 0) = obs[i].y;
-            Ay(static_cast<int>(i), 1) = 1.0;
+            ax(static_cast<int>(i), 0) = obs[i].x;
+            ax(static_cast<int>(i), 1) = 1.0;
+            ay(static_cast<int>(i), 0) = obs[i].y;
+            ay(static_cast<int>(i), 1) = 1.0;
             bu(static_cast<int>(i)) = obs[i].u;
             bv(static_cast<int>(i)) = obs[i].v;
         }
-        svd_x.compute(Ax, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        svd_x.compute(ax, Eigen::ComputeThinU | Eigen::ComputeThinV);
         if (svd_x.singularValues().minCoeff() < 1e-12) {
             return std::nullopt;
         }
         xu = svd_x.solve(bu);
     }
 
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd_y(Ay, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd_y(ay, Eigen::ComputeThinU | Eigen::ComputeThinV);
     if (svd_y.singularValues().minCoeff() < 1e-12) {
         return std::nullopt;
     }
@@ -116,18 +116,18 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(const std::vector<Observa
 std::optional<Camera<BrownConradyd>> estimate_intrinsics_linear_iterative(
     const std::vector<Observation<double>>& obs, int num_radial, int max_iterations,
     bool use_skew) {
-    auto K_opt = estimate_intrinsics_linear(obs, std::nullopt, use_skew);
-    if (!K_opt) {
+    auto kmtx_opt = estimate_intrinsics_linear(obs, std::nullopt, use_skew);
+    if (!kmtx_opt.has_value()) {
         return std::nullopt;
     }
-    CameraMatrix K = *K_opt;
+    CameraMatrix kmtx = kmtx_opt.value();
 
     Eigen::VectorXd dist;
     std::vector<Observation<double>> corrected(obs.size());
 
     for (int iter = 0; iter < max_iterations; ++iter) {
         // Estimate distortion for current intrinsics using original observations.
-        auto dist_opt = fit_distortion(obs, K.fx, K.fy, K.cx, K.cy, K.skew, num_radial);
+        auto dist_opt = fit_distortion(obs, kmtx.fx, kmtx.fy, kmtx.cx, kmtx.cy, kmtx.skew, num_radial);
         if (!dist_opt) {
             return std::nullopt;
         }
@@ -139,32 +139,32 @@ std::optional<Camera<BrownConradyd>> estimate_intrinsics_linear_iterative(
             Eigen::Vector2d norm(obs[i].x, obs[i].y);
             Eigen::Vector2d distorted = apply_distortion(norm, dist);
             Eigen::Vector2d delta = distorted - norm;
-            double u_corr = obs[i].u - K.fx * delta.x() - K.skew * delta.y();
-            double v_corr = obs[i].v - K.fy * delta.y();
+            double u_corr = obs[i].u - kmtx.fx * delta.x() - kmtx.skew * delta.y();
+            double v_corr = obs[i].v - kmtx.fy * delta.y();
             corrected[i] = {obs[i].x, obs[i].y, u_corr, v_corr};
         }
 
-        auto K_new_opt = estimate_intrinsics_linear(corrected, std::nullopt, use_skew);
-        if (!K_new_opt) {
+        auto kmtx_new_opt = estimate_intrinsics_linear(corrected, std::nullopt, use_skew);
+        if (!kmtx_new_opt.has_value()) {
             break;
         }
-        CameraMatrix K_new = *K_new_opt;
+        CameraMatrix kmtx_new = kmtx_new_opt.value();
 
-        double diff = std::abs(K_new.fx - K.fx) + std::abs(K_new.fy - K.fy) +
-                      std::abs(K_new.cx - K.cx) + std::abs(K_new.cy - K.cy) +
-                      std::abs(K_new.skew - K.skew);
-        K = K_new;
+        double diff = std::abs(kmtx_new.fx - kmtx.fx) + std::abs(kmtx_new.fy - kmtx.fy) +
+                      std::abs(kmtx_new.cx - kmtx.cx) + std::abs(kmtx_new.cy - kmtx.cy) +
+                      std::abs(kmtx_new.skew - kmtx.skew);
+        kmtx = kmtx_new;
         if (diff < 1e-6) {
             break;  // Converged
         }
     }
 
-    auto dual_opt = fit_distortion_full(obs, K.fx, K.fy, K.cx, K.cy, K.skew, num_radial);
+    auto dual_opt = fit_distortion_full(obs, kmtx.fx, kmtx.fy, kmtx.cx, kmtx.cy, kmtx.skew, num_radial);
     if (!dual_opt) {
         return std::nullopt;
     }
     Camera<BrownConradyd> cam;
-    cam.K = K;
+    cam.K = kmtx;
     cam.distortion.coeffs = dual_opt->distortion;
 
     return cam;

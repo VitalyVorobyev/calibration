@@ -84,37 +84,37 @@ auto build_all_pairs(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
 static auto estimate_rotation_allpairs_weighted(const std::vector<MotionPair>& pairs)
     -> Eigen::Matrix3d {
     const int num_pairs = static_cast<int>(pairs.size());
-    Eigen::MatrixXd mat_M(3 * num_pairs, 3);
+    Eigen::MatrixXd mat_m(3 * num_pairs, 3);
     Eigen::VectorXd vec_d(3 * num_pairs);
     for (int idx = 0; idx < num_pairs; ++idx) {
         Eigen::Vector3d alpha = logSO3(pairs[idx].RA);
         Eigen::Vector3d beta = logSO3(pairs[idx].RB);
-        constexpr double kWeight = 1.0;
-        mat_M.block<3, 3>(static_cast<Eigen::Index>(3 * idx), 0) = kWeight * skew(alpha + beta);
-        vec_d.segment<3>(static_cast<Eigen::Index>(3 * idx)) = kWeight * (beta - alpha);
+        constexpr double k_weight = 1.0;
+        mat_m.block<3, 3>(static_cast<Eigen::Index>(3 * idx), 0) = k_weight * skew(alpha + beta);
+        vec_d.segment<3>(static_cast<Eigen::Index>(3 * idx)) = k_weight * (beta - alpha);
     }
-    constexpr double kRidge = 1e-12;
-    Eigen::Vector3d rot_vec = ridge_llsq(mat_M, vec_d, kRidge);
+    constexpr double k_ridge = 1e-12;
+    Eigen::Vector3d rot_vec = ridge_llsq(mat_m, vec_d, k_ridge);
     return expSO3(rot_vec);
 }
 
 // ---------- weighted Tsai–Lenz translation over all pairs ----------
 static auto estimate_translation_allpairs_weighted(
-    const std::vector<MotionPair>& pairs, const Eigen::Matrix3d& rot_X) -> Eigen::Vector3d {
+    const std::vector<MotionPair>& pairs, const Eigen::Matrix3d& rot_x) -> Eigen::Vector3d {
     const int num_pairs = static_cast<int>(pairs.size());
-    Eigen::MatrixXd mat_C(3 * num_pairs, 3);
+    Eigen::MatrixXd mat_c(3 * num_pairs, 3);
     Eigen::VectorXd vec_w(3 * num_pairs);
     for (int idx = 0; idx < num_pairs; ++idx) {
-        const Eigen::Matrix3d& rot_A = pairs[idx].RA;
-        const Eigen::Vector3d& tran_A = pairs[idx].tA;
-        const Eigen::Vector3d& tran_B = pairs[idx].tB;
-        constexpr double kWeight = 1.0;
-        mat_C.block<3, 3>(static_cast<Eigen::Index>(3 * idx), 0) =
-            kWeight * (rot_A - Eigen::Matrix3d::Identity());
-        vec_w.segment<3>(static_cast<Eigen::Index>(3 * idx)) = kWeight * (rot_X * tran_B - tran_A);
+        const Eigen::Matrix3d& rot_a = pairs[idx].RA;
+        const Eigen::Vector3d& tran_a = pairs[idx].tA;
+        const Eigen::Vector3d& tran_b = pairs[idx].tB;
+        constexpr double k_weight = 1.0;
+        mat_c.block<3, 3>(static_cast<Eigen::Index>(3 * idx), 0) =
+            k_weight * (rot_a - Eigen::Matrix3d::Identity());
+        vec_w.segment<3>(static_cast<Eigen::Index>(3 * idx)) = k_weight * (rot_x * tran_b - tran_a);
     }
-    constexpr double kRidge = 1e-12;
-    return ridge_llsq(mat_C, vec_w, kRidge);
+    constexpr double k_ridge = 1e-12;
+    return ridge_llsq(mat_c, vec_w, k_ridge);
 }
 
 // ---------- public API: linear init + non-linear refine ----------
@@ -122,10 +122,10 @@ auto estimate_handeye_dlt(const std::vector<Eigen::Isometry3d>& base_se3_gripper
                           const std::vector<Eigen::Isometry3d>& camera_se3_target,
                           double min_angle_deg) -> Eigen::Isometry3d {
     auto pairs = build_all_pairs(base_se3_gripper, camera_se3_target, min_angle_deg);
-    const Eigen::Matrix3d rot_X = estimate_rotation_allpairs_weighted(pairs);
-    const Eigen::Vector3d g_t_c = estimate_translation_allpairs_weighted(pairs, rot_X);
+    const Eigen::Matrix3d rot_x = estimate_rotation_allpairs_weighted(pairs);
+    const Eigen::Vector3d g_t_c = estimate_translation_allpairs_weighted(pairs, rot_x);
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
-    pose.linear() = rot_X;
+    pose.linear() = rot_x;
     pose.translation() = g_t_c;
     return pose;
 }

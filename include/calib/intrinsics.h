@@ -31,10 +31,10 @@ auto estimate_intrinsics_linear(const std::vector<Observation<double>>& observat
 // intrinsics (estimate_intrinsics_linear).  Returns std::nullopt if the
 // initial linear estimation fails.  The number of radial distortion
 // coefficients and the number of refinement iterations can be specified.
-constexpr int kDefaultMaxIterations = 5;
+constexpr int k_default_max_iterations = 5;
 auto estimate_intrinsics_linear_iterative(
     const std::vector<Observation<double>>& observations, int num_radial,
-    int max_iterations = kDefaultMaxIterations,
+    int max_iterations = k_default_max_iterations,
     bool use_skew = false) -> std::optional<Camera<BrownConradyd>>;
 
 struct IntrinsicsOptions final : public OptimOptions {

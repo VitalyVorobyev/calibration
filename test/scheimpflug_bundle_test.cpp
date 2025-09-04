@@ -15,7 +15,7 @@ TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
     Camera<BrownConradyd> cam(K, Eigen::VectorXd::Zero(5));
     const double taux = 0.02;
     const double tauy = -0.015;
-    ScheimpflugCamera sc(cam, taux, tauy);
+    ScheimpflugCamera sc(cam, {taux, tauy});
 
     Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     g_se3_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
@@ -58,7 +58,7 @@ TEST(ScheimpflugBundle, HandeyeWithFixedIntrinsics) {
     Camera<BrownConradyd> cam(K, Eigen::VectorXd::Zero(5));
     const double taux = 0.02;
     const double tauy = -0.015;
-    ScheimpflugCamera sc(cam, taux, tauy);
+    ScheimpflugCamera sc(cam, {taux, tauy});
 
     Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     g_se3_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();

@@ -10,10 +10,10 @@ namespace calib {
 
 template <camera_model CameraT>
 struct IntrinsicBlocks final : public ProblemParamBlocks {
-    static constexpr size_t IntrSize = CameraTraits<CameraT>::param_count;
+    static constexpr size_t intr_size = CameraTraits<CameraT>::param_count;
     std::vector<std::array<double, 4>> c_q_t;
     std::vector<std::array<double, 3>> c_t_t;
-    std::array<double, IntrSize> intr;
+    std::array<double, intr_size> intr;
 
     explicit IntrinsicBlocks(size_t numviews) : c_q_t(numviews), c_t_t(numviews), intr{} {}
 
@@ -31,7 +31,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
 
     std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
-        blocks.emplace_back(intr.data(), intr.size(), IntrSize);
+        blocks.emplace_back(intr.data(), intr.size(), intr_size);
         for (const auto& i : c_q_t)
             blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
         for (const auto& i : c_t_t) blocks.emplace_back(i.data(), i.size(), 3);
@@ -70,7 +70,7 @@ static ceres::Problem build_problem(const std::vector<PlanarView>& views,
     p.SetParameterLowerBound(blocks.intr.data(), CameraTraits<CameraT>::idx_fy, 0.0);
     if (!opts.optimize_skew) {
         p.SetManifold(blocks.intr.data(),
-                      new ceres::SubsetManifold(IntrinsicBlocks<CameraT>::IntrSize,
+                      new ceres::SubsetManifold(IntrinsicBlocks<CameraT>::intr_size,
                                                 {CameraTraits<CameraT>::idx_skew}));
     }
 

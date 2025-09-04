@@ -13,12 +13,12 @@ namespace calib {
 
 template <camera_model CameraT>
 struct BundleBlocks final : public ProblemParamBlocks {
-    static constexpr size_t kIntrSize = CameraTraits<CameraT>::param_count;
+    static constexpr size_t k_intr_size = CameraTraits<CameraT>::param_count;
     std::array<double, 4> b_q_t;
     std::array<double, 3> b_t_t;
     std::vector<std::array<double, 4>> g_q_c;
     std::vector<std::array<double, 3>> g_t_c;
-    std::vector<std::array<double, kIntrSize>> intr;
+    std::vector<std::array<double, k_intr_size>> intr;
 
     explicit BundleBlocks(size_t numcams)
         : b_q_t{0.0, 0.0, 0.0, 1.0},
@@ -44,7 +44,7 @@ struct BundleBlocks final : public ProblemParamBlocks {
     auto get_param_blocks() const -> std::vector<ParamBlock> override {
         std::vector<ParamBlock> blocks;
         for (const auto& intr_block : intr) {
-            blocks.emplace_back(intr_block.data(), intr_block.size(), kIntrSize);
+            blocks.emplace_back(intr_block.data(), intr_block.size(), k_intr_size);
         }
         for (const auto& quat_block : g_q_c) {
             blocks.emplace_back(quat_block.data(), quat_block.size(),
@@ -114,7 +114,7 @@ static auto build_problem(const std::vector<BundleObservation>& observations,
                                            CameraTraits<CameraT>::idx_fy, 0.0);
             if (!opts.optimize_skew) {
                 problem.SetManifold(blocks.intr[cam_idx].data(),
-                                    new ceres::SubsetManifold(BundleBlocks<CameraT>::kIntrSize,
+                                    new ceres::SubsetManifold(BundleBlocks<CameraT>::k_intr_size,
                                                               {CameraTraits<CameraT>::idx_skew}));
             }
         }

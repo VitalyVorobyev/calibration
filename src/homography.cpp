@@ -65,9 +65,9 @@ static void normalize_points(const std::vector<Vec2>& points, std::vector<Vec2>&
         mean_dist += std::sqrt(dx * dx + dy * dy);
     }
     mean_dist /= static_cast<double>(points.size());
-    constexpr double kEps = 1e-12;
-    constexpr double kSqrt2 = std::numbers::sqrt2;
-    double scale = (mean_dist > kEps) ? kSqrt2 / mean_dist : 1.0;
+    constexpr double k_eps = 1e-12;
+    constexpr double k_sqrt2 = std::numbers::sqrt2;
+    double scale = (mean_dist > k_eps) ? k_sqrt2 / mean_dist : 1.0;
     // Similarity transform
     transform << scale, 0, -scale * centroid_x, 0, scale, -scale * centroid_y, 0, 0, 1;
     // Apply
@@ -86,49 +86,49 @@ auto estimate_homography_dlt(const std::vector<Vec2>& src, const std::vector<Vec
     normalize_points(src, src_norm, transform_src);
     normalize_points(dst, dst_norm, transform_dst);
     // Build A (2N x 9)
-    Eigen::MatrixXd mat_A(2 * num_pts, 9);
+    Eigen::MatrixXd mat_a(2 * num_pts, 9);
     for (int idx = 0; idx < num_pts; ++idx) {
         const double x = src_norm[idx].x();
         const double y = src_norm[idx].y();
         const double u = dst_norm[idx].x();
         const double v = dst_norm[idx].y();
         // Row 2i
-        mat_A(static_cast<Eigen::Index>(2 * idx), 0) = 0.0;
-        mat_A(static_cast<Eigen::Index>(2 * idx), 1) = 0.0;
-        mat_A(static_cast<Eigen::Index>(2 * idx), 2) = 0.0;
-        mat_A(static_cast<Eigen::Index>(2 * idx), 3) = -x;
-        mat_A(static_cast<Eigen::Index>(2 * idx), 4) = -y;
-        mat_A(static_cast<Eigen::Index>(2 * idx), 5) = -1.0;
-        mat_A(static_cast<Eigen::Index>(2 * idx), 6) = v * x;
-        mat_A(static_cast<Eigen::Index>(2 * idx), 7) = v * y;
-        mat_A(static_cast<Eigen::Index>(2 * idx), 8) = v;
+        mat_a(static_cast<Eigen::Index>(2 * idx), 0) = 0.0;
+        mat_a(static_cast<Eigen::Index>(2 * idx), 1) = 0.0;
+        mat_a(static_cast<Eigen::Index>(2 * idx), 2) = 0.0;
+        mat_a(static_cast<Eigen::Index>(2 * idx), 3) = -x;
+        mat_a(static_cast<Eigen::Index>(2 * idx), 4) = -y;
+        mat_a(static_cast<Eigen::Index>(2 * idx), 5) = -1.0;
+        mat_a(static_cast<Eigen::Index>(2 * idx), 6) = v * x;
+        mat_a(static_cast<Eigen::Index>(2 * idx), 7) = v * y;
+        mat_a(static_cast<Eigen::Index>(2 * idx), 8) = v;
         // Row 2i+1
-        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 0) = x;
-        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 1) = y;
-        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 2) = 1.0;
-        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 3) = 0.0;
-        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 4) = 0.0;
-        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 5) = 0.0;
-        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 6) = -u * x;
-        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 7) = -u * y;
-        mat_A(static_cast<Eigen::Index>(2 * idx + 1), 8) = -u;
+        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 0) = x;
+        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 1) = y;
+        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 2) = 1.0;
+        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 3) = 0.0;
+        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 4) = 0.0;
+        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 5) = 0.0;
+        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 6) = -u * x;
+        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 7) = -u * y;
+        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 8) = -u;
     }
     // Solve Ah = 0, h = last singular vector
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(mat_A, Eigen::ComputeFullV);
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(mat_a, Eigen::ComputeFullV);
     Eigen::VectorXd vec_h = svd.matrixV().col(8);
-    Mat3 mat_Hn;
-    mat_Hn << vec_h(0), vec_h(1), vec_h(2), vec_h(3), vec_h(4), vec_h(5), vec_h(6), vec_h(7),
+    Mat3 mat_hn;
+    mat_hn << vec_h(0), vec_h(1), vec_h(2), vec_h(3), vec_h(4), vec_h(5), vec_h(6), vec_h(7),
         vec_h(8);
     // Denormalize: H = T_dst^{-1} * Hn * T_src
-    Mat3 mat_H = transform_dst.inverse() * mat_Hn * transform_src;
+    Mat3 mat_h = transform_dst.inverse() * mat_hn * transform_src;
     // Fix scale
-    constexpr double kEps = 1e-15;
-    if (std::abs(mat_H(2, 2)) > kEps) {
-        mat_H /= mat_H(2, 2);
+    constexpr double k_eps = 1e-15;
+    if (std::abs(mat_h(2, 2)) > k_eps) {
+        mat_h /= mat_h(2, 2);
     } else {
-        mat_H /= (mat_H.norm() + kEps);
+        mat_h /= (mat_h.norm() + k_eps);
     }
-    return mat_H;
+    return mat_h;
 }
 
 // Ceres residual: maps (x,y) -> (u,v) using H(h) and compares to (u*, v*)
@@ -140,16 +140,28 @@ struct HomographyResidual {
     template <typename T>
     bool operator()(const T* const h, T* residuals) const {
         // h[0..7]: 8 params, H22 = 1
-        T X = T(x_), Y = T(y_);
-        T den = h[6] * X + h[7] * Y + T(1);
+        // 0 1 2
+        // 3 4 5
+        // 6 7 8
+        constexpr size_t h00idx = 0;
+        constexpr size_t h01idx = 1;
+        constexpr size_t h02idx = 2;
+        constexpr size_t h10idx = 3;
+        constexpr size_t h11idx = 4;
+        constexpr size_t h12idx = 5;
+        constexpr size_t h30idx = 6;
+        constexpr size_t h31idx = 7;
+        T xvar = T(x_);
+        T yvar = T(y_);
+        T den = h[h30idx] * xvar + h[h31idx] * yvar + T(1);
         // Guard against division by zero in autodiff context
         if (ceres::isnan(den) || ceres::abs(den) < T(1e-15)) {
             residuals[0] = T(0);
             residuals[1] = T(0);
             return true;
         }
-        T uu = (h[0] * X + h[1] * Y + h[2]) / den;
-        T vv = (h[3] * X + h[4] * Y + h[5]) / den;
+        T uu = (h[h00idx] * xvar + h[h01idx] * yvar + h[h02idx]) / den;
+        T vv = (h[h10idx] * xvar + h[h11idx] * yvar + h[h12idx]) / den;
         residuals[0] = uu - T(u_);
         residuals[1] = vv - T(v_);
         return true;
@@ -187,9 +199,9 @@ OptimizeHomographyResult optimize_homography(const std::vector<Vec2>& src,
     OptimizeHomographyResult result;
     solve_problem(problem, options, &result);
 
-    Mat3 H = params_to_h(blocks.params);
-    if (std::abs(H(2, 2)) > 1e-15) H /= H(2, 2);
-    result.homography = H;
+    Mat3 hmtx = params_to_h(blocks.params);
+    if (std::abs(hmtx(2, 2)) > 1e-15) hmtx /= hmtx(2, 2);
+    result.homography = hmtx;
 
     if (options.compute_covariance) {
         std::vector<double> residuals(src.size() * 2);
