@@ -42,15 +42,17 @@ TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
     opts.optimizer = OptimizerType::DENSE_QR;
     opts.verbose = false;
 
-    auto res = optimize_bundle(obs, std::vector<ScheimpflugCamera<BrownConradyd>>{sc}, {init_g_se3_c}, b_se3_t, opts);
+    AnyCamera anycam {std::move(sc)};
+    auto res = optimize_bundle(obs, {anycam}, {init_g_se3_c}, b_se3_t, opts);
     std::cout << res.report << std::endl;
 
     EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c.translation()).norm(), 1e-6);
     Eigen::AngleAxisd diff(res.g_se3_c[0].linear()*g_se3_c.linear().transpose());
     EXPECT_LT(diff.angle(), 1e-6);
 
-    EXPECT_NEAR(res.cameras[0].tau_x, taux, 1e-6);
-    EXPECT_NEAR(res.cameras[0].tau_y, tauy, 1e-6);
+    auto camptr = res.cameras[0].as<ScheimpflugCamera<BrownConradyd>>();
+    EXPECT_NEAR(camptr->tau_x, taux, 1e-6);
+    EXPECT_NEAR(camptr->tau_y, tauy, 1e-6);
 }
 
 TEST(ScheimpflugBundle, HandeyeWithFixedIntrinsics) {
@@ -80,10 +82,13 @@ TEST(ScheimpflugBundle, HandeyeWithFixedIntrinsics) {
     opts.optimize_hand_eye = true;
     opts.verbose = false;
 
-    auto res = optimize_bundle(observations, std::vector<ScheimpflugCamera<BrownConradyd>>{sc}, {init_g_se3_c}, b_se3_t, opts);
+    AnyCamera anycam{std::move(sc)};
+    auto res = optimize_bundle(observations, {anycam}, {init_g_se3_c}, b_se3_t, opts);
     EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c.translation()).norm(),1e-6);
     Eigen::AngleAxisd diff(res.g_se3_c[0].linear()*g_se3_c.linear().transpose());
     EXPECT_LT(diff.angle(),1e-6);
-    EXPECT_NEAR(res.cameras[0].tau_x, taux, 1e-6);
-    EXPECT_NEAR(res.cameras[0].tau_y, tauy, 1e-6);
+
+    auto camptr = res.cameras[0].as<ScheimpflugCamera<BrownConradyd>>();
+    EXPECT_NEAR(camptr->tau_x, taux, 1e-6);
+    EXPECT_NEAR(camptr->tau_y, tauy, 1e-6);
 }

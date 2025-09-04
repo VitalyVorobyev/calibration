@@ -307,3 +307,42 @@ Bundle-adjust $\{fx,fy,s,u_0,v_0,\kappa,\tau_x,\tau_y, R_i,t_i\}$ on all observa
 ---
 
 If you like, I can sketch Ceres residual functors for this model (including minimal SO(3) parameterization and analytic Jacobians), or show how to retrofit it into OpenCV’s `calibrateCamera` workflow by replacing its projection step.
+
+## Unproject
+
+1. **Same tilt geometry:** You form the tilted sensor frame with $R = R_y(\tau_y) R_x(\tau_x)$. Its columns $\{e_1,e_2,n\}$ are the axis/base/normal of the sensor plane.
+
+2. **Plane coordinates ↔ ray:** In your `project`, a 3D point $X_c$ hits the plane $n^\top X = 1$ at local coords
+
+   $$
+     m_x = \frac{e_1^\top X}{n^\top X},\quad m_y = \frac{e_2^\top X}{n^\top X}.
+   $$
+
+   Conversely, any ray (up to scale) that maps to $(m_x,m_y)$ can be written
+
+   $$
+     r \;\propto\; m_x\,e_1 + m_y\,e_2 + 1\cdot n \;=\; R\,[m_x, m_y, 1]^\top.
+   $$
+
+3. **Principal offset:** Distortion is defined in the **local plane coords around the principal intersection**. The principal ray is $e_z$ and intersects the plane at $(m_{x0}, m_{y0}) = (e_1^\top e_z / n^\top e_z,\; e_2^\top e_z / n^\top e_z) = (e_1.z / n.z,\; e_2.z / n.z)$. Your `project` distorts $(m_x-m_{x0}, m_y-m_{y0})$; the inverse must **undistort** those deltas and then add the offset back.
+
+4. **Intrinsics with skew:** Your pixel formation is
+
+   $$
+     u = f_x m_x + s\, m_y + c_x,\quad v = f_y m_y + c_y.
+   $$
+
+   So we invert as
+
+   $$
+     m_y = \frac{v-c_y}{f_y},\quad m_x = \frac{u-c_x - s\,m_y}{f_x}.
+   $$
+
+5. **Normalization:** Returning $r / r_z$ yields a consistent “z=1” convention (same as a pinhole `unproject`). If you prefer **unit-length** rays instead, replace the last two lines with `return r.normalized();`.
+
+### Numerical notes
+
+* For small tilts, $n_z$ is close to 1, so $mx_0, my_0$ are well-defined. Extremely large tilts that make $n_z\to 0$ are physically degenerate for a camera and will break both project and unproject.
+* If your distortion model lacks a closed-form `undistort`, plug in your iterative inversion (e.g., 3–5 Newton steps) in place of `distortion.undistort`.
+
+This slots straight into your current class and is autodiff-friendly (`ceres::Jet<T>` flows through all ops).

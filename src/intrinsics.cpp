@@ -1,8 +1,8 @@
 #include "calib/intrinsics.h"
 
 #include "calib/distortion.h"
-#include "calib/scheimpflug.h"
 #include "calib/model/any_camera.h"
+#include "calib/scheimpflug.h"
 #include "ceresutils.h"
 #include "observationutils.h"
 #include "residuals/intrinsicresidual.h"
@@ -42,8 +42,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
         const size_t num_views = c_q_t.size();
         result.c_se3_t.resize(num_views);
         result.camera = cam;
-        result.camera.params() =
-            Eigen::Map<const Eigen::VectorXd>(intr.data(), intr.size());
+        result.camera.params() = Eigen::Map<const Eigen::VectorXd>(intr.data(), intr.size());
         for (size_t v = 0; v < num_views; ++v) {
             result.c_se3_t[v] = restore_pose(c_q_t[v], c_t_t[v]);
         }
@@ -51,8 +50,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
 };
 
 static ceres::Problem build_problem(const std::vector<PlanarView>& views,
-                                    const IntrinsicsOptions& opts,
-                                    IntrinsicBlocks& blocks) {
+                                    const IntrinsicsOptions& opts, IntrinsicBlocks& blocks) {
     ceres::Problem p;
     for (size_t view_idx = 0; view_idx < views.size(); ++view_idx) {
         const auto& view = views[view_idx];
@@ -69,8 +67,8 @@ static ceres::Problem build_problem(const std::vector<PlanarView>& views,
     p.SetParameterLowerBound(blocks.intr.data(), blocks.cam.traits().idx_fx, 0.0);
     p.SetParameterLowerBound(blocks.intr.data(), blocks.cam.traits().idx_fy, 0.0);
     if (!opts.optimize_skew) {
-        p.SetManifold(blocks.intr.data(), new ceres::SubsetManifold(
-                                                static_cast<int>(blocks.intr.size()),
+        p.SetManifold(blocks.intr.data(),
+                      new ceres::SubsetManifold(static_cast<int>(blocks.intr.size()),
                                                 {blocks.cam.traits().idx_skew}));
     }
 
@@ -83,9 +81,10 @@ static void validate_input(const std::vector<PlanarView>& views) {
     }
 }
 
-IntrinsicsOptimizationResult optimize_intrinsics(
-    const std::vector<PlanarView>& views, const AnyCamera& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts) {
+IntrinsicsOptimizationResult optimize_intrinsics(const std::vector<PlanarView>& views,
+                                                 const AnyCamera& init_camera,
+                                                 std::vector<Eigen::Isometry3d> init_c_se3_t,
+                                                 const IntrinsicsOptions& opts) {
     validate_input(views);
 
     auto blocks = IntrinsicBlocks::create(init_camera, init_c_se3_t);

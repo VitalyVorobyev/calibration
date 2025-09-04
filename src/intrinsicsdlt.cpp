@@ -167,7 +167,7 @@ std::optional<AnyCamera> estimate_intrinsics_linear_iterative(
     cam.K = K;
     cam.distortion.coeffs = dual_opt->distortion;
 
-    return AnyCamera(cam);
+    return AnyCamera(std::move(cam));
 }
 
 }  // namespace calib

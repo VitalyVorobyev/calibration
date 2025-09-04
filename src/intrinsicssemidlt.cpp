@@ -147,9 +147,9 @@ static void compute_per_view_errors(const std::vector<PlanarView>& obs_views,
     }
 }
 
-IntrinsicsOptimizationResult optimize_intrinsics_semidlt(
-    const std::vector<PlanarView>& views, const CameraMatrix& initial_guess,
-    const IntrinsicsOptions& opts) {
+IntrinsicsOptimizationResult optimize_intrinsics_semidlt(const std::vector<PlanarView>& views,
+                                                         const CameraMatrix& initial_guess,
+                                                         const IntrinsicsOptions& opts) {
     IntrinsicsOptimizationResult result;
 
     // Prepare observations per view

@@ -50,10 +50,10 @@ struct ExtrinsicOptions final : public OptimOptions {
     bool optimize_extrinsics = true;  ///< Solve for camera and target extrinsics
 };
 
-ExtrinsicOptimizationResult optimize_extrinsics(
-    const std::vector<MulticamPlanarView>& views, const std::vector<AnyCamera>& init_cameras,
-    const std::vector<Eigen::Isometry3d>& init_c_se3_r,
-    const std::vector<Eigen::Isometry3d>& init_r_se3_t,
-    const ExtrinsicOptions& opts = {});
+ExtrinsicOptimizationResult optimize_extrinsics(const std::vector<MulticamPlanarView>& views,
+                                                const std::vector<AnyCamera>& init_cameras,
+                                                const std::vector<Eigen::Isometry3d>& init_c_se3_r,
+                                                const std::vector<Eigen::Isometry3d>& init_r_se3_t,
+                                                const ExtrinsicOptions& opts = {});
 
 }  // namespace calib

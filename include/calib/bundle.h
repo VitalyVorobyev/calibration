@@ -38,9 +38,9 @@ struct BundleOptions final : public OptimOptions {
 
 /** Result returned by hand-eye calibration. */
 struct BundleResult final : public OptimResult {
-    std::vector<AnyCamera> cameras;            ///< Estimated camera parameters per camera
-    std::vector<Eigen::Isometry3d> g_se3_c;    ///< Estimated camera->gripper extrinsics
-    Eigen::Isometry3d b_se3_t;                 ///< Pose of target in base frame
+    std::vector<AnyCamera> cameras;          ///< Estimated camera parameters per camera
+    std::vector<Eigen::Isometry3d> g_se3_c;  ///< Estimated camera->gripper extrinsics
+    Eigen::Isometry3d b_se3_t;               ///< Pose of target in base frame
 };
 
 /**

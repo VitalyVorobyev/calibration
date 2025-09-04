@@ -42,9 +42,12 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     IntrinsicsOptions opts;
     opts.num_radial = 3;
     opts.optimize_skew = false;
-    auto res = optimize_intrinsics(views, guess_cam, init_poses, opts);
+    auto res = optimize_intrinsics(views, {std::move(guess_cam)}, init_poses, opts);
 
-    const auto& Kf = res.camera.K;
+    auto camptr = res.camera.as<Camera<BrownConradyd>>();
+    ASSERT_TRUE(camptr != nullptr);
+
+    const auto& Kf = camptr->K;
     const auto& K_gt = cam_gt.K;
     EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-6);
     EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-6);
@@ -92,9 +95,11 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     IntrinsicsOptions opts;
     opts.num_radial = 0;
     opts.optimize_skew = true;
-    auto res = optimize_intrinsics(views, guess_cam, init_poses, opts);
+    auto res = optimize_intrinsics(views, {std::move(guess_cam)}, init_poses, opts);
 
-    const auto& Kf = res.camera.K;
+    auto camptr = res.camera.as<Camera<BrownConradyd>>();
+    ASSERT_TRUE(camptr != nullptr);
+    const auto& Kf = camptr->K;
     const auto& K_gt = cam_gt.K;
     EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-6);
     EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-6);

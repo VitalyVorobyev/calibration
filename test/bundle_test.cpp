@@ -54,9 +54,13 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
     opts.huber_delta = -1;  // no regularization
     opts.verbose = false;
 
-    auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {g_se3_c0}, b_se3_t_gt, opts);
+    AnyCamera cam {std::move(cam0)};
+    auto result = optimize_bundle(sim.observations, {cam}, {g_se3_c0}, b_se3_t_gt, opts);
+
+    auto camptr = result.cameras[0].as<Camera<BrownConradyd>>();
+    ASSERT_TRUE(camptr != nullptr);
     const auto& X = result.g_se3_c[0];
-    const auto& Kf = result.cameras[0].K;
+    const auto& Kf = camptr->K;
     const auto& b_se3_t_est = result.b_se3_t;
 
     const auto& K_gt = cam_gt.K;
@@ -128,9 +132,14 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortionSkew) {
     opts.huber_delta = -1;  // no regularization
     opts.verbose = false;
 
-    auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {g_se3_c0}, b_se3_t_gt, opts);
+    AnyCamera cam {std::move(cam0)};
+    auto result = optimize_bundle(sim.observations, {cam}, {g_se3_c0}, b_se3_t_gt, opts);
+
+    auto camptr = result.cameras[0].as<Camera<BrownConradyd>>();
+    ASSERT_TRUE(camptr != nullptr);
+
     const auto& X = result.g_se3_c[0];
-    const auto& Kf = result.cameras[0].K;
+    const auto& Kf = camptr->K;
     const auto& b_se3_t_est = result.b_se3_t;
 
     const auto& K_gt = cam_gt.K;
@@ -195,9 +204,13 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     opts.optimizer = OptimizerType::DENSE_QR;
     opts.verbose = false;
 
-    auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {X0}, b_se3_t_gt, opts);
+    AnyCamera cam {std::move(cam0)};
+    auto result = optimize_bundle(sim.observations, {cam}, {X0}, b_se3_t_gt, opts);
     const auto& X = result.g_se3_c[0];
-    const auto& dist = result.cameras[0].distortion.coeffs;
+
+    auto camptr = result.cameras[0].as<Camera<BrownConradyd>>();
+    ASSERT_TRUE(camptr != nullptr);
+    const auto& dist = camptr->distortion.coeffs;
 
     // Check X quality
     double rot_err = rad2deg(rotation_angle(X.linear().transpose() * g_se3_c_gt.linear()));
@@ -217,13 +230,14 @@ TEST(OptimizeBundle, InputValidation) {
     // Mismatched sizes should throw
     std::vector<BundleObservation> observations(2);
     CameraMatrix K{100.0, 100.0, 64.0, 48.0};
-    Camera<BrownConradyd> cam(K, Eigen::VectorXd::Zero(5));
+    Camera<BrownConradyd> cam1(K, Eigen::VectorXd::Zero(5));
+    Camera<BrownConradyd> cam2(K, Eigen::VectorXd::Zero(5));
     Eigen::Isometry3d X0 = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d init_b_se3_t = Eigen::Isometry3d::Identity();
     BundleOptions opts;
 
     EXPECT_THROW({
-        optimize_bundle<Camera<BrownConradyd>>(observations, {cam, cam}, {X0}, init_b_se3_t, opts);
+        optimize_bundle(observations, {std::move(cam1), std::move(cam2)}, {X0}, init_b_se3_t, opts);
     }, std::invalid_argument);
 }
 
@@ -252,7 +266,8 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
     opts.optimize_target_pose = false;
     opts.optimize_hand_eye = true;
 
-    auto res = optimize_bundle<Camera<BrownConradyd>>(observations, cams, {init_g_se3_c}, b_se3_t, opts);
+    AnyCamera anycam {std::move(cam)};
+    auto res = optimize_bundle(observations, {anycam}, {init_g_se3_c}, b_se3_t, opts);
     std::cout << res.report << std::endl;
 
     EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c.translation()).norm(),1e-3);
@@ -284,7 +299,7 @@ TEST(OptimizeBundle, SingleCameraTargetPose) {
     opts.optimize_target_pose = true;
     opts.optimize_hand_eye = false;
 
-    auto res = optimize_bundle<Camera<BrownConradyd>>(observations, cams, {g_se3_c}, init_b_se3_t, opts);
+    auto res = optimize_bundle(observations, {std::move(cam)}, {g_se3_c}, init_b_se3_t, opts);
 
     EXPECT_LT((res.b_se3_t.translation() - b_se3_t.translation()).norm(), 1e-3);
     Eigen::AngleAxisd diff(res.b_se3_t.linear() * b_se3_t.linear().transpose());
@@ -328,7 +343,7 @@ TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
     opts.optimize_target_pose=false;
     opts.optimize_hand_eye=true;
 
-    auto res = optimize_bundle<Camera<BrownConradyd>>(observations, cams, {init_g_se3_c0, init_g_se3_c1}, b_se3_t, opts);
+    auto res = optimize_bundle(observations, {std::move(cam0), std::move(cam1)}, {init_g_se3_c0, init_g_se3_c1}, b_se3_t, opts);
 
     std::cout << "True g_se3_c0 translation: " << g_se3_c0.translation().transpose() << std::endl;
     std::cout << "Result g_se3_c0 translation: " << res.g_se3_c[0].translation().transpose() << std::endl;

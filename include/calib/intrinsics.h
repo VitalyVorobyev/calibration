@@ -32,10 +32,10 @@ auto estimate_intrinsics_linear(const std::vector<Observation<double>>& observat
 // initial linear estimation fails.  The number of radial distortion
 // coefficients and the number of refinement iterations can be specified.
 constexpr int kDefaultMaxIterations = 5;
-auto estimate_intrinsics_linear_iterative(
-    const std::vector<Observation<double>>& observations, int num_radial,
-    int max_iterations = kDefaultMaxIterations,
-    bool use_skew = false) -> std::optional<AnyCamera>;
+auto estimate_intrinsics_linear_iterative(const std::vector<Observation<double>>& observations,
+                                          int num_radial,
+                                          int max_iterations = kDefaultMaxIterations,
+                                          bool use_skew = false) -> std::optional<AnyCamera>;
 
 struct IntrinsicsOptions final : public OptimOptions {
     int num_radial = 2;          ///< Number of radial distortion coefficients
@@ -53,9 +53,9 @@ auto optimize_intrinsics_semidlt(
     const std::vector<PlanarView>& views, const CameraMatrix& initial_guess,
     const IntrinsicsOptions& opts = {}) -> IntrinsicsOptimizationResult;
 
-IntrinsicsOptimizationResult optimize_intrinsics(
-    const std::vector<PlanarView>& views, const AnyCamera& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t,
-    const IntrinsicsOptions& opts = {});
+IntrinsicsOptimizationResult optimize_intrinsics(const std::vector<PlanarView>& views,
+                                                 const AnyCamera& init_camera,
+                                                 std::vector<Eigen::Isometry3d> init_c_se3_t,
+                                                 const IntrinsicsOptions& opts = {});
 
 }  // namespace calib
