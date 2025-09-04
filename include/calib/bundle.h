@@ -7,7 +7,7 @@
 #include <Eigen/Geometry>
 
 #include "calib/camera.h"
-#include "calib/cameramodel.h"
+#include "calib/model/any_camera.h"
 #include "calib/optimize.h"
 #include "calib/planarpose.h"  // PlanarObservation
 #include "calib/scheimpflug.h"
@@ -37,9 +37,8 @@ struct BundleOptions final : public OptimOptions {
 };
 
 /** Result returned by hand-eye calibration. */
-template <camera_model CameraT>
 struct BundleResult final : public OptimResult {
-    std::vector<CameraT> cameras;            ///< Estimated camera parameters per camera
+    std::vector<AnyCamera> cameras;          ///< Estimated camera parameters per camera
     std::vector<Eigen::Isometry3d> g_se3_c;  ///< Estimated camera->gripper extrinsics
     Eigen::Isometry3d b_se3_t;               ///< Pose of target in base frame
 };
@@ -55,11 +54,10 @@ struct BundleResult final : public OptimResult {
  * @param opts Optimization options
  * @return Calibration result containing optimized parameters and error metrics
  */
-template <camera_model CameraT>
 auto optimize_bundle(const std::vector<BundleObservation>& observations,
-                     const std::vector<CameraT>& initial_cameras,
+                     const std::vector<AnyCamera>& initial_cameras,
                      const std::vector<Eigen::Isometry3d>& init_g_se3_c,
                      const Eigen::Isometry3d& init_b_se3_t,
-                     const BundleOptions& opts = {}) -> BundleResult<CameraT>;
+                     const BundleOptions& opts = {}) -> BundleResult;
 
 }  // namespace calib

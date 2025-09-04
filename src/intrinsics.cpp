@@ -1,6 +1,7 @@
 #include "calib/intrinsics.h"
 
 #include "calib/distortion.h"
+#include "calib/model/any_camera.h"
 #include "calib/scheimpflug.h"
 #include "ceresutils.h"
 #include "observationutils.h"
@@ -8,21 +9,21 @@
 
 namespace calib {
 
-template <camera_model CameraT>
 struct IntrinsicBlocks final : public ProblemParamBlocks {
-    static constexpr size_t IntrSize = CameraTraits<CameraT>::param_count;
     std::vector<std::array<double, 4>> c_q_t;
     std::vector<std::array<double, 3>> c_t_t;
-    std::array<double, IntrSize> intr;
+    std::vector<double> intr;
+    AnyCamera cam;
 
-    explicit IntrinsicBlocks(size_t numviews) : c_q_t(numviews), c_t_t(numviews), intr{} {}
+    IntrinsicBlocks(const AnyCamera& camera, size_t numviews)
+        : c_q_t(numviews), c_t_t(numviews), intr(camera.params().size()), cam(camera) {}
 
-    static IntrinsicBlocks create(const CameraT& camera,
+    static IntrinsicBlocks create(const AnyCamera& camera,
                                   const std::vector<Eigen::Isometry3d>& init_c_se3_t) {
         const size_t num_views = init_c_se3_t.size();
-        IntrinsicBlocks blocks(num_views);
-
-        CameraTraits<CameraT>::to_array(camera, blocks.intr);
+        IntrinsicBlocks blocks(camera, num_views);
+        std::copy(camera.params().data(), camera.params().data() + camera.params().size(),
+                  blocks.intr.begin());
         for (size_t v = 0; v < num_views; ++v) {
             populate_quat_tran(init_c_se3_t[v], blocks.c_q_t[v], blocks.c_t_t[v]);
         }
@@ -31,33 +32,30 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
 
     std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
-        blocks.emplace_back(intr.data(), intr.size(), IntrSize);
-        for (const auto& i : c_q_t)
-            blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
+        blocks.emplace_back(intr.data(), intr.size(), intr.size());
+        for (const auto& i : c_q_t) blocks.emplace_back(i.data(), i.size(), 3);
         for (const auto& i : c_t_t) blocks.emplace_back(i.data(), i.size(), 3);
         return blocks;
     }
 
-    void populate_result(IntrinsicsOptimizationResult<CameraT>& result) const {
+    void populate_result(IntrinsicsOptimizationResult& result) const {
         const size_t num_views = c_q_t.size();
         result.c_se3_t.resize(num_views);
-
-        result.camera = CameraTraits<CameraT>::template from_array<double>(intr.data());
+        result.camera = cam;
+        result.camera.params() = Eigen::Map<const Eigen::VectorXd>(intr.data(), intr.size());
         for (size_t v = 0; v < num_views; ++v) {
             result.c_se3_t[v] = restore_pose(c_q_t[v], c_t_t[v]);
         }
     }
 };
 
-template <camera_model CameraT>
 static ceres::Problem build_problem(const std::vector<PlanarView>& views,
-                                    const IntrinsicsOptions& opts,
-                                    IntrinsicBlocks<CameraT>& blocks) {
+                                    const IntrinsicsOptions& opts, IntrinsicBlocks& blocks) {
     ceres::Problem p;
     for (size_t view_idx = 0; view_idx < views.size(); ++view_idx) {
         const auto& view = views[view_idx];
         auto loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
-        p.AddResidualBlock(IntrinsicResidual<CameraT>::create(view), loss,
+        p.AddResidualBlock(IntrinsicResidual::create(view, blocks.cam), loss,
                            blocks.c_q_t[view_idx].data(), blocks.c_t_t[view_idx].data(),
                            blocks.intr.data());
     }
@@ -66,12 +64,12 @@ static ceres::Problem build_problem(const std::vector<PlanarView>& views,
         p.SetManifold(c_q_t.data(), new ceres::QuaternionManifold());
     }
 
-    p.SetParameterLowerBound(blocks.intr.data(), CameraTraits<CameraT>::idx_fx, 0.0);
-    p.SetParameterLowerBound(blocks.intr.data(), CameraTraits<CameraT>::idx_fy, 0.0);
+    p.SetParameterLowerBound(blocks.intr.data(), blocks.cam.traits().idx_fx, 0.0);
+    p.SetParameterLowerBound(blocks.intr.data(), blocks.cam.traits().idx_fy, 0.0);
     if (!opts.optimize_skew) {
         p.SetManifold(blocks.intr.data(),
-                      new ceres::SubsetManifold(IntrinsicBlocks<CameraT>::IntrSize,
-                                                {CameraTraits<CameraT>::idx_skew}));
+                      new ceres::SubsetManifold(static_cast<int>(blocks.intr.size()),
+                                                {blocks.cam.traits().idx_skew}));
     }
 
     return p;
@@ -83,16 +81,16 @@ static void validate_input(const std::vector<PlanarView>& views) {
     }
 }
 
-template <camera_model CameraT>
-IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(
-    const std::vector<PlanarView>& views, const CameraT& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts) {
+IntrinsicsOptimizationResult optimize_intrinsics(const std::vector<PlanarView>& views,
+                                                 const AnyCamera& init_camera,
+                                                 std::vector<Eigen::Isometry3d> init_c_se3_t,
+                                                 const IntrinsicsOptions& opts) {
     validate_input(views);
 
-    auto blocks = IntrinsicBlocks<CameraT>::create(init_camera, init_c_se3_t);
+    auto blocks = IntrinsicBlocks::create(init_camera, init_c_se3_t);
     ceres::Problem problem = build_problem(views, opts, blocks);
 
-    IntrinsicsOptimizationResult<CameraT> result;
+    IntrinsicsOptimizationResult result;
     solve_problem(problem, opts, &result);
 
     blocks.populate_result(result);
@@ -105,13 +103,5 @@ IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(
 
     return result;
 }
-
-template IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics(
-    const std::vector<PlanarView>& views, const Camera<BrownConradyd>& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
-
-template IntrinsicsOptimizationResult<ScheimpflugCamera<BrownConradyd>> optimize_intrinsics(
-    const std::vector<PlanarView>& views, const ScheimpflugCamera<BrownConradyd>& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
 
 }  // namespace calib

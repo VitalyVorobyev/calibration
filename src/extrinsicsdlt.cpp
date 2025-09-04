@@ -1,4 +1,5 @@
 #include "calib/extrinsics.h"
+#include "calib/model/any_camera.h"
 
 // std
 #include <iostream>
@@ -7,8 +8,9 @@
 
 namespace calib {
 
-auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
-                            const std::vector<Camera<DualDistortion>>& cameras) -> ExtrinsicPoses {
+template <camera_model CameraT>
+static auto estimate_extrinsic_dlt_impl(const std::vector<MulticamPlanarView>& views,
+                                        const std::vector<CameraT>& cameras) -> ExtrinsicPoses {
     const size_t num_cameras = cameras.size();
     const size_t num_views = views.size();
     std::vector<std::vector<Eigen::Isometry3d>> cam_se3_ref(
@@ -81,6 +83,22 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
     }
 
     return guess;
+}
+
+auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
+                            const std::vector<AnyCamera>& cameras) -> ExtrinsicPoses {
+    if (cameras.empty()) {
+        throw std::invalid_argument("No cameras provided");
+    }
+    if (cameras.front().holds<Camera<DualDistortion>>()) {
+        std::vector<Camera<DualDistortion>> cams;
+        cams.reserve(cameras.size());
+        for (const auto& c : cameras) {
+            cams.push_back(*c.as<Camera<DualDistortion>>());
+        }
+        return estimate_extrinsic_dlt_impl(views, cams);
+    }
+    throw std::invalid_argument("estimate_extrinsic_dlt expects Camera<DualDistortion>");
 }
 
 }  // namespace calib

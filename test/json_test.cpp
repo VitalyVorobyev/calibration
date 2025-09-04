@@ -32,16 +32,18 @@ TEST(JsonSerialization, ObservationRoundTrip) {
 }
 
 TEST(JsonSerialization, IntrinsicsResultRoundTrip) {
-    IntrinsicsOptimizationResult<Camera<BrownConradyd>> res;
-    res.camera.K = CameraMatrix{100,100,0,0,0};
-    res.camera.distortion.coeffs = Eigen::VectorXd::Zero(5);
+    IntrinsicsOptimizationResult res;
+    Camera<BrownConradyd> cam;
+    cam.K = CameraMatrix{100,100,0,0,0};
+    cam.distortion.coeffs = Eigen::VectorXd::Zero(5);
+    res.camera = AnyCamera(std::move(cam));
     res.covariance = Eigen::MatrixXd::Identity(5,5);
     res.view_errors = {0.1, 0.2};
     res.report = "ok";
     res.c_se3_t = {Eigen::Isometry3d::Identity()};
     nlohmann::json j = res;
-    auto r2 = j.get<IntrinsicsOptimizationResult<Camera<BrownConradyd>>>();
-    EXPECT_NEAR(r2.camera.K.fx, 100, 1e-9);
+    auto r2 = j.get<IntrinsicsOptimizationResult>();
+    EXPECT_NEAR(r2.camera.as<Camera<BrownConradyd>>()->K.fx, 100, 1e-9);
     EXPECT_EQ(r2.report, "ok");
     EXPECT_EQ(r2.view_errors.size(), 2u);
 }
