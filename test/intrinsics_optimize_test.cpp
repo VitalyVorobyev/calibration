@@ -15,9 +15,9 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Use proper transforms: camera at origin looking at target in front
-    Eigen::Affine3d g_T_c = Eigen::Affine3d::Identity(); // gripper to camera
-    Eigen::Affine3d b_T_t = Eigen::Translation3d(0.0, 0.0, 2.0) * Eigen::Affine3d::Identity(); // base to target (target 2m away)
-    SimulatedHandEye sim{g_T_c, b_T_t, cam_gt};
+    Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity(); // gripper to camera
+    Eigen::Isometry3d b_se3_t = Eigen::Translation3d(0.0, 0.0, 2.0) * Eigen::Isometry3d::Identity(); // base to target (target 2m away)
+    SimulatedHandEye sim{g_se3_c, b_se3_t, cam_gt};
     sim.make_sequence(15, rng);
     sim.make_target_grid(8, 11, 0.02);
     sim.render_pixels();
@@ -32,7 +32,7 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     guess_cam.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Estimate initial poses for each view
-    std::vector<Eigen::Affine3d> init_poses;
+    std::vector<Eigen::Isometry3d> init_poses;
     init_poses.reserve(views.size());
     for (const auto& view : views) {
         auto pose = estimate_planar_pose_dlt(view, guess_cam.K);
@@ -64,9 +64,9 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Use proper transforms: camera at origin looking at target in front
-    Eigen::Affine3d g_T_c = Eigen::Affine3d::Identity(); // gripper to camera
-    Eigen::Affine3d b_T_t = Eigen::Translation3d(0.0, 0.0, 2.0) * Eigen::Affine3d::Identity(); // base to target (target 2m away)
-    SimulatedHandEye sim{g_T_c, b_T_t, cam_gt};
+    Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity(); // gripper to camera
+    Eigen::Isometry3d b_se3_t = Eigen::Translation3d(0.0, 0.0, 2.0) * Eigen::Isometry3d::Identity(); // base to target (target 2m away)
+    SimulatedHandEye sim{g_se3_c, b_se3_t, cam_gt};
     sim.make_sequence(15, rng);
     sim.make_target_grid(8, 11, 0.02);
     sim.render_pixels();
@@ -82,7 +82,7 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     guess_cam.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Estimate initial poses for each view
-    std::vector<Eigen::Affine3d> init_poses;
+    std::vector<Eigen::Isometry3d> init_poses;
     init_poses.reserve(views.size());
     for (const auto& view : views) {
         auto pose = estimate_planar_pose_dlt(view, guess_cam.K);

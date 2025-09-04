@@ -22,18 +22,20 @@ namespace calib {
 // point and the observed pixel coordinates (u,v).  The function returns
 // an optional CameraMatrix: std::nullopt is returned if there are not
 // enough observations or the linear system is degenerate.
-std::optional<CameraMatrix> estimate_intrinsics_linear(
-    const std::vector<Observation<double>>& obs,
-    std::optional<CalibrationBounds> bounds = std::nullopt, bool use_skew = false);
+auto estimate_intrinsics_linear(const std::vector<Observation<double>>& observations,
+                                std::optional<CalibrationBounds> bounds = std::nullopt,
+                                bool use_skew = false) -> std::optional<CameraMatrix>;
 
 // Improved linear initialization that alternates between estimating
 // distortion coefficients (fit_distortion) and re-solving for camera
 // intrinsics (estimate_intrinsics_linear).  Returns std::nullopt if the
 // initial linear estimation fails.  The number of radial distortion
 // coefficients and the number of refinement iterations can be specified.
-std::optional<Camera<BrownConradyd>> estimate_intrinsics_linear_iterative(
-    const std::vector<Observation<double>>& obs, int num_radial, int max_iterations = 5,
-    bool use_skew = false);
+constexpr int kDefaultMaxIterations = 5;
+auto estimate_intrinsics_linear_iterative(
+    const std::vector<Observation<double>>& observations, int num_radial,
+    int max_iterations = kDefaultMaxIterations,
+    bool use_skew = false) -> std::optional<Camera<BrownConradyd>>;
 
 struct IntrinsicsOptions final : public OptimOptions {
     int num_radial = 2;          ///< Number of radial distortion coefficients
@@ -43,19 +45,19 @@ struct IntrinsicsOptions final : public OptimOptions {
 
 template <camera_model CameraT>
 struct IntrinsicsOptimizationResult final : public OptimResult {
-    CameraT camera;                      ///< Estimated camera parameters
-    std::vector<Eigen::Affine3d> c_T_t;  ///< Estimated pose of each view
-    std::vector<double> view_errors;     ///< Per-view reprojection errors
+    CameraT camera;                          ///< Estimated camera parameters
+    std::vector<Eigen::Isometry3d> c_se3_t;  ///< Estimated pose of each view
+    std::vector<double> view_errors;         ///< Per-view reprojection errors
 };
 
-IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics_semidlt(
+auto optimize_intrinsics_semidlt(
     const std::vector<PlanarView>& views, const CameraMatrix& initial_guess,
-    const IntrinsicsOptions& opts = {});
+    const IntrinsicsOptions& opts = {}) -> IntrinsicsOptimizationResult<Camera<BrownConradyd>>;
 
 template <camera_model CameraT>
-IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(const std::vector<PlanarView>& views,
-                                                          const CameraT& init_camera,
-                                                          std::vector<Eigen::Affine3d> init_c_T_t,
-                                                          const IntrinsicsOptions& opts = {});
+auto optimize_intrinsics(const std::vector<PlanarView>& views, const CameraT& init_camera,
+                         std::vector<Eigen::Isometry3d> init_c_se3_t,
+                         const IntrinsicsOptions& opts = {})
+    -> IntrinsicsOptimizationResult<CameraT>;
 
 }  // namespace calib

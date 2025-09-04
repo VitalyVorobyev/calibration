@@ -15,9 +15,9 @@ camera from pixel observations.
 ## API
 
 ```
-Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H);
+Eigen::Isometry3d pose_from_homography_normalized(const Eigen::Matrix3d& H);
 
-Eigen::Affine3d estimate_planar_pose_dlt(
+Eigen::Isometry3d estimate_planar_pose_dlt(
     const std::vector<Eigen::Vector2d>& obj_xy,
     const std::vector<Eigen::Vector2d>& img_uv,
     const CameraMatrix& intrinsics);

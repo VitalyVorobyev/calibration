@@ -17,7 +17,7 @@
 namespace calib {
 
 // Decompose homography in normalized camera coords: H = [r1 r2 t]
-Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
+Eigen::Isometry3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
     Eigen::Vector3d h1 = H.col(0);
     Eigen::Vector3d h2 = H.col(1);
     Eigen::Vector3d h3 = H.col(2);
@@ -47,40 +47,41 @@ Eigen::Affine3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
         t = -t;
     }
 
-    auto pose = Eigen::Affine3d::Identity();
+    auto pose = Eigen::Isometry3d::Identity();
     pose.linear() = R;
     pose.translation() = t;
     return pose;
 }
 
-Eigen::Affine3d estimate_planar_pose_dlt(const PlanarView& obs, const CameraMatrix& intrinsics) {
-    if (obs.size() < 4) {
-        return Eigen::Affine3d::Identity();
+auto estimate_planar_pose_dlt(const PlanarView& observations,
+                              const CameraMatrix& intrinsics) -> Eigen::Isometry3d {
+    if (observations.size() < 4) {
+        return Eigen::Isometry3d::Identity();
     }
 
-    std::vector<Eigen::Vector2d> obj_xy, img_uv;
-    for (const auto& o : obs) {
-        obj_xy.push_back(o.object_xy);
-        img_uv.push_back(o.image_uv);
+    std::vector<Eigen::Vector2d> object_xy, image_uv;
+    for (const auto& item : observations) {
+        object_xy.push_back(item.object_xy);
+        image_uv.push_back(item.image_uv);
     }
 
-    return estimate_planar_pose_dlt(obj_xy, img_uv, intrinsics);
+    return estimate_planar_pose_dlt(object_xy, image_uv, intrinsics);
 }
 
 // Convenience: one-shot planar pose from pixels & K
 // Returns true on success; outputs R (world->cam) and t
-Eigen::Affine3d estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& obj_xy,
-                                         const std::vector<Eigen::Vector2d>& img_uv,
-                                         const CameraMatrix& intrinsics) {
-    if (obj_xy.size() < 4 || obj_xy.size() != img_uv.size()) {
-        return Eigen::Affine3d::Identity();
+auto estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& object_xy,
+                              const std::vector<Eigen::Vector2d>& image_uv,
+                              const CameraMatrix& intrinsics) -> Eigen::Isometry3d {
+    if (object_xy.size() < 4 || object_xy.size() != image_uv.size()) {
+        return Eigen::Isometry3d::Identity();
     }
 
-    std::vector<Eigen::Vector2d> img_norm(img_uv.size());
-    std::transform(img_uv.begin(), img_uv.end(), img_norm.begin(),
+    std::vector<Eigen::Vector2d> img_norm(image_uv.size());
+    std::transform(image_uv.begin(), image_uv.end(), img_norm.begin(),
                    [&intrinsics](const Eigen::Vector2d& pix) { return intrinsics.normalize(pix); });
 
-    Eigen::Matrix3d H = estimate_homography_dlt(obj_xy, img_norm);
+    Eigen::Matrix3d H = estimate_homography_dlt(object_xy, img_norm);
     return pose_from_homography_normalized(H);
 }
 
@@ -96,7 +97,7 @@ struct PlanarPoseBlocks final : public ProblemParamBlocks {
 // Residual functor used with AutoDiffCostFunction for planar pose
 // estimation.  For a given pose (angle-axis + translation) it builds the
 // variable projection system to eliminate distortion coefficients.
-struct PlanarPoseVPResidual {
+struct PlanarPoseVPResidual final {
     PlanarView obs_;
     double K_[5];  // fx, fy, cx, cy, skew
     int num_radial_;
@@ -137,24 +138,24 @@ struct PlanarPoseVPResidual {
     }
 };
 
-static Eigen::Affine3d axisangle_to_pose(const Pose6& pose6) {
+static auto axisangle_to_pose(const Pose6& pose6) -> Eigen::Isometry3d {
     Eigen::Matrix3d rotation_matrix;
     ceres::AngleAxisToRotationMatrix(pose6.head<3>().data(), rotation_matrix.data());
 
-    Eigen::Affine3d transform = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d transform = Eigen::Isometry3d::Identity();
     transform.linear() = rotation_matrix;
     transform.translation() = pose6.tail<3>();
 
     return transform;
 }
 
-PlanarPoseResult optimize_planar_pose(const std::vector<Eigen::Vector2d>& obj_xy,
-                                      const std::vector<Eigen::Vector2d>& img_uv,
-                                      const CameraMatrix& intrinsics,
-                                      const PlanarPoseOptions& opts) {
+auto optimize_planar_pose(const std::vector<Eigen::Vector2d>& object_xy,
+                          const std::vector<Eigen::Vector2d>& image_uv,
+                          const CameraMatrix& intrinsics,
+                          const PlanarPoseOptions& opts) -> PlanarPoseResult {
     PlanarPoseResult result;
 
-    auto init_pose = estimate_planar_pose_dlt(obj_xy, img_uv, intrinsics);
+    auto init_pose = estimate_planar_pose_dlt(object_xy, image_uv, intrinsics);
     PlanarPoseBlocks blocks;
     ceres::RotationMatrixToAngleAxis(reinterpret_cast<const double*>(init_pose.rotation().data()),
                                      blocks.pose6.data());
@@ -162,8 +163,8 @@ PlanarPoseResult optimize_planar_pose(const std::vector<Eigen::Vector2d>& obj_xy
     blocks.pose6[4] = init_pose.translation().y();
     blocks.pose6[5] = init_pose.translation().z();
 
-    PlanarView view(obj_xy.size());
-    std::transform(obj_xy.begin(), obj_xy.end(), img_uv.begin(), view.begin(),
+    PlanarView view(object_xy.size());
+    std::transform(object_xy.begin(), object_xy.end(), image_uv.begin(), view.begin(),
                    [](const Eigen::Vector2d& xy, const Eigen::Vector2d& uv) {
                        return PlanarObservation{xy, uv};
                    });
@@ -184,12 +185,13 @@ PlanarPoseResult optimize_planar_pose(const std::vector<Eigen::Vector2d>& obj_xy
     std::vector<double> residuals(m);
     const double* parameter_blocks[] = {blocks.pose6.data()};
     cost->Evaluate(parameter_blocks, residuals.data(), nullptr);
-    double ssr = 0.0;
-    for (double r : residuals) ssr += r * r;
+
+    const double ssr = std::accumulate(residuals.begin(), residuals.end(), 0.0,
+                                       [](double sum, double r) { return sum + r * r; });
     result.reprojection_error = std::sqrt(ssr / m);
 
     if (opts.compute_covariance) {
-        auto optcov = compute_covariance(blocks, problem, residuals.size(), ssr);
+        auto optcov = compute_covariance(blocks, problem, ssr, residuals.size());
         if (optcov.has_value()) {
             result.covariance = std::move(optcov.value());
         }

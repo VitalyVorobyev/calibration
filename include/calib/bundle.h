@@ -22,9 +22,9 @@ namespace calib {
  * frame.
  */
 struct BundleObservation final {
-    PlanarView view;          ///< Planar target observations
-    Eigen::Affine3d b_T_g;    ///< Pose of the gripper in the base frame
-    size_t camera_index = 0;  ///< Which camera acquired this view
+    PlanarView view;            ///< Planar target observations
+    Eigen::Isometry3d b_se3_g;  ///< Pose of the gripper in the base frame
+    size_t camera_index = 0;    ///< Which camera acquired this view
 };
 
 /** Options controlling the hand-eye calibration optimisation. */
@@ -39,9 +39,9 @@ struct BundleOptions final : public OptimOptions {
 /** Result returned by hand-eye calibration. */
 template <camera_model CameraT>
 struct BundleResult final : public OptimResult {
-    std::vector<CameraT> cameras;        ///< Estimated camera parameters per camera
-    std::vector<Eigen::Affine3d> g_T_c;  ///< Estimated camera->gripper extrinsics
-    Eigen::Affine3d b_T_t;               ///< Pose of target in base frame
+    std::vector<CameraT> cameras;            ///< Estimated camera parameters per camera
+    std::vector<Eigen::Isometry3d> g_se3_c;  ///< Estimated camera->gripper extrinsics
+    Eigen::Isometry3d b_se3_t;               ///< Pose of target in base frame
 };
 
 /**
@@ -50,16 +50,16 @@ struct BundleResult final : public OptimResult {
  * intrinsics and the target pose.
  * @param observations Set of observations with robot poses and target detections
  * @param initial_cameras Initial camera parameters
- * @param init_g_T_c Initial estimate of hand-eye transformations
- * @param init_b_T_t Initial estimate of base-to-target transformation
+ * @param init_g_se3_c Initial estimate of hand-eye transformations
+ * @param init_b_se3_t Initial estimate of base-to-target transformation
  * @param opts Optimization options
  * @return Calibration result containing optimized parameters and error metrics
  */
 template <camera_model CameraT>
-BundleResult<CameraT> optimize_bundle(const std::vector<BundleObservation>& observations,
-                                      const std::vector<CameraT>& initial_cameras,
-                                      const std::vector<Eigen::Affine3d>& init_g_T_c,
-                                      const Eigen::Affine3d& init_b_T_t,
-                                      const BundleOptions& opts = {});
+auto optimize_bundle(const std::vector<BundleObservation>& observations,
+                     const std::vector<CameraT>& initial_cameras,
+                     const std::vector<Eigen::Isometry3d>& init_g_se3_c,
+                     const Eigen::Isometry3d& init_b_se3_t,
+                     const BundleOptions& opts = {}) -> BundleResult<CameraT>;
 
 }  // namespace calib

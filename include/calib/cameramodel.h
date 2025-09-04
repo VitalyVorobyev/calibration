@@ -6,10 +6,10 @@
 namespace calib {
 
 template <typename Cam>
-concept camera_model = requires(const Cam& cam, Eigen::Matrix<typename Cam::Scalar, 3, 1> P) {
+concept camera_model = requires(const Cam& cam, Eigen::Matrix<typename Cam::Scalar, 3, 1> point3d) {
     typename Cam::Scalar;
     {
-        cam.template project<typename Cam::Scalar>(P)
+        cam.template project<typename Cam::Scalar>(point3d)
     } -> std::same_as<Eigen::Matrix<typename Cam::Scalar, 2, 1>>;
 };
 

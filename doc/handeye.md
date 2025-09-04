@@ -16,15 +16,15 @@ and a camera using planar target observations.
 ## API
 
 ```
-Eigen::Affine3d estimate_hand_eye_initial(
-    const std::vector<Eigen::Affine3d>& base_T_gripper,
-    const std::vector<Eigen::Affine3d>& target_T_camera);
+Eigen::Isometry3d estimate_hand_eye_initial(
+    const std::vector<Eigen::Isometry3d>& base_se3_gripper,
+    const std::vector<Eigen::Isometry3d>& target_se3_camera);
 
 HandEyeResult calibrate_hand_eye(
     const std::vector<HandEyeObservation>& observations,
     const std::vector<CameraMatrix>& initial_intrinsics,
-    const Eigen::Affine3d& initial_hand_eye,
-    const std::vector<Eigen::Affine3d>& initial_extrinsics = {},
-    const Eigen::Affine3d& initial_base_target = Eigen::Affine3d::Identity(),
+    const Eigen::Isometry3d& initial_hand_eye,
+    const std::vector<Eigen::Isometry3d>& initial_extrinsics = {},
+    const Eigen::Isometry3d& initial_base_target = Eigen::Isometry3d::Identity(),
     const HandEyeOptions& opts = {});
 ```

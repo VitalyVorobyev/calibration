@@ -51,12 +51,12 @@ int main(int argc, char** argv) {
             result = r;
         // } else if (task == "handeye") {
         //     HandEyeInput in = cfg.at("input").get<HandEyeInput>();
-        //     auto r = refine_hand_eye_reprojection(in.base_T_gripper, in.views, in.intrinsics, in.init_gripper_T_ref, in.options);
+        //     auto r = refine_hand_eye_reprojection(in.base_se3_gripper, in.views, in.intrinsics, in.init_gripper_se3_ref, in.options);
         //     result = r;
         #endif
         } else if (task == "bundle") {
             BundleInput in = cfg.at("input").get<BundleInput>();
-            auto r = optimize_bundle(in.observations, in.initial_cameras, in.init_g_T_c, in.init_b_T_t, in.options);
+            auto r = optimize_bundle(in.observations, in.initial_cameras, in.init_g_se3_c, in.init_b_se3_t, in.options);
             result = r;
         } else {
             std::cerr << "Unknown task: " << task << std::endl;

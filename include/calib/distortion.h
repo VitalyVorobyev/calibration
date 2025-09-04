@@ -14,14 +14,15 @@
 namespace calib {
 
 template <typename D>
-concept distortion_model = requires(const D& d, const Eigen::Matrix<typename D::Scalar, 2, 1>& p) {
-    {
-        d.template distort<typename D::Scalar>(p)
-    } -> std::same_as<Eigen::Matrix<typename D::Scalar, 2, 1>>;
-    {
-        d.template undistort<typename D::Scalar>(p)
-    } -> std::same_as<Eigen::Matrix<typename D::Scalar, 2, 1>>;
-};
+concept distortion_model =
+    requires(const D& distortion, const Eigen::Matrix<typename D::Scalar, 2, 1>& point2d) {
+        {
+            distortion.template distort<typename D::Scalar>(point2d)
+        } -> std::same_as<Eigen::Matrix<typename D::Scalar, 2, 1>>;
+        {
+            distortion.template undistort<typename D::Scalar>(point2d)
+        } -> std::same_as<Eigen::Matrix<typename D::Scalar, 2, 1>>;
+    };
 
 template <typename T>
 struct Observation final {
@@ -30,43 +31,48 @@ struct Observation final {
 };
 
 template <typename T>
-Eigen::Matrix<T, 2, 1> apply_distortion(const Eigen::Matrix<T, 2, 1>& norm_xy,
-                                        const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs) {
+[[nodiscard]]
+auto apply_distortion(const Eigen::Matrix<T, 2, 1>& norm_xy,
+                      const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs) -> Eigen::Matrix<T, 2, 1> {
     if (coeffs.size() < 2) {
         throw std::runtime_error("Insufficient distortion coefficients");
     }
 
-    const int num_k = static_cast<int>(coeffs.size()) - 2;
-    const T x = norm_xy.x();
-    const T y = norm_xy.y();
-    T r2 = x * x + y * y;
+    const int num_radial_coeffs = static_cast<int>(coeffs.size()) - 2;
+    const T& x_coord = norm_xy.x();
+    const T& y_coord = norm_xy.y();
+    T r2_val = x_coord * x_coord + y_coord * y_coord;
     T radial = T(1);
-    T rpow = r2;
-    for (int i = 0; i < num_k; ++i) {
+    T rpow = r2_val;
+    for (int i = 0; i < num_radial_coeffs; ++i) {
         radial += T(coeffs[i]) * rpow;
-        rpow *= r2;
+        rpow *= r2_val;
     }
-    T p1 = T(coeffs[num_k]);
-    T p2 = T(coeffs[num_k + 1]);
-    T xt = x * radial + T(2) * p1 * x * y + p2 * (r2 + T(2) * x * x);
-    T yt = y * radial + p1 * (r2 + T(2) * y * y) + T(2) * p2 * x * y;
-    return {xt, yt};
+    T tangential1 = T(coeffs[num_radial_coeffs]);
+    T tangential2 = T(coeffs[num_radial_coeffs + 1]);
+    T x_distorted = x_coord * radial + T(2) * tangential1 * x_coord * y_coord +
+                    tangential2 * (r2_val + T(2) * x_coord * x_coord);
+    T y_distorted = y_coord * radial + tangential1 * (r2_val + T(2) * y_coord * y_coord) +
+                    T(2) * tangential2 * x_coord * y_coord;
+    return {x_distorted, y_distorted};
 }
 
 // Normalize and undistort pixel coordinates
 template <typename T>
-Eigen::Matrix<T, 2, 1> undistort(Eigen::Matrix<T, 2, 1> norm_xy,
-                                 const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs) {
+[[nodiscard]]
+auto undistort(Eigen::Matrix<T, 2, 1> norm_xy,
+               const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs) -> Eigen::Matrix<T, 2, 1> {
     if (coeffs.size() < 2) {
         throw std::runtime_error("Insufficient distortion coefficients");
     }
 
-    Eigen::Matrix<T, 2, 1> xp = norm_xy;
-    for (int it = 0; it < 5; ++it) {
-        Eigen::Matrix<T, 2, 1> xd = apply_distortion(xp, coeffs);
-        xp += norm_xy - xd;
+    constexpr int k_num_undistort_iters = 5;
+    Eigen::Matrix<T, 2, 1> undistorted_xy = norm_xy;
+    for (int iter = 0; iter < k_num_undistort_iters; ++iter) {
+        Eigen::Matrix<T, 2, 1> distorted_xy = apply_distortion(undistorted_xy, coeffs);
+        undistorted_xy += norm_xy - distorted_xy;
     }
-    return xp;
+    return undistorted_xy;
 }
 
 template <typename T>
@@ -82,23 +88,25 @@ struct BrownConrady final {
 
     BrownConrady() = default;
     template <typename Derived>
-    explicit BrownConrady(const Eigen::MatrixBase<Derived>& c) : coeffs(c) {}
+    explicit BrownConrady(const Eigen::MatrixBase<Derived>& coeffs_in) : coeffs(coeffs_in) {}
 
     template <typename T>
-    Eigen::Matrix<T, 2, 1> distort(const Eigen::Matrix<T, 2, 1>& norm_xy) const {
+    [[nodiscard]]
+    auto distort(const Eigen::Matrix<T, 2, 1>& norm_xy) const -> Eigen::Matrix<T, 2, 1> {
         return apply_distortion(norm_xy, coeffs.template cast<T>().eval());
     }
 
     template <typename T>
-    Eigen::Matrix<T, 2, 1> undistort(const Eigen::Matrix<T, 2, 1>& dist_xy) const {
-        return calib::undistort(dist_xy, coeffs.template cast<T>().eval());
+    [[nodiscard]]
+    auto undistort(const Eigen::Matrix<T, 2, 1>& distorted_xy) const -> Eigen::Matrix<T, 2, 1> {
+        return calib::undistort(distorted_xy, coeffs.template cast<T>().eval());
     }
 };
 using BrownConradyd = BrownConrady<double>;
 
 template <typename Scalar>
-inline Eigen::Matrix<Scalar, Eigen::Dynamic, 1> invert_brown_conrady(
-    const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& forward) {
+inline auto invert_brown_conrady(const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>& forward)
+    -> Eigen::Matrix<Scalar, Eigen::Dynamic, 1> {
     if (forward.size() < 2) {
         throw std::runtime_error("Insufficient distortion coefficients");
     }
@@ -108,18 +116,23 @@ inline Eigen::Matrix<Scalar, Eigen::Dynamic, 1> invert_brown_conrady(
     constexpr double lim = 1.0;
     std::vector<Observation<Scalar>> obs;
     obs.reserve(grid * grid);
+    constexpr Scalar k_two = Scalar(2.0);
     for (int i = 0; i < grid; ++i) {
-        Scalar x = -lim + 2.0 * lim * static_cast<Scalar>(i) / static_cast<Scalar>(grid - 1);
+        Scalar x_coord =
+            -lim + k_two * lim * static_cast<Scalar>(i) / static_cast<Scalar>(grid - 1);
         for (int j = 0; j < grid; ++j) {
-            Scalar y = -lim + 2.0 * lim * static_cast<Scalar>(j) / static_cast<Scalar>(grid - 1);
-            Eigen::Matrix<Scalar, 2, 1> und(x, y);
+            Scalar y_coord =
+                -lim + k_two * lim * static_cast<Scalar>(j) / static_cast<Scalar>(grid - 1);
+            Eigen::Matrix<Scalar, 2, 1> und(x_coord, y_coord);
             Eigen::Matrix<Scalar, 2, 1> dst = apply_distortion(und, forward);
-            obs.push_back({dst.x(), dst.y(), x, y});
+            obs.push_back({dst.x(), dst.y(), x_coord, y_coord});
         }
     }
 
     auto inv_opt = fit_distortion_full(obs, 1.0, 1.0, 0.0, 0.0, 0.0, num_radial);
-    if (inv_opt.has_value()) return inv_opt->distortion;
+    if (inv_opt.has_value()) {
+        return inv_opt->distortion;
+    }
     return Eigen::Matrix<Scalar, Eigen::Dynamic, 1>::Zero(forward.size());
 }
 
@@ -135,13 +148,15 @@ struct DualBrownConrady final {
         : forward(coeffs), inverse(invert_brown_conrady(coeffs)) {}
 
     template <typename T>
-    Eigen::Matrix<T, 2, 1> distort(const Eigen::Matrix<T, 2, 1>& norm_xy) const {
+    [[nodiscard]]
+    auto distort(const Eigen::Matrix<T, 2, 1>& norm_xy) const -> Eigen::Matrix<T, 2, 1> {
         return apply_distortion(norm_xy, forward.template cast<T>().eval());
     }
 
     template <typename T>
-    Eigen::Matrix<T, 2, 1> undistort(const Eigen::Matrix<T, 2, 1>& dist_xy) const {
-        return apply_distortion(dist_xy, inverse.template cast<T>().eval());
+    [[nodiscard]]
+    auto undistort(const Eigen::Matrix<T, 2, 1>& distorted_xy) const -> Eigen::Matrix<T, 2, 1> {
+        return apply_distortion(distorted_xy, inverse.template cast<T>().eval());
     }
 };
 
@@ -154,91 +169,100 @@ struct DualDistortionWithResiduals final {
 
 // TODO: refactor for camera_model as a template parameter
 template <typename T>
-std::optional<DistortionWithResiduals<T>> fit_distortion_full(
-    const std::vector<Observation<T>>& obs, T fx, T fy, T cx, T cy, T skew, int num_radial = 2) {
-    if (obs.size() < 8) {
+[[nodiscard]]
+auto fit_distortion_full(const std::vector<Observation<T>>& observations, T focal_x, T focal_y,
+                         T center_x, T center_y, T skew_param,
+                         int num_radial = 2) -> std::optional<DistortionWithResiduals<T>> {
+    constexpr int k_min_observations = 8;
+    if (observations.size() < k_min_observations) {
         return std::nullopt;
     }
 
-    const int M = num_radial + 2;  // radial + tangential coeffs
-    const int N = static_cast<int>(obs.size());
-    const int rows = N * 2;
+    const int num_coeffs = num_radial + 2;  // radial + tangential coeffs
+    const int num_obs = static_cast<int>(observations.size());
+    const int num_rows = num_obs * 2;
 
-    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> A(rows, M);
-    Eigen::Matrix<T, Eigen::Dynamic, 1> b(rows);
+    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> design_matrix(num_rows, num_coeffs);
+    Eigen::Matrix<T, Eigen::Dynamic, 1> rhs(num_rows);
 
-    A.setZero();
-    b.setZero();
+    design_matrix.setZero();
+    rhs.setZero();
 
     const int idx_p1 = num_radial;
     const int idx_p2 = num_radial + 1;
 
-    for (int i = 0; i < N; ++i) {
-        const T x = T(obs[i].x);
-        const T y = T(obs[i].y);
-        const T r2 = x * x + y * y;
+    for (int obs_idx = 0; obs_idx < num_obs; ++obs_idx) {
+        const T x_coord = T(observations[obs_idx].x);
+        const T y_coord = T(observations[obs_idx].y);
+        const T r2_val = x_coord * x_coord + y_coord * y_coord;
 
-        const T u0 = fx * x + skew * y + cx;
-        const T v0 = fy * y + cy;
+        const T undistorted_u = focal_x * x_coord + skew_param * y_coord + center_x;
+        const T undistorted_v = focal_y * y_coord + center_y;
 
-        const T du = T(obs[i].u) - u0;
-        const T dv = T(obs[i].v) - v0;
+        const T residual_u = T(observations[obs_idx].u) - undistorted_u;
+        const T residual_v = T(observations[obs_idx].v) - undistorted_v;
 
-        const int ru = 2 * i;
-        const int rv = ru + 1;
+        const int row_u = 2 * obs_idx;
+        const int row_v = row_u + 1;
 
         // Radial terms
-        T rpow = r2;  // r^(2*1)
+        T rpow = r2_val;
         for (int j = 0; j < num_radial; ++j) {
-            A(ru, j) = fx * x * rpow + skew * y * rpow;
-            A(rv, j) = fy * y * rpow;
-            rpow *= r2;
+            design_matrix(row_u, j) = focal_x * x_coord * rpow + skew_param * y_coord * rpow;
+            design_matrix(row_v, j) = focal_y * y_coord * rpow;
+            rpow *= r2_val;
         }
 
         // Tangential terms
-        A(ru, idx_p1) = fx * (T(2.0) * x * y) + skew * (r2 + T(2.0) * y * y);
-        A(ru, idx_p2) = fx * (r2 + T(2.0) * x * x) + skew * (T(2.0) * x * y);
-        A(rv, idx_p1) = fy * (r2 + T(2.0) * y * y);
-        A(rv, idx_p2) = fy * (T(2.0) * x * y);
+        design_matrix(row_u, idx_p1) = focal_x * (T(2.0) * x_coord * y_coord) +
+                                       skew_param * (r2_val + T(2.0) * y_coord * y_coord);
+        design_matrix(row_u, idx_p2) = focal_x * (r2_val + T(2.0) * x_coord * x_coord) +
+                                       skew_param * (T(2.0) * x_coord * y_coord);
+        design_matrix(row_v, idx_p1) = focal_y * (r2_val + T(2.0) * y_coord * y_coord);
+        design_matrix(row_v, idx_p2) = focal_y * (T(2.0) * x_coord * y_coord);
 
-        b(ru) = du;
-        b(rv) = dv;
+        rhs(row_u) = residual_u;
+        rhs(row_v) = residual_v;
     }
 
     Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(
-        A, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    auto alpha = svd.solve(b);
-    Eigen::Matrix<T, Eigen::Dynamic, 1> r = A * alpha - b;
+        design_matrix, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    auto alpha = svd.solve(rhs);
+    Eigen::Matrix<T, Eigen::Dynamic, 1> residuals = design_matrix * alpha - rhs;
 
-    return DistortionWithResiduals<T>{alpha, r};
+    return DistortionWithResiduals<T>{alpha, residuals};
 }
 
 template <typename T>
-std::optional<DistortionWithResiduals<T>> fit_distortion(const std::vector<Observation<T>>& obs,
-                                                         T fx, T fy, T cx, T cy, T skew,
-                                                         int num_radial = 2) {
-    return fit_distortion_full(obs, fx, fy, cx, cy, skew, num_radial);
+auto fit_distortion(const std::vector<Observation<T>>& observations, T focal_x, T focal_y,
+                    T center_x, T center_y, T skew_param,
+                    int num_radial = 2) -> std::optional<DistortionWithResiduals<T>> {
+    return fit_distortion_full(observations, focal_x, focal_y, center_x, center_y, skew_param,
+                               num_radial);
 }
 
-inline std::optional<DualDistortionWithResiduals> fit_distortion_dual(
-    const std::vector<Observation<double>>& obs, double fx, double fy, double cx, double cy,
-    double skew, int num_radial = 2) {
-    auto forward = fit_distortion_full(obs, fx, fy, cx, cy, skew, num_radial);
+inline auto fit_distortion_dual(const std::vector<Observation<double>>& observations,
+                                double focal_x, double focal_y, double center_x, double center_y,
+                                double skew_param,
+                                int num_radial = 2) -> std::optional<DualDistortionWithResiduals> {
+    auto forward = fit_distortion_full(observations, focal_x, focal_y, center_x, center_y,
+                                       skew_param, num_radial);
     if (!forward) {
         return std::nullopt;
     }
 
-    std::vector<Observation<double>> inv_obs;
-    inv_obs.reserve(obs.size());
-    for (const auto& o : obs) {
-        double yd = (o.v - cy) / fy;
-        double xd = (o.u - cx - skew * yd) / fx;
-        double u_ud = fx * o.x + skew * o.y + cx;
-        double v_ud = fy * o.y + cy;
-        inv_obs.push_back({xd, yd, u_ud, v_ud});
+    std::vector<Observation<double>> inv_observations;
+    inv_observations.reserve(observations.size());
+    for (const auto& obs : observations) {
+        double y_dist = (obs.v - center_y) / focal_y;
+        double x_dist = (obs.u - center_x - skew_param * y_dist) / focal_x;
+        double u_undist = focal_x * obs.x + skew_param * obs.y + center_x;
+        double v_undist = focal_y * obs.y + center_y;
+        inv_observations.push_back({x_dist, y_dist, u_undist, v_undist});
     }
 
-    auto inverse = fit_distortion_full(inv_obs, fx, fy, cx, cy, skew, num_radial);
+    auto inverse = fit_distortion_full(inv_observations, focal_x, focal_y, center_x, center_y,
+                                       skew_param, num_radial);
     if (!inverse) {
         return std::nullopt;
     }

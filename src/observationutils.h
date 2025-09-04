@@ -38,7 +38,7 @@ std::pair<Eigen::Matrix<T, 3, 3>, Eigen::Matrix<T, 3, 1>> product(
     return {R, t};
 }
 
-inline void populate_quat_tran(const Eigen::Affine3d& pose, std::array<double, 4>& q,
+inline void populate_quat_tran(const Eigen::Isometry3d& pose, std::array<double, 4>& q,
                                std::array<double, 3>& t) {
     Eigen::Quaterniond q0(pose.linear());
     q = {q0.w(), q0.x(), q0.y(), q0.z()};
@@ -51,9 +51,9 @@ inline Eigen::Quaterniond array_to_norm_quat(const std::array<double, 4>& arr) {
     return quat;
 }
 
-inline Eigen::Affine3d restore_pose(const std::array<double, 4>& q,
-                                    const std::array<double, 3>& t) {
-    auto pose = Eigen::Affine3d::Identity();
+inline Eigen::Isometry3d restore_pose(const std::array<double, 4>& q,
+                                      const std::array<double, 3>& t) {
+    auto pose = Eigen::Isometry3d::Identity();
     pose.linear() = array_to_norm_quat(q).toRotationMatrix();
     pose.translation() << t[0], t[1], t[2];
     return pose;
@@ -121,41 +121,41 @@ inline Eigen::Vector3d log_rot(const Eigen::Matrix3d& R) {
     return aa.axis() * aa.angle();
 }
 
-inline std::array<double, 6> pose_to_array(const Eigen::Affine3d& pose) {
+inline std::array<double, 6> pose_to_array(const Eigen::Isometry3d& pose) {
     Eigen::AngleAxisd aa(pose.linear());
     return {aa.axis().x() * aa.angle(), aa.axis().y() * aa.angle(), aa.axis().z() * aa.angle(),
             pose.translation().x(),     pose.translation().y(),     pose.translation().z()};
 }
 
-inline Eigen::Affine3d array_to_pose(const double* p) {
+inline Eigen::Isometry3d array_to_pose(const double* p) {
     Eigen::Matrix3d R;
     ceres::AngleAxisToRotationMatrix(p, R.data());
-    Eigen::Affine3d T = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
     T.linear() = R;
     T.translation() = Eigen::Vector3d(p[3], p[4], p[5]);
     return T;
 }
 
 template <typename T>
-Eigen::Transform<T, 3, Eigen::Affine> pose2affine(const T* pose) {
+Eigen::Transform<T, 3, Eigen::Isometry> pose2affine(const T* pose) {
     Eigen::Matrix<T, 3, 3> R;
     ceres::AngleAxisToRotationMatrix(pose, R.data());
     Eigen::Matrix<T, 3, 1> t{pose[3], pose[4], pose[5]};
     return Eigen::Translation<T, 3>(t) * R;
 }
 
-inline Eigen::Affine3d pose6_to_affine(const Eigen::VectorXd& p) {
+inline Eigen::Isometry3d pose6_to_affine(const Eigen::VectorXd& p) {
     Eigen::Matrix3d R;
     ceres::AngleAxisToRotationMatrix(p.head<3>().data(), R.data());
-    Eigen::Affine3d T = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
     T.linear() = R;
     T.translation() = p.tail<3>();
     return T;
 }
 
 // Utility: average a set of affine transforms (rotation via quaternion averaging)
-inline Eigen::Affine3d average_affines(const std::vector<Eigen::Affine3d>& poses) {
-    if (poses.empty()) return Eigen::Affine3d::Identity();
+inline Eigen::Isometry3d average_affines(const std::vector<Eigen::Isometry3d>& poses) {
+    if (poses.empty()) return Eigen::Isometry3d::Identity();
     Eigen::Vector3d t = Eigen::Vector3d::Zero();
     Eigen::Quaterniond q_sum(0, 0, 0, 0);
     for (const auto& p : poses) {
@@ -166,7 +166,7 @@ inline Eigen::Affine3d average_affines(const std::vector<Eigen::Affine3d>& poses
     }
     t /= static_cast<double>(poses.size());
     q_sum.normalize();
-    Eigen::Affine3d avg = Eigen::Affine3d::Identity();
+    Eigen::Isometry3d avg = Eigen::Isometry3d::Identity();
     avg.linear() = q_sum.toRotationMatrix();
     avg.translation() = t;
     return avg;
@@ -175,13 +175,13 @@ inline Eigen::Affine3d average_affines(const std::vector<Eigen::Affine3d>& poses
 template <typename T>
 static void planar_observables_to_observables(
     const PlanarView& po, std::vector<Observation<T>>& o,
-    const Eigen::Transform<T, 3, Eigen::Affine>& camera_T_target) {
+    const Eigen::Transform<T, 3, Eigen::Isometry>& camera_se3_target) {
     if (o.size() != po.size()) o.resize(po.size());
     for (size_t i = 0; i < po.size(); ++i) {
         const auto& p = po[i];
         // Convert pixel coordinates to normalized image coordinates
         Eigen::Matrix<T, 3, 1> P{T(p.object_xy.x()), T(p.object_xy.y()), T(0)};
-        P = camera_T_target * P;
+        P = camera_se3_target * P;
         const T xn = P.x() / P.z();
         const T yn = P.y() / P.z();
         o[i] = Observation<T>{xn, yn, T(p.image_uv.x()), T(p.image_uv.y())};

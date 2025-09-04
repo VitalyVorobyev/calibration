@@ -48,7 +48,7 @@ src/                   # Implementation files
 ### Ceres Optimization Pattern
 - Custom residual structs in `*residual.h` files (e.g., `handeyeresidual.h`)
 - Variable projection for non-linear problems
-- Consistent use of `Eigen::Affine3d` for 3D transformations
+- Consistent use of `Eigen::Isometry3d` for 3D transformations
 - Robust loss functions (Huber) with configurable deltas
 
 ### Error Handling
@@ -100,7 +100,7 @@ cd build && ctest
 - Support for various distortion models through concept-based design
 
 ### Bundle Adjustment Architecture
-- `BundleObservation` links robot poses (`b_T_g`) with camera views
+- `BundleObservation` links robot poses (`b_se3_g`) with camera views
 - Multi-camera support via `camera_index` and relative `extrinsics`
 - Configurable optimization via `BundleOptions` (what to optimize)
 

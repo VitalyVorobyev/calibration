@@ -36,7 +36,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
                              initial_guess.skew};
 
         for (size_t i = 0; i < views.size(); ++i) {
-            Eigen::Affine3d pose = estimate_planar_pose_dlt(views[i], initial_guess);
+            Eigen::Isometry3d pose = estimate_planar_pose_dlt(views[i], initial_guess);
             populate_quat_tran(pose, blocks.c_q_t[i], blocks.c_t_t[i]);
         }
 
@@ -62,20 +62,21 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
         result.camera.K.cy = intrinsics[3];
         result.camera.K.skew = intrinsics[4];
 
-        result.c_T_t.resize(c_q_t.size());
+        result.c_se3_t.resize(c_q_t.size());
         for (size_t i = 0; i < c_q_t.size(); ++i) {
-            result.c_T_t[i] = restore_pose(c_q_t[i], c_t_t[i]);
+            result.c_se3_t[i] = restore_pose(c_q_t[i], c_t_t[i]);
         }
     }
 };
 
-static std::optional<DistortionWithResiduals<double>> solve_full(
-    const std::vector<PlanarView>& views, int num_radial, const IntrinsicBlocks& blocks) {
+static auto solve_full(const std::vector<PlanarView>& views, int num_radial,
+                       const IntrinsicBlocks& blocks)
+    -> std::optional<DistortionWithResiduals<double>> {
     std::vector<Observation<double>> obs;
     for (size_t i = 0; i < views.size(); ++i) {
-        auto c_T_t = restore_pose(blocks.c_q_t[i], blocks.c_t_t[i]);
+        auto c_se3_t = restore_pose(blocks.c_q_t[i], blocks.c_t_t[i]);
         std::vector<Observation<double>> new_obs(views[i].size());
-        planar_observables_to_observables(views[i], new_obs, c_T_t);
+        planar_observables_to_observables(views[i], new_obs, c_se3_t);
         obs.insert(obs.end(), new_obs.begin(), new_obs.end());
     }
     return fit_distortion_full(obs, blocks.intrinsics[0], blocks.intrinsics[1],
@@ -175,7 +176,7 @@ IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics_semidlt(
 
     double sum_squared_residuals = dr_opt->residuals.squaredNorm();
     size_t total_residuals = total_obs * 2;
-    result.covariance = compute_covariance(blocks, problem, total_residuals, sum_squared_residuals)
+    result.covariance = compute_covariance(blocks, problem, sum_squared_residuals, total_residuals)
                             .value_or(Eigen::MatrixXd{});
 
     return result;

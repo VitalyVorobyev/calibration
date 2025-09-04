@@ -4,6 +4,7 @@
 
 // std
 #include <cmath>
+#include <map>
 #include <optional>
 #include <thread>
 
@@ -23,10 +24,10 @@ static const std::map<OptimizerType, ceres::LinearSolverType> optim_to_ceres = {
     {OptimizerType::DENSE_SCHUR, ceres::DENSE_SCHUR},
     {OptimizerType::DENSE_QR, ceres::DENSE_QR}};
 
-inline void solve_problem(ceres::Problem& p, const OptimOptions& opts, OptimResult* result) {
+inline void solve_problem(ceres::Problem& problem, const OptimOptions& opts, OptimResult* result) {
     ceres::Solver::Options copts;
     copts.linear_solver_type = optim_to_ceres.at(opts.optimizer);
-    copts.num_threads = static_cast<int>(std::max(1u, std::thread::hardware_concurrency()));
+    copts.num_threads = static_cast<int>(std::max(1U, std::thread::hardware_concurrency()));
     copts.minimizer_progress_to_stdout = opts.verbose;
     copts.function_tolerance = opts.epsilon;
     copts.gradient_tolerance = opts.epsilon;
@@ -34,7 +35,7 @@ inline void solve_problem(ceres::Problem& p, const OptimOptions& opts, OptimResu
     copts.max_num_iterations = opts.max_iterations;
 
     ceres::Solver::Summary summary;
-    ceres::Solve(copts, &p, &summary);
+    ceres::Solve(copts, &problem, &summary);
 
     result->final_cost = summary.final_cost;
     result->report = summary.BriefReport();
@@ -46,26 +47,29 @@ struct ParamBlock final {
     size_t size;
     size_t dof;
 
-    ParamBlock(const double* data_, size_t size_, size_t dof_)
-        : data(data_), size(size_), dof(dof_) {}
+    // NOLINTNEXTLINE(bugprone-easily-swappable-parameters)
+    ParamBlock(const double* data_ptr, size_t block_size, size_t block_dof)
+        : data(data_ptr), size(block_size), dof(block_dof) {}
 };
 
 struct ProblemParamBlocks {
-    virtual std::vector<ParamBlock> get_param_blocks() const = 0;
+    [[nodiscard]]
+    virtual auto get_param_blocks() const -> std::vector<ParamBlock> = 0;
 
-    size_t total_params() const {
-        size_t total = 0;
-        for (const auto& block : get_param_blocks()) {
-            total += block.size;
-        }
-        return total;
+    [[nodiscard]]
+    auto total_params() const -> size_t {
+        const auto blocks = get_param_blocks();
+        return std::accumulate(
+            blocks.begin(), blocks.end(), size_t{0},
+            [](size_t sum, const ParamBlock& block) { return sum + block.size; });
     }
 };
 
 // Compute and populate the covariance matrix
-inline std::optional<Eigen::MatrixXd> compute_covariance(
-    const ProblemParamBlocks& problem_param_blocks, ceres::Problem& problem,
-    size_t total_residuals = 0, double sum_squared_residuals = 0) {
+inline auto compute_covariance(const ProblemParamBlocks& problem_param_blocks,
+                               ceres::Problem& problem, double sum_squared_residuals = 0,
+                               size_t total_residuals = 0)
+    -> std::optional<Eigen::MatrixXd> {  // NOLINT(bugprone-easily-swappable-parameters)
     auto param_blocks = problem_param_blocks.get_param_blocks();
     const size_t total_params = problem_param_blocks.total_params();
 
@@ -73,9 +77,9 @@ inline std::optional<Eigen::MatrixXd> compute_covariance(
     ceres::Covariance covariance(cov_options);
     std::vector<std::pair<const double*, const double*>> cov_blocks;
 
-    for (size_t i = 0; i < param_blocks.size(); ++i) {
-        for (size_t j = 0; j <= i; ++j) {
-            cov_blocks.emplace_back(param_blocks[i].data, param_blocks[j].data);
+    for (size_t block_i = 0; block_i < param_blocks.size(); ++block_i) {
+        for (size_t block_j = 0; block_j <= block_i; ++block_j) {
+            cov_blocks.emplace_back(param_blocks[block_i].data, param_blocks[block_j].data);
         }
     }
 
@@ -86,26 +90,22 @@ inline std::optional<Eigen::MatrixXd> compute_covariance(
     Eigen::MatrixXd cov_matrix = Eigen::MatrixXd::Zero(static_cast<Eigen::Index>(total_params),
                                                        static_cast<Eigen::Index>(total_params));
     size_t row_offset = 0;
-
-    for (size_t i = 0; i < param_blocks.size(); ++i) {
-        size_t block_i_size = param_blocks[i].size;
+    for (size_t block_i = 0; block_i < param_blocks.size(); ++block_i) {
+        size_t block_i_size = param_blocks[block_i].size;
         size_t col_offset = 0;
-
-        for (size_t j = 0; j <= i; ++j) {
-            size_t block_j_size = param_blocks[j].size;
+        for (size_t block_j = 0; block_j <= block_i; ++block_j) {
+            size_t block_j_size = param_blocks[block_j].size;
             std::vector<double> block_cov(block_i_size * block_j_size);
-
-            covariance.GetCovarianceBlock(param_blocks[i].data, param_blocks[j].data,
+            covariance.GetCovarianceBlock(param_blocks[block_i].data, param_blocks[block_j].data,
                                           block_cov.data());
-
-            for (size_t r = 0; r < block_i_size; ++r) {
-                for (size_t c = 0; c < block_j_size; ++c) {
-                    double value = block_cov[r * block_j_size + c];
-                    cov_matrix(static_cast<Eigen::Index>(row_offset + r),
-                               static_cast<Eigen::Index>(col_offset + c)) = value;
-                    if (j < i) {
-                        cov_matrix(static_cast<Eigen::Index>(col_offset + c),
-                                   static_cast<Eigen::Index>(row_offset + r)) = value;
+            for (size_t row_idx = 0; row_idx < block_i_size; ++row_idx) {
+                for (size_t col_idx = 0; col_idx < block_j_size; ++col_idx) {
+                    double value = block_cov[row_idx * block_j_size + col_idx];
+                    cov_matrix(static_cast<Eigen::Index>(row_offset + row_idx),
+                               static_cast<Eigen::Index>(col_offset + col_idx)) = value;
+                    if (block_j < block_i) {
+                        cov_matrix(static_cast<Eigen::Index>(col_offset + col_idx),
+                                   static_cast<Eigen::Index>(row_offset + row_idx)) = value;
                     }
                 }
             }

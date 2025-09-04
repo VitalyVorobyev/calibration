@@ -3,6 +3,7 @@
 #pragma once
 
 // std
+#include <numeric>
 #include <vector>
 
 // ceres
@@ -17,27 +18,28 @@ namespace calib {
 // Variable projection residual for full camera calibration.
 struct CalibVPResidual final {
     const std::vector<PlanarView> views;  // observations per view
-    int num_radial_;
-    size_t total_obs_;
+    const int num_radial_;
+    const size_t total_obs_;
 
     CalibVPResidual(const std::vector<PlanarView>& v, int num_radial)
-        : views(v), num_radial_(num_radial) {
-        total_obs_ = 0;
-        for (const auto& view : v) total_obs_ += view.size();
-    }
+        : views(v),
+          num_radial_(num_radial),
+          total_obs_(std::accumulate(
+              v.begin(), v.end(), size_t(0),
+              [](size_t sum, const PlanarView& view) { return sum + view.size(); })) {}
 
     template <typename T>
     bool operator()(T const* const* params, T* residuals) const {
         std::vector<Observation<T>> o;
         o.reserve(total_obs_);
 
-        auto c_T_t = Eigen::Transform<T, 3, Eigen::Affine>::Identity();
+        auto c_se3_t = Eigen::Transform<T, 3, Eigen::Isometry>::Identity();
 
         for (size_t i = 0; i < views.size(); ++i) {
-            c_T_t.linear() = quat_array_to_rotmat<T>(params[2 * i + 1]);
-            c_T_t.translation() = array_to_translation<T>(params[2 * i + 2]);
+            c_se3_t.linear() = quat_array_to_rotmat<T>(params[2 * i + 1]);
+            c_se3_t.translation() = array_to_translation<T>(params[2 * i + 2]);
             std::vector<Observation<T>> new_obs(views[i].size());
-            planar_observables_to_observables(views[i], new_obs, c_T_t);
+            planar_observables_to_observables(views[i], new_obs, c_se3_t);
             o.insert(o.end(), new_obs.begin(), new_obs.end());
         }
 
@@ -57,8 +59,9 @@ struct CalibVPResidual final {
             cost->AddParameterBlock(4);  // Quaternion for each view
             cost->AddParameterBlock(3);  // Translation for each view
         }
-        size_t total_obs = 0;
-        for (const auto& v : views) total_obs += v.size();
+        const size_t total_obs =
+            std::accumulate(views.begin(), views.end(), size_t(0),
+                            [](size_t sum, const PlanarView& v) { return sum + v.size(); });
         cost->SetNumResiduals(static_cast<int>(total_obs * 2));
         return cost;
     }
