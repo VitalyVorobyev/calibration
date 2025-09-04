@@ -5,6 +5,7 @@
 #include <numeric>
 
 #include "calib/planarpose.h"
+#include "calib/model/any_camera.h"
 #include "ceresutils.h"
 #include "observationutils.h"
 #include "residuals/bundleresidual.h"
@@ -58,15 +59,16 @@ struct BundleBlocks final : public ProblemParamBlocks {
         return blocks;
     }
 
-    void populate_results(BundleResult<CameraT>& result) const {
+    void populate_results(BundleResult& result) const {
         result.b_se3_t = restore_pose(b_q_t, b_t_t);
         const size_t num_cams = intr.size();
         result.g_se3_c.resize(num_cams);
         result.cameras.resize(num_cams);
         for (size_t cam_idx = 0; cam_idx < num_cams; ++cam_idx) {
             result.g_se3_c[cam_idx] = restore_pose(g_q_c[cam_idx], g_t_c[cam_idx]);
-            result.cameras[cam_idx] =
+            auto cam =
                 CameraTraits<CameraT>::template from_array<double>(intr[cam_idx].data());
+            result.cameras[cam_idx] = AnyCamera(std::move(cam));
         }
     }
 };
@@ -135,17 +137,17 @@ void validate_input(const std::vector<BundleObservation>& observations,
 }
 
 template <camera_model CameraT>
-BundleResult<CameraT> optimize_bundle(const std::vector<BundleObservation>& observations,
-                                      const std::vector<CameraT>& initial_cameras,
-                                      const std::vector<Eigen::Isometry3d>& init_g_se3_c,
-                                      const Eigen::Isometry3d& init_b_se3_t,
-                                      const BundleOptions& opts) {
+static BundleResult optimize_bundle_impl(const std::vector<BundleObservation>& observations,
+                                         const std::vector<CameraT>& initial_cameras,
+                                         const std::vector<Eigen::Isometry3d>& init_g_se3_c,
+                                         const Eigen::Isometry3d& init_b_se3_t,
+                                         const BundleOptions& opts) {
     validate_input(observations, initial_cameras);
 
     auto blocks = BundleBlocks<CameraT>::create(initial_cameras, init_g_se3_c, init_b_se3_t);
     ceres::Problem problem = build_problem(observations, opts, blocks);
 
-    BundleResult<CameraT> result;
+    BundleResult result;
     solve_problem(problem, opts, &result);
 
     blocks.populate_results(result);
@@ -159,12 +161,36 @@ BundleResult<CameraT> optimize_bundle(const std::vector<BundleObservation>& obse
     return result;
 }
 
-template BundleResult<Camera<BrownConradyd>> optimize_bundle(
-    const std::vector<BundleObservation>&, const std::vector<Camera<BrownConradyd>>&,
-    const std::vector<Eigen::Isometry3d>&, const Eigen::Isometry3d&, const BundleOptions&);
-
-template BundleResult<ScheimpflugCamera<BrownConradyd>> optimize_bundle(
-    const std::vector<BundleObservation>&, const std::vector<ScheimpflugCamera<BrownConradyd>>&,
-    const std::vector<Eigen::Isometry3d>&, const Eigen::Isometry3d&, const BundleOptions&);
+BundleResult optimize_bundle(const std::vector<BundleObservation>& observations,
+                             const std::vector<AnyCamera>& initial_cameras,
+                             const std::vector<Eigen::Isometry3d>& init_g_se3_c,
+                             const Eigen::Isometry3d& init_b_se3_t,
+                             const BundleOptions& opts) {
+    if (initial_cameras.empty()) {
+        throw std::invalid_argument("No camera intrinsics provided");
+    }
+    if (initial_cameras.front().holds<Camera<BrownConradyd>>()) {
+        std::vector<Camera<BrownConradyd>> cams;
+        cams.reserve(initial_cameras.size());
+        for (const auto& c : initial_cameras) {
+            cams.push_back(*c.as<Camera<BrownConradyd>>());
+        }
+        auto res = optimize_bundle_impl<Camera<BrownConradyd>>(observations, cams, init_g_se3_c,
+                                                               init_b_se3_t, opts);
+        return res;
+    }
+    if (initial_cameras.front().holds<ScheimpflugCamera<BrownConradyd>>()) {
+        std::vector<ScheimpflugCamera<BrownConradyd>> cams;
+        cams.reserve(initial_cameras.size());
+        for (const auto& c : initial_cameras) {
+            cams.push_back(*c.as<ScheimpflugCamera<BrownConradyd>>());
+        }
+        auto res = optimize_bundle_impl<ScheimpflugCamera<BrownConradyd>>(observations, cams,
+                                                                          init_g_se3_c, init_b_se3_t,
+                                                                          opts);
+        return res;
+    }
+    throw std::invalid_argument("Unsupported camera type in optimize_bundle");
+}
 
 }  // namespace calib

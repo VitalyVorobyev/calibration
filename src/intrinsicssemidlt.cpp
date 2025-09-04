@@ -55,13 +55,15 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
         return blocks;
     }
 
-    void populate_result(IntrinsicsOptimizationResult<Camera<BrownConradyd>>& result) const {
-        result.camera.K.fx = intrinsics[0];
-        result.camera.K.fy = intrinsics[1];
-        result.camera.K.cx = intrinsics[2];
-        result.camera.K.cy = intrinsics[3];
-        result.camera.K.skew = intrinsics[4];
+    void populate_result(IntrinsicsOptimizationResult& result) const {
+        Camera<BrownConradyd> cam;
+        cam.K.fx = intrinsics[0];
+        cam.K.fy = intrinsics[1];
+        cam.K.cx = intrinsics[2];
+        cam.K.cy = intrinsics[3];
+        cam.K.skew = intrinsics[4];
 
+        result.camera = AnyCamera(cam);
         result.c_se3_t.resize(c_q_t.size());
         for (size_t i = 0; i < c_q_t.size(); ++i) {
             result.c_se3_t[i] = restore_pose(c_q_t[i], c_t_t[i]);
@@ -129,7 +131,7 @@ static ceres::Problem build_problem(const std::vector<PlanarView>& obs_views,
 
 static void compute_per_view_errors(const std::vector<PlanarView>& obs_views,
                                     const Eigen::VectorXd& residuals,
-                                    IntrinsicsOptimizationResult<Camera<BrownConradyd>>& result) {
+                                    IntrinsicsOptimizationResult& result) {
     const size_t num_views = obs_views.size();
     result.view_errors.resize(num_views);
     int residual_idx = 0;
@@ -145,10 +147,10 @@ static void compute_per_view_errors(const std::vector<PlanarView>& obs_views,
     }
 }
 
-IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics_semidlt(
+IntrinsicsOptimizationResult optimize_intrinsics_semidlt(
     const std::vector<PlanarView>& views, const CameraMatrix& initial_guess,
     const IntrinsicsOptions& opts) {
-    IntrinsicsOptimizationResult<Camera<BrownConradyd>> result;
+    IntrinsicsOptimizationResult result;
 
     // Prepare observations per view
     const size_t total_obs = count_total_observations(views);
@@ -163,16 +165,17 @@ IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics_semidlt(
     ceres::Problem problem = build_problem(views, blocks, opts);
 
     solve_problem(problem, opts, &result);
+    blocks.populate_result(result);
 
     auto dr_opt = solve_full(views, opts.num_radial, blocks);
     if (!dr_opt.has_value()) {
         throw std::runtime_error("Failed to compute distortion parameters");
     }
-    result.camera.distortion.coeffs = dr_opt->distortion;
+    auto cam = result.camera.as<Camera<BrownConradyd>>();
+    cam->distortion.coeffs = dr_opt->distortion;
 
     // Process results
     compute_per_view_errors(views, dr_opt->residuals, result);
-    blocks.populate_result(result);
 
     double sum_squared_residuals = dr_opt->residuals.squaredNorm();
     size_t total_residuals = total_obs * 2;

@@ -2,6 +2,7 @@
 
 #include "calib/distortion.h"
 #include "calib/scheimpflug.h"
+#include "calib/model/any_camera.h"
 #include "ceresutils.h"
 #include "observationutils.h"
 #include "residuals/extrinsicsresidual.h"
@@ -66,15 +67,16 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
         return blocks;
     }
 
-    void populate_result(ExtrinsicOptimizationResult<CameraT>& result) const {
+    void populate_result(ExtrinsicOptimizationResult& result) const {
         const size_t num_cams = cam_quat_ref.size();
         const size_t num_views = ref_quat_tgt.size();
         result.cameras.resize(num_cams);
         result.c_se3_r.resize(num_cams);
         result.r_se3_t.resize(num_views);
         for (size_t cam_idx = 0; cam_idx < num_cams; ++cam_idx) {
-            result.cameras[cam_idx] =
+            auto cam =
                 CameraTraits<CameraT>::template from_array<double>(intrinsics[cam_idx].data());
+            result.cameras[cam_idx] = AnyCamera(std::move(cam));
             result.c_se3_r[cam_idx] = restore_pose(cam_quat_ref[cam_idx], cam_tran_ref[cam_idx]);
         }
         for (size_t view_idx = 0; view_idx < num_views; ++view_idx) {
@@ -171,7 +173,7 @@ static void validate_input(const std::vector<CameraT>& init_cameras,
 }
 
 template <camera_model CameraT>
-ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
+static ExtrinsicOptimizationResult optimize_extrinsics_impl(
     const std::vector<MulticamPlanarView>& views, const std::vector<CameraT>& init_cameras,
     const std::vector<Eigen::Isometry3d>& init_c_se3_r,
     const std::vector<Eigen::Isometry3d>& init_r_se3_t, const ExtrinsicOptions& opts) {
@@ -180,7 +182,7 @@ ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
     auto blocks = ExtrinsicBlocks<CameraT>::create(init_cameras, init_c_se3_r, init_r_se3_t);
     ceres::Problem problem = build_problem(views, init_cameras, opts, blocks);
 
-    ExtrinsicOptimizationResult<CameraT> result;
+    ExtrinsicOptimizationResult result;
     solve_problem(problem, opts, &result);
 
     blocks.populate_result(result);
@@ -194,14 +196,35 @@ ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
     return result;
 }
 
-template ExtrinsicOptimizationResult<Camera<BrownConradyd>> optimize_extrinsics(
-    const std::vector<MulticamPlanarView>&, const std::vector<Camera<BrownConradyd>>&,
-    const std::vector<Eigen::Isometry3d>&, const std::vector<Eigen::Isometry3d>&,
-    const ExtrinsicOptions&);
-
-template ExtrinsicOptimizationResult<ScheimpflugCamera<BrownConradyd>> optimize_extrinsics(
-    const std::vector<MulticamPlanarView>&, const std::vector<ScheimpflugCamera<BrownConradyd>>&,
-    const std::vector<Eigen::Isometry3d>&, const std::vector<Eigen::Isometry3d>&,
-    const ExtrinsicOptions&);
+ExtrinsicOptimizationResult optimize_extrinsics(
+    const std::vector<MulticamPlanarView>& views, const std::vector<AnyCamera>& init_cameras,
+    const std::vector<Eigen::Isometry3d>& init_c_se3_r,
+    const std::vector<Eigen::Isometry3d>& init_r_se3_t, const ExtrinsicOptions& opts) {
+    if (init_cameras.empty()) {
+        throw std::invalid_argument("No cameras provided");
+    }
+    if (init_cameras.front().holds<Camera<BrownConradyd>>()) {
+        std::vector<Camera<BrownConradyd>> cams;
+        cams.reserve(init_cameras.size());
+        for (const auto& c : init_cameras) {
+            cams.push_back(*c.as<Camera<BrownConradyd>>());
+        }
+        auto res = optimize_extrinsics_impl<Camera<BrownConradyd>>(views, cams, init_c_se3_r,
+                                                                   init_r_se3_t, opts);
+        return res;
+    }
+    if (init_cameras.front().holds<ScheimpflugCamera<BrownConradyd>>()) {
+        std::vector<ScheimpflugCamera<BrownConradyd>> cams;
+        cams.reserve(init_cameras.size());
+        for (const auto& c : init_cameras) {
+            cams.push_back(*c.as<ScheimpflugCamera<BrownConradyd>>());
+        }
+        auto res = optimize_extrinsics_impl<ScheimpflugCamera<BrownConradyd>>(views, cams,
+                                                                              init_c_se3_r,
+                                                                              init_r_se3_t, opts);
+        return res;
+    }
+    throw std::invalid_argument("Unsupported camera type in optimize_extrinsics");
+}
 
 }  // namespace calib

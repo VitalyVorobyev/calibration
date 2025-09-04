@@ -2,6 +2,7 @@
 
 #include "calib/distortion.h"
 #include "calib/scheimpflug.h"
+#include "calib/model/any_camera.h"
 #include "ceresutils.h"
 #include "observationutils.h"
 #include "residuals/intrinsicresidual.h"
@@ -38,11 +39,12 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
         return blocks;
     }
 
-    void populate_result(IntrinsicsOptimizationResult<CameraT>& result) const {
+    void populate_result(IntrinsicsOptimizationResult& result) const {
         const size_t num_views = c_q_t.size();
         result.c_se3_t.resize(num_views);
 
-        result.camera = CameraTraits<CameraT>::template from_array<double>(intr.data());
+        auto cam = CameraTraits<CameraT>::template from_array<double>(intr.data());
+        result.camera = AnyCamera(std::move(cam));
         for (size_t v = 0; v < num_views; ++v) {
             result.c_se3_t[v] = restore_pose(c_q_t[v], c_t_t[v]);
         }
@@ -84,7 +86,7 @@ static void validate_input(const std::vector<PlanarView>& views) {
 }
 
 template <camera_model CameraT>
-IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(
+static IntrinsicsOptimizationResult optimize_intrinsics_impl(
     const std::vector<PlanarView>& views, const CameraT& init_camera,
     std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts) {
     validate_input(views);
@@ -92,7 +94,7 @@ IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(
     auto blocks = IntrinsicBlocks<CameraT>::create(init_camera, init_c_se3_t);
     ceres::Problem problem = build_problem(views, opts, blocks);
 
-    IntrinsicsOptimizationResult<CameraT> result;
+    IntrinsicsOptimizationResult result;
     solve_problem(problem, opts, &result);
 
     blocks.populate_result(result);
@@ -106,12 +108,20 @@ IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(
     return result;
 }
 
-template IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics(
-    const std::vector<PlanarView>& views, const Camera<BrownConradyd>& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
-
-template IntrinsicsOptimizationResult<ScheimpflugCamera<BrownConradyd>> optimize_intrinsics(
-    const std::vector<PlanarView>& views, const ScheimpflugCamera<BrownConradyd>& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
+IntrinsicsOptimizationResult optimize_intrinsics(
+    const std::vector<PlanarView>& views, const AnyCamera& init_camera,
+    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts) {
+    if (const auto* cam = init_camera.as<Camera<BrownConradyd>>()) {
+        auto res = optimize_intrinsics_impl<Camera<BrownConradyd>>(views, *cam,
+                                                                   std::move(init_c_se3_t), opts);
+        return res;
+    }
+    if (const auto* cam = init_camera.as<ScheimpflugCamera<BrownConradyd>>()) {
+        auto res = optimize_intrinsics_impl<ScheimpflugCamera<BrownConradyd>>(views, *cam,
+                                                                              std::move(init_c_se3_t), opts);
+        return res;
+    }
+    throw std::invalid_argument("Unsupported camera type in optimize_intrinsics");
+}
 
 }  // namespace calib
