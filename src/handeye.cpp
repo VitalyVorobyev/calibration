@@ -46,7 +46,7 @@ static auto build_problem(const std::vector<MotionPair>& pairs, const HandeyeOpt
                           HandeyeBlocks& blocks) -> ceres::Problem {
     ceres::Problem problem;
     for (const auto& motion_pair : pairs) {
-        auto* cost = AX_XBResidual::create(motion_pair);
+        auto* cost = ax_xb_residual::create(motion_pair);
         ceres::LossFunction* loss =
             opts.huber_delta > 0
                 ? static_cast<ceres::LossFunction*>(new ceres::HuberLoss(opts.huber_delta))

@@ -13,7 +13,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
     static constexpr size_t intr_size = CameraTraits<CameraT>::param_count;
     std::vector<std::array<double, 4>> c_quat_t;
     std::vector<std::array<double, 3>> c_tra_t;
-    std::array<double, intr_size> intr;
+    std::array<double, intr_size> intr{};
 
     explicit IntrinsicBlocks(size_t numviews) : c_quat_t(numviews), c_tra_t(numviews), intr{} {}
 
@@ -32,9 +32,12 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
     std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
         blocks.emplace_back(intr.data(), intr.size(), intr_size);
-        for (const auto& i : c_quat_t)
+        for (const auto& i : c_quat_t) {
             blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
-        for (const auto& i : c_tra_t) blocks.emplace_back(i.data(), i.size(), 3);
+        }
+        for (const auto& i : c_tra_t) {
+            blocks.emplace_back(i.data(), i.size(), 3);
+        }
         return blocks;
     }
 

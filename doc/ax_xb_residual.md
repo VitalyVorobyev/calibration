@@ -2,7 +2,7 @@
 
 *[by ChatGPT5 Thinking]*
 
-Here’s the math, end-to-end, for the residual we called `AX_XBResidual`, plus one subtle but important sign detail.
+Here’s the math, end-to-end, for the residual we called `ax_xb_residual`, plus one subtle but important sign detail.
 
 ---
 
@@ -87,11 +87,11 @@ Concretely (what Ceres does when you feed it a 3×3 rotation):
 
 > ⚠️ **Sign detail to verify in code:**
 > The residual must use $R_B^{\!\top}$ (i.e., $R_B^{-1}$) as in (3).
-> If you compute `RS = RA * RX * RB * RX.transpose()`, that equals $R_A R_X R_B R_X^\top$, which would only be identity if (1) were $R_A R_X = R_X R_B^{\!\top}$—not our definition of $B$.
+> If you compute `RS = rot_a * RX * rot_b * RX.transpose()`, that equals $R_A R_X R_B R_X^\top$, which would only be identity if (1) were $R_A R_X = R_X R_B^{\!\top}$—not our definition of $B$.
 > **Correct is:**
 >
 > ```cpp
-> const Eigen::Matrix<T,3,3> RS = RA * RX * RB.transpose() * RX.transpose();
+> const Eigen::Matrix<T,3,3> RS = rot_a * RX * rot_b.transpose() * RX.transpose();
 > ```
 >
 > Then `RotationMatrixToAngleAxis(RS, aa)` yields the proper $r_{\text{rot}}$.
@@ -111,7 +111,7 @@ When $(R_X,t_X)$ satisfy (1)–(2), $r_{\text{tr}}=0$.
 
 ---
 
-# Combined 6-D residual (what `AX_XBResidual` emits)
+# Combined 6-D residual (what `ax_xb_residual` emits)
 
 Per motion pair $(A,B)$ we stack
 
@@ -139,7 +139,7 @@ T aa[3];
 ceres::RotationMatrixToAngleAxis(RS_cols, aa);
 
 // Build et = (R_A - I) t_X - (R_X t_B - t_A)  (3)
-Eigen::Matrix<T,3,1> et = (RA - I)*tX - (RX*tB - tA);
+Eigen::Matrix<T,3,1> et = (rot_a - I)*tX - (RX*tra_b - tra_a);
 
 // Stack, with optional sqrt weight s
 residuals[0..2] = s * aa[0..2];
@@ -180,12 +180,12 @@ stacked over motion pairs and solved in least squares for $r$, then $R_X=\exp(r)
 
 # Summary and the one fix to apply
 
-The `AX_XBResidual` is just the stacked Lie-log of the **rotation closure** (3) and the **linear translation** (5), optionally weighted. It’s the exact, non-linear version of Tsai–Lenz, solved jointly in Ceres.
+The `ax_xb_residual` is just the stacked Lie-log of the **rotation closure** (3) and the **linear translation** (5), optionally weighted. It’s the exact, non-linear version of Tsai–Lenz, solved jointly in Ceres.
 
 **Fix in your implementation:** make sure the rotation misfit uses **$R_B^{\!\top}$**:
 
 ```cpp
-const Eigen::Matrix<T,3,3> RS = RA * RX * RB.transpose() * RX.transpose();
+const Eigen::Matrix<T,3,3> RS = rot_a * RX * rot_b.transpose() * RX.transpose();
 ```
 
 Everything else in your derivation (including the translation residual) aligns with the math above.

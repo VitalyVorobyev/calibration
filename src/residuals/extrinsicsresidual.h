@@ -46,7 +46,7 @@ struct ExtrinsicResidual final {
     }
 
     static auto* create(const PlanarView& view) {
-        if (view.empty()) throw std::invalid_argument("No observations provided");
+        if (view.empty()) { throw std::invalid_argument("No observations provided"); }
 
         auto* functor = new ExtrinsicResidual(view);
         constexpr int intr_size = CameraTraits<CameraT>::param_count;

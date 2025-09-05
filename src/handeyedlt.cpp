@@ -15,17 +15,17 @@ static auto make_motion_pair(const Eigen::Isometry3d& base_se3_gripper_a,
     Eigen::Isometry3d affine_a = base_se3_gripper_a.inverse() * base_se3_gripper_b;
     Eigen::Isometry3d affine_b = cam_se3_target_a * cam_se3_target_b.inverse();
     MotionPair motion_pair;
-    motion_pair.RA = projectToSO3(affine_a.linear());
-    motion_pair.RB = projectToSO3(affine_b.linear());
-    motion_pair.tA = affine_a.translation();
-    motion_pair.tB = affine_b.translation();
+    motion_pair.rot_a = projectToSO3(affine_a.linear());
+    motion_pair.rot_b = projectToSO3(affine_b.linear());
+    motion_pair.tra_a = affine_a.translation();
+    motion_pair.tra_b = affine_b.translation();
     return motion_pair;
 }
 
 static auto is_good_pair(const MotionPair& motion_pair, double min_angle, bool reject_axis_parallel,
                          double axis_parallel_eps) -> bool {
-    Eigen::Vector3d alpha = log_so3(motion_pair.RA);
-    Eigen::Vector3d beta = log_so3(motion_pair.RB);
+    Eigen::Vector3d alpha = log_so3(motion_pair.rot_a);
+    Eigen::Vector3d beta = log_so3(motion_pair.rot_b);
     const double norm_a = alpha.norm();
     const double norm_b = beta.norm();
     const double min_rot = std::min(norm_a, norm_b);
@@ -87,8 +87,8 @@ static auto estimate_rotation_allpairs_weighted(const std::vector<MotionPair>& p
     Eigen::MatrixXd mat_m(3 * num_pairs, 3);
     Eigen::VectorXd vec_d(3 * num_pairs);
     for (int idx = 0; idx < num_pairs; ++idx) {
-        Eigen::Vector3d alpha = log_so3(pairs[idx].RA);
-        Eigen::Vector3d beta = log_so3(pairs[idx].RB);
+        Eigen::Vector3d alpha = log_so3(pairs[idx].rot_a);
+        Eigen::Vector3d beta = log_so3(pairs[idx].rot_b);
         constexpr double k_weight = 1.0;
         mat_m.block<3, 3>(static_cast<Eigen::Index>(3 * idx), 0) = k_weight * skew(alpha + beta);
         vec_d.segment<3>(static_cast<Eigen::Index>(3 * idx)) = k_weight * (beta - alpha);
@@ -105,9 +105,9 @@ static auto estimate_translation_allpairs_weighted(
     Eigen::MatrixXd mat_c(3 * num_pairs, 3);
     Eigen::VectorXd vec_w(3 * num_pairs);
     for (int idx = 0; idx < num_pairs; ++idx) {
-        const Eigen::Matrix3d& rot_a = pairs[idx].RA;
-        const Eigen::Vector3d& tran_a = pairs[idx].tA;
-        const Eigen::Vector3d& tran_b = pairs[idx].tB;
+        const Eigen::Matrix3d& rot_a = pairs[idx].rot_a;
+        const Eigen::Vector3d& tran_a = pairs[idx].tra_a;
+        const Eigen::Vector3d& tran_b = pairs[idx].tra_b;
         constexpr double k_weight = 1.0;
         mat_c.block<3, 3>(static_cast<Eigen::Index>(3 * idx), 0) =
             k_weight * (rot_a - Eigen::Matrix3d::Identity());

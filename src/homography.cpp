@@ -81,8 +81,10 @@ static void normalize_points(const std::vector<Vec2>& points, std::vector<Vec2>&
 // DLT initial estimate with normalization
 auto estimate_homography_dlt(const std::vector<Vec2>& src, const std::vector<Vec2>& dst) -> Mat3 {
     const int num_pts = static_cast<int>(src.size());
-    std::vector<Vec2> src_norm, dst_norm;
-    Mat3 transform_src, transform_dst;
+    std::vector<Vec2> src_norm;
+    std::vector<Vec2> dst_norm;
+    Mat3 transform_src;
+    Mat3 transform_dst;
     normalize_points(src, src_norm, transform_src);
     normalize_points(dst, dst_norm, transform_dst);
     // Build A (2N x 9)
@@ -92,26 +94,28 @@ auto estimate_homography_dlt(const std::vector<Vec2>& src, const std::vector<Vec
         const double y = src_norm[idx].y();
         const double u = dst_norm[idx].x();
         const double v = dst_norm[idx].y();
+        const Eigen::Index even_idx = static_cast<Eigen::Index>(2 * idx);
+        const Eigen::Index odd_idx = even_idx + 1;
         // Row 2i
-        mat_a(static_cast<Eigen::Index>(2 * idx), 0) = 0.0;
-        mat_a(static_cast<Eigen::Index>(2 * idx), 1) = 0.0;
-        mat_a(static_cast<Eigen::Index>(2 * idx), 2) = 0.0;
-        mat_a(static_cast<Eigen::Index>(2 * idx), 3) = -x;
-        mat_a(static_cast<Eigen::Index>(2 * idx), 4) = -y;
-        mat_a(static_cast<Eigen::Index>(2 * idx), 5) = -1.0;
-        mat_a(static_cast<Eigen::Index>(2 * idx), 6) = v * x;
-        mat_a(static_cast<Eigen::Index>(2 * idx), 7) = v * y;
-        mat_a(static_cast<Eigen::Index>(2 * idx), 8) = v;
+        mat_a(even_idx, 0) = 0.0;
+        mat_a(even_idx, 1) = 0.0;
+        mat_a(even_idx, 2) = 0.0;
+        mat_a(even_idx, 3) = -x;
+        mat_a(even_idx, 4) = -y;
+        mat_a(even_idx, 5) = -1.0;
+        mat_a(even_idx, 6) = v * x;
+        mat_a(even_idx, 7) = v * y;
+        mat_a(even_idx, 8) = v;
         // Row 2i+1
-        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 0) = x;
-        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 1) = y;
-        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 2) = 1.0;
-        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 3) = 0.0;
-        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 4) = 0.0;
-        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 5) = 0.0;
-        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 6) = -u * x;
-        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 7) = -u * y;
-        mat_a(static_cast<Eigen::Index>(2 * idx + 1), 8) = -u;
+        mat_a(odd_idx, 0) = x;
+        mat_a(odd_idx, 1) = y;
+        mat_a(odd_idx, 2) = 1.0;
+        mat_a(odd_idx, 3) = 0.0;
+        mat_a(odd_idx, 4) = 0.0;
+        mat_a(odd_idx, 5) = 0.0;
+        mat_a(odd_idx, 6) = -u * x;
+        mat_a(odd_idx, 7) = -u * y;
+        mat_a(odd_idx, 8) = -u;
     }
     // Solve Ah = 0, h = last singular vector
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(mat_a, Eigen::ComputeFullV);
@@ -200,7 +204,7 @@ OptimizeHomographyResult optimize_homography(const std::vector<Vec2>& src,
     solve_problem(problem, options, &result);
 
     Mat3 hmtx = params_to_h(blocks.params);
-    if (std::abs(hmtx(2, 2)) > 1e-15) hmtx /= hmtx(2, 2);
+    if (std::abs(hmtx(2, 2)) > 1e-15) { hmtx /= hmtx(2, 2); }
     result.homography = hmtx;
 
     if (options.compute_covariance) {

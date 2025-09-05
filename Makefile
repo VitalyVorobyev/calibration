@@ -27,9 +27,11 @@ format-check: ## Check code formatting
 
 lint: build ## Run static analysis
 	@echo "Running clang-tidy..."
-	clang-tidy -p $(BUILD_DIR) src/*.cpp --config-file=.clang-tidy --header-filter=".*calib.*"
+	clang-tidy -p $(BUILD_DIR) src/*.cpp --config-file=.clang-tidy --header-filter="^$(shell pwd)/(include|src)/.*"
 	@echo "Running cppcheck..."
-	cppcheck --enable=all --std=c++20 --suppress=missingIncludeSystem --suppress=unusedFunction src/ include/
+	cppcheck --enable=all --std=c++20 --suppress=missingIncludeSystem --suppress=unusedFunction \
+		--suppress=unmatchedSuppression --suppress=unreadVariable \
+		-I include src/ include/calib/
 
 coverage: ## Generate test coverage report
 	cmake -S . -B $(BUILD_DIR) -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage -g -O0"

@@ -14,8 +14,8 @@
 namespace calib {
 
 struct MotionPair final {
-    Eigen::Matrix3d RA, RB;
-    Eigen::Vector3d tA, tB;
+    Eigen::Matrix3d rot_a, rot_b;
+    Eigen::Vector3d tra_a, tra_b;
 };
 
 auto build_all_pairs(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
