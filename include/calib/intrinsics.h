@@ -1,4 +1,15 @@
-/** @brief Optimization of camera intrinsics parameters */
+/**
+ * @file intrinsics.h
+ * @brief Camera intrinsic parameter estimation and optimization
+ * @ingroup camera_calibration
+ * 
+ * This file provides comprehensive intrinsic camera calibration functionality including:
+ * - Linear least squares estimation (DLT)
+ * - Semi-linear iterative refinement
+ * - Bundle adjustment with distortion correction
+ * - Uncertainty quantification through covariance estimation
+ * - Support for various camera models and constraints
+ */
 
 #pragma once
 
@@ -16,18 +27,33 @@
 
 namespace calib {
 
-// Estimate camera intrinsics (fx, fy, cx, cy[, skew]) by solving a linear
-// least-squares system that ignores lens distortion.  The input
-// observations contain normalized coordinates (x,y) for an undistorted
-// point and the observed pixel coordinates (u,v).  The function returns
-// an optional CameraMatrix: std::nullopt is returned if there are not
-// enough observations or the linear system is degenerate.
+/**
+ * @brief Estimate camera intrinsics using linear least squares
+ * @ingroup camera_calibration
+ * 
+ * Estimates camera intrinsic parameters (fx, fy, cx, cy, optionally skew) 
+ * by solving a linear least-squares system that ignores lens distortion.
+ * The input observations contain normalized coordinates (x,y) for undistorted
+ * points and observed pixel coordinates (u,v).
+ * 
+ * @param observations Vector of distortion observations
+ * @param bounds Optional calibration parameter bounds
+ * @param use_skew Whether to estimate skew parameter
+ * @return Optional camera matrix (nullopt if insufficient data or degenerate system)
+ * 
+ * @note Requires at least 6 observations for overdetermined system
+ * @note Ignores lens distortion - suitable for initial estimation only
+ */
 auto estimate_intrinsics_linear(const std::vector<Observation<double>>& observations,
                                 std::optional<CalibrationBounds> bounds = std::nullopt,
                                 bool use_skew = false) -> std::optional<CameraMatrix>;
 
-// Improved linear initialization that alternates between estimating
-// distortion coefficients (fit_distortion) and re-solving for camera
+/**
+ * @brief Improved linear initialization with distortion estimation
+ * @ingroup camera_calibration
+ * 
+ * Iterative algorithm that alternates between estimating distortion coefficients
+ * and re-solving for camera intrinsics to provide better initial estimates.
 // intrinsics (estimate_intrinsics_linear).  Returns std::nullopt if the
 // initial linear estimation fails.  The number of radial distortion
 // coefficients and the number of refinement iterations can be specified.

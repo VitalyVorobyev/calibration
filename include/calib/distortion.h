@@ -1,4 +1,14 @@
-/** @brief Linear least squares design matrix for distortion parameters */
+/**
+ * @file distortion.h
+ * @brief Lens distortion models and correction algorithms
+ * @ingroup distortion_correction
+ * 
+ * This file provides comprehensive lens distortion functionality including:
+ * - C++20 concept-based distortion model interface
+ * - Radial and tangential distortion correction
+ * - Forward and inverse distortion mapping
+ * - Linear least squares design matrix computation for distortion parameters
+ */
 
 #pragma once
 
@@ -15,6 +25,21 @@
 
 namespace calib {
 
+/**
+ * @brief Concept defining the interface for lens distortion models
+ * @ingroup distortion_correction
+ * 
+ * A distortion model must provide both forward distortion and inverse undistortion
+ * operations for normalized 2D coordinates. This concept ensures type safety and
+ * compile-time verification of distortion model implementations.
+ * 
+ * @tparam D The distortion model type
+ * 
+ * Requirements:
+ * - Must have a Scalar type member
+ * - Must provide distort() method for forward mapping
+ * - Must provide undistort() method for inverse mapping
+ */
 template <typename D>
 concept distortion_model =
     requires(const D& distortion, const Eigen::Matrix<typename D::Scalar, 2, 1>& point2d) {
@@ -26,12 +51,39 @@ concept distortion_model =
         } -> std::same_as<Eigen::Matrix<typename D::Scalar, 2, 1>>;
     };
 
+/**
+ * @brief Observation structure for distortion parameter estimation
+ * @ingroup distortion_correction
+ * 
+ * This structure holds corresponding normalized undistorted coordinates
+ * and observed distorted pixel coordinates, used for distortion parameter
+ * estimation through linear least squares or bundle adjustment.
+ * 
+ * @tparam T Scalar type (float, double, etc.)
+ */
 template <typename T>
 struct Observation final {
-    T x, y;  // normalized undistorted coords
-    T u, v;  // observed distorted pixel coords
+    T x, y;  ///< Normalized undistorted coordinates
+    T u, v;  ///< Observed distorted pixel coordinates
 };
 
+/**
+ * @brief Apply lens distortion to normalized coordinates
+ * @ingroup distortion_correction
+ * 
+ * Applies radial and tangential distortion to normalized 2D coordinates
+ * using the Brown-Conrady distortion model. The distortion coefficients
+ * are ordered as [k1, k2, ..., kn, p1, p2] where ki are radial distortion
+ * coefficients and p1, p2 are tangential distortion coefficients.
+ * 
+ * @tparam T Scalar type (float, double, etc.)
+ * @param norm_xy Normalized undistorted 2D coordinates
+ * @param coeffs Distortion coefficients vector (minimum 2 elements)
+ * @return Distorted normalized coordinates
+ * @throws std::runtime_error if coeffs has fewer than 2 elements
+ * 
+ * @note The input coordinates should be normalized by the camera intrinsics
+ */
 template <typename T>
 [[nodiscard]]
 auto apply_distortion(const Eigen::Matrix<T, 2, 1>& norm_xy,

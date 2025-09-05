@@ -126,7 +126,7 @@ static auto correct_observations_for_distortion(
         const double u_corr = observation.u - kmtx.fx * delta.x() - kmtx.skew * delta.y();
         const double v_corr = observation.v - kmtx.fy * delta.y();
 
-        corrected.emplace_back(observation.x, observation.y, u_corr, v_corr);
+        corrected.push_back(Observation<double>{observation.x, observation.y, u_corr, v_corr});
     }
 
     return corrected;

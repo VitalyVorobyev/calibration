@@ -21,21 +21,21 @@ using Mat3 = Eigen::Matrix3d;
 // Simple SVD-based plane initialization
 static Eigen::Vector4d fit_plane_svd(const std::vector<Vec3>& pts) {
     Vec3 centroid = std::accumulate(pts.cbegin(), pts.cend(), Vec3{Vec3::Zero()},
-                                    [](const Vec3& a, const Vec3& b) -> Vec3 { return a + b; });
+                                    [](const Vec3& avec, const Vec3& bvec) -> Vec3 { return avec + bvec; });
     centroid /= static_cast<double>(pts.size());
 
-    Eigen::MatrixXd A(static_cast<Eigen::Index>(pts.size()), 3);
+    Eigen::MatrixXd amtx(static_cast<Eigen::Index>(pts.size()), 3);
     for (size_t i = 0; i < pts.size(); ++i) {
-        A.row(static_cast<Eigen::Index>(i)) = (pts[i] - centroid).transpose();
+        amtx.row(static_cast<Eigen::Index>(i)) = (pts[i] - centroid).transpose();
     }
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullV);
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(amtx, Eigen::ComputeFullV);
     Vec3 normal = svd.matrixV().col(2);
     double d = -normal.dot(centroid);
     return {normal.x(), normal.y(), normal.z(), d};
 }
 
 struct PlaneResidual final {
-    explicit PlaneResidual(const Vec3& p) : p_(p) {}
+    explicit PlaneResidual(Vec3 p) : p_(std::move(p)) {}
 
     template <typename T>
     bool operator()(const T* plane, T* residual) const {
@@ -63,8 +63,7 @@ static void validate_observations(const std::vector<LineScanObservation>& views)
         throw std::invalid_argument("At least 2 views are required");
     }
 
-    for (size_t i = 0; i < views.size(); ++i) {
-        const auto& v = views[i];
+    for (const auto& v : views) {
         if (v.target_xy.size() < 4 || v.target_xy.size() != v.target_uv.size()) {
             throw std::invalid_argument("Each view requires >=4 target correspondences");
         }
@@ -83,7 +82,7 @@ static std::vector<Vec3> process_view(const LineScanObservation& view,
 
     // Homography from normalized pixels to plane
     // TODO: consider homography optimization
-    Mat3 H_norm_to_obj = estimate_homography_dlt(img_norm, view.target_xy);
+    Mat3 h_norm_to_obj = estimate_homography_dlt(img_norm, view.target_xy);
 
     // Pose of plane (world->camera)
     Eigen::Isometry3d pose = estimate_planar_pose_dlt(view.target_xy, view.target_uv, camera.kmtx);
@@ -91,7 +90,7 @@ static std::vector<Vec3> process_view(const LineScanObservation& view,
     // Reproject laser pixels to plane and transform to camera coordinates
     for (const auto& lpix : view.laser_uv) {
         Vec2 norm = camera.unproject(lpix);
-        Eigen::Vector3d hp = H_norm_to_obj * Eigen::Vector3d(norm.x(), norm.y(), 1.0);
+        Eigen::Vector3d hp = h_norm_to_obj * Eigen::Vector3d(norm.x(), norm.y(), 1.0);
         Vec2 plane_xy = hp.hnormalized();
         Vec3 obj_pt(plane_xy.x(), plane_xy.y(), 0.0);
         Vec3 cam_pt = pose * obj_pt;
@@ -108,14 +107,13 @@ static Eigen::Vector4d fit_plane(const std::vector<Vec3>& points, std::string& s
     }
 
     Eigen::Vector4d init = fit_plane_svd(points);
-    double params[4] = {init[0], init[1], init[2], init[3]};
-
-    auto* loss_function = new ceres::HuberLoss(1.0);
+    std::array<double, 4> params = {init[0], init[1], init[2], init[3]};
 
     ceres::Problem problem;
     for (const auto& p : points) {
         auto* cost = PlaneResidual::create(p);
-        problem.AddResidualBlock(cost, loss_function, params);
+        // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks) - ownership transferred to ceres::Problem
+        problem.AddResidualBlock(cost, new ceres::HuberLoss(1.0), params.data());
     }
 
     ceres::Solver::Options opts;
@@ -126,7 +124,7 @@ static Eigen::Vector4d fit_plane(const std::vector<Vec3>& points, std::string& s
 
     // Normalize the plane parameters
     double nrm = std::sqrt(params[0] * params[0] + params[1] * params[1] + params[2] * params[2]);
-    return Eigen::Vector4d(params[0] / nrm, params[1] / nrm, params[2] / nrm, params[3] / nrm);
+    return {params[0] / nrm, params[1] / nrm, params[2] / nrm, params[3] / nrm};
 }
 
 // Computes statistics for the fitted plane
@@ -134,7 +132,7 @@ static void compute_plane_statistics(const std::vector<Vec3>& points, const Eige
                                      LineScanCalibrationResult& result) {
     // Denormalized plane parameters for covariance computation
     double nrm = plane.head<3>().norm();
-    double params[4] = {plane[0] * nrm, plane[1] * nrm, plane[2] * nrm, plane[3] * nrm};
+    std::array<double, 4> params = {plane[0] * nrm, plane[1] * nrm, plane[2] * nrm, plane[3] * nrm};
 
     // Compute residual stats
     double ssr = 0.0;
@@ -147,26 +145,24 @@ static void compute_plane_statistics(const std::vector<Vec3>& points, const Eige
     double sigma2 = ssr / dof;
     result.rms_error = std::sqrt(ssr / m);
 
-    // Create a robust loss function (Huber with delta=1.0)
-    ceres::LossFunction* loss_function = new ceres::HuberLoss(1.0);
-
     // Create problem for covariance computation
     ceres::Problem problem;
     for (const auto& p : points) {
         auto* cost = PlaneResidual::create(p);
-        problem.AddResidualBlock(cost, loss_function, params);
+        // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks) - ownership transferred to ceres::Problem
+        problem.AddResidualBlock(cost, new ceres::HuberLoss(1.0), params.data());
     }
 
     // Covariance of plane params
     ceres::Covariance::Options copt;
     ceres::Covariance cov(copt);
-    std::vector<std::pair<const double*, const double*>> blocks = {{params, params}};
+    std::vector<std::pair<const double*, const double*>> blocks = {{params.data(), params.data()}};
     if (cov.Compute(blocks, &problem)) {
-        double Cov4[16];
-        cov.GetCovarianceBlock(params, params, Cov4);
-        Eigen::Map<Eigen::Matrix<double, 4, 4>> C(Cov4);
-        C *= sigma2;
-        result.covariance = C;
+        std::array<double, 16> cov4{};
+        cov.GetCovarianceBlock(params.data(), params.data(), cov4.data());
+        Eigen::Map<Eigen::Matrix<double, 4, 4>> c(cov4.data());
+        c *= sigma2;
+        result.covariance = c;
     } else {
         result.covariance.setZero();
     }
@@ -179,11 +175,11 @@ static Mat3 build_plane_homography(const Eigen::Vector4d& plane) {
     Vec3 tmp = (std::abs(nvec.z()) < 0.9) ? Vec3::UnitZ() : Vec3::UnitX();
     Vec3 e1 = nvec.cross(tmp).normalized();
     Vec3 e2 = nvec.cross(e1).normalized();
-    Mat3 H_plane_to_norm;
-    H_plane_to_norm.col(0) = e1;
-    H_plane_to_norm.col(1) = e2;
-    H_plane_to_norm.col(2) = p0;
-    return H_plane_to_norm.inverse();
+    Mat3 h_plane_to_norm;
+    h_plane_to_norm.col(0) = e1;
+    h_plane_to_norm.col(1) = e2;
+    h_plane_to_norm.col(2) = p0;
+    return h_plane_to_norm.inverse();
 }
 
 LineScanCalibrationResult calibrate_laser_plane(const std::vector<LineScanObservation>& views,

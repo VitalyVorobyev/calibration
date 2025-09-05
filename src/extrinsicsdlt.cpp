@@ -11,6 +11,10 @@ namespace calib {
 static auto estimate_pose(const PlanarView& view,
                           const CameraMatrix& intrinsics) -> Eigen::Isometry3d {
     // Extract object points and image points
+    if (view.size() < 4) {
+        std::cerr << "Warning: Insufficient observations (need ≥4 points)\n";
+        return Eigen::Isometry3d::Identity();
+    }
     std::vector<Eigen::Vector2d> object_points;
     std::vector<Eigen::Vector2d> image_points;
     for (const auto& obs : view) {

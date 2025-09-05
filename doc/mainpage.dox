@@ -1,0 +1,172 @@
+/**
+ * @mainpage Calibration Library Documentation
+ * 
+ * @section intro_sec Introduction
+ * 
+ * The Calibration Library is a comprehensive C++ library for camera calibration and 
+ * vision-related geometric transformations. It provides modular components for various 
+ * computer vision tasks including camera intrinsic/extrinsic calibration, distortion 
+ * correction, hand-eye calibration, and homography estimation.
+ * 
+ * @section features_sec Key Features
+ * 
+ * - **Camera Calibration**: Intrinsic and extrinsic calibration from planar targets
+ * - **Distortion Models**: Support for various lens distortion models with C++20 concepts
+ * - **Hand-Eye Calibration**: Bundle adjustment for single and multi-camera systems
+ * - **Geometric Transformations**: Homography estimation and planar pose computation
+ * - **Optimization**: Ceres-based non-linear optimization with covariance estimation
+ * - **Serialization**: Automatic JSON I/O for all data structures
+ * - **Multi-Camera Support**: Unified framework for multi-camera calibration
+ * 
+ * @section architecture_sec Architecture
+ * 
+ * The library follows a modular design with the following key components:
+ * 
+ * ### Core Modules
+ * - @ref calib::CameraMatrixT "Camera Matrix": Intrinsic parameter representation
+ * - @ref calib::distortion_model "Distortion Models": Template-based distortion correction
+ * - @ref calib "Bundle Adjustment": Multi-camera optimization framework
+ * - @ref calib "Homography": Planar transformation utilities
+ * - @ref calib "Hand-Eye Calibration": Robot-camera calibration algorithms
+ * 
+ * ### Data Flow Pattern
+ * 1. **Observations** → Structured observation types (e.g., PlanarView)
+ * 2. **Initial Estimates** → Direct Linear Transform (DLT) methods
+ * 3. **Refinement** → Ceres-based bundle adjustment
+ * 4. **Results** → Structured result types with covariance and error metrics
+ * 
+ * @section usage_sec Getting Started
+ * 
+ * ### Basic Camera Calibration
+ * 
+ * ```cpp
+ * #include <calib/calib.h>
+ * 
+ * // Create observations from planar target
+ * std::vector<calib::PlanarObservation> observations;
+ * // ... populate observations
+ * 
+ * // Estimate initial intrinsics
+ * auto camera_matrix = calib::estimate_intrinsics_dlt(observations);
+ * 
+ * // Refine with bundle adjustment
+ * auto result = calib::optimize_intrinsics(observations, camera_matrix);
+ * ```
+ * 
+ * ### Hand-Eye Calibration
+ * 
+ * ```cpp
+ * #include <calib/handeye.h>
+ * 
+ * // Prepare robot poses and camera observations
+ * std::vector<calib::HandEyeObservation> observations;
+ * // ... populate observations
+ * 
+ * // Estimate initial transformation
+ * auto initial_estimate = calib::handeye_dlt(observations);
+ * 
+ * // Refine with bundle adjustment
+ * auto result = calib::handeye_bundle(observations, initial_estimate);
+ * ```
+ * 
+ * @section deps_sec Dependencies
+ * 
+ * - **Eigen3**: Core linear algebra operations
+ * - **Ceres**: Non-linear optimization engine
+ * - **nlohmann::json**: JSON parsing and serialization
+ * - **CLI11**: Command-line argument parsing
+ * - **GoogleTest/GoogleMock**: Unit testing frameworks
+ * - **Boost.PFR**: Header-only reflection for automatic serialization
+ * 
+ * @section build_sec Building
+ * 
+ * ```bash
+ * # Configure
+ * cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+ * 
+ * # Build
+ * cmake --build build -j2
+ * 
+ * # Test
+ * cd build && ctest
+ * ```
+ * 
+ * @section examples_sec Examples
+ * 
+ * The library includes several example applications:
+ * 
+ * - **Homography Example**: Demonstrates planar transformation estimation
+ * - **Calibration App**: Command-line tool for various calibration tasks
+ * 
+ * @section api_sec API Reference
+ * 
+ * For detailed API documentation, see the following modules:
+ * 
+ * - @ref camera_calibration "Camera Calibration"
+ * - @ref distortion_correction "Distortion Correction" 
+ * - @ref hand_eye_calibration "Hand-Eye Calibration"
+ * - @ref geometric_transforms "Geometric Transformations"
+ * - @ref optimization "Optimization Framework"
+ * 
+ * @section license_sec License
+ * 
+ * This library is released under the MIT License. See the LICENSE file for details.
+ * 
+ * @author Vitaly Vorobyev
+ * @date 2025
+ */
+
+/**
+ * @defgroup camera_calibration Camera Calibration
+ * @brief Functions and classes for camera intrinsic and extrinsic calibration
+ * 
+ * This module provides comprehensive camera calibration functionality including:
+ * - Intrinsic parameter estimation from planar targets
+ * - Extrinsic pose estimation
+ * - Bundle adjustment for multi-view calibration
+ * - Covariance estimation for uncertainty quantification
+ */
+
+/**
+ * @defgroup distortion_correction Distortion Correction
+ * @brief Lens distortion models and correction algorithms
+ * 
+ * This module implements various lens distortion models using C++20 concepts:
+ * - Radial distortion models
+ * - Tangential distortion models
+ * - Template-based distortion correction
+ * - Forward and inverse distortion mapping
+ */
+
+/**
+ * @defgroup hand_eye_calibration Hand-Eye Calibration
+ * @brief Robot-camera calibration algorithms
+ * 
+ * This module provides hand-eye calibration functionality:
+ * - AX=XB problem solving
+ * - Bundle adjustment for hand-eye calibration
+ * - Multi-camera hand-eye calibration
+ * - Uncertainty quantification
+ */
+
+/**
+ * @defgroup geometric_transforms Geometric Transformations
+ * @brief Homography and planar transformation utilities
+ * 
+ * This module includes:
+ * - Homography estimation from point correspondences
+ * - Planar pose estimation
+ * - Direct Linear Transform (DLT) algorithms
+ * - Non-linear refinement
+ */
+
+/**
+ * @defgroup optimization Optimization Framework
+ * @brief Ceres-based optimization and bundle adjustment
+ * 
+ * This module provides:
+ * - Custom residual functions for computer vision problems
+ * - Bundle adjustment frameworks
+ * - Covariance estimation
+ * - Robust loss functions
+ */

@@ -1,4 +1,14 @@
-/** @brief Homography estimation and refinement */
+/**
+ * @file homography.h
+ * @brief Homography estimation and refinement algorithms
+ * @ingroup geometric_transforms
+ * 
+ * This file provides comprehensive homography computation functionality including:
+ * - Direct Linear Transform (DLT) for initial estimation
+ * - Bundle adjustment for non-linear refinement
+ * - Robust estimation with outlier rejection
+ * - Uncertainty quantification through covariance estimation
+ */
 
 #pragma once
 

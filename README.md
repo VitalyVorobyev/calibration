@@ -152,7 +152,73 @@ make coverage
 
 ## Documentation
 
-For detailed documentation, see the [doc](doc/) directory.
+### Generating Documentation
+
+This project uses [Doxygen](https://www.doxygen.nl/) to generate comprehensive API documentation. The documentation includes:
+
+- Complete API reference with class diagrams
+- Usage examples and tutorials
+- Module organization and dependency graphs
+- Detailed descriptions of algorithms and mathematical concepts
+
+#### Prerequisites
+
+Install Doxygen and Graphviz:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install doxygen graphviz
+
+# macOS
+brew install doxygen graphviz
+
+# Windows
+# Download from https://www.doxygen.nl/download.html
+```
+
+#### Generate Documentation
+
+```bash
+# Generate documentation
+./generate_docs.sh
+
+# Generate and automatically open in browser
+./generate_docs.sh --open
+
+# Alternative: use CMake
+cmake --build build --target doc
+```
+
+#### View Documentation
+
+```bash
+# Serve documentation locally (recommended)
+./serve_docs.py
+
+# Alternative: serve on specific port
+./serve_docs.py --port 8080
+
+# Or manually open the HTML file
+open doc/doxygen/html/index.html
+```
+
+The generated documentation includes:
+
+- **Main Page**: Overview and getting started guide
+- **Modules**: Organized by functionality (calibration, distortion, optimization, etc.)
+- **Classes**: Complete API reference with inheritance diagrams
+- **Files**: Source code browser with syntax highlighting
+- **Examples**: Code examples and usage patterns
+
+### Documentation Structure
+
+- **Camera Calibration**: Intrinsic and extrinsic parameter estimation
+- **Distortion Correction**: Lens distortion models and correction algorithms  
+- **Hand-Eye Calibration**: Robot-camera calibration methods
+- **Geometric Transforms**: Homography and planar pose estimation
+- **Optimization Framework**: Ceres-based bundle adjustment and covariance estimation
+
+For detailed documentation, see the generated HTML documentation or browse the [doc](doc/) directory.
 
 ## License
 

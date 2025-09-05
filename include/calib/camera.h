@@ -1,3 +1,13 @@
+/**
+ * @file camera.h
+ * @brief Complete camera model with intrinsics and distortion
+ * @ingroup camera_calibration
+ * 
+ * This file provides a unified camera model that combines intrinsic parameters
+ * with lens distortion correction, supporting various distortion models through
+ * the distortion_model concept.
+ */
+
 #pragma once
 
 #include <Eigen/Core>
@@ -9,21 +19,56 @@
 
 namespace calib {
 
+/**
+ * @brief Complete camera model with intrinsics and distortion correction
+ * @ingroup camera_calibration
+ * 
+ * This class represents a complete camera model combining intrinsic parameters
+ * (focal length, principal point, skew) with lens distortion correction.
+ * The distortion model is templated and must satisfy the distortion_model concept.
+ * 
+ * @tparam DistortionT Distortion model type (must satisfy distortion_model concept)
+ * 
+ * Key features:
+ * - Unified pixel-to-world and world-to-pixel transformations
+ * - Template-based distortion model support
+ * - Automatic type deduction for scalar types
+ * - Efficient coordinate transformations
+ */
 template <distortion_model DistortionT>
 class Camera final {
   public:
-    using Scalar = typename DistortionT::Scalar;
-    CameraMatrixT<Scalar> kmtx;  ///< Intrinsic camera matrix parameters
-    DistortionT distortion;      ///< Distortion model
+    using Scalar = typename DistortionT::Scalar;  ///< Scalar type from distortion model
+    CameraMatrixT<Scalar> kmtx;                   ///< Intrinsic camera matrix parameters
+    DistortionT distortion;                       ///< Distortion model instance
 
+    /// Default constructor
     Camera() = default;
+    
+    /**
+     * @brief Construct camera with intrinsic matrix and distortion model
+     * @param matrix Intrinsic camera matrix
+     * @param distortion_model Distortion model instance
+     */
     Camera(const CameraMatrixT<Scalar>& matrix, const DistortionT& distortion_model)
         : kmtx(matrix), distortion(distortion_model) {}
 
+    /**
+     * @brief Construct camera with intrinsic matrix and distortion coefficients
+     * @tparam Derived Eigen matrix expression type
+     * @param matrix Intrinsic camera matrix
+     * @param coeffs Distortion coefficients
+     */
     template <typename Derived>
     Camera(const CameraMatrixT<Scalar>& matrix, const Eigen::MatrixBase<Derived>& coeffs)
         : kmtx(matrix), distortion(coeffs) {}
 
+    /**
+     * @brief Normalize pixel coordinates using intrinsic parameters
+     * @tparam T Scalar type for computation
+     * @param pixel 2D pixel coordinate
+     * @return Normalized 2D coordinate
+     */
     template <typename T>
     [[nodiscard]]
     auto normalize(const Eigen::Matrix<T, 2, 1>& pixel) const -> Eigen::Matrix<T, 2, 1> {

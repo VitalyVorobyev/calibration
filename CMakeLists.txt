@@ -10,6 +10,21 @@ find_package(nlohmann_json CONFIG REQUIRED)
 find_package(CLI11 CONFIG REQUIRED)
 find_package(GTest CONFIG REQUIRED)
 
+# Optional: Find Doxygen for documentation generation
+find_package(Doxygen QUIET)
+if(DOXYGEN_FOUND)
+    # Add documentation target
+    add_custom_target(doc
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_SOURCE_DIR}/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM
+    )
+    message(STATUS "Doxygen found: documentation target 'doc' available")
+else()
+    message(STATUS "Doxygen not found: documentation will not be built")
+endif()
+
 enable_testing()
 
 add_subdirectory(src)
