@@ -114,12 +114,12 @@ inline void from_json(const nlohmann::json& j, BrownConradyd& d) {
 
 template <distortion_model DistortionT>
 inline void to_json(nlohmann::json& j, const Camera<DistortionT>& cam) {
-    j = {{"K", cam.K}, {"distortion", cam.distortion}};
+    j = {{"kmtx", cam.kmtx}, {"distortion", cam.distortion}};
 }
 
 template <distortion_model DistortionT>
 inline void from_json(const nlohmann::json& j, Camera<DistortionT>& cam) {
-    j.at("K").get_to(cam.K);
+    j.at("kmtx").get_to(cam.kmtx);
     if (j.contains("distortion")) j.at("distortion").get_to(cam.distortion);
 }
 

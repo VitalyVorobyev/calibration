@@ -1,4 +1,14 @@
-/** @brief Linear least squares design matrix for distortion parameters */
+/**
+ * @file distortion.h
+ * @brief Lens distortion models and correction algorithms
+ * @ingroup distortion_correction
+ *
+ * This file provides comprehensive lens distortion functionality including:
+ * - C++20 concept-based distortion model interface
+ * - Radial and tangential distortion correction
+ * - Forward and inverse distortion mapping
+ * - Linear least squares design matrix computation for distortion parameters
+ */
 
 #pragma once
 
@@ -11,8 +21,25 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
+#include "calib/cameramatrix.h"
+
 namespace calib {
 
+/**
+ * @brief Concept defining the interface for lens distortion models
+ * @ingroup distortion_correction
+ *
+ * A distortion model must provide both forward distortion and inverse undistortion
+ * operations for normalized 2D coordinates. This concept ensures type safety and
+ * compile-time verification of distortion model implementations.
+ *
+ * @tparam D The distortion model type
+ *
+ * Requirements:
+ * - Must have a Scalar type member
+ * - Must provide distort() method for forward mapping
+ * - Must provide undistort() method for inverse mapping
+ */
 template <typename D>
 concept distortion_model =
     requires(const D& distortion, const Eigen::Matrix<typename D::Scalar, 2, 1>& point2d) {
@@ -24,12 +51,39 @@ concept distortion_model =
         } -> std::same_as<Eigen::Matrix<typename D::Scalar, 2, 1>>;
     };
 
+/**
+ * @brief Observation structure for distortion parameter estimation
+ * @ingroup distortion_correction
+ *
+ * This structure holds corresponding normalized undistorted coordinates
+ * and observed distorted pixel coordinates, used for distortion parameter
+ * estimation through linear least squares or bundle adjustment.
+ *
+ * @tparam T Scalar type (float, double, etc.)
+ */
 template <typename T>
 struct Observation final {
-    T x, y;  // normalized undistorted coords
-    T u, v;  // observed distorted pixel coords
+    T x, y;  ///< Normalized undistorted coordinates
+    T u, v;  ///< Observed distorted pixel coordinates
 };
 
+/**
+ * @brief Apply lens distortion to normalized coordinates
+ * @ingroup distortion_correction
+ *
+ * Applies radial and tangential distortion to normalized 2D coordinates
+ * using the Brown-Conrady distortion model. The distortion coefficients
+ * are ordered as [k1, k2, ..., kn, p1, p2] where ki are radial distortion
+ * coefficients and p1, p2 are tangential distortion coefficients.
+ *
+ * @tparam T Scalar type (float, double, etc.)
+ * @param norm_xy Normalized undistorted 2D coordinates
+ * @param coeffs Distortion coefficients vector (minimum 2 elements)
+ * @return Distorted normalized coordinates
+ * @throws std::runtime_error if coeffs has fewer than 2 elements
+ *
+ * @note The input coordinates should be normalized by the camera intrinsics
+ */
 template <typename T>
 [[nodiscard]]
 auto apply_distortion(const Eigen::Matrix<T, 2, 1>& norm_xy,
@@ -129,7 +183,7 @@ inline auto invert_brown_conrady(const Eigen::Matrix<Scalar, Eigen::Dynamic, 1>&
         }
     }
 
-    auto inv_opt = fit_distortion_full(obs, 1.0, 1.0, 0.0, 0.0, 0.0, num_radial);
+    auto inv_opt = fit_distortion_full(obs, {1.0, 1.0, 0.0, 0.0, 0.0}, num_radial);
     if (inv_opt.has_value()) {
         return inv_opt->distortion;
     }
@@ -170,8 +224,8 @@ struct DualDistortionWithResiduals final {
 // TODO: refactor for camera_model as a template parameter
 template <typename T>
 [[nodiscard]]
-auto fit_distortion_full(const std::vector<Observation<T>>& observations, T focal_x, T focal_y,
-                         T center_x, T center_y, T skew_param,
+auto fit_distortion_full(const std::vector<Observation<T>>& observations,
+                         const CameraMatrixT<T>& intrinsics,
                          int num_radial = 2) -> std::optional<DistortionWithResiduals<T>> {
     constexpr int k_min_observations = 8;
     if (observations.size() < k_min_observations) {
@@ -196,8 +250,8 @@ auto fit_distortion_full(const std::vector<Observation<T>>& observations, T foca
         const T y_coord = T(observations[obs_idx].y);
         const T r2_val = x_coord * x_coord + y_coord * y_coord;
 
-        const T undistorted_u = focal_x * x_coord + skew_param * y_coord + center_x;
-        const T undistorted_v = focal_y * y_coord + center_y;
+        const T undistorted_u = intrinsics.fx * x_coord + intrinsics.skew * y_coord + intrinsics.cx;
+        const T undistorted_v = intrinsics.fy * y_coord + intrinsics.cy;
 
         const T residual_u = T(observations[obs_idx].u) - undistorted_u;
         const T residual_v = T(observations[obs_idx].v) - undistorted_v;
@@ -208,18 +262,19 @@ auto fit_distortion_full(const std::vector<Observation<T>>& observations, T foca
         // Radial terms
         T rpow = r2_val;
         for (int j = 0; j < num_radial; ++j) {
-            design_matrix(row_u, j) = focal_x * x_coord * rpow + skew_param * y_coord * rpow;
-            design_matrix(row_v, j) = focal_y * y_coord * rpow;
+            design_matrix(row_u, j) =
+                intrinsics.fx * x_coord * rpow + intrinsics.skew * y_coord * rpow;
+            design_matrix(row_v, j) = intrinsics.fy * y_coord * rpow;
             rpow *= r2_val;
         }
 
         // Tangential terms
-        design_matrix(row_u, idx_p1) = focal_x * (T(2.0) * x_coord * y_coord) +
-                                       skew_param * (r2_val + T(2.0) * y_coord * y_coord);
-        design_matrix(row_u, idx_p2) = focal_x * (r2_val + T(2.0) * x_coord * x_coord) +
-                                       skew_param * (T(2.0) * x_coord * y_coord);
-        design_matrix(row_v, idx_p1) = focal_y * (r2_val + T(2.0) * y_coord * y_coord);
-        design_matrix(row_v, idx_p2) = focal_y * (T(2.0) * x_coord * y_coord);
+        design_matrix(row_u, idx_p1) = intrinsics.fx * (T(2.0) * x_coord * y_coord) +
+                                       intrinsics.skew * (r2_val + T(2.0) * y_coord * y_coord);
+        design_matrix(row_u, idx_p2) = intrinsics.fx * (r2_val + T(2.0) * x_coord * x_coord) +
+                                       intrinsics.skew * (T(2.0) * x_coord * y_coord);
+        design_matrix(row_v, idx_p1) = intrinsics.fy * (r2_val + T(2.0) * y_coord * y_coord);
+        design_matrix(row_v, idx_p2) = intrinsics.fy * (T(2.0) * x_coord * y_coord);
 
         rhs(row_u) = residual_u;
         rhs(row_v) = residual_v;
@@ -234,19 +289,16 @@ auto fit_distortion_full(const std::vector<Observation<T>>& observations, T foca
 }
 
 template <typename T>
-auto fit_distortion(const std::vector<Observation<T>>& observations, T focal_x, T focal_y,
-                    T center_x, T center_y, T skew_param,
+auto fit_distortion(const std::vector<Observation<T>>& observations,
+                    const CameraMatrixT<T>& intrinsics,
                     int num_radial = 2) -> std::optional<DistortionWithResiduals<T>> {
-    return fit_distortion_full(observations, focal_x, focal_y, center_x, center_y, skew_param,
-                               num_radial);
+    return fit_distortion_full(observations, intrinsics, num_radial);
 }
 
 inline auto fit_distortion_dual(const std::vector<Observation<double>>& observations,
-                                double focal_x, double focal_y, double center_x, double center_y,
-                                double skew_param,
+                                const CameraMatrix& intrinsics,
                                 int num_radial = 2) -> std::optional<DualDistortionWithResiduals> {
-    auto forward = fit_distortion_full(observations, focal_x, focal_y, center_x, center_y,
-                                       skew_param, num_radial);
+    auto forward = fit_distortion_full(observations, intrinsics, num_radial);
     if (!forward) {
         return std::nullopt;
     }
@@ -254,15 +306,14 @@ inline auto fit_distortion_dual(const std::vector<Observation<double>>& observat
     std::vector<Observation<double>> inv_observations;
     inv_observations.reserve(observations.size());
     for (const auto& obs : observations) {
-        double y_dist = (obs.v - center_y) / focal_y;
-        double x_dist = (obs.u - center_x - skew_param * y_dist) / focal_x;
-        double u_undist = focal_x * obs.x + skew_param * obs.y + center_x;
-        double v_undist = focal_y * obs.y + center_y;
+        double y_dist = (obs.v - intrinsics.cy) / intrinsics.fy;
+        double x_dist = (obs.u - intrinsics.cx - intrinsics.skew * y_dist) / intrinsics.fx;
+        double u_undist = intrinsics.fx * obs.x + intrinsics.skew * obs.y + intrinsics.cx;
+        double v_undist = intrinsics.fy * obs.y + intrinsics.cy;
         inv_observations.push_back({x_dist, y_dist, u_undist, v_undist});
     }
 
-    auto inverse = fit_distortion_full(inv_observations, focal_x, focal_y, center_x, center_y,
-                                       skew_param, num_radial);
+    auto inverse = fit_distortion_full(inv_observations, intrinsics, num_radial);
     if (!inverse) {
         return std::nullopt;
     }

@@ -2,3 +2,7 @@ build
 install
 .vscode
 coverage.info
+
+# Doxygen documentation
+doc/doxygen/
+*.tag

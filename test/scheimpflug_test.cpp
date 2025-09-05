@@ -7,11 +7,11 @@ using namespace calib;
 
 TEST(ScheimpflugCamera, ZeroTiltMatchesPinhole) {
     Camera<DualDistortion> cam;
-    cam.K.fx = 800; cam.K.fy = 820; cam.K.cx = 320; cam.K.cy = 240;
+    cam.kmtx.fx = 800; cam.kmtx.fy = 820; cam.kmtx.cx = 320; cam.kmtx.cy = 240;
     cam.distortion.forward = Eigen::VectorXd::Zero(2);
     cam.distortion.inverse = Eigen::VectorXd::Zero(2);
 
-    ScheimpflugCamera<DualDistortion> sc(cam, 0.0, 0.0);
+    ScheimpflugCamera<DualDistortion> sc(cam, {0.0, 0.0});
 
     Eigen::Vector3d Xc(0.2, -0.1, 1.0);
     Eigen::Vector2d uv_s = sc.project(Xc);
@@ -23,13 +23,13 @@ TEST(ScheimpflugCamera, ZeroTiltMatchesPinhole) {
 
 TEST(ScheimpflugCamera, PrincipalRay) {
     Camera<DualDistortion> cam;
-    cam.K.fx = 600; cam.K.fy = 600; cam.K.cx = 400; cam.K.cy = 300;
+    cam.kmtx.fx = 600; cam.kmtx.fy = 600; cam.kmtx.cx = 400; cam.kmtx.cy = 300;
     cam.distortion.forward = Eigen::VectorXd::Zero(2);
     cam.distortion.inverse = Eigen::VectorXd::Zero(2);
 
     const double taux = 0.1;
     const double tauy = -0.2;
-    ScheimpflugCamera<DualDistortion> sc(cam, taux, tauy);
+    ScheimpflugCamera<DualDistortion> sc(cam, {taux, tauy});
 
     Eigen::Vector3d Xc(0.0, 0.0, 1.0);
     Eigen::Vector2d uv = sc.project(Xc);

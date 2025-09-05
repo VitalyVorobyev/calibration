@@ -14,6 +14,11 @@
 
 namespace calib {
 
+struct ScheimpflugAngles final {
+    double tau_x{0};  ///< Tilt around the X axis (radians)
+    double tau_y{0};  ///< Tilt around the Y axis (radians)
+};
+
 /**
  * @brief Camera model with a tilted sensor plane (Scheimpflug configuration).
  *
@@ -31,14 +36,15 @@ struct ScheimpflugCamera final {
     Scalar tau_y{0};             ///< Tilt around the Y axis (radians)
 
     ScheimpflugCamera() = default;
-    ScheimpflugCamera(const Camera<DistortionT>& cam, Scalar tau_x_angle, Scalar tau_y_angle)
-        : camera(cam), tau_x(tau_x_angle), tau_y(tau_y_angle) {}
+    ScheimpflugCamera(const Camera<DistortionT>& cam, ScheimpflugAngles angles)
+        : camera(cam), tau_x(angles.tau_x), tau_y(angles.tau_y) {}
 
     template <distortion_model OtherDistortionT, typename T>
     ScheimpflugCamera(const Camera<OtherDistortionT>& cam, T tau_x_angle, T tau_y_angle)
-        : camera(Camera<DistortionT>(CameraMatrixT<Scalar>{Scalar(cam.K.fx), Scalar(cam.K.fy),
-                                                           Scalar(cam.K.cx), Scalar(cam.K.cy)},
-                                     cam.distortion.coeffs.template cast<Scalar>())),
+        : camera(
+              Camera<DistortionT>(CameraMatrixT<Scalar>{Scalar(cam.kmtx.fx), Scalar(cam.kmtx.fy),
+                                                        Scalar(cam.kmtx.cx), Scalar(cam.kmtx.cy)},
+                                  cam.distortion.coeffs.template cast<Scalar>())),
           tau_x(Scalar(tau_x_angle)),
           tau_y(Scalar(tau_y_angle)) {}
 
@@ -87,8 +93,8 @@ struct ScheimpflugCamera final {
         mx = dxy.x() + mx0;
         my = dxy.y() + my0;
 
-        T u = T(camera.K.fx) * mx + T(camera.K.skew) * my + T(camera.K.cx);
-        T v = T(camera.K.fy) * my + T(camera.K.cy);
+        T u = T(camera.kmtx.fx) * mx + T(camera.kmtx.skew) * my + T(camera.kmtx.cx);
+        T v = T(camera.kmtx.fy) * my + T(camera.kmtx.cy);
         return {u, v};
     }
 };
@@ -101,31 +107,31 @@ struct CameraTraits<ScheimpflugCamera<DistortionT>> {
     static constexpr int idx_fy = 1;    ///< Index of focal length in y
     static constexpr int idx_skew = 4;  ///< Index of skew parameter
 
-    static constexpr int kNumDistCoeffs = 5;
-    static constexpr int kTauXIdx = 5;
-    static constexpr int kTauYIdx = 6;
-    static constexpr int kDistStartIdx = 7;
+    static constexpr int k_num_dist_coeffs = 5;
+    static constexpr int k_tau_x_idx = 5;
+    static constexpr int k_tau_y_idx = 6;
+    static constexpr int k_dist_start_idx = 7;
     template <typename T>
     static auto from_array(const T* intr) -> ScheimpflugCamera<BrownConrady<T>> {
         CameraMatrixT<T> k_matrix{intr[0], intr[1], intr[2], intr[3], intr[4]};
-        Eigen::Matrix<T, Eigen::Dynamic, 1> dist(kNumDistCoeffs);
-        dist << intr[kDistStartIdx], intr[kDistStartIdx + 1], intr[kDistStartIdx + 2],
-            intr[kDistStartIdx + 3], intr[kDistStartIdx + 4];
+        Eigen::Matrix<T, Eigen::Dynamic, 1> dist(k_num_dist_coeffs);
+        dist << intr[k_dist_start_idx], intr[k_dist_start_idx + 1], intr[k_dist_start_idx + 2],
+            intr[k_dist_start_idx + 3], intr[k_dist_start_idx + 4];
         Camera<BrownConrady<T>> cam(k_matrix, dist);
-        return ScheimpflugCamera<BrownConrady<T>>(cam, intr[kTauXIdx], intr[kTauYIdx]);
+        return ScheimpflugCamera<BrownConrady<T>>(cam, intr[k_tau_x_idx], intr[k_tau_y_idx]);
     }
 
     static void to_array(const ScheimpflugCamera<DistortionT>& cam,
                          std::array<double, param_count>& arr) {
-        arr[0] = cam.camera.K.fx;
-        arr[1] = cam.camera.K.fy;
-        arr[2] = cam.camera.K.cx;
-        arr[3] = cam.camera.K.cy;
-        arr[4] = cam.camera.K.skew;
-        arr[kTauXIdx] = cam.tau_x;
-        arr[kTauYIdx] = cam.tau_y;
-        for (int i = 0; i < kNumDistCoeffs; ++i) {
-            arr[kDistStartIdx + i] = cam.camera.distortion.coeffs[i];
+        arr[0] = cam.camera.kmtx.fx;
+        arr[1] = cam.camera.kmtx.fy;
+        arr[2] = cam.camera.kmtx.cx;
+        arr[3] = cam.camera.kmtx.cy;
+        arr[4] = cam.camera.kmtx.skew;
+        arr[k_tau_x_idx] = cam.tau_x;
+        arr[k_tau_y_idx] = cam.tau_y;
+        for (int i = 0; i < k_num_dist_coeffs; ++i) {
+            arr[k_dist_start_idx + i] = cam.camera.distortion.coeffs[i];
         }
     }
 };

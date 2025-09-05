@@ -17,39 +17,41 @@
 namespace calib {
 
 // Decompose homography in normalized camera coords: H = [r1 r2 t]
-Eigen::Isometry3d pose_from_homography_normalized(const Eigen::Matrix3d& H) {
-    Eigen::Vector3d h1 = H.col(0);
-    Eigen::Vector3d h2 = H.col(1);
-    Eigen::Vector3d h3 = H.col(2);
+Eigen::Isometry3d pose_from_homography_normalized(const Eigen::Matrix3d& hmtx) {
+    Eigen::Vector3d hcol1 = hmtx.col(0);
+    Eigen::Vector3d hcol2 = hmtx.col(1);
+    Eigen::Vector3d hcol3 = hmtx.col(2);
 
-    double s = std::sqrt(h1.norm() * h2.norm());
-    if (s < 1e-12) s = 1.0;
-    Eigen::Vector3d r1 = h1 / s;
-    Eigen::Vector3d r2 = h2 / s;
-    Eigen::Vector3d r3 = r1.cross(r2);
+    double s = std::sqrt(hcol1.norm() * hcol2.norm());
+    if (s < 1e-12) {
+        s = 1.0;
+    }
+    Eigen::Vector3d rcol1 = hcol1 / s;
+    Eigen::Vector3d rcol2 = hcol2 / s;
+    Eigen::Vector3d rcol3 = rcol1.cross(rcol2);
 
     // Orthonormalize to the nearest rotation
-    Eigen::Matrix3d Rinit;
-    Rinit.col(0) = r1;
-    Rinit.col(1) = r2;
-    Rinit.col(2) = r3;
+    Eigen::Matrix3d r_init;
+    r_init.col(0) = rcol1;
+    r_init.col(1) = rcol2;
+    r_init.col(2) = rcol3;
 
-    Eigen::JacobiSVD<Eigen::Matrix3d> svd(Rinit, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    Eigen::Matrix3d R = svd.matrixU() * svd.matrixV().transpose();
-    if (R.determinant() < 0) {
-        Eigen::Matrix3d V = svd.matrixV();
-        V.col(2) *= -1.0;
-        R = svd.matrixU() * V.transpose();
+    Eigen::JacobiSVD<Eigen::Matrix3d> svd(r_init, Eigen::ComputeFullU | Eigen::ComputeFullV);
+    Eigen::Matrix3d rotation = svd.matrixU() * svd.matrixV().transpose();
+    if (rotation.determinant() < 0) {
+        Eigen::Matrix3d vmtx = svd.matrixV();
+        vmtx.col(2) *= -1.0;
+        rotation = svd.matrixU() * vmtx.transpose();
     }
-    Eigen::Vector3d t = h3 / s;
-    if (R(2, 2) < 0) {  // enforce cheirality (Z forward)
-        R = -R;
-        t = -t;
+    Eigen::Vector3d translation = hcol3 / s;
+    if (rotation(2, 2) < 0) {  // enforce cheirality (Z forward)
+        rotation = -rotation;
+        translation = -translation;
     }
 
     auto pose = Eigen::Isometry3d::Identity();
-    pose.linear() = R;
-    pose.translation() = t;
+    pose.linear() = rotation;
+    pose.translation() = translation;
     return pose;
 }
 
@@ -59,7 +61,8 @@ auto estimate_planar_pose_dlt(const PlanarView& observations,
         return Eigen::Isometry3d::Identity();
     }
 
-    std::vector<Eigen::Vector2d> object_xy, image_uv;
+    std::vector<Eigen::Vector2d> object_xy;
+    std::vector<Eigen::Vector2d> image_uv;
     for (const auto& item : observations) {
         object_xy.push_back(item.object_xy);
         image_uv.push_back(item.image_uv);
@@ -68,7 +71,7 @@ auto estimate_planar_pose_dlt(const PlanarView& observations,
     return estimate_planar_pose_dlt(object_xy, image_uv, intrinsics);
 }
 
-// Convenience: one-shot planar pose from pixels & K
+// Convenience: one-shot planar pose from pixels & kmtx
 // Returns true on success; outputs R (world->cam) and t
 auto estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& object_xy,
                               const std::vector<Eigen::Vector2d>& image_uv,
@@ -81,15 +84,15 @@ auto estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& object_xy,
     std::transform(image_uv.begin(), image_uv.end(), img_norm.begin(),
                    [&intrinsics](const Eigen::Vector2d& pix) { return intrinsics.normalize(pix); });
 
-    Eigen::Matrix3d H = estimate_homography_dlt(object_xy, img_norm);
-    return pose_from_homography_normalized(H);
+    Eigen::Matrix3d h = estimate_homography_dlt(object_xy, img_norm);
+    return pose_from_homography_normalized(h);
 }
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
 struct PlanarPoseBlocks final : public ProblemParamBlocks {
     std::array<double, 6> pose6;
-    std::vector<ParamBlock> get_param_blocks() const override {
+    [[nodiscard]] std::vector<ParamBlock> get_param_blocks() const override {
         return {{pose6.data(), pose6.size(), 6}};
     }
 };
@@ -99,41 +102,42 @@ struct PlanarPoseBlocks final : public ProblemParamBlocks {
 // variable projection system to eliminate distortion coefficients.
 struct PlanarPoseVPResidual final {
     PlanarView obs_;
-    double K_[5];  // fx, fy, cx, cy, skew
+    const CameraMatrix intrinsics_;
     int num_radial_;
 
-    PlanarPoseVPResidual(PlanarView obs, int num_radial, const CameraMatrix& intrinsics)
-        : obs_(std::move(obs)),
-          K_{intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy, intrinsics.skew},
-          num_radial_(num_radial) {}
+    PlanarPoseVPResidual(PlanarView obs, int num_radial, CameraMatrix intrinsics)
+        : obs_(std::move(obs)), intrinsics_(intrinsics), num_radial_(num_radial) {}
 
     template <typename T>
     bool operator()(const T* pose6, T* residuals) const {
-        const T fx = T(K_[0]);
-        const T fy = T(K_[1]);
-        const T cx = T(K_[2]);
-        const T cy = T(K_[3]);
-        const T skew_param = T(K_[4]);
+        const CameraMatrixT<T> intrinsics{T(intrinsics_.fx), T(intrinsics_.fy), T(intrinsics_.cx),
+                                          T(intrinsics_.cy), T(intrinsics_.skew)};
 
         std::vector<Observation<T>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(),
                        [pose6](const PlanarObservation& s) { return to_observation(s, pose6); });
 
-        auto dr = fit_distortion_full(o, fx, fy, cx, cy, skew_param, num_radial_);
-        if (!dr) return false;
+        auto dr = fit_distortion_full(o, intrinsics, num_radial_);
+        if (!dr) {
+            return false;
+        }
         const auto& r = dr->residuals;
-        for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
+        for (int i = 0; i < r.size(); ++i) {
+            residuals[i] = r[i];
+        }
         return true;
     }
 
     // Helper used after optimization to compute best distortion coefficients.
-    Eigen::VectorXd SolveDistortionFor(const Pose6& pose6) const {
+    [[nodiscard]] Eigen::VectorXd solve_distortion_for(const Pose6& pose6) const {
         std::vector<Observation<double>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(), [pose6](const PlanarObservation& s) {
             return to_observation(s, pose6.data());
         });
 
-        auto d = fit_distortion(o, K_[0], K_[1], K_[2], K_[3], K_[4], num_radial_);
+        const CameraMatrix intrinsics{intrinsics_.fx, intrinsics_.fy, intrinsics_.cx,
+                                      intrinsics_.cy, intrinsics_.skew};
+        auto d = fit_distortion(o, intrinsics, num_radial_);
         return d ? d->distortion : Eigen::VectorXd{};
     }
 };
@@ -183,8 +187,8 @@ auto optimize_planar_pose(const std::vector<Eigen::Vector2d>& object_xy,
     // Compute residuals for statistics and covariance
     const int m = static_cast<int>(view.size()) * 2;
     std::vector<double> residuals(m);
-    const double* parameter_blocks[] = {blocks.pose6.data()};
-    cost->Evaluate(parameter_blocks, residuals.data(), nullptr);
+    const std::array<const double*, 1> parameter_blocks = {blocks.pose6.data()};
+    cost->Evaluate(parameter_blocks.data(), residuals.data(), nullptr);
 
     const double ssr = std::accumulate(residuals.begin(), residuals.end(), 0.0,
                                        [](double sum, double r) { return sum + r * r; });
@@ -198,7 +202,7 @@ auto optimize_planar_pose(const std::vector<Eigen::Vector2d>& object_xy,
     }
 
     result.pose = axisangle_to_pose(Eigen::Map<const Pose6>(blocks.pose6.data()));
-    result.distortion = functor->SolveDistortionFor(Eigen::Map<const Pose6>(blocks.pose6.data()));
+    result.distortion = functor->solve_distortion_for(Eigen::Map<const Pose6>(blocks.pose6.data()));
 
     return result;
 }

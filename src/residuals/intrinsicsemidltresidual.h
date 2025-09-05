@@ -44,10 +44,15 @@ struct CalibVPResidual final {
         }
 
         const T* intr = params[0];
-        auto dr = fit_distortion_full(o, intr[0], intr[1], intr[2], intr[3], intr[4], num_radial_);
-        if (!dr) return false;
+        const CameraMatrixT<T> intrinsics{intr[0], intr[1], intr[2], intr[3], intr[4]};
+        auto dr = fit_distortion_full(o, intrinsics, num_radial_);
+        if (!dr) {
+            return false;
+        }
         const auto& r = dr->residuals;
-        for (int i = 0; i < r.size(); ++i) residuals[i] = r[i];
+        for (int i = 0; i < r.size(); ++i) {
+            residuals[i] = r[i];
+        }
         return true;
     }
 

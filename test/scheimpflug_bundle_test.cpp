@@ -11,11 +11,11 @@
 using namespace calib;
 
 TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
-    CameraMatrix K{ 100.0, 100.0, 64.0, 48.0 };
-    Camera<BrownConradyd> cam(K, Eigen::VectorXd::Zero(5));
+    CameraMatrix kmtx{ 100.0, 100.0, 64.0, 48.0 };
+    Camera<BrownConradyd> cam(kmtx, Eigen::VectorXd::Zero(5));
     const double taux = 0.02;
     const double tauy = -0.015;
-    ScheimpflugCamera sc(cam, taux, tauy);
+    ScheimpflugCamera sc(cam, {taux, tauy});
 
     Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     g_se3_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
@@ -54,11 +54,11 @@ TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
 }
 
 TEST(ScheimpflugBundle, HandeyeWithFixedIntrinsics) {
-    CameraMatrix K{100.0, 100.0, 64.0, 48.0};
-    Camera<BrownConradyd> cam(K, Eigen::VectorXd::Zero(5));
+    CameraMatrix kmtx{100.0, 100.0, 64.0, 48.0};
+    Camera<BrownConradyd> cam(kmtx, Eigen::VectorXd::Zero(5));
     const double taux = 0.02;
     const double tauy = -0.015;
-    ScheimpflugCamera sc(cam, taux, tauy);
+    ScheimpflugCamera sc(cam, {taux, tauy});
 
     Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     g_se3_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();

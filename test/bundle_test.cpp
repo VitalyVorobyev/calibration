@@ -20,11 +20,11 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
     );
 
     Camera<BrownConradyd> cam_gt;
-    cam_gt.K.fx = 1000;
-    cam_gt.K.fy = 1005;
-    cam_gt.K.cx = 640;
-    cam_gt.K.cy = 360;
-    cam_gt.K.skew = skew;
+    cam_gt.kmtx.fx = 1000;
+    cam_gt.kmtx.fy = 1005;
+    cam_gt.kmtx.cx = 640;
+    cam_gt.kmtx.cy = 360;
+    cam_gt.kmtx.skew = skew;
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Data
@@ -35,11 +35,11 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
 
     // Bad initial intrinsics and X
     Camera<BrownConradyd> cam0;
-    cam0.K.fx = cam_gt.K.fx * 0.97;
-    cam0.K.fy = cam_gt.K.fy * 1.03;
-    cam0.K.cx = cam_gt.K.cx + 5.0;
-    cam0.K.cy = cam_gt.K.cy - 4.0;
-    cam0.K.skew = cam_gt.K.skew;
+    cam0.kmtx.fx = cam_gt.kmtx.fx * 0.97;
+    cam0.kmtx.fy = cam_gt.kmtx.fy * 1.03;
+    cam0.kmtx.cx = cam_gt.kmtx.cx + 5.0;
+    cam0.kmtx.cy = cam_gt.kmtx.cy - 4.0;
+    cam0.kmtx.skew = cam_gt.kmtx.skew;
     cam0.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     Eigen::Isometry3d g_se3_c0 = g_se3_c_gt;
@@ -56,10 +56,10 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
 
     auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {g_se3_c0}, b_se3_t_gt, opts);
     const auto& X = result.g_se3_c[0];
-    const auto& Kf = result.cameras[0].K;
+    const auto& Kf = result.cameras[0].kmtx;
     const auto& b_se3_t_est = result.b_se3_t;
 
-    const auto& K_gt = cam_gt.K;
+    const auto& K_gt = cam_gt.kmtx;
     const auto& X_gt = g_se3_c_gt;
     // X close to GT
     double rot_err = rad2deg(rotation_angle(X.linear().transpose() * X_gt.linear()));
@@ -95,11 +95,11 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortionSkew) {
     );
 
     Camera<BrownConradyd> cam_gt;
-    cam_gt.K.fx = 1000;
-    cam_gt.K.fy = 1005;
-    cam_gt.K.cx = 640;
-    cam_gt.K.cy = 360;
-    cam_gt.K.skew = skew;
+    cam_gt.kmtx.fx = 1000;
+    cam_gt.kmtx.fy = 1005;
+    cam_gt.kmtx.cx = 640;
+    cam_gt.kmtx.cy = 360;
+    cam_gt.kmtx.skew = skew;
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Data
@@ -110,11 +110,11 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortionSkew) {
 
     // Bad initial intrinsics and X
     Camera<BrownConradyd> cam0;
-    cam0.K.fx = cam_gt.K.fx * 0.97;
-    cam0.K.fy = cam_gt.K.fy * 1.03;
-    cam0.K.cx = cam_gt.K.cx + 5.0;
-    cam0.K.cy = cam_gt.K.cy - 4.0;
-    cam0.K.skew = 0;
+    cam0.kmtx.fx = cam_gt.kmtx.fx * 0.97;
+    cam0.kmtx.fy = cam_gt.kmtx.fy * 1.03;
+    cam0.kmtx.cx = cam_gt.kmtx.cx + 5.0;
+    cam0.kmtx.cy = cam_gt.kmtx.cy - 4.0;
+    cam0.kmtx.skew = 0;
     cam0.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     Eigen::Isometry3d g_se3_c0 = g_se3_c_gt;
@@ -130,10 +130,10 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortionSkew) {
 
     auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {g_se3_c0}, b_se3_t_gt, opts);
     const auto& X = result.g_se3_c[0];
-    const auto& Kf = result.cameras[0].K;
+    const auto& Kf = result.cameras[0].kmtx;
     const auto& b_se3_t_est = result.b_se3_t;
 
-    const auto& K_gt = cam_gt.K;
+    const auto& K_gt = cam_gt.kmtx;
     const auto& X_gt = g_se3_c_gt;
     // X close to GT
     double rot_err = rad2deg(rotation_angle(X.linear().transpose() * X_gt.linear()));
@@ -159,10 +159,10 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     RNG rng(137);
     // GT with distortion
     Camera<BrownConradyd> cam_gt;
-    cam_gt.K.fx = 900;
-    cam_gt.K.fy = 905;
-    cam_gt.K.cx = 640;
-    cam_gt.K.cy = 360;
+    cam_gt.kmtx.fx = 900;
+    cam_gt.kmtx.fy = 905;
+    cam_gt.kmtx.cx = 640;
+    cam_gt.kmtx.cy = 360;
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
     cam_gt.distortion.coeffs << -0.12, 0.02, 0.0005, -0.0007, 0.001;
 
@@ -180,7 +180,7 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     sim.make_target_grid(7, 10, 0.022);
     sim.render_pixels();
 
-    // Start from wrong K (no distortion) and perturbed X
+    // Start from wrong kmtx (no distortion) and perturbed X
     Camera<BrownConradyd> cam0 = cam_gt;
     cam0.distortion.coeffs = Eigen::VectorXd::Zero(5); // start at zero
 
@@ -216,8 +216,8 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
 TEST(OptimizeBundle, InputValidation) {
     // Mismatched sizes should throw
     std::vector<BundleObservation> observations(2);
-    CameraMatrix K{100.0, 100.0, 64.0, 48.0};
-    Camera<BrownConradyd> cam(K, Eigen::VectorXd::Zero(5));
+    CameraMatrix kmtx{100.0, 100.0, 64.0, 48.0};
+    Camera<BrownConradyd> cam(kmtx, Eigen::VectorXd::Zero(5));
     Eigen::Isometry3d X0 = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d init_b_se3_t = Eigen::Isometry3d::Identity();
     BundleOptions opts;
@@ -228,8 +228,8 @@ TEST(OptimizeBundle, InputValidation) {
 }
 
 TEST(OptimizeBundle, SingleCameraHandEye) {
-    CameraMatrix K{100.0,100.0,64.0,48.0};
-    Camera<BrownConradyd> cam(K, Eigen::VectorXd::Zero(5));
+    CameraMatrix kmtx{100.0,100.0,64.0,48.0};
+    Camera<BrownConradyd> cam(kmtx, Eigen::VectorXd::Zero(5));
 
     Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     g_se3_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
@@ -262,8 +262,8 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
 }
 
 TEST(OptimizeBundle, SingleCameraTargetPose) {
-    CameraMatrix K{100.0,100.0,64.0,48.0};
-    Camera<BrownConradyd> cam(K, Eigen::VectorXd::Zero(5));
+    CameraMatrix kmtx{100.0,100.0,64.0,48.0};
+    Camera<BrownConradyd> cam(kmtx, Eigen::VectorXd::Zero(5));
     Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     g_se3_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
     g_se3_c.translation() = Eigen::Vector3d(0.1,0.0,0.05);
@@ -292,9 +292,9 @@ TEST(OptimizeBundle, SingleCameraTargetPose) {
 }
 
 TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
-    CameraMatrix K{100.0, 100.0, 64.0, 48.0};
-    Camera<BrownConradyd> cam0(K, Eigen::VectorXd::Zero(5));
-    Camera<BrownConradyd> cam1(K, Eigen::VectorXd::Zero(5));
+    CameraMatrix kmtx{100.0, 100.0, 64.0, 48.0};
+    Camera<BrownConradyd> cam0(kmtx, Eigen::VectorXd::Zero(5));
+    Camera<BrownConradyd> cam1(kmtx, Eigen::VectorXd::Zero(5));
 
     Eigen::Isometry3d g_se3_c0 = Eigen::Isometry3d::Identity();
     g_se3_c0.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();

@@ -8,12 +8,12 @@ using namespace calib;
 
 TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     const int kCams = 2;
-    CameraMatrix K{100.0, 100.0, 0.0, 0.0};
+    CameraMatrix kmtx{100.0, 100.0, 0.0, 0.0};
     Eigen::VectorXd dist(5);
     dist << 0.0, 0.0, 0.0, 0.0, 0.0; // no distortion
     std::vector<Camera<BrownConradyd>> cameras = {
-        Camera<BrownConradyd>{K, dist},
-        Camera<BrownConradyd>{K, dist}
+        Camera<BrownConradyd>{kmtx, dist},
+        Camera<BrownConradyd>{kmtx, dist}
     };
 
     // Ground-truth camera poses (reference camera is identity)
@@ -54,7 +54,7 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
-                Eigen::Vector2d pix = cameras[c].K.denormalize(norm);
+                Eigen::Vector2d pix = cameras[c].kmtx.denormalize(norm);
                 view[c].push_back({xy, pix});
             }
         }
@@ -78,12 +78,12 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
 
 TEST(Extrinsics, RecoverAllParameters) {
     const int kCams = 2;
-    CameraMatrix K{100.0, 100.0, 0.0, 0.0};
+    CameraMatrix kmtx{100.0, 100.0, 0.0, 0.0};
     Eigen::VectorXd dist(5);
     dist << 0.0, 0.0, 0.0, 0.0, 0.0; // no distortion
     std::vector<Camera<BrownConradyd>> cameras_gt = {
-        Camera<BrownConradyd>{K, dist},
-        Camera<BrownConradyd>{K, dist}
+        Camera<BrownConradyd>{kmtx, dist},
+        Camera<BrownConradyd>{kmtx, dist}
     };
 
     Eigen::Isometry3d cam0 = Eigen::Isometry3d::Identity();
@@ -110,7 +110,7 @@ TEST(Extrinsics, RecoverAllParameters) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x()/P.z(), P.y()/P.z());
-                Eigen::Vector2d pix = cameras_gt[c].K.denormalize(norm);
+                Eigen::Vector2d pix = cameras_gt[c].kmtx.denormalize(norm);
                 view[c].push_back({xy, pix});
             }
         }
@@ -125,8 +125,8 @@ TEST(Extrinsics, RecoverAllParameters) {
 
     // Change cameras to BrownConradyd for the estimate function
     std::vector<Camera<DualDistortion>> cameras_for_estimate = {
-        Camera<DualDistortion>{K, DualDistortion{Eigen::VectorXd::Zero(2)}},
-        Camera<DualDistortion>{K, DualDistortion{Eigen::VectorXd::Zero(2)}}
+        Camera<DualDistortion>{kmtx, DualDistortion{Eigen::VectorXd::Zero(2)}},
+        Camera<DualDistortion>{kmtx, DualDistortion{Eigen::VectorXd::Zero(2)}}
     };
 
     auto guess = estimate_extrinsic_dlt(views, cameras_for_estimate);
@@ -141,8 +141,8 @@ TEST(Extrinsics, RecoverAllParameters) {
 
     EXPECT_LT(res.final_cost, 1e-6);
     ASSERT_EQ(res.cameras.size(), static_cast<size_t>(kCams));
-    EXPECT_NEAR(res.cameras[0].K.fx, 100.0, 1e-3);
-    EXPECT_NEAR(res.cameras[0].K.fy, 100.0, 1e-3);
+    EXPECT_NEAR(res.cameras[0].kmtx.fx, 100.0, 1e-3);
+    EXPECT_NEAR(res.cameras[0].kmtx.fy, 100.0, 1e-3);
     EXPECT_TRUE(res.c_se3_r[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
     EXPECT_TRUE(res.r_se3_t[0].translation().isApprox(target_gt[0].translation(), 1e-3));
     EXPECT_GT(res.covariance.trace(), 0.0);
@@ -150,12 +150,12 @@ TEST(Extrinsics, RecoverAllParameters) {
 
 TEST(Extrinsics, FirstTargetPoseFixed) {
     const int kCams = 2;
-    CameraMatrix K{100.0, 100.0, 0.0, 0.0};
+    CameraMatrix kmtx{100.0, 100.0, 0.0, 0.0};
     Eigen::VectorXd dist(5);
     dist << 0.0, 0.0, 0.0, 0.0, 0.0; // no distortion
     std::vector<Camera<BrownConradyd>> cameras_gt = {
-        Camera<BrownConradyd>{K, dist},
-        Camera<BrownConradyd>{K, dist}
+        Camera<BrownConradyd>{kmtx, dist},
+        Camera<BrownConradyd>{kmtx, dist}
     };
 
     Eigen::Isometry3d cam0 = Eigen::Isometry3d::Identity();
@@ -180,7 +180,7 @@ TEST(Extrinsics, FirstTargetPoseFixed) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x()/P.z(), P.y()/P.z());
-                Eigen::Vector2d pix = cameras_gt[c].K.denormalize(norm);
+                Eigen::Vector2d pix = cameras_gt[c].kmtx.denormalize(norm);
                 view[c].push_back({xy, pix});
             }
         }

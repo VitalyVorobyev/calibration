@@ -16,8 +16,7 @@ using Vec2 = Eigen::Vector2d;
 // Generate synthetic observations with known distortion
 std::vector<Observation<double>> generate_synthetic_data(
     const std::vector<double>& k_radial,
-    double p1, double p2,
-    double fx, double fy, double cx, double cy,
+    double p1, double p2, const CameraMatrix& camera,
     int n_points = 100,
     double noise_level = 0.0
 ) {
@@ -33,8 +32,6 @@ std::vector<Observation<double>> generate_synthetic_data(
     }
     coeffs[k_radial.size()] = p1;
     coeffs[k_radial.size() + 1] = p2;
-
-    const CameraMatrix camera{fx, fy, cx, cy};
 
     std::vector<Observation<double>> observations(static_cast<size_t>(n_points));
     std::generate(observations.begin(), observations.end(),
@@ -65,7 +62,7 @@ MATCHER_P2(IsVectorNear, expected, tolerance, "") {
 
 TEST(DistortionTest, ExactFit) {
     // Camera intrinsics
-    double fx = 800.0, fy = 800.0, cx = 400.0, cy = 300.0;
+    CameraMatrix camera{800.0, 800.0, 400.0, 300.0, 0.0};
 
     // True distortion coefficients
     std::vector<double> k_true = {-0.2, 0.05};  // k1, k2
@@ -73,10 +70,10 @@ TEST(DistortionTest, ExactFit) {
 
     // Generate perfect synthetic data
     auto observations = generate_synthetic_data(
-        k_true, p1_true, p2_true, fx, fy, cx, cy, 500, 0.0);
+        k_true, p1_true, p2_true, camera, 500, 0.0);
 
     // Fit distortion parameters
-    auto distortion_opt = fit_distortion(observations, fx, fy, cx, cy, 0.0, 2);
+    auto distortion_opt = fit_distortion(observations, camera, 2);
     ASSERT_TRUE(distortion_opt.has_value());
     Eigen::VectorXd distortion = distortion_opt->distortion;
 
@@ -89,7 +86,8 @@ TEST(DistortionTest, ExactFit) {
 
 TEST(DistortionTest, NoisyFit) {
     // Camera intrinsics
-    double fx = 800.0, fy = 820.0, cx = 400.0, cy = 300.0;
+    CameraMatrix camera{800.0, 820.0, 400.0, 300.0, 0.0};
+    // double fx = 800.0, fy = 820.0, cx = 400.0, cy = 300.0;
 
     // True distortion coefficients
     std::vector<double> k_true = {-0.2, 0.05};  // k1, k2
@@ -97,10 +95,10 @@ TEST(DistortionTest, NoisyFit) {
 
     // Generate synthetic data with noise
     auto observations = generate_synthetic_data(
-        k_true, p1_true, p2_true, fx, fy, cx, cy, 1000, 0.5);
+        k_true, p1_true, p2_true, camera, 1000, 0.5);
 
     // Fit distortion parameters
-    auto distortion_opt = fit_distortion(observations, fx, fy, cx, cy, 0.0, 2);
+    auto distortion_opt = fit_distortion(observations, camera, 2);
     ASSERT_TRUE(distortion_opt.has_value());
     Eigen::VectorXd distortion = distortion_opt->distortion;
 
@@ -112,14 +110,14 @@ TEST(DistortionTest, NoisyFit) {
 }
 
 TEST(DistortionTest, DualModel) {
-    double fx = 800.0, fy = 800.0, cx = 400.0, cy = 300.0;
+    const CameraMatrix camera{800.0, 800.0, 400.0, 300.0, 0.0};
     std::vector<double> k_true = {-0.2, 0.05};
     double p1_true = 0.001, p2_true = -0.0005;
 
     auto observations = generate_synthetic_data(
-        k_true, p1_true, p2_true, fx, fy, cx, cy, 200, 0.0);
+        k_true, p1_true, p2_true, camera, 200, 0.0);
 
-    auto dual_opt = fit_distortion_dual(observations, fx, fy, cx, cy, 0.0, 2);
+    auto dual_opt = fit_distortion_dual(observations, camera, 2);
     ASSERT_TRUE(dual_opt.has_value());
     const auto& model = dual_opt->distortion;
 

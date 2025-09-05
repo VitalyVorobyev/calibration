@@ -1,4 +1,14 @@
-/** @brief Linear solvers for the hand-eye problem */
+/**
+ * @file handeye.h
+ * @brief Hand-eye calibration algorithms and utilities
+ * @ingroup hand_eye_calibration
+ *
+ * This file provides comprehensive hand-eye calibration functionality including:
+ * - Tsai-Lenz algorithm for AX=XB problem solving
+ * - Motion pair generation and filtering
+ * - Bundle adjustment for hand-eye calibration
+ * - Weighted averaging for robust estimation
+ */
 
 #pragma once
 
@@ -13,11 +23,36 @@
 
 namespace calib {
 
+/**
+ * @brief Motion pair structure for hand-eye calibration
+ * @ingroup hand_eye_calibration
+ *
+ * Represents a pair of corresponding motions between two coordinate frames:
+ * - Motion A: typically robot base to gripper transformation
+ * - Motion B: typically camera to target transformation
+ *
+ * Used in solving the AX=XB hand-eye calibration problem.
+ */
 struct MotionPair final {
-    Eigen::Matrix3d RA, RB;
-    Eigen::Vector3d tA, tB;
+    Eigen::Matrix3d rot_a, rot_b;  ///< Rotation matrices for motions A and B
+    Eigen::Vector3d tra_a, tra_b;  ///< Translation vectors for motions A and B
 };
 
+/**
+ * @brief Generate all valid motion pairs from pose sequences
+ * @ingroup hand_eye_calibration
+ *
+ * Creates motion pairs from sequences of robot and camera poses,
+ * filtering out motions that are too small or have parallel axes
+ * to ensure numerical stability.
+ *
+ * @param base_se3_gripper Robot base to gripper transformations
+ * @param cam_se3_target Camera to target transformations
+ * @param min_angle_deg Minimum rotation angle to accept (degrees)
+ * @param reject_axis_parallel Whether to reject parallel rotation axes
+ * @param axis_parallel_eps Threshold for parallel axis detection
+ * @return Vector of valid motion pairs
+ */
 auto build_all_pairs(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
                      const std::vector<Eigen::Isometry3d>& cam_se3_target,
                      double min_angle_deg = 1.0,        // discard too-small motions
@@ -77,14 +112,14 @@ struct HandeyeResult final : public OptimResult {
  *                        specific pose of the target.
  * @param init_gripper_se3_ref The initial estimate of the transformation from the gripper to the
  *                           reference frame (hand-eye transformation).
- * @param opts Optional refinement options that control the optimization process. Defaults to
- *             an empty set of options.
+ * @param options Optional refinement options that control the optimization process. Defaults to
+ *                an empty set of options.
  * @return The refined hand-eye transformation as an Eigen::Isometry3d object.
  */
 auto optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
                       const std::vector<Eigen::Isometry3d>& camera_se3_target,
                       const Eigen::Isometry3d& init_gripper_se3_ref,
-                      const HandeyeOptions& opts = {}) -> HandeyeResult;
+                      const HandeyeOptions& options = {}) -> HandeyeResult;
 
 /**
  * @brief Estimates and refines the hand-eye transformation.
