@@ -61,7 +61,8 @@ auto estimate_planar_pose_dlt(const PlanarView& observations,
         return Eigen::Isometry3d::Identity();
     }
 
-    std::vector<Eigen::Vector2d> object_xy, image_uv;
+    std::vector<Eigen::Vector2d> object_xy;
+    std::vector<Eigen::Vector2d> image_uv;
     for (const auto& item : observations) {
         object_xy.push_back(item.object_xy);
         image_uv.push_back(item.image_uv);
@@ -83,15 +84,15 @@ auto estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& object_xy,
     std::transform(image_uv.begin(), image_uv.end(), img_norm.begin(),
                    [&intrinsics](const Eigen::Vector2d& pix) { return intrinsics.normalize(pix); });
 
-    Eigen::Matrix3d H = estimate_homography_dlt(object_xy, img_norm);
-    return pose_from_homography_normalized(H);
+    Eigen::Matrix3d h = estimate_homography_dlt(object_xy, img_norm);
+    return pose_from_homography_normalized(h);
 }
 
 using Pose6 = Eigen::Matrix<double, 6, 1>;
 
 struct PlanarPoseBlocks final : public ProblemParamBlocks {
     std::array<double, 6> pose6;
-    std::vector<ParamBlock> get_param_blocks() const override {
+    [[nodiscard]] std::vector<ParamBlock> get_param_blocks() const override {
         return {{pose6.data(), pose6.size(), 6}};
     }
 };
@@ -105,7 +106,7 @@ struct PlanarPoseVPResidual final {
     int num_radial_;
 
     PlanarPoseVPResidual(PlanarView obs, int num_radial, CameraMatrix intrinsics)
-        : obs_(std::move(obs)), intrinsics_(std::move(intrinsics)), num_radial_(num_radial) {}
+        : obs_(std::move(obs)), intrinsics_(intrinsics), num_radial_(num_radial) {}
 
     template <typename T>
     bool operator()(const T* pose6, T* residuals) const {
@@ -128,7 +129,7 @@ struct PlanarPoseVPResidual final {
     }
 
     // Helper used after optimization to compute best distortion coefficients.
-    Eigen::VectorXd solve_distortion_for(const Pose6& pose6) const {
+    [[nodiscard]] Eigen::VectorXd solve_distortion_for(const Pose6& pose6) const {
         std::vector<Observation<double>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(), [pose6](const PlanarObservation& s) {
             return to_observation(s, pose6.data());
@@ -186,8 +187,8 @@ auto optimize_planar_pose(const std::vector<Eigen::Vector2d>& object_xy,
     // Compute residuals for statistics and covariance
     const int m = static_cast<int>(view.size()) * 2;
     std::vector<double> residuals(m);
-    const double* parameter_blocks[] = {blocks.pose6.data()};
-    cost->Evaluate(parameter_blocks, residuals.data(), nullptr);
+    const std::array<const double*, 1> parameter_blocks = {blocks.pose6.data()};
+    cost->Evaluate(parameter_blocks.data(), residuals.data(), nullptr);
 
     const double ssr = std::accumulate(residuals.begin(), residuals.end(), 0.0,
                                        [](double sum, double r) { return sum + r * r; });

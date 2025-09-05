@@ -43,14 +43,14 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
         return blocks;
     }
 
-    std::vector<ParamBlock> get_param_blocks() const override {
+    [[nodiscard]] std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
-        blocks.emplace_back(ParamBlock{intrinsics.data(), intrinsics.size(), 5});
+        blocks.emplace_back(intrinsics.data(), intrinsics.size(), 5);
         for (const auto& q : c_quat_t) {
-            blocks.emplace_back(ParamBlock{q.data(), q.size(), 3});
+            blocks.emplace_back(q.data(), q.size(), 3);
         }
         for (const auto& t : c_tra_t) {
-            blocks.emplace_back(ParamBlock{t.data(), t.size(), 3});
+            blocks.emplace_back(t.data(), t.size(), 3);
         }
         return blocks;
     }
@@ -97,11 +97,11 @@ static ceres::Problem build_problem(const std::vector<PlanarView>& obs_views,
         param_blocks.push_back(blocks.c_quat_t[i].data());
         param_blocks.push_back(blocks.c_tra_t[i].data());
     }
-    auto loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
+    auto* loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
     problem.AddResidualBlock(cost, loss, param_blocks);
 
-    for (size_t i = 0; i < blocks.c_quat_t.size(); ++i) {
-        problem.SetManifold(blocks.c_quat_t[i].data(), new ceres::QuaternionManifold());
+    for (auto& i : blocks.c_quat_t) {
+        problem.SetManifold(i.data(), new ceres::QuaternionManifold());
     }
 
     if (opts.bounds.has_value()) {
@@ -154,7 +154,7 @@ IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics_semidlt(
     const size_t total_obs = count_total_observations(views);
     const size_t num_views = views.size();
     if (num_views < 4) {
-        std::cerr << "Insufficient views for calibration (at least 4 required)." << std::endl;
+        std::cerr << "Insufficient views for calibration (at least 4 required)." << '\n';
         return result;
     }
 

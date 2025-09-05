@@ -15,8 +15,8 @@ static auto make_motion_pair(const Eigen::Isometry3d& base_se3_gripper_a,
     Eigen::Isometry3d affine_a = base_se3_gripper_a.inverse() * base_se3_gripper_b;
     Eigen::Isometry3d affine_b = cam_se3_target_a * cam_se3_target_b.inverse();
     MotionPair motion_pair;
-    motion_pair.rot_a = projectToSO3(affine_a.linear());
-    motion_pair.rot_b = projectToSO3(affine_b.linear());
+    motion_pair.rot_a = project_to_so3(affine_a.linear());
+    motion_pair.rot_b = project_to_so3(affine_b.linear());
     motion_pair.tra_a = affine_a.translation();
     motion_pair.tra_b = affine_b.translation();
     return motion_pair;
@@ -90,8 +90,8 @@ static auto estimate_rotation_allpairs_weighted(const std::vector<MotionPair>& p
         Eigen::Vector3d alpha = log_so3(pairs[idx].rot_a);
         Eigen::Vector3d beta = log_so3(pairs[idx].rot_b);
         constexpr double k_weight = 1.0;
-        mat_m.block<3, 3>(static_cast<Eigen::Index>(3 * idx), 0) = k_weight * skew(alpha + beta);
-        vec_d.segment<3>(static_cast<Eigen::Index>(3 * idx)) = k_weight * (beta - alpha);
+        mat_m.block<3, 3>(static_cast<Eigen::Index>(3) * idx, 0) = k_weight * skew(alpha + beta);
+        vec_d.segment<3>(static_cast<Eigen::Index>(3) * idx) = k_weight * (beta - alpha);
     }
     constexpr double k_ridge = 1e-12;
     Eigen::Vector3d rot_vec = ridge_llsq(mat_m, vec_d, k_ridge);
@@ -109,9 +109,9 @@ static auto estimate_translation_allpairs_weighted(
         const Eigen::Vector3d& tran_a = pairs[idx].tra_a;
         const Eigen::Vector3d& tran_b = pairs[idx].tra_b;
         constexpr double k_weight = 1.0;
-        mat_c.block<3, 3>(static_cast<Eigen::Index>(3 * idx), 0) =
+        mat_c.block<3, 3>(static_cast<Eigen::Index>(3) * idx, 0) =
             k_weight * (rot_a - Eigen::Matrix3d::Identity());
-        vec_w.segment<3>(static_cast<Eigen::Index>(3 * idx)) = k_weight * (rot_x * tran_b - tran_a);
+        vec_w.segment<3>(static_cast<Eigen::Index>(3) * idx) = k_weight * (rot_x * tran_b - tran_a);
     }
     constexpr double k_ridge = 1e-12;
     return ridge_llsq(mat_c, vec_w, k_ridge);

@@ -93,11 +93,11 @@ static auto apply_bounds_and_fallback(const Eigen::VectorXd& xu, const Eigen::Ve
         const double avg_u =
             std::accumulate(obs.begin(), obs.end(), 0.0,
                             [](double sum, const auto& ob) { return sum + ob.u; }) /
-            obs.size();
+            static_cast<double>(obs.size());
         const double avg_v =
             std::accumulate(obs.begin(), obs.end(), 0.0,
                             [](double sum, const auto& ob) { return sum + ob.v; }) /
-            obs.size();
+            static_cast<double>(obs.size());
 
         const double safe_fx = std::clamp(std::max(500.0, fx), bounds.fx_min, bounds.fx_max);
         const double safe_fy = std::clamp(std::max(500.0, fy), bounds.fy_min, bounds.fy_max);

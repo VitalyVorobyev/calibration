@@ -43,6 +43,7 @@ struct BundleBlocks final : public ProblemParamBlocks {
     [[nodiscard]]
     auto get_param_blocks() const -> std::vector<ParamBlock> override {
         std::vector<ParamBlock> blocks;
+        blocks.reserve(intr.size() + g_quat_c.size() + g_tra_c.size());
         for (const auto& intr_block : intr) {
             blocks.emplace_back(intr_block.data(), intr_block.size(), k_intr_size);
         }

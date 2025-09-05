@@ -26,17 +26,6 @@ static std::pair<Eigen::Matrix<T, 3, 3>, Eigen::Matrix<T, 3, 1>> get_camera_se3_
     return {c_rot_t, c_tra_t};
 }
 
-#if 0
-static Eigen::Isometry3d get_camera_se3_target(
-    const Eigen::Isometry3d& b_se3_t,
-    const Eigen::Isometry3d& g_se3_c,
-    const Eigen::Isometry3d& b_se3_g
-) {
-    auto c_se3_t = g_se3_c.inverse() * b_se3_g.inverse() * b_se3_t;
-    return c_se3_t;
-}
-#endif
-
 template <camera_model CameraT>
 struct BundleReprojResidual final {
     const PlanarView view;

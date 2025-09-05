@@ -15,7 +15,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
     std::vector<std::array<double, 3>> c_tra_t;
     std::array<double, intr_size> intr{};
 
-    explicit IntrinsicBlocks(size_t numviews) : c_quat_t(numviews), c_tra_t(numviews), intr{} {}
+    explicit IntrinsicBlocks(size_t numviews) : c_quat_t(numviews), c_tra_t(numviews) {}
 
     static IntrinsicBlocks create(const CameraT& camera,
                                   const std::vector<Eigen::Isometry3d>& init_c_se3_t) {
@@ -29,7 +29,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
         return blocks;
     }
 
-    std::vector<ParamBlock> get_param_blocks() const override {
+    [[nodiscard]] std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
         blocks.emplace_back(intr.data(), intr.size(), intr_size);
         for (const auto& i : c_quat_t) {
@@ -59,7 +59,7 @@ static ceres::Problem build_problem(const std::vector<PlanarView>& views,
     ceres::Problem p;
     for (size_t view_idx = 0; view_idx < views.size(); ++view_idx) {
         const auto& view = views[view_idx];
-        auto loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
+        auto* loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
         p.AddResidualBlock(IntrinsicResidual<CameraT>::create(view), loss,
                            blocks.c_quat_t[view_idx].data(), blocks.c_tra_t[view_idx].data(),
                            blocks.intr.data());

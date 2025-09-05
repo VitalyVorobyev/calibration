@@ -60,9 +60,9 @@ inline Eigen::Isometry3d restore_pose(const std::array<double, 4>& quat,
 }
 
 // ---------- small SO(3) helpers (double) ----------
-inline Eigen::Matrix3d projectToSO3(const Eigen::Matrix3d& rmtx) {
+inline Eigen::Matrix3d project_to_so3(const Eigen::Matrix3d& rmtx) {
     Eigen::JacobiSVD<Eigen::Matrix3d> svd(rmtx, Eigen::ComputeFullU | Eigen::ComputeFullV);
-    Eigen::Matrix3d umtx = svd.matrixU();
+    const Eigen::Matrix3d& umtx = svd.matrixU();
     Eigen::Matrix3d vmtx = svd.matrixV();
     Eigen::Matrix3d sigma = Eigen::Matrix3d::Identity();
     if ((umtx * vmtx.transpose()).determinant() < 0.0) {
@@ -80,7 +80,7 @@ inline Eigen::Matrix3d skew(const Eigen::Vector3d& vec) {
 
 // log(R) as a 3-vector (axis*angle)
 inline Eigen::Vector3d log_so3(const Eigen::Matrix3d& rot_in) {
-    const Eigen::Matrix3d rotation = projectToSO3(rot_in);
+    const Eigen::Matrix3d rotation = project_to_so3(rot_in);
     double cos_theta = (rotation.trace() - 1.0) * 0.5;
     cos_theta = std::min(1.0, std::max(-1.0, cos_theta));
     double theta = std::acos(cos_theta);
@@ -152,7 +152,9 @@ inline Eigen::Isometry3d average_affines(const std::vector<Eigen::Isometry3d>& p
     for (const auto& p : poses) {
         translation += p.translation();
         Eigen::Quaterniond q(p.linear());
-        if (q_sum.coeffs().dot(q.coeffs()) < 0.0) q.coeffs() *= -1.0;
+        if (q_sum.coeffs().dot(q.coeffs()) < 0.0) {
+            q.coeffs() *= -1.0;
+        }
         q_sum.coeffs() += q.coeffs();
     }
     translation /= static_cast<double>(poses.size());

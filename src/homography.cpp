@@ -51,7 +51,8 @@ static void normalize_points(const std::vector<Vec2>& points, std::vector<Vec2>&
         return;
     }
     // Centroid
-    double centroid_x = 0, centroid_y = 0;
+    double centroid_x = 0;
+    double centroid_y = 0;
     for (const auto& pt : points) {
         centroid_x += pt.x();
         centroid_y += pt.y();
@@ -61,7 +62,8 @@ static void normalize_points(const std::vector<Vec2>& points, std::vector<Vec2>&
     // Mean distance to origin
     double mean_dist = 0.0;
     for (const auto& pt : points) {
-        double dx = pt.x() - centroid_x, dy = pt.y() - centroid_y;
+        double dx = pt.x() - centroid_x;
+        double dy = pt.y() - centroid_y;
         mean_dist += std::sqrt(dx * dx + dy * dy);
     }
     mean_dist /= static_cast<double>(points.size());
@@ -94,7 +96,7 @@ auto estimate_homography_dlt(const std::vector<Vec2>& src, const std::vector<Vec
         const double y = src_norm[idx].y();
         const double u = dst_norm[idx].x();
         const double v = dst_norm[idx].y();
-        const Eigen::Index even_idx = static_cast<Eigen::Index>(2 * idx);
+        const auto even_idx = static_cast<Eigen::Index>(2) * idx;
         const Eigen::Index odd_idx = even_idx + 1;
         // Row 2i
         mat_a(even_idx, 0) = 0.0;
