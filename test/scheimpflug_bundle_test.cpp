@@ -12,10 +12,10 @@ using namespace calib;
 
 TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
     CameraMatrix kmtx{ 100.0, 100.0, 64.0, 48.0 };
-    Camera<BrownConradyd> cam(kmtx, Eigen::VectorXd::Zero(5));
+    PinholeCamera<BrownConradyd> cam(kmtx, Eigen::VectorXd::Zero(5));
     const double taux = 0.02;
     const double tauy = -0.015;
-    ScheimpflugCamera sc(cam, {taux, tauy});
+    ScheimpflugCamera<PinholeCamera<BrownConradyd>> sc(cam, {taux, tauy});
 
     Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     g_se3_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
@@ -42,7 +42,7 @@ TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
     opts.optimizer = OptimizerType::DENSE_QR;
     opts.verbose = false;
 
-    auto res = optimize_bundle(obs, std::vector<ScheimpflugCamera<BrownConradyd>>{sc}, {init_g_se3_c}, b_se3_t, opts);
+    auto res = optimize_bundle(obs, std::vector<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>{sc}, {init_g_se3_c}, b_se3_t, opts);
     std::cout << res.report << std::endl;
 
     EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c.translation()).norm(), 1e-6);
@@ -55,10 +55,10 @@ TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
 
 TEST(ScheimpflugBundle, HandeyeWithFixedIntrinsics) {
     CameraMatrix kmtx{100.0, 100.0, 64.0, 48.0};
-    Camera<BrownConradyd> cam(kmtx, Eigen::VectorXd::Zero(5));
+    PinholeCamera<BrownConradyd> cam(kmtx, Eigen::VectorXd::Zero(5));
     const double taux = 0.02;
     const double tauy = -0.015;
-    ScheimpflugCamera sc(cam, {taux, tauy});
+    ScheimpflugCamera<PinholeCamera<BrownConradyd>> sc(cam, {taux, tauy});
 
     Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     g_se3_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
@@ -80,7 +80,7 @@ TEST(ScheimpflugBundle, HandeyeWithFixedIntrinsics) {
     opts.optimize_hand_eye = true;
     opts.verbose = false;
 
-    auto res = optimize_bundle(observations, std::vector<ScheimpflugCamera<BrownConradyd>>{sc}, {init_g_se3_c}, b_se3_t, opts);
+    auto res = optimize_bundle(observations, std::vector<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>{sc}, {init_g_se3_c}, b_se3_t, opts);
     EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c.translation()).norm(),1e-6);
     Eigen::AngleAxisd diff(res.g_se3_c[0].linear()*g_se3_c.linear().transpose());
     EXPECT_LT(diff.angle(),1e-6);

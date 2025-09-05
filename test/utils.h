@@ -16,7 +16,7 @@
 #include "calib/bundle.h"
 #include "calib/scheimpflug.h"
 
-using calib::Camera;
+using calib::PinholeCamera;
 using calib::BrownConradyd;
 using calib::PlanarView;
 using calib::BundleObservation;
@@ -115,7 +115,7 @@ inline std::vector<Eigen::Isometry3d> make_circle_poses(int n, double radius, do
  */
 template <distortion_model DistortionT>
 inline std::vector<BundleObservation> make_scheimpflug_observations(
-    const std::vector<ScheimpflugCamera<DistortionT>>& scs,
+    const std::vector<ScheimpflugCamera<PinholeCamera<DistortionT>>>& scs,
     const std::vector<Eigen::Isometry3d>& g_se3_cs,
     const Eigen::Isometry3d& b_se3_t,
     const std::vector<Eigen::Vector2d>& obj,
@@ -140,7 +140,7 @@ inline std::vector<BundleObservation> make_scheimpflug_observations(
 
 template <distortion_model DistortionT>
 inline std::vector<BundleObservation> make_bundle_observations(
-    const std::vector<Camera<DistortionT>>& cams,
+    const std::vector<PinholeCamera<DistortionT>>& cams,
     const std::vector<Eigen::Isometry3d>& g_se3_cs,
     const Eigen::Isometry3d& b_se3_t,
     const std::vector<Eigen::Vector2d>& obj,
@@ -187,7 +187,7 @@ struct RNG final {
 struct SimulatedHandEye final {
     Eigen::Isometry3d g_se3_c_gt;  // ^gT_c
     Eigen::Isometry3d b_se3_t_gt;  // ^bT_t
-    Camera<BrownConradyd> cam_gt;
+    PinholeCamera<BrownConradyd> cam_gt;
 
     std::vector<Eigen::Isometry3d> c_se3_t;   // ^cT_t per frame
     std::vector<Eigen::Vector3d> obj_pts; // target points in t-frame

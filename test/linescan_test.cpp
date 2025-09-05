@@ -9,7 +9,7 @@ using namespace calib;
 TEST(LineScanCalibration, PlaneFitFailsSingleView) {
     CameraMatrix kmtx{1.0, 1.0, 0.0, 0.0};
     auto dist = Eigen::VectorXd::Zero(5);
-    Camera<DualDistortion> camera(kmtx, dist);
+    PinholeCamera<DualDistortion> camera(kmtx, dist);
 
     LineScanObservation view;
     view.target_xy = {
@@ -51,7 +51,7 @@ static LineScanObservation create_view(const Eigen::Matrix3d& R, const Eigen::Ve
 TEST(LineScanCalibration, PlaneFitMultipleViews) {
     CameraMatrix kmtx{1.0, 1.0, 0.0, 0.0};
     auto dist = Eigen::VectorXd::Zero(5);
-    Camera<DualDistortion> camera(kmtx, dist);
+    PinholeCamera<DualDistortion> camera(kmtx, dist);
 
     Eigen::Matrix3d R1 = Eigen::Matrix3d::Identity();
     Eigen::Vector3d t1(0.0, 0.0, 1.0);

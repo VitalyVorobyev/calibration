@@ -186,7 +186,7 @@ static Mat3 build_plane_homography(const Eigen::Vector4d& plane) {
 }
 
 LineScanCalibrationResult calibrate_laser_plane(const std::vector<LineScanObservation>& views,
-                                                const Camera<DualDistortion>& camera) {
+                                                const PinholeCamera<DualDistortion>& camera) {
     // Validate input observations
     validate_observations(views);
 

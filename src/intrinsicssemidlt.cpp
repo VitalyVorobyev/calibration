@@ -55,7 +55,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
         return blocks;
     }
 
-    void populate_result(IntrinsicsOptimizationResult<Camera<BrownConradyd>>& result) const {
+    void populate_result(IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>>& result) const {
         result.camera.kmtx.fx = intrinsics[0];
         result.camera.kmtx.fy = intrinsics[1];
         result.camera.kmtx.cx = intrinsics[2];
@@ -129,7 +129,7 @@ static ceres::Problem build_problem(const std::vector<PlanarView>& obs_views,
 
 static void compute_per_view_errors(const std::vector<PlanarView>& obs_views,
                                     const Eigen::VectorXd& residuals,
-                                    IntrinsicsOptimizationResult<Camera<BrownConradyd>>& result) {
+                                    IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>>& result) {
     const size_t num_views = obs_views.size();
     result.view_errors.resize(num_views);
     int residual_idx = 0;
@@ -145,10 +145,10 @@ static void compute_per_view_errors(const std::vector<PlanarView>& obs_views,
     }
 }
 
-IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics_semidlt(
+IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> optimize_intrinsics_semidlt(
     const std::vector<PlanarView>& views, const CameraMatrix& initial_guess,
     const IntrinsicsOptions& opts) {
-    IntrinsicsOptimizationResult<Camera<BrownConradyd>> result;
+    IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> result;
 
     // Prepare observations per view
     const size_t total_obs = count_total_observations(views);
