@@ -54,9 +54,9 @@ auto estimate_intrinsics_linear(const std::vector<Observation<double>>& observat
  * 
  * Iterative algorithm that alternates between estimating distortion coefficients
  * and re-solving for camera intrinsics to provide better initial estimates.
-// intrinsics (estimate_intrinsics_linear).  Returns std::nullopt if the
-// initial linear estimation fails.  The number of radial distortion
-// coefficients and the number of refinement iterations can be specified.
+ * Returns std::nullopt if the initial linear estimation fails. The number of 
+ * radial distortion coefficients and the number of refinement iterations can be specified.
+ */
 constexpr int k_default_max_iterations = 5;
 auto estimate_intrinsics_linear_iterative(
     const std::vector<Observation<double>>& observations, int num_radial,
