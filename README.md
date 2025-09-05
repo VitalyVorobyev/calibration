@@ -27,6 +27,17 @@ A C++ library for camera calibration and vision-related geometric transformation
 - GoogleTest & GoogleMock: Unit testing frameworks
 - Boost.PFR: Header-only reflection for aggregates
 
+## vcpkg
+
+This library is available as a [vcpkg](https://github.com/microsoft/vcpkg) package:
+
+```bash
+vcpkg install calibration
+```
+
+When configuring projects that use this port, pass
+`-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake` to CMake.
+
 ## Build
 
 ### Linux and macOS
