@@ -86,7 +86,7 @@ static std::vector<Vec3> process_view(const LineScanObservation& view,
     Mat3 H_norm_to_obj = estimate_homography_dlt(img_norm, view.target_xy);
 
     // Pose of plane (world->camera)
-    Eigen::Isometry3d pose = estimate_planar_pose_dlt(view.target_xy, view.target_uv, camera.K);
+    Eigen::Isometry3d pose = estimate_planar_pose_dlt(view.target_xy, view.target_uv, camera.kmtx);
 
     // Reproject laser pixels to plane and transform to camera coordinates
     for (const auto& lpix : view.laser_uv) {

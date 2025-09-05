@@ -15,11 +15,12 @@
 namespace calib {
 
 // ---------- Ceres residual (AX = XB): rotation log + translation eq ----------
-struct ax_xb_residual final {
+struct AxXbResidual final {
     Eigen::Matrix3d rot_a_, rot_b_;
     Eigen::Vector3d tra_a_, tra_b_;
 
-    explicit ax_xb_residual(const MotionPair& mp) : rot_a_(mp.rot_a), rot_b_(mp.rot_b), tra_a_(mp.tra_a), tra_b_(mp.tra_b) {}
+    explicit AxXbResidual(const MotionPair& mp)
+        : rot_a_(mp.rot_a), rot_b_(mp.rot_b), tra_a_(mp.tra_a), tra_b_(mp.tra_b) {}
 
     template <typename T>
     bool operator()(const T* const q, const T* const t, T* residuals) const {
@@ -48,7 +49,7 @@ struct ax_xb_residual final {
     }
 
     static auto create(const MotionPair& mp) {
-        return new ceres::AutoDiffCostFunction<ax_xb_residual, 6, 4, 3>(new ax_xb_residual(mp));
+        return new ceres::AutoDiffCostFunction<AxXbResidual, 6, 4, 3>(new AxXbResidual(mp));
     }
 };
 

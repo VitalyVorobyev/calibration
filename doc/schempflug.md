@@ -2,7 +2,7 @@
 
 *[by ChatGPT5 Thinking]*
 
-“Scheimpflug” just means your sensor plane is **not perpendicular** to the camera’s principal ray (because the lens was tilted to rotate the plane of sharp focus). Geometrically, that’s a **central** camera whose image plane is **oblique**. You can—and should—model this directly in the projection step instead of hoping skew and principal point soak it up.
+“Scheimpflug” means your sensor plane is **not perpendicular** to the camera’s principal ray (because the lens was tilted to rotate the plane of sharp focus). Geometrically, that’s a **central** camera whose image plane is **oblique**. You can—and should—model this directly in the projection step instead of hoping skew and principal point soak it up.
 
 Below is a practical, math-first recipe you can drop into your calibrator (Ceres, g2o, etc.), plus key identifiability notes.
 

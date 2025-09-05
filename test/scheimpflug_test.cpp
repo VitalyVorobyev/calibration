@@ -7,7 +7,7 @@ using namespace calib;
 
 TEST(ScheimpflugCamera, ZeroTiltMatchesPinhole) {
     Camera<DualDistortion> cam;
-    cam.K.fx = 800; cam.K.fy = 820; cam.K.cx = 320; cam.K.cy = 240;
+    cam.kmtx.fx = 800; cam.kmtx.fy = 820; cam.kmtx.cx = 320; cam.kmtx.cy = 240;
     cam.distortion.forward = Eigen::VectorXd::Zero(2);
     cam.distortion.inverse = Eigen::VectorXd::Zero(2);
 
@@ -23,7 +23,7 @@ TEST(ScheimpflugCamera, ZeroTiltMatchesPinhole) {
 
 TEST(ScheimpflugCamera, PrincipalRay) {
     Camera<DualDistortion> cam;
-    cam.K.fx = 600; cam.K.fy = 600; cam.K.cx = 400; cam.K.cy = 300;
+    cam.kmtx.fx = 600; cam.kmtx.fy = 600; cam.kmtx.cx = 400; cam.kmtx.cy = 300;
     cam.distortion.forward = Eigen::VectorXd::Zero(2);
     cam.distortion.inverse = Eigen::VectorXd::Zero(2);
 

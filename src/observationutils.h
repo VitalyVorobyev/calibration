@@ -65,7 +65,9 @@ inline Eigen::Matrix3d projectToSO3(const Eigen::Matrix3d& rmtx) {
     Eigen::Matrix3d umtx = svd.matrixU();
     Eigen::Matrix3d vmtx = svd.matrixV();
     Eigen::Matrix3d sigma = Eigen::Matrix3d::Identity();
-    if ((umtx * vmtx.transpose()).determinant() < 0.0) sigma(2, 2) = -1.0;
+    if ((umtx * vmtx.transpose()).determinant() < 0.0) {
+        sigma(2, 2) = -1.0;
+    }
     return umtx * sigma * vmtx.transpose();
 }
 
@@ -134,15 +136,17 @@ inline std::array<double, 6> pose_to_array(const Eigen::Isometry3d& pose) {
 inline Eigen::Isometry3d array_to_pose(const double* pose) {
     Eigen::Matrix3d rotation;
     ceres::AngleAxisToRotationMatrix(pose, rotation.data());
-    Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
-    T.linear() = rotation;
-    T.translation() = Eigen::Vector3d(pose[3], pose[4], pose[5]);
-    return T;
+    Eigen::Isometry3d se3 = Eigen::Isometry3d::Identity();
+    se3.linear() = rotation;
+    se3.translation() = Eigen::Vector3d(pose[3], pose[4], pose[5]);
+    return se3;
 }
 
 // Utility: average a set of affine transforms (rotation via quaternion averaging)
 inline Eigen::Isometry3d average_affines(const std::vector<Eigen::Isometry3d>& poses) {
-    if (poses.empty()) return Eigen::Isometry3d::Identity();
+    if (poses.empty()) {
+        return Eigen::Isometry3d::Identity();
+    }
     Eigen::Vector3d translation = Eigen::Vector3d::Zero();
     Eigen::Quaterniond q_sum(0, 0, 0, 0);
     for (const auto& p : poses) {
@@ -163,7 +167,9 @@ template <typename T>
 static void planar_observables_to_observables(
     const PlanarView& planar_obs, std::vector<Observation<T>>& obs,
     const Eigen::Transform<T, 3, Eigen::Isometry>& camera_se3_target) {
-    if (obs.size() != planar_obs.size()) obs.resize(planar_obs.size());
+    if (obs.size() != planar_obs.size()) {
+        obs.resize(planar_obs.size());
+    }
     for (size_t i = 0; i < planar_obs.size(); ++i) {
         const auto& planar_item = planar_obs[i];
         // Convert pixel coordinates to normalized image coordinates

@@ -55,7 +55,7 @@ using Pose6 = Eigen::Matrix<double, 6, 1>;
 // Functor mirroring the production PlanarPoseVPResidual for testing Jacobians.
 struct PlanarPoseVPResidualTestFunctor {
     PlanarView obs;
-    std::array<double, 5> K;
+    std::array<double, 5> kmtx;
     int num_radial;
 
     template <typename T>
@@ -71,14 +71,14 @@ struct PlanarPoseVPResidualTestFunctor {
                 return {
                     .x = Pc.x() * invZ,
                     .y = Pc.y() * invZ,
-                    .u = T(s.image_uv.x()) * T(K[0]) + T(s.image_uv.y()) * T(K[4]) + T(K[2]),
-                    .v = T(s.image_uv.y()) * T(K[1]) + T(K[3])
+                    .u = T(s.image_uv.x()) * T(kmtx[0]) + T(s.image_uv.y()) * T(kmtx[4]) + T(kmtx[2]),
+                    .v = T(s.image_uv.y()) * T(kmtx[1]) + T(kmtx[3])
                 };
             }
         );
 
         CameraMatrixT<T> intrinsics {
-            T(K[0]), T(K[1]), T(K[2]), T(K[3]), T(K[4])
+            T(kmtx[0]), T(kmtx[1]), T(kmtx[2]), T(kmtx[3]), T(kmtx[4])
         };
         auto dr = fit_distortion_full(o, intrinsics, num_radial);
         if (!dr) {
@@ -160,8 +160,8 @@ TEST(PlanarPoseTest, AutoDiffJacobianParity) {
     PlanarView obs(obj_pts.size());
     for (size_t i=0;i<obj_pts.size();++i) obs[i] = {obj_pts[i], img_pts[i]};
 
-    const std::array<double, 5> K = {intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy, intrinsics.skew};
-    auto functor = new PlanarPoseVPResidualTestFunctor{obs, K, 0};
+    const std::array<double, 5> kmtx = {intrinsics.fx, intrinsics.fy, intrinsics.cx, intrinsics.cy, intrinsics.skew};
+    auto functor = new PlanarPoseVPResidualTestFunctor{obs, kmtx, 0};
     ceres::AutoDiffCostFunction<PlanarPoseVPResidualTestFunctor, ceres::DYNAMIC, 6> cost(
         functor, static_cast<int>(obs.size()) * 2);
 

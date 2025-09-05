@@ -41,8 +41,8 @@ template <camera_model CameraT>
 struct BundleReprojResidual final {
     const PlanarView view;
     const Eigen::Isometry3d base_se3_gripper;
-    BundleReprojResidual(const PlanarView& v, const Eigen::Isometry3d& b_se3_g)
-        : view(v), base_se3_gripper(b_se3_g) {}
+    BundleReprojResidual(PlanarView v, Eigen::Isometry3d b_se3_g)
+        : view(std::move(v)), base_se3_gripper(std::move(b_se3_g)) {}
 
     template <typename T>
     bool operator()(const T* b_quat_t, const T* b_tra_t, const T* g_quat_c, const T* g_tra_c,
@@ -57,20 +57,20 @@ struct BundleReprojResidual final {
 
         size_t idx = 0;
         for (const auto& ob : view) {
-            auto P = Eigen::Matrix<T, 3, 1>(T(ob.object_xy.x()), T(ob.object_xy.y()), T(0));
-            P = c_rot_t * P + c_tra_t;
-            Eigen::Matrix<T, 2, 1> uv = cam.project(P);
+            auto point = Eigen::Matrix<T, 3, 1>(T(ob.object_xy.x()), T(ob.object_xy.y()), T(0));
+            point = c_rot_t * point + c_tra_t;
+            Eigen::Matrix<T, 2, 1> uv = cam.project(point);
             residuals[idx++] = uv.x() - T(ob.image_uv.x());
             residuals[idx++] = uv.y() - T(ob.image_uv.y());
         }
         return true;
     }
 
-    static auto* create(const PlanarView& v, const Eigen::Isometry3d& base_se3_gripper) {
-        if (v.empty()) {
+    static auto* create(const PlanarView& view, const Eigen::Isometry3d& base_se3_gripper) {
+        if (view.empty()) {
             throw std::invalid_argument("No observations provided");
         }
-        auto* functor = new BundleReprojResidual(v, base_se3_gripper);
+        auto* functor = new BundleReprojResidual(view, base_se3_gripper);
         constexpr int intr_size = CameraTraits<CameraT>::param_count;
         auto* cost = new ceres::AutoDiffCostFunction<BundleReprojResidual, ceres::DYNAMIC, 4, 3, 4,
                                                      3, intr_size>(

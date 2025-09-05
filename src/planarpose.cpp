@@ -70,7 +70,7 @@ auto estimate_planar_pose_dlt(const PlanarView& observations,
     return estimate_planar_pose_dlt(object_xy, image_uv, intrinsics);
 }
 
-// Convenience: one-shot planar pose from pixels & K
+// Convenience: one-shot planar pose from pixels & kmtx
 // Returns true on success; outputs R (world->cam) and t
 auto estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& object_xy,
                               const std::vector<Eigen::Vector2d>& image_uv,
@@ -128,7 +128,7 @@ struct PlanarPoseVPResidual final {
     }
 
     // Helper used after optimization to compute best distortion coefficients.
-    Eigen::VectorXd SolveDistortionFor(const Pose6& pose6) const {
+    Eigen::VectorXd solve_distortion_for(const Pose6& pose6) const {
         std::vector<Observation<double>> o(obs_.size());
         std::transform(obs_.begin(), obs_.end(), o.begin(), [pose6](const PlanarObservation& s) {
             return to_observation(s, pose6.data());
@@ -201,7 +201,7 @@ auto optimize_planar_pose(const std::vector<Eigen::Vector2d>& object_xy,
     }
 
     result.pose = axisangle_to_pose(Eigen::Map<const Pose6>(blocks.pose6.data()));
-    result.distortion = functor->SolveDistortionFor(Eigen::Map<const Pose6>(blocks.pose6.data()));
+    result.distortion = functor->solve_distortion_for(Eigen::Map<const Pose6>(blocks.pose6.data()));
 
     return result;
 }

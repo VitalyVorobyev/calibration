@@ -25,10 +25,10 @@ TEST(TsaiLenzAllPairsWeighted, RecoversGroundTruthWithNoise) {
 
     // Intrinsics (not used by linear step, but for later)
     Camera<BrownConradyd> cam_gt;
-    cam_gt.K.fx = 900;
-    cam_gt.K.fy = 920;
-    cam_gt.K.cx = 640;
-    cam_gt.K.cy = 360;
+    cam_gt.kmtx.fx = 900;
+    cam_gt.kmtx.fy = 920;
+    cam_gt.kmtx.cx = 640;
+    cam_gt.kmtx.cy = 360;
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Sim data
@@ -67,10 +67,10 @@ TEST(TsaiLenzAllPairsWeighted, InvariantToBaseFrameLeftMultiply) {
     Eigen::Isometry3d X_gt = make_pose(Eigen::Vector3d(0.01, 0.02, 0.12), Eigen::Vector3d(0,0,1), deg2rad(15));
     Eigen::Isometry3d b_se3_t_gt = make_pose(Eigen::Vector3d(0.3, 0.2, 0.7), Eigen::Vector3d(1,0,0), deg2rad(10));
     Camera<BrownConradyd> cam_gt;
-    cam_gt.K.fx = 1000;
-    cam_gt.K.fy = 1000;
-    cam_gt.K.cx = 640;
-    cam_gt.K.cy = 360;
+    cam_gt.kmtx.fx = 1000;
+    cam_gt.kmtx.fy = 1000;
+    cam_gt.kmtx.cx = 640;
+    cam_gt.kmtx.cy = 360;
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     SimulatedHandEye sim{X_gt, b_se3_t_gt, cam_gt};
@@ -102,10 +102,10 @@ TEST(CeresAXXBRefine, ImprovesOverInitializer) {
     Eigen::Isometry3d X_gt = make_pose(Eigen::Vector3d(0.02, -0.01, 0.09), rng.rand_unit_axis(), deg2rad(10.0));
     Eigen::Isometry3d b_se3_t_gt = make_pose(Eigen::Vector3d(0.25, 0.05, 0.55), rng.rand_unit_axis(), deg2rad(18.0));
     Camera<BrownConradyd> cam_gt;
-    cam_gt.K.fx = 950;
-    cam_gt.K.fy = 960;
-    cam_gt.K.cx = 640;
-    cam_gt.K.cy = 360;
+    cam_gt.kmtx.fx = 950;
+    cam_gt.kmtx.fy = 960;
+    cam_gt.kmtx.cx = 640;
+    cam_gt.kmtx.cy = 360;
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Data

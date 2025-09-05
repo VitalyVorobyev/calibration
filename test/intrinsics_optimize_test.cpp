@@ -9,9 +9,9 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     RNG rng(7);
 
     Camera<BrownConradyd> cam_gt;
-    cam_gt.K.fx = 1000; cam_gt.K.fy = 1005;
-    cam_gt.K.cx = 640;  cam_gt.K.cy = 360;
-    cam_gt.K.skew = 0.0;
+    cam_gt.kmtx.fx = 1000; cam_gt.kmtx.fy = 1005;
+    cam_gt.kmtx.cx = 640;  cam_gt.kmtx.cy = 360;
+    cam_gt.kmtx.skew = 0.0;
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Use proper transforms: camera at origin looking at target in front
@@ -27,15 +27,15 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
 
     // Create initial camera guess
     Camera<BrownConradyd> guess_cam = cam_gt;
-    guess_cam.K.fx *= 0.97; guess_cam.K.fy *= 1.03;
-    guess_cam.K.cx += 5.0; guess_cam.K.cy -= 4.0;
+    guess_cam.kmtx.fx *= 0.97; guess_cam.kmtx.fy *= 1.03;
+    guess_cam.kmtx.cx += 5.0; guess_cam.kmtx.cy -= 4.0;
     guess_cam.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Estimate initial poses for each view
     std::vector<Eigen::Isometry3d> init_poses;
     init_poses.reserve(views.size());
     for (const auto& view : views) {
-        auto pose = estimate_planar_pose_dlt(view, guess_cam.K);
+        auto pose = estimate_planar_pose_dlt(view, guess_cam.kmtx);
         init_poses.push_back(pose);
     }
 
@@ -44,8 +44,8 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     opts.optimize_skew = false;
     auto res = optimize_intrinsics(views, guess_cam, init_poses, opts);
 
-    const auto& Kf = res.camera.K;
-    const auto& K_gt = cam_gt.K;
+    const auto& Kf = res.camera.kmtx;
+    const auto& K_gt = cam_gt.kmtx;
     EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-6);
     EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-6);
     EXPECT_NEAR(Kf.cx, K_gt.cx, 1e-6);
@@ -58,9 +58,9 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     RNG rng(5);
 
     Camera<BrownConradyd> cam_gt;
-    cam_gt.K.fx = 1000; cam_gt.K.fy = 1005;
-    cam_gt.K.cx = 640;  cam_gt.K.cy = 360;
-    cam_gt.K.skew = 0.001;
+    cam_gt.kmtx.fx = 1000; cam_gt.kmtx.fy = 1005;
+    cam_gt.kmtx.cx = 640;  cam_gt.kmtx.cy = 360;
+    cam_gt.kmtx.skew = 0.001;
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Use proper transforms: camera at origin looking at target in front
@@ -76,16 +76,16 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
 
     // Create initial camera guess
     Camera<BrownConradyd> guess_cam = cam_gt;
-    guess_cam.K.fx *= 0.95; guess_cam.K.fy *= 1.05;
-    guess_cam.K.cx += 10.0; guess_cam.K.cy -= 6.0;
-    guess_cam.K.skew = 0.0;
+    guess_cam.kmtx.fx *= 0.95; guess_cam.kmtx.fy *= 1.05;
+    guess_cam.kmtx.cx += 10.0; guess_cam.kmtx.cy -= 6.0;
+    guess_cam.kmtx.skew = 0.0;
     guess_cam.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Estimate initial poses for each view
     std::vector<Eigen::Isometry3d> init_poses;
     init_poses.reserve(views.size());
     for (const auto& view : views) {
-        auto pose = estimate_planar_pose_dlt(view, guess_cam.K);
+        auto pose = estimate_planar_pose_dlt(view, guess_cam.kmtx);
         init_poses.push_back(pose);
     }
 
@@ -94,8 +94,8 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     opts.optimize_skew = true;
     auto res = optimize_intrinsics(views, guess_cam, init_poses, opts);
 
-    const auto& Kf = res.camera.K;
-    const auto& K_gt = cam_gt.K;
+    const auto& Kf = res.camera.kmtx;
+    const auto& K_gt = cam_gt.kmtx;
     EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-6);
     EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-6);
     EXPECT_NEAR(Kf.cx, K_gt.cx, 1e-6);

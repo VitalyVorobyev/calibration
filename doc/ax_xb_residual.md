@@ -2,7 +2,7 @@
 
 *[by ChatGPT5 Thinking]*
 
-Here’s the math, end-to-end, for the residual we called `ax_xb_residual`, plus one subtle but important sign detail.
+Here’s the math, end-to-end, for the residual we called `AxXbResidual`, plus one subtle but important sign detail.
 
 ---
 
@@ -111,7 +111,7 @@ When $(R_X,t_X)$ satisfy (1)–(2), $r_{\text{tr}}=0$.
 
 ---
 
-# Combined 6-D residual (what `ax_xb_residual` emits)
+# Combined 6-D residual (what `AxXbResidual` emits)
 
 Per motion pair $(A,B)$ we stack
 
@@ -180,7 +180,7 @@ stacked over motion pairs and solved in least squares for $r$, then $R_X=\exp(r)
 
 # Summary and the one fix to apply
 
-The `ax_xb_residual` is just the stacked Lie-log of the **rotation closure** (3) and the **linear translation** (5), optionally weighted. It’s the exact, non-linear version of Tsai–Lenz, solved jointly in Ceres.
+The `AxXbResidual` is just the stacked Lie-log of the **rotation closure** (3) and the **linear translation** (5), optionally weighted. It’s the exact, non-linear version of Tsai–Lenz, solved jointly in Ceres.
 
 **Fix in your implementation:** make sure the rotation misfit uses **$R_B^{\!\top}$**:
 

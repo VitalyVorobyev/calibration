@@ -41,9 +41,10 @@ struct ScheimpflugCamera final {
 
     template <distortion_model OtherDistortionT, typename T>
     ScheimpflugCamera(const Camera<OtherDistortionT>& cam, T tau_x_angle, T tau_y_angle)
-        : camera(Camera<DistortionT>(CameraMatrixT<Scalar>{Scalar(cam.K.fx), Scalar(cam.K.fy),
-                                                           Scalar(cam.K.cx), Scalar(cam.K.cy)},
-                                     cam.distortion.coeffs.template cast<Scalar>())),
+        : camera(
+              Camera<DistortionT>(CameraMatrixT<Scalar>{Scalar(cam.kmtx.fx), Scalar(cam.kmtx.fy),
+                                                        Scalar(cam.kmtx.cx), Scalar(cam.kmtx.cy)},
+                                  cam.distortion.coeffs.template cast<Scalar>())),
           tau_x(Scalar(tau_x_angle)),
           tau_y(Scalar(tau_y_angle)) {}
 
@@ -92,8 +93,8 @@ struct ScheimpflugCamera final {
         mx = dxy.x() + mx0;
         my = dxy.y() + my0;
 
-        T u = T(camera.K.fx) * mx + T(camera.K.skew) * my + T(camera.K.cx);
-        T v = T(camera.K.fy) * my + T(camera.K.cy);
+        T u = T(camera.kmtx.fx) * mx + T(camera.kmtx.skew) * my + T(camera.kmtx.cx);
+        T v = T(camera.kmtx.fy) * my + T(camera.kmtx.cy);
         return {u, v};
     }
 };
@@ -122,11 +123,11 @@ struct CameraTraits<ScheimpflugCamera<DistortionT>> {
 
     static void to_array(const ScheimpflugCamera<DistortionT>& cam,
                          std::array<double, param_count>& arr) {
-        arr[0] = cam.camera.K.fx;
-        arr[1] = cam.camera.K.fy;
-        arr[2] = cam.camera.K.cx;
-        arr[3] = cam.camera.K.cy;
-        arr[4] = cam.camera.K.skew;
+        arr[0] = cam.camera.kmtx.fx;
+        arr[1] = cam.camera.kmtx.fy;
+        arr[2] = cam.camera.kmtx.cx;
+        arr[3] = cam.camera.kmtx.cy;
+        arr[4] = cam.camera.kmtx.skew;
         arr[k_tau_x_idx] = cam.tau_x;
         arr[k_tau_y_idx] = cam.tau_y;
         for (int i = 0; i < k_num_dist_coeffs; ++i) {

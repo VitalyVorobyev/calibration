@@ -47,7 +47,8 @@ struct BundleBlocks final : public ProblemParamBlocks {
             blocks.emplace_back(intr_block.data(), intr_block.size(), k_intr_size);
         }
         for (const auto& quat_block : g_quat_c) {
-            blocks.emplace_back(quat_block.data(), quat_block.size(), 3);  // 3 dof in unit quaternion
+            blocks.emplace_back(quat_block.data(), quat_block.size(),
+                                3);  // 3 dof in unit quaternion
         }
         for (const auto& tran_block : g_tra_c) {
             blocks.emplace_back(tran_block.data(), tran_block.size(), 3);

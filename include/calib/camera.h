@@ -13,27 +13,27 @@ template <distortion_model DistortionT>
 class Camera final {
   public:
     using Scalar = typename DistortionT::Scalar;
-    CameraMatrixT<Scalar> K;  ///< Intrinsic camera matrix parameters
-    DistortionT distortion;   ///< Distortion model
+    CameraMatrixT<Scalar> kmtx;  ///< Intrinsic camera matrix parameters
+    DistortionT distortion;      ///< Distortion model
 
     Camera() = default;
     Camera(const CameraMatrixT<Scalar>& matrix, const DistortionT& distortion_model)
-        : K(matrix), distortion(distortion_model) {}
+        : kmtx(matrix), distortion(distortion_model) {}
 
     template <typename Derived>
     Camera(const CameraMatrixT<Scalar>& matrix, const Eigen::MatrixBase<Derived>& coeffs)
-        : K(matrix), distortion(coeffs) {}
+        : kmtx(matrix), distortion(coeffs) {}
 
     template <typename T>
     [[nodiscard]]
     auto normalize(const Eigen::Matrix<T, 2, 1>& pixel) const -> Eigen::Matrix<T, 2, 1> {
-        return K.template normalize<T>(pixel);
+        return kmtx.template normalize<T>(pixel);
     }
 
     template <typename T>
     [[nodiscard]]
     auto denormalize(const Eigen::Matrix<T, 2, 1>& norm_xy) const -> Eigen::Matrix<T, 2, 1> {
-        return K.template denormalize<T>(norm_xy);
+        return kmtx.template denormalize<T>(norm_xy);
     }
 
     template <typename T>
@@ -88,11 +88,11 @@ struct CameraTraits<Camera<DistortionT>> {
     }
 
     static void to_array(const Camera<DistortionT>& cam, std::array<double, param_count>& arr) {
-        arr[0] = cam.K.fx;
-        arr[1] = cam.K.fy;
-        arr[2] = cam.K.cx;
-        arr[3] = cam.K.cy;
-        arr[4] = cam.K.skew;
+        arr[0] = cam.kmtx.fx;
+        arr[1] = cam.kmtx.fy;
+        arr[2] = cam.kmtx.cx;
+        arr[3] = cam.kmtx.cy;
+        arr[4] = cam.kmtx.skew;
         constexpr int k_intr_offset = 5;
         for (int i = 0; i < k_num_dist_coeffs; ++i) {
             arr[k_intr_offset + i] = cam.distortion.coeffs[i];

@@ -56,11 +56,11 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
     }
 
     void populate_result(IntrinsicsOptimizationResult<Camera<BrownConradyd>>& result) const {
-        result.camera.K.fx = intrinsics[0];
-        result.camera.K.fy = intrinsics[1];
-        result.camera.K.cx = intrinsics[2];
-        result.camera.K.cy = intrinsics[3];
-        result.camera.K.skew = intrinsics[4];
+        result.camera.kmtx.fx = intrinsics[0];
+        result.camera.kmtx.fy = intrinsics[1];
+        result.camera.kmtx.cx = intrinsics[2];
+        result.camera.kmtx.cy = intrinsics[3];
+        result.camera.kmtx.skew = intrinsics[4];
 
         result.c_se3_t.resize(c_quat_t.size());
         for (size_t i = 0; i < c_quat_t.size(); ++i) {

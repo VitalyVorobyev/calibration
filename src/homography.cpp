@@ -204,7 +204,9 @@ OptimizeHomographyResult optimize_homography(const std::vector<Vec2>& src,
     solve_problem(problem, options, &result);
 
     Mat3 hmtx = params_to_h(blocks.params);
-    if (std::abs(hmtx(2, 2)) > 1e-15) { hmtx /= hmtx(2, 2); }
+    if (std::abs(hmtx(2, 2)) > 1e-15) {
+        hmtx /= hmtx(2, 2);
+    }
     result.homography = hmtx;
 
     if (options.compute_covariance) {
