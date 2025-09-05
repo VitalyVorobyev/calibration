@@ -77,12 +77,10 @@ struct PlanarPoseVPResidualTestFunctor {
             }
         );
 
-        const T fx = T(K[0]);
-        const T fy = T(K[1]);
-        const T cx = T(K[2]);
-        const T cy = T(K[3]);
-        const T skew = T(K[4]);
-        auto dr = fit_distortion_full(o, fx, fy, cx, cy, skew, num_radial);
+        CameraMatrixT<T> intrinsics {
+            T(K[0]), T(K[1]), T(K[2]), T(K[3]), T(K[4])
+        };
+        auto dr = fit_distortion_full(o, intrinsics, num_radial);
         if (!dr) {
             return false;
         }

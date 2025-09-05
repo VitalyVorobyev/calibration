@@ -127,7 +127,7 @@ std::optional<Camera<BrownConradyd>> estimate_intrinsics_linear_iterative(
 
     for (int iter = 0; iter < max_iterations; ++iter) {
         // Estimate distortion for current intrinsics using original observations.
-        auto dist_opt = fit_distortion(obs, kmtx.fx, kmtx.fy, kmtx.cx, kmtx.cy, kmtx.skew, num_radial);
+        auto dist_opt = fit_distortion(obs, kmtx, num_radial);
         if (!dist_opt) {
             return std::nullopt;
         }
@@ -159,7 +159,7 @@ std::optional<Camera<BrownConradyd>> estimate_intrinsics_linear_iterative(
         }
     }
 
-    auto dual_opt = fit_distortion_full(obs, kmtx.fx, kmtx.fy, kmtx.cx, kmtx.cy, kmtx.skew, num_radial);
+    auto dual_opt = fit_distortion_full(obs, kmtx, num_radial);
     if (!dual_opt) {
         return std::nullopt;
     }

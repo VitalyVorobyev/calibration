@@ -24,8 +24,8 @@ static auto make_motion_pair(const Eigen::Isometry3d& base_se3_gripper_a,
 
 static auto is_good_pair(const MotionPair& motion_pair, double min_angle, bool reject_axis_parallel,
                          double axis_parallel_eps) -> bool {
-    Eigen::Vector3d alpha = logSO3(motion_pair.RA);
-    Eigen::Vector3d beta = logSO3(motion_pair.RB);
+    Eigen::Vector3d alpha = log_so3(motion_pair.RA);
+    Eigen::Vector3d beta = log_so3(motion_pair.RB);
     const double norm_a = alpha.norm();
     const double norm_b = beta.norm();
     const double min_rot = std::min(norm_a, norm_b);
@@ -87,15 +87,15 @@ static auto estimate_rotation_allpairs_weighted(const std::vector<MotionPair>& p
     Eigen::MatrixXd mat_m(3 * num_pairs, 3);
     Eigen::VectorXd vec_d(3 * num_pairs);
     for (int idx = 0; idx < num_pairs; ++idx) {
-        Eigen::Vector3d alpha = logSO3(pairs[idx].RA);
-        Eigen::Vector3d beta = logSO3(pairs[idx].RB);
+        Eigen::Vector3d alpha = log_so3(pairs[idx].RA);
+        Eigen::Vector3d beta = log_so3(pairs[idx].RB);
         constexpr double k_weight = 1.0;
         mat_m.block<3, 3>(static_cast<Eigen::Index>(3 * idx), 0) = k_weight * skew(alpha + beta);
         vec_d.segment<3>(static_cast<Eigen::Index>(3 * idx)) = k_weight * (beta - alpha);
     }
     constexpr double k_ridge = 1e-12;
     Eigen::Vector3d rot_vec = ridge_llsq(mat_m, vec_d, k_ridge);
-    return expSO3(rot_vec);
+    return exp_so3(rot_vec);
 }
 
 // ---------- weighted Tsai–Lenz translation over all pairs ----------
@@ -123,10 +123,10 @@ auto estimate_handeye_dlt(const std::vector<Eigen::Isometry3d>& base_se3_gripper
                           double min_angle_deg) -> Eigen::Isometry3d {
     auto pairs = build_all_pairs(base_se3_gripper, camera_se3_target, min_angle_deg);
     const Eigen::Matrix3d rot_x = estimate_rotation_allpairs_weighted(pairs);
-    const Eigen::Vector3d g_t_c = estimate_translation_allpairs_weighted(pairs, rot_x);
+    const Eigen::Vector3d g_tra_c = estimate_translation_allpairs_weighted(pairs, rot_x);
     Eigen::Isometry3d pose = Eigen::Isometry3d::Identity();
     pose.linear() = rot_x;
-    pose.translation() = g_t_c;
+    pose.translation() = g_tra_c;
     return pose;
 }
 

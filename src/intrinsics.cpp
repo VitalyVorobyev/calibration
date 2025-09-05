@@ -11,11 +11,11 @@ namespace calib {
 template <camera_model CameraT>
 struct IntrinsicBlocks final : public ProblemParamBlocks {
     static constexpr size_t intr_size = CameraTraits<CameraT>::param_count;
-    std::vector<std::array<double, 4>> c_q_t;
-    std::vector<std::array<double, 3>> c_t_t;
+    std::vector<std::array<double, 4>> c_quat_t;
+    std::vector<std::array<double, 3>> c_tra_t;
     std::array<double, intr_size> intr;
 
-    explicit IntrinsicBlocks(size_t numviews) : c_q_t(numviews), c_t_t(numviews), intr{} {}
+    explicit IntrinsicBlocks(size_t numviews) : c_quat_t(numviews), c_tra_t(numviews), intr{} {}
 
     static IntrinsicBlocks create(const CameraT& camera,
                                   const std::vector<Eigen::Isometry3d>& init_c_se3_t) {
@@ -24,7 +24,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
 
         CameraTraits<CameraT>::to_array(camera, blocks.intr);
         for (size_t v = 0; v < num_views; ++v) {
-            populate_quat_tran(init_c_se3_t[v], blocks.c_q_t[v], blocks.c_t_t[v]);
+            populate_quat_tran(init_c_se3_t[v], blocks.c_quat_t[v], blocks.c_tra_t[v]);
         }
         return blocks;
     }
@@ -32,19 +32,19 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
     std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
         blocks.emplace_back(intr.data(), intr.size(), intr_size);
-        for (const auto& i : c_q_t)
+        for (const auto& i : c_quat_t)
             blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
-        for (const auto& i : c_t_t) blocks.emplace_back(i.data(), i.size(), 3);
+        for (const auto& i : c_tra_t) blocks.emplace_back(i.data(), i.size(), 3);
         return blocks;
     }
 
     void populate_result(IntrinsicsOptimizationResult<CameraT>& result) const {
-        const size_t num_views = c_q_t.size();
+        const size_t num_views = c_quat_t.size();
         result.c_se3_t.resize(num_views);
 
         result.camera = CameraTraits<CameraT>::template from_array<double>(intr.data());
         for (size_t v = 0; v < num_views; ++v) {
-            result.c_se3_t[v] = restore_pose(c_q_t[v], c_t_t[v]);
+            result.c_se3_t[v] = restore_pose(c_quat_t[v], c_tra_t[v]);
         }
     }
 };
@@ -58,12 +58,12 @@ static ceres::Problem build_problem(const std::vector<PlanarView>& views,
         const auto& view = views[view_idx];
         auto loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
         p.AddResidualBlock(IntrinsicResidual<CameraT>::create(view), loss,
-                           blocks.c_q_t[view_idx].data(), blocks.c_t_t[view_idx].data(),
+                           blocks.c_quat_t[view_idx].data(), blocks.c_tra_t[view_idx].data(),
                            blocks.intr.data());
     }
 
-    for (auto& c_q_t : blocks.c_q_t) {
-        p.SetManifold(c_q_t.data(), new ceres::QuaternionManifold());
+    for (auto& c_quat_t : blocks.c_quat_t) {
+        p.SetManifold(c_quat_t.data(), new ceres::QuaternionManifold());
     }
 
     p.SetParameterLowerBound(blocks.intr.data(), CameraTraits<CameraT>::idx_fx, 0.0);

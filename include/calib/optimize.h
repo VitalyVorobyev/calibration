@@ -25,8 +25,8 @@ struct OptimOptions {
     double epsilon = k_default_epsilon;  ///< Solver convergence tolerance
     static constexpr int k_default_max_iterations = 1000;
     int max_iterations = k_default_max_iterations;  ///< Maximum number of iterations
-    bool compute_covariance = true;              ///< Compute covariance matrix
-    bool verbose = false;                        ///< Verbose solver output
+    bool compute_covariance = true;                 ///< Compute covariance matrix
+    bool verbose = false;                           ///< Verbose solver output
 };
 
 struct OptimResult {

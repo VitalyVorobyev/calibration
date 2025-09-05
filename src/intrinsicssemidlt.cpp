@@ -24,20 +24,20 @@ static size_t count_total_observations(const std::vector<PlanarView>& views) {
 
 struct IntrinsicBlocks final : public ProblemParamBlocks {
     std::array<double, 5> intrinsics;
-    std::vector<std::array<double, 4>> c_q_t;
-    std::vector<std::array<double, 3>> c_t_t;
+    std::vector<std::array<double, 4>> c_quat_t;
+    std::vector<std::array<double, 3>> c_tra_t;
 
     static IntrinsicBlocks create(const std::vector<PlanarView>& views,
                                   const CameraMatrix& initial_guess) {
         IntrinsicBlocks blocks;
-        blocks.c_q_t.resize(views.size());
-        blocks.c_t_t.resize(views.size());
+        blocks.c_quat_t.resize(views.size());
+        blocks.c_tra_t.resize(views.size());
         blocks.intrinsics = {initial_guess.fx, initial_guess.fy, initial_guess.cx, initial_guess.cy,
                              initial_guess.skew};
 
         for (size_t i = 0; i < views.size(); ++i) {
             Eigen::Isometry3d pose = estimate_planar_pose_dlt(views[i], initial_guess);
-            populate_quat_tran(pose, blocks.c_q_t[i], blocks.c_t_t[i]);
+            populate_quat_tran(pose, blocks.c_quat_t[i], blocks.c_tra_t[i]);
         }
 
         return blocks;
@@ -46,10 +46,10 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
     std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
         blocks.emplace_back(ParamBlock{intrinsics.data(), intrinsics.size(), 5});
-        for (const auto& q : c_q_t) {
+        for (const auto& q : c_quat_t) {
             blocks.emplace_back(ParamBlock{q.data(), q.size(), 3});
         }
-        for (const auto& t : c_t_t) {
+        for (const auto& t : c_tra_t) {
             blocks.emplace_back(ParamBlock{t.data(), t.size(), 3});
         }
         return blocks;
@@ -62,9 +62,9 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
         result.camera.K.cy = intrinsics[3];
         result.camera.K.skew = intrinsics[4];
 
-        result.c_se3_t.resize(c_q_t.size());
-        for (size_t i = 0; i < c_q_t.size(); ++i) {
-            result.c_se3_t[i] = restore_pose(c_q_t[i], c_t_t[i]);
+        result.c_se3_t.resize(c_quat_t.size());
+        for (size_t i = 0; i < c_quat_t.size(); ++i) {
+            result.c_se3_t[i] = restore_pose(c_quat_t[i], c_tra_t[i]);
         }
     }
 };
@@ -74,14 +74,14 @@ static auto solve_full(const std::vector<PlanarView>& views, int num_radial,
     -> std::optional<DistortionWithResiduals<double>> {
     std::vector<Observation<double>> obs;
     for (size_t i = 0; i < views.size(); ++i) {
-        auto c_se3_t = restore_pose(blocks.c_q_t[i], blocks.c_t_t[i]);
+        auto c_se3_t = restore_pose(blocks.c_quat_t[i], blocks.c_tra_t[i]);
         std::vector<Observation<double>> new_obs(views[i].size());
         planar_observables_to_observables(views[i], new_obs, c_se3_t);
         obs.insert(obs.end(), new_obs.begin(), new_obs.end());
     }
-    return fit_distortion_full(obs, blocks.intrinsics[0], blocks.intrinsics[1],
-                               blocks.intrinsics[2], blocks.intrinsics[3], blocks.intrinsics[4],
-                               num_radial);
+    CameraMatrix kmtx{blocks.intrinsics[0], blocks.intrinsics[1], blocks.intrinsics[2],
+                      blocks.intrinsics[3], blocks.intrinsics[4]};
+    return fit_distortion_full(obs, kmtx, num_radial);
 }
 
 // Set up the Ceres optimization problem
@@ -93,15 +93,15 @@ static ceres::Problem build_problem(const std::vector<PlanarView>& obs_views,
     // Add parameter blocks to the problem
     std::vector<double*> param_blocks;
     param_blocks.push_back(blocks.intrinsics.data());
-    for (size_t i = 0; i < blocks.c_q_t.size(); ++i) {
-        param_blocks.push_back(blocks.c_q_t[i].data());
-        param_blocks.push_back(blocks.c_t_t[i].data());
+    for (size_t i = 0; i < blocks.c_quat_t.size(); ++i) {
+        param_blocks.push_back(blocks.c_quat_t[i].data());
+        param_blocks.push_back(blocks.c_tra_t[i].data());
     }
     auto loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
     problem.AddResidualBlock(cost, loss, param_blocks);
 
-    for (size_t i = 0; i < blocks.c_q_t.size(); ++i) {
-        problem.SetManifold(blocks.c_q_t[i].data(), new ceres::QuaternionManifold());
+    for (size_t i = 0; i < blocks.c_quat_t.size(); ++i) {
+        problem.SetManifold(blocks.c_quat_t[i].data(), new ceres::QuaternionManifold());
     }
 
     if (opts.bounds.has_value()) {

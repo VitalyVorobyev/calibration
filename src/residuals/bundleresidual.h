@@ -14,14 +14,16 @@ namespace calib {
 // Computes target -> camera transform
 template <typename T>
 static std::pair<Eigen::Matrix<T, 3, 3>, Eigen::Matrix<T, 3, 1>> get_camera_se3_target(
-    const Eigen::Matrix<T, 3, 3>& b_R_t, const Eigen::Matrix<T, 3, 1>& b_t_t,
-    const Eigen::Matrix<T, 3, 3>& g_R_c, const Eigen::Matrix<T, 3, 1>& g_t_c,
-    const Eigen::Matrix<T, 3, 3>& b_R_g, const Eigen::Matrix<T, 3, 1>& b_t_g) {
-    auto [c_R_g, c_t_g] = invert_transform(g_R_c, g_t_c);       // g_se3_c -> c_se3_g
-    auto [g_R_b, g_t_b] = invert_transform(b_R_g, b_t_g);       // b_se3_g -> g_se3_b
-    auto [c_R_b, c_t_b] = product(c_R_g, c_t_g, g_R_b, g_t_b);  // c_se3_b = c_se3_g * g_se3_b
-    auto [c_R_t, c_t_t] = product(c_R_b, c_t_b, b_R_t, b_t_t);  // c_se3_t = c_se3_b * b_se3_t
-    return {c_R_t, c_t_t};
+    const Eigen::Matrix<T, 3, 3>& b_rot_t, const Eigen::Matrix<T, 3, 1>& b_tra_t,
+    const Eigen::Matrix<T, 3, 3>& g_rot_c, const Eigen::Matrix<T, 3, 1>& g_tra_c,
+    const Eigen::Matrix<T, 3, 3>& b_rot_g, const Eigen::Matrix<T, 3, 1>& b_tra_g) {
+    auto [c_rot_g, c_tra_g] = invert_transform(g_rot_c, g_tra_c);  // g_se3_c -> c_se3_g
+    auto [g_rot_b, g_tra_b] = invert_transform(b_rot_g, b_tra_g);  // b_se3_g -> g_se3_b
+    auto [c_rot_b, c_tra_b] =
+        product(c_rot_g, c_tra_g, g_rot_b, g_tra_b);  // c_se3_b = c_se3_g * g_se3_b
+    auto [c_rot_t, c_tra_t] =
+        product(c_rot_b, c_tra_b, b_rot_t, b_tra_t);  // c_se3_t = c_se3_b * b_se3_t
+    return {c_rot_t, c_tra_t};
 }
 
 #if 0
@@ -43,20 +45,20 @@ struct BundleReprojResidual final {
         : view(v), base_se3_gripper(b_se3_g) {}
 
     template <typename T>
-    bool operator()(const T* b_q_t, const T* b_t_t, const T* g_q_c, const T* g_t_c,
+    bool operator()(const T* b_quat_t, const T* b_tra_t, const T* g_quat_c, const T* g_tra_c,
                     const T* intrinsics, T* residuals) const {
-        const Eigen::Matrix<T, 3, 3> b_R_g = base_se3_gripper.linear().template cast<T>();
-        const Eigen::Matrix<T, 3, 1> b_t_g = base_se3_gripper.translation().template cast<T>();
-        const auto [c_R_t, c_t_t] = get_camera_se3_target(
-            quat_array_to_rotmat(b_q_t), array_to_translation(b_t_t), quat_array_to_rotmat(g_q_c),
-            array_to_translation(g_t_c), b_R_g, b_t_g);
+        const Eigen::Matrix<T, 3, 3> b_rot_g = base_se3_gripper.linear().template cast<T>();
+        const Eigen::Matrix<T, 3, 1> b_tra_g = base_se3_gripper.translation().template cast<T>();
+        const auto [c_rot_t, c_tra_t] = get_camera_se3_target(
+            quat_array_to_rotmat(b_quat_t), array_to_translation(b_tra_t),
+            quat_array_to_rotmat(g_quat_c), array_to_translation(g_tra_c), b_rot_g, b_tra_g);
 
         auto cam = CameraTraits<CameraT>::template from_array<T>(intrinsics);
 
         size_t idx = 0;
         for (const auto& ob : view) {
             auto P = Eigen::Matrix<T, 3, 1>(T(ob.object_xy.x()), T(ob.object_xy.y()), T(0));
-            P = c_R_t * P + c_t_t;
+            P = c_rot_t * P + c_tra_t;
             Eigen::Matrix<T, 2, 1> uv = cam.project(P);
             residuals[idx++] = uv.x() - T(ob.image_uv.x());
             residuals[idx++] = uv.y() - T(ob.image_uv.y());
