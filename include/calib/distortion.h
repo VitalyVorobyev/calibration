@@ -2,7 +2,7 @@
  * @file distortion.h
  * @brief Lens distortion models and correction algorithms
  * @ingroup distortion_correction
- * 
+ *
  * This file provides comprehensive lens distortion functionality including:
  * - C++20 concept-based distortion model interface
  * - Radial and tangential distortion correction
@@ -28,13 +28,13 @@ namespace calib {
 /**
  * @brief Concept defining the interface for lens distortion models
  * @ingroup distortion_correction
- * 
+ *
  * A distortion model must provide both forward distortion and inverse undistortion
  * operations for normalized 2D coordinates. This concept ensures type safety and
  * compile-time verification of distortion model implementations.
- * 
+ *
  * @tparam D The distortion model type
- * 
+ *
  * Requirements:
  * - Must have a Scalar type member
  * - Must provide distort() method for forward mapping
@@ -54,11 +54,11 @@ concept distortion_model =
 /**
  * @brief Observation structure for distortion parameter estimation
  * @ingroup distortion_correction
- * 
+ *
  * This structure holds corresponding normalized undistorted coordinates
  * and observed distorted pixel coordinates, used for distortion parameter
  * estimation through linear least squares or bundle adjustment.
- * 
+ *
  * @tparam T Scalar type (float, double, etc.)
  */
 template <typename T>
@@ -70,18 +70,18 @@ struct Observation final {
 /**
  * @brief Apply lens distortion to normalized coordinates
  * @ingroup distortion_correction
- * 
+ *
  * Applies radial and tangential distortion to normalized 2D coordinates
  * using the Brown-Conrady distortion model. The distortion coefficients
  * are ordered as [k1, k2, ..., kn, p1, p2] where ki are radial distortion
  * coefficients and p1, p2 are tangential distortion coefficients.
- * 
+ *
  * @tparam T Scalar type (float, double, etc.)
  * @param norm_xy Normalized undistorted 2D coordinates
  * @param coeffs Distortion coefficients vector (minimum 2 elements)
  * @return Distorted normalized coordinates
  * @throws std::runtime_error if coeffs has fewer than 2 elements
- * 
+ *
  * @note The input coordinates should be normalized by the camera intrinsics
  */
 template <typename T>

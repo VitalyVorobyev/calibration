@@ -2,7 +2,7 @@
  * @file intrinsics.h
  * @brief Camera intrinsic parameter estimation and optimization
  * @ingroup camera_calibration
- * 
+ *
  * This file provides comprehensive intrinsic camera calibration functionality including:
  * - Linear least squares estimation (DLT)
  * - Semi-linear iterative refinement
@@ -30,17 +30,17 @@ namespace calib {
 /**
  * @brief Estimate camera intrinsics using linear least squares
  * @ingroup camera_calibration
- * 
- * Estimates camera intrinsic parameters (fx, fy, cx, cy, optionally skew) 
+ *
+ * Estimates camera intrinsic parameters (fx, fy, cx, cy, optionally skew)
  * by solving a linear least-squares system that ignores lens distortion.
  * The input observations contain normalized coordinates (x,y) for undistorted
  * points and observed pixel coordinates (u,v).
- * 
+ *
  * @param observations Vector of distortion observations
  * @param bounds Optional calibration parameter bounds
  * @param use_skew Whether to estimate skew parameter
  * @return Optional camera matrix (nullopt if insufficient data or degenerate system)
- * 
+ *
  * @note Requires at least 6 observations for overdetermined system
  * @note Ignores lens distortion - suitable for initial estimation only
  */
@@ -51,10 +51,10 @@ auto estimate_intrinsics_linear(const std::vector<Observation<double>>& observat
 /**
  * @brief Improved linear initialization with distortion estimation
  * @ingroup camera_calibration
- * 
+ *
  * Iterative algorithm that alternates between estimating distortion coefficients
  * and re-solving for camera intrinsics to provide better initial estimates.
- * Returns std::nullopt if the initial linear estimation fails. The number of 
+ * Returns std::nullopt if the initial linear estimation fails. The number of
  * radial distortion coefficients and the number of refinement iterations can be specified.
  */
 constexpr int k_default_max_iterations = 5;

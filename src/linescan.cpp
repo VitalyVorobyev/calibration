@@ -20,8 +20,9 @@ using Mat3 = Eigen::Matrix3d;
 
 // Simple SVD-based plane initialization
 static Eigen::Vector4d fit_plane_svd(const std::vector<Vec3>& pts) {
-    Vec3 centroid = std::accumulate(pts.cbegin(), pts.cend(), Vec3{Vec3::Zero()},
-                                    [](const Vec3& avec, const Vec3& bvec) -> Vec3 { return avec + bvec; });
+    Vec3 centroid =
+        std::accumulate(pts.cbegin(), pts.cend(), Vec3{Vec3::Zero()},
+                        [](const Vec3& avec, const Vec3& bvec) -> Vec3 { return avec + bvec; });
     centroid /= static_cast<double>(pts.size());
 
     Eigen::MatrixXd amtx(static_cast<Eigen::Index>(pts.size()), 3);
@@ -112,7 +113,8 @@ static Eigen::Vector4d fit_plane(const std::vector<Vec3>& points, std::string& s
     ceres::Problem problem;
     for (const auto& p : points) {
         auto* cost = PlaneResidual::create(p);
-        // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks) - ownership transferred to ceres::Problem
+        // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks) - ownership transferred to
+        // ceres::Problem
         problem.AddResidualBlock(cost, new ceres::HuberLoss(1.0), params.data());
     }
 
@@ -149,7 +151,8 @@ static void compute_plane_statistics(const std::vector<Vec3>& points, const Eige
     ceres::Problem problem;
     for (const auto& p : points) {
         auto* cost = PlaneResidual::create(p);
-        // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks) - ownership transferred to ceres::Problem
+        // NOLINTNEXTLINE(clang-analyzer-cplusplus.NewDeleteLeaks) - ownership transferred to
+        // ceres::Problem
         problem.AddResidualBlock(cost, new ceres::HuberLoss(1.0), params.data());
     }
 

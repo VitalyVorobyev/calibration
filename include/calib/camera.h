@@ -2,7 +2,7 @@
  * @file camera.h
  * @brief Complete camera model with intrinsics and distortion
  * @ingroup camera_calibration
- * 
+ *
  * This file provides a unified camera model that combines intrinsic parameters
  * with lens distortion correction, supporting various distortion models through
  * the distortion_model concept.
@@ -22,13 +22,13 @@ namespace calib {
 /**
  * @brief Complete camera model with intrinsics and distortion correction
  * @ingroup camera_calibration
- * 
+ *
  * This class represents a complete camera model combining intrinsic parameters
  * (focal length, principal point, skew) with lens distortion correction.
  * The distortion model is templated and must satisfy the distortion_model concept.
- * 
+ *
  * @tparam DistortionT Distortion model type (must satisfy distortion_model concept)
- * 
+ *
  * Key features:
  * - Unified pixel-to-world and world-to-pixel transformations
  * - Template-based distortion model support
@@ -44,7 +44,7 @@ class Camera final {
 
     /// Default constructor
     Camera() = default;
-    
+
     /**
      * @brief Construct camera with intrinsic matrix and distortion model
      * @param matrix Intrinsic camera matrix
