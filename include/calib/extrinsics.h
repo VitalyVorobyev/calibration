@@ -7,8 +7,8 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calib/camera.h"
 #include "calib/optimize.h"
+#include "calib/pinhole.h"
 #include "calib/planarpose.h"
 
 namespace calib {

@@ -113,9 +113,9 @@ template IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> optimize_int
     const std::vector<PlanarView>& views, const PinholeCamera<BrownConradyd>& init_camera,
     std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
 
-template IntrinsicsOptimizationResult<ScheimpflugCamera<PinholeCamera<BrownConradyd>>> optimize_intrinsics(
-    const std::vector<PlanarView>& views,
-    const ScheimpflugCamera<PinholeCamera<BrownConradyd>>& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
+template IntrinsicsOptimizationResult<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>
+optimize_intrinsics(const std::vector<PlanarView>& views,
+                    const ScheimpflugCamera<PinholeCamera<BrownConradyd>>& init_camera,
+                    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
 
 }  // namespace calib

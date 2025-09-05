@@ -2,6 +2,7 @@
 #include <Eigen/Core>
 
 #include "calib/scheimpflug.h"
+#include "calib/pinhole.h"
 
 using namespace calib;
 

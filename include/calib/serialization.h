@@ -5,12 +5,12 @@
 #include <vector>
 
 #include "calib/bundle.h"
-#include "calib/camera.h"
 #include "calib/cameramatrix.h"
 #include "calib/distortion.h"
 #include "calib/extrinsics.h"
 #include "calib/handeye.h"
 #include "calib/intrinsics.h"
+#include "calib/pinhole.h"
 #include "calib/planarpose.h"
 
 namespace calib {
@@ -291,7 +291,8 @@ inline void to_json(nlohmann::json& j, const BundleResult<PinholeCamera<BrownCon
 
 inline void from_json(const nlohmann::json& j, BundleResult<PinholeCamera<BrownConradyd>>& r) {
     r.cameras.clear();
-    for (const auto& jc : j.at("cameras")) r.cameras.push_back(jc.get<PinholeCamera<BrownConradyd>>());
+    for (const auto& jc : j.at("cameras"))
+        r.cameras.push_back(jc.get<PinholeCamera<BrownConradyd>>());
     r.g_se3_c.clear();
     for (const auto& jt : j.at("g_se3_c")) r.g_se3_c.push_back(json_to_affine(jt));
     r.b_se3_t = json_to_affine(j.at("b_se3_t"));

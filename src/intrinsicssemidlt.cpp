@@ -127,9 +127,9 @@ static ceres::Problem build_problem(const std::vector<PlanarView>& obs_views,
     return problem;
 }
 
-static void compute_per_view_errors(const std::vector<PlanarView>& obs_views,
-                                    const Eigen::VectorXd& residuals,
-                                    IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>>& result) {
+static void compute_per_view_errors(
+    const std::vector<PlanarView>& obs_views, const Eigen::VectorXd& residuals,
+    IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>>& result) {
     const size_t num_views = obs_views.size();
     result.view_errors.resize(num_views);
     int residual_idx = 0;

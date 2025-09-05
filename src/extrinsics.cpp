@@ -199,10 +199,10 @@ template ExtrinsicOptimizationResult<PinholeCamera<BrownConradyd>> optimize_extr
     const std::vector<Eigen::Isometry3d>&, const std::vector<Eigen::Isometry3d>&,
     const ExtrinsicOptions&);
 
-template ExtrinsicOptimizationResult<ScheimpflugCamera<PinholeCamera<BrownConradyd>>> optimize_extrinsics(
-    const std::vector<MulticamPlanarView>&,
-    const std::vector<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>&,
-    const std::vector<Eigen::Isometry3d>&, const std::vector<Eigen::Isometry3d>&,
-    const ExtrinsicOptions&);
+template ExtrinsicOptimizationResult<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>
+optimize_extrinsics(const std::vector<MulticamPlanarView>&,
+                    const std::vector<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>&,
+                    const std::vector<Eigen::Isometry3d>&, const std::vector<Eigen::Isometry3d>&,
+                    const ExtrinsicOptions&);
 
 }  // namespace calib

@@ -12,7 +12,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calib/camera.h"
+#include "calib/pinhole.h"
 #include "calib/bundle.h"
 #include "calib/scheimpflug.h"
 

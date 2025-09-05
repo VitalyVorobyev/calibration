@@ -8,7 +8,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calib/camera.h"
+#include "calib/pinhole.h"
 
 namespace calib {
 
@@ -41,6 +41,7 @@ struct LineScanCalibrationResult final {
  * ||n|| = 1.
  */
 auto calibrate_laser_plane(const std::vector<LineScanObservation>& views,
-                           const PinholeCamera<DualDistortion>& camera) -> LineScanCalibrationResult;
+                           const PinholeCamera<DualDistortion>& camera)
+    -> LineScanCalibrationResult;
 
 }  // namespace calib
