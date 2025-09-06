@@ -20,9 +20,9 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include "calib/camera.h"
 #include "calib/cameramodel.h"
 #include "calib/optimize.h"
+#include "calib/pinhole.h"
 #include "calib/planarpose.h"
 
 namespace calib {
@@ -61,7 +61,7 @@ constexpr int k_default_max_iterations = 5;
 auto estimate_intrinsics_linear_iterative(
     const std::vector<Observation<double>>& observations, int num_radial,
     int max_iterations = k_default_max_iterations,
-    bool use_skew = false) -> std::optional<Camera<BrownConradyd>>;
+    bool use_skew = false) -> std::optional<PinholeCamera<BrownConradyd>>;
 
 struct IntrinsicsOptions final : public OptimOptions {
     int num_radial = 2;          ///< Number of radial distortion coefficients
@@ -76,9 +76,10 @@ struct IntrinsicsOptimizationResult final : public OptimResult {
     std::vector<double> view_errors;         ///< Per-view reprojection errors
 };
 
-auto optimize_intrinsics_semidlt(
-    const std::vector<PlanarView>& views, const CameraMatrix& initial_guess,
-    const IntrinsicsOptions& opts = {}) -> IntrinsicsOptimizationResult<Camera<BrownConradyd>>;
+auto optimize_intrinsics_semidlt(const std::vector<PlanarView>& views,
+                                 const CameraMatrix& initial_guess,
+                                 const IntrinsicsOptions& opts = {})
+    -> IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>>;
 
 template <camera_model CameraT>
 auto optimize_intrinsics(const std::vector<PlanarView>& views, const CameraT& init_camera,

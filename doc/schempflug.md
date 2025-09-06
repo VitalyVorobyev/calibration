@@ -307,3 +307,236 @@ Bundle-adjust $\{fx,fy,s,u_0,v_0,\kappa,\tau_x,\tau_y, R_i,t_i\}$ on all observa
 ---
 
 If you like, I can sketch Ceres residual functors for this model (including minimal SO(3) parameterization and analytic Jacobians), or show how to retrofit it into OpenCV’s `calibrateCamera` workflow by replacing its projection step.
+
+
+# Scheimpflug Projection / Unprojection (with any base camera)
+
+This note documents the math used in the **Scheimpflug** decorator when applied to an arbitrary base camera model `M`. The decorator models a **tilted sensor plane** while delegating **intrinsics + distortion** to `M`. Everything is templated on the scalar type `T` so it works with `double` and `ceres::Jet<T>`.
+
+We assume the standard pinhole convention:
+
+* Camera frame: origin at the pinhole, **+Z forward**, **+X right**, **+Y down** (adapt signs if you use a different convention).
+* The *canonical* (untilted) image plane is at `z = 1`.
+* The base camera `M` defines how local canonical coordinates are mapped to pixels, including distortion.
+
+---
+
+## Notation
+
+* `τx, τy` – tilt angles (radians) about camera **X** and **Y** axes.
+
+* `R = R_y(τy) R_x(τx)` – rotation taking the canonical plane basis to the **tilted sensor basis**.
+  Let the columns of `R` be:
+
+  * `e1 = R.col(0)` – axis on the sensor plane aligned with camera **X** when `τ=0`
+  * `e2 = R.col(1)` – axis on the sensor plane aligned with camera **Y** when `τ=0`
+  * `n  = R.col(2)` – **unit normal** of the tilted sensor plane
+
+* Tilted plane equation (in camera coords):
+
+  $$
+    n^\top X \;=\; 1 \quad \text{(intersects the optical axis at canonical depth)}
+  $$
+
+  > If you prefer `nᵀX = 1 + d` for an axial offset `d`, all final formulas below still hold; the **normalized coordinates** we use are invariant to that scale (see remarks).
+
+* **Principal-ray intersection** on the tilted plane (intersection of the optical axis with the plane):
+
+  $$
+    m_0 \;=\; \begin{bmatrix} m_{x0} \\[2pt] m_{y0} \end{bmatrix}
+             \;=\; \begin{bmatrix} \dfrac{e_1^\top e_z}{n^\top e_z} \\[10pt] \dfrac{e_2^\top e_z}{n^\top e_z} \end{bmatrix}
+             \;=\; \begin{bmatrix} \dfrac{e_{1z}}{n_z} \\[6pt] \dfrac{e_{2z}}{n_z} \end{bmatrix}
+  $$
+
+  where `e_z = [0,0,1]ᵀ`. This is the **origin offset** for the local plane coordinates.
+
+* **Linear intrinsics** (no principal point):
+
+  $$
+    K_\ell =
+    \begin{bmatrix}
+      f_x & s \\
+      0   & f_y
+    \end{bmatrix}
+  $$
+
+  We denote `apply_linear_intrinsics(m) = K_ℓ m = [ f_x m_x + s m_y, f_y m_y ]ᵀ`.
+
+* Base camera `M` API (concept):
+
+  * `M::project<T>(Xcanon)` maps a canonical 3D point `Xcanon = [x,y,1]ᵀ` to pixels, applying **distortion + principal point**.
+  * `M::unproject<T>(px)` inverts that mapping to recover the canonical **local** coordinates `[dx, dy]` (i.e., the Δ about `[0,0,1]ᵀ`) such that `M::project([dx,dy,1]) ≈ px`.
+  * `apply_linear_intrinsics<T>(m)` applies `K_ℓ` only (no principal point).
+  * The principal point `(c_x, c_y)` never appears explicitly in the Scheimpflug math; it’s handled entirely inside `M`.
+
+---
+
+## 1) Projection: `X_c → px`
+
+Given a 3D point in camera frame, `X_c ∈ ℝ³`:
+
+1. **Tilted-plane local coordinates**
+   Intersect the ray through `X_c` with the tilted plane `nᵀX = 1`. The *normalized* coordinates on the plane are:
+
+$$
+  m_x \;=\; \frac{e_1^\top X_c}{n^\top X_c}, \qquad
+  m_y \;=\; \frac{e_2^\top X_c}{n^\top X_c}.
+$$
+
+2. **Principal offset**
+   Compute the principal-ray intersection:
+
+$$
+  m_0 \;=\; \begin{bmatrix} e_{1z}/n_z \\ e_{2z}/n_z \end{bmatrix}.
+$$
+
+3. **Local delta for distortion**
+
+$$
+  \Delta m \;=\; \begin{bmatrix} m_x - m_{x0} \\ m_y - m_{y0} \end{bmatrix}.
+$$
+
+4. **Delegate to base camera for distortion + principal point**
+   Form a canonical 3D point with `z=1` using the local delta and project via `M`:
+
+$$
+  p_\Delta \;=\; M.\text{project}\Big(\begin{bmatrix} \Delta m_x \\ \Delta m_y \\ 1 \end{bmatrix}\Big)
+  \quad\in \mathbb{R}^2.
+$$
+
+5. **Add the linear shift from the principal offset**
+
+$$
+  p \;=\; p_\Delta \;+\; K_\ell\, m_0
+  \;=\; p_\Delta \;+\; \begin{bmatrix} f_x m_{x0} + s\, m_{y0} \\ f_y m_{y0} \end{bmatrix}.
+$$
+
+That’s the final pixel coordinate.
+
+> Intuition: we **distort only the local deviation** from the principal intersection (as if the sensor were canonical), then add the **linear** pixel shift arising from the tilted plane’s origin offset.
+
+### Equivalent canonical-plane form
+
+An equivalent and often convenient implementation uses a detour through the canonical plane:
+
+* Intersect to get `X_p = ( (1) / (nᵀ X_c) ) X_c` (any positive scalar that lands on the plane works).
+* Back-rotate to canonical coordinates: `X_canon = Rᵀ X_p`.
+* Project with `M`: `p = M.project(X_canon)`.
+
+Both derivations yield the same **pixels** (the scaling cancels when dividing by `z` inside `M`).
+
+---
+
+## 2) Unprojection: `px → ray`
+
+Given a pixel `p ∈ ℝ²`, recover a **ray** in camera frame under the **z=1 convention**.
+
+1. **Principal offset (same `m0` as above)**
+   Compute `m0 = [e1z/nz, e2z/nz]ᵀ`.
+
+2. **Subtract the linear shift**
+
+$$
+  p_c \;=\; p \;-\; K_\ell\, m_0.
+$$
+
+3. **Let the base camera undo principal point & distortion**
+
+$$
+  \Delta m \;=\; M.\text{unproject}(p_c) \;\in\; \mathbb{R}^2.
+$$
+
+4. **Recover plane coordinates**
+
+$$
+  m \;=\; \Delta m \;+\; m_0.
+$$
+
+5. **Lift to a camera-frame ray**
+   In the tilted sensor basis, a direction corresponding to plane coords `m` is `[m_x, m_y, 1]`. Rotate it into the camera frame:
+
+$$
+  r \;\propto\; R\,\begin{bmatrix} m_x \\[2pt] m_y \\[2pt] 1 \end{bmatrix}.
+$$
+
+Normalize to **z=1** (pin-hole convention):
+
+$$
+  \hat r \;=\; \frac{1}{r_z}\,\begin{bmatrix} r_x \\ r_y \\ r_z \end{bmatrix}
+           \;=\; \begin{bmatrix} r_x/r_z \\ r_y/r_z \\ 1 \end{bmatrix}.
+$$
+
+Return `\hat r`.
+
+> If you prefer **unit-length** rays, return `r.normalized()` instead.
+
+---
+
+## Compact pseudocode
+
+```cpp
+// Build tilt rotation once per camera
+R = Ry(tau_y) * Rx(tau_x);
+e1 = R.col(0); e2 = R.col(1); n = R.col(2);
+mx0 = e1.z() / n.z();
+my0 = e2.z() / n.z();
+
+//
+// Project (X_c -> px)
+//
+mx = dot(e1, X_c) / dot(n, X_c);
+my = dot(e2, X_c) / dot(n, X_c);
+dxy = [mx - mx0, my - my0];
+
+px_delta = M.project( [dxy.x, dxy.y, 1] );
+base_shift = apply_linear_intrinsics([mx0, my0]); // [fx*mx0 + s*my0, fy*my0]
+
+px = px_delta + base_shift;
+
+//
+// Unproject (px -> ray with z=1)
+//
+base_shift = apply_linear_intrinsics([mx0, my0]);
+px_centered = px - base_shift;
+
+dxy = M.unproject(px_centered); // returns [dx, dy] such that M.project([dx,dy,1]) ≈ px_centered
+m = dxy + [mx0, my0];
+
+r = R * [m.x, m.y, 1];
+ray_z1 = r / r.z();
+return ray_z1;
+```
+
+---
+
+## Remarks & edge cases
+
+* **Autodiff:** All steps are algebraic and use `sin/cos` only on the tilt angles; with Ceres use `ceres::sin/cos` so Jets propagate derivatives.
+* **Plane offset `d`:** If you generalize the plane to `nᵀX = 1 + d`, **both** `(mx,my)` and `m0` remain unchanged (they depend on *ratios*), and the canonical-lifting approach also cancels the scale inside `M`. So `d` does not affect pixels under the `z=1` convention; it only matters if your base model uses **metric** imaging on a plane at fixed physical distance.
+* **Degeneracy:** When `|nᵀX_c|`→0 (ray nearly parallel to the plane), the projection becomes ill-conditioned. In practice, keep tilts small (physically realistic), and use robust losses. Similarly, `n_z`→0 (plane nearly vertical) makes `m0` blow up; such tilts are outside the thin-lens regime.
+* **No double-counting of `(c_x, c_y)`:** We apply the principal point only inside `M.project([dxy,1])`. The **base shift** uses **linear intrinsics only** (no `(c_x, c_y)`). This asymmetry is deliberate and ensures exact inverse symmetry between project and unproject.
+* **Swapping bases:** The derivation is **base-model agnostic**. You can plug in fisheye, double-sphere, omni, or a learned distortion as long as `M.project([x,y,1])` and `M.unproject(px)` are provided for canonical coords.
+
+---
+
+## Minimal base-camera concept for compatibility
+
+To use this decorator, the base model `M` must satisfy:
+
+```cpp
+struct BaseCameraConcept {
+  using Scalar = double; // storage type
+
+  template<typename T>
+  Eigen::Matrix<T,2,1> project(const Eigen::Matrix<T,3,1>& Xcanon) const;
+
+  template<typename T>
+  Eigen::Matrix<T,2,1> unproject(const Eigen::Matrix<T,2,1>& px) const;
+
+  template<typename T>
+  Eigen::Matrix<T,2,1> apply_linear_intrinsics(const Eigen::Matrix<T,2,1>& m) const;
+  // returns [fx*m.x + skew*m.y, fy*m.y] — NO principal point
+};
+```
+
+This keeps the Scheimpflug math self-contained and lets each camera model define intrinsics/distortion however it likes.

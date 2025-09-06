@@ -6,9 +6,9 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calib/camera.h"
 #include "calib/cameramodel.h"
 #include "calib/optimize.h"
+#include "calib/pinhole.h"
 #include "calib/planarpose.h"  // PlanarObservation
 #include "calib/scheimpflug.h"
 

@@ -1,5 +1,7 @@
 #include "calib/intrinsics.h"
 
+#include <algorithm>
+
 #include "calib/distortion.h"
 #include "calib/scheimpflug.h"
 #include "ceresutils.h"
@@ -32,12 +34,18 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
     [[nodiscard]] std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
         blocks.emplace_back(intr.data(), intr.size(), intr_size);
-        for (const auto& i : c_quat_t) {
-            blocks.emplace_back(i.data(), i.size(), 3);  // 3 dof in unit quaternion
-        }
-        for (const auto& i : c_tra_t) {
-            blocks.emplace_back(i.data(), i.size(), 3);
-        }
+
+        // Reserve space for efficiency
+        blocks.reserve(1 + c_quat_t.size() + c_tra_t.size());
+
+        // Add quaternion blocks using std::transform
+        std::transform(c_quat_t.begin(), c_quat_t.end(), std::back_inserter(blocks),
+                       [](const auto& i) { return ParamBlock{i.data(), i.size(), 3}; });
+
+        // Add translation blocks using std::transform
+        std::transform(c_tra_t.begin(), c_tra_t.end(), std::back_inserter(blocks),
+                       [](const auto& i) { return ParamBlock{i.data(), i.size(), 3}; });
+
         return blocks;
     }
 
@@ -109,12 +117,13 @@ IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(
     return result;
 }
 
-template IntrinsicsOptimizationResult<Camera<BrownConradyd>> optimize_intrinsics(
-    const std::vector<PlanarView>& views, const Camera<BrownConradyd>& init_camera,
+template IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> optimize_intrinsics(
+    const std::vector<PlanarView>& views, const PinholeCamera<BrownConradyd>& init_camera,
     std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
 
-template IntrinsicsOptimizationResult<ScheimpflugCamera<BrownConradyd>> optimize_intrinsics(
-    const std::vector<PlanarView>& views, const ScheimpflugCamera<BrownConradyd>& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
+template IntrinsicsOptimizationResult<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>
+optimize_intrinsics(const std::vector<PlanarView>& views,
+                    const ScheimpflugCamera<PinholeCamera<BrownConradyd>>& init_camera,
+                    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
 
 }  // namespace calib

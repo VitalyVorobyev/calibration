@@ -194,14 +194,15 @@ ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
     return result;
 }
 
-template ExtrinsicOptimizationResult<Camera<BrownConradyd>> optimize_extrinsics(
-    const std::vector<MulticamPlanarView>&, const std::vector<Camera<BrownConradyd>>&,
+template ExtrinsicOptimizationResult<PinholeCamera<BrownConradyd>> optimize_extrinsics(
+    const std::vector<MulticamPlanarView>&, const std::vector<PinholeCamera<BrownConradyd>>&,
     const std::vector<Eigen::Isometry3d>&, const std::vector<Eigen::Isometry3d>&,
     const ExtrinsicOptions&);
 
-template ExtrinsicOptimizationResult<ScheimpflugCamera<BrownConradyd>> optimize_extrinsics(
-    const std::vector<MulticamPlanarView>&, const std::vector<ScheimpflugCamera<BrownConradyd>>&,
-    const std::vector<Eigen::Isometry3d>&, const std::vector<Eigen::Isometry3d>&,
-    const ExtrinsicOptions&);
+template ExtrinsicOptimizationResult<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>
+optimize_extrinsics(const std::vector<MulticamPlanarView>&,
+                    const std::vector<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>&,
+                    const std::vector<Eigen::Isometry3d>&, const std::vector<Eigen::Isometry3d>&,
+                    const ExtrinsicOptions&);
 
 }  // namespace calib

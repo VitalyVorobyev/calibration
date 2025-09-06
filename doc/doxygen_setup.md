@@ -49,7 +49,7 @@ Enhanced the following key header files with comprehensive Doxygen comments:
   - Detailed concept documentation for `distortion_model`
   - Function and struct documentation with @brief and @param
 
-- **`include/calib/camera.h`**:
+- **`include/calib/pinhole.h`**:
   - Complete camera model documentation
   - Template parameter descriptions
   - Method documentation with examples

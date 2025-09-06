@@ -160,12 +160,13 @@ BundleResult<CameraT> optimize_bundle(const std::vector<BundleObservation>& obse
     return result;
 }
 
-template BundleResult<Camera<BrownConradyd>> optimize_bundle(
-    const std::vector<BundleObservation>&, const std::vector<Camera<BrownConradyd>>&,
+template BundleResult<PinholeCamera<BrownConradyd>> optimize_bundle(
+    const std::vector<BundleObservation>&, const std::vector<PinholeCamera<BrownConradyd>>&,
     const std::vector<Eigen::Isometry3d>&, const Eigen::Isometry3d&, const BundleOptions&);
 
-template BundleResult<ScheimpflugCamera<BrownConradyd>> optimize_bundle(
-    const std::vector<BundleObservation>&, const std::vector<ScheimpflugCamera<BrownConradyd>>&,
+template BundleResult<ScheimpflugCamera<PinholeCamera<BrownConradyd>>> optimize_bundle(
+    const std::vector<BundleObservation>&,
+    const std::vector<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>&,
     const std::vector<Eigen::Isometry3d>&, const Eigen::Isometry3d&, const BundleOptions&);
 
 }  // namespace calib
