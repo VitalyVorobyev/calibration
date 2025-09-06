@@ -1,6 +1,7 @@
 #include "calib/linescan.h"
 
 // std
+#include <algorithm>
 #include <cmath>
 #include <numeric>
 #include <stdexcept>
@@ -64,10 +65,10 @@ static void validate_observations(const std::vector<LineScanObservation>& views)
         throw std::invalid_argument("At least 2 views are required");
     }
 
-    for (const auto& v : views) {
-        if (v.target_xy.size() < 4 || v.target_xy.size() != v.target_uv.size()) {
-            throw std::invalid_argument("Each view requires >=4 target correspondences");
-        }
+    if (std::any_of(views.begin(), views.end(), [](const auto& v) {
+            return v.target_xy.size() < 4 || v.target_xy.size() != v.target_uv.size();
+        })) {
+        throw std::invalid_argument("Each view requires >=4 target correspondences");
     }
 }
 

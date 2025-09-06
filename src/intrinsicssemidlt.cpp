@@ -1,6 +1,7 @@
 #include "calib/intrinsics.h"
 
 // std
+#include <algorithm>
 #include <numeric>
 #include <optional>
 
@@ -15,11 +16,8 @@
 namespace calib {
 
 static size_t count_total_observations(const std::vector<PlanarView>& views) {
-    size_t total_obs = 0;
-    for (const auto& view : views) {
-        total_obs += view.size();
-    }
-    return total_obs;
+    return std::accumulate(views.begin(), views.end(), size_t{0},
+                           [](size_t total, const auto& view) { return total + view.size(); });
 }
 
 struct IntrinsicBlocks final : public ProblemParamBlocks {
@@ -46,12 +44,18 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
     [[nodiscard]] std::vector<ParamBlock> get_param_blocks() const override {
         std::vector<ParamBlock> blocks;
         blocks.emplace_back(intrinsics.data(), intrinsics.size(), 5);
-        for (const auto& q : c_quat_t) {
-            blocks.emplace_back(q.data(), q.size(), 3);
-        }
-        for (const auto& t : c_tra_t) {
-            blocks.emplace_back(t.data(), t.size(), 3);
-        }
+
+        // Reserve space for efficiency
+        blocks.reserve(1 + c_quat_t.size() + c_tra_t.size());
+
+        // Add quaternion blocks using std::transform
+        std::transform(c_quat_t.begin(), c_quat_t.end(), std::back_inserter(blocks),
+                       [](const auto& q) { return ParamBlock{q.data(), q.size(), 3}; });
+
+        // Add translation blocks using std::transform
+        std::transform(c_tra_t.begin(), c_tra_t.end(), std::back_inserter(blocks),
+                       [](const auto& t) { return ParamBlock{t.data(), t.size(), 3}; });
+
         return blocks;
     }
 
