@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <stdexcept>
 
 #include "calib/serialization.h"
 #include "config.h"
@@ -42,7 +43,55 @@ int main(int argc, char** argv) {
 
     try {
         if (task == "intrinsics") {
-            result = nlohmann::json{{"error", "intrinsics task not supported"}};
+            // Read observations for each camera from input JSON
+            std::ifstream in_stream(app_config.input_path);
+            if (!in_stream) {
+                throw std::runtime_error("Failed to open input: " + app_config.input_path);
+            }
+            nlohmann::json in_json; in_stream >> in_json;
+            nlohmann::json cam_results = nlohmann::json::array();
+
+            for (const auto& cam_views_j : in_json.at("cameras")) {
+                std::vector<PlanarView> views;
+                std::vector<Observation<double>> all_obs;
+
+                for (const auto& view_j : cam_views_j) {
+                    PlanarView view;
+                    for (const auto& obs_j : view_j) {
+                        auto obs = obs_j.get<Observation<double>>();
+                        PlanarObservation po;
+                        po.object_xy = Eigen::Vector2d(obs.x, obs.y);
+                        po.image_uv = Eigen::Vector2d(obs.u, obs.v);
+                        view.push_back(po);
+                        all_obs.push_back(obs);
+                    }
+                    views.push_back(view);
+                }
+
+                auto init_cam_opt = estimate_intrinsics_linear_iterative(all_obs, 2);
+                if (!init_cam_opt) {
+                    throw std::runtime_error("Failed to initialise intrinsics");
+                }
+
+                std::vector<Eigen::Isometry3d> init_poses;
+                for (const auto& view : views) {
+                    std::vector<Eigen::Vector2d> obj_xy;
+                    std::vector<Eigen::Vector2d> img_uv;
+                    obj_xy.reserve(view.size());
+                    img_uv.reserve(view.size());
+                    for (const auto& obs : view) {
+                        obj_xy.push_back(obs.object_xy);
+                        img_uv.push_back(obs.image_uv);
+                    }
+                    init_poses.push_back(estimate_planar_pose_dlt(obj_xy, img_uv, init_cam_opt->kmtx));
+                }
+
+                IntrinsicsOptions opts;
+                auto cam_res = optimize_intrinsics(views, *init_cam_opt, init_poses, opts);
+                cam_results.push_back(cam_res);
+            }
+
+            result = nlohmann::json{{"cameras", cam_results}};
         #if 0
         } else if (task == "extrinsics") {
             ExtrinsicsInput in = cfg.at("input").get<ExtrinsicsInput>();
