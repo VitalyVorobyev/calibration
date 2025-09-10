@@ -15,10 +15,12 @@
 
 // std
 #include <optional>
+#include <vector>
 
 // eigen
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 #include "calib/cameramodel.h"
 #include "calib/optimize.h"
@@ -69,6 +71,21 @@ struct IntrinsicsOptions final : public OptimOptions {
     std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Parameter bounds
 };
 
+struct ImageSize final {
+    int width = 0;
+    int height = 0;
+};
+
+struct CalibrateIntrinsicsOptions {
+    int num_radial = 2;  ///< Number of radial distortion coefficients to estimate
+    bool recenter = true;  ///< Re-center pixels about the image center
+};
+
+struct IntrinsicsResult {
+    PinholeCamera<BrownConradyd> camera;            ///< Estimated camera model
+    std::vector<Eigen::Isometry3d> c_se3_t;         ///< Pose of each view (camera -> target)
+};
+
 template <camera_model CameraT>
 struct IntrinsicsOptimizationResult final : public OptimResult {
     CameraT camera;                          ///< Estimated camera parameters
@@ -86,5 +103,10 @@ auto optimize_intrinsics(const std::vector<PlanarView>& views, const CameraT& in
                          std::vector<Eigen::Isometry3d> init_c_se3_t,
                          const IntrinsicsOptions& opts = {})
     -> IntrinsicsOptimizationResult<CameraT>;
+
+auto extimate_intrinsics_from_planar(const std::vector<PlanarView>& views,
+                                     const ImageSize& image_size,
+                                     const CalibrateIntrinsicsOptions& opts = {})
+    -> IntrinsicsResult;
 
 }  // namespace calib
