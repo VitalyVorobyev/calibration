@@ -48,7 +48,8 @@ int main(int argc, char** argv) {
             if (!in_stream) {
                 throw std::runtime_error("Failed to open input: " + app_config.input_path);
             }
-            nlohmann::json in_json; in_stream >> in_json;
+            nlohmann::json in_json;
+            in_stream >> in_json;
             nlohmann::json cam_results = nlohmann::json::array();
 
             for (const auto& cam_views_j : in_json.at("cameras")) {
