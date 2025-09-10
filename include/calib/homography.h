@@ -14,6 +14,7 @@
 
 // std
 #include <vector>
+#include <optional>
 
 // eigen
 #include <Eigen/Core>
@@ -22,6 +23,19 @@
 #include "calib/optimize.h"
 
 namespace calib {
+
+struct HomographyResult final {
+    bool success{false};
+    Eigen::Matrix3d hmtx = Eigen::Matrix3d::Identity();
+    std::vector<int> inliers;      // indices of inlier correspondences
+    double symmetric_rms_px{0.0};  // symmetric transfer RMS in pixels
+};
+
+struct RansacOptions final {
+    int ransac_max_iters = 1000;
+    double ransac_thresh_px = 2.0;  // symmetric transfer threshold
+    int ransac_min_inliers = 12;
+};
 
 /**
  * @brief Estimates a 3x3 homography matrix using the Direct Linear Transform (DLT) algorithm.
@@ -35,8 +49,9 @@ namespace calib {
  *
  * @note Both src and dst must contain at least 4 points and have the same size.
  */
-auto estimate_homography_dlt(const std::vector<Eigen::Vector2d>& src,
-                             const std::vector<Eigen::Vector2d>& dst) -> Eigen::Matrix3d;
+auto estimate_homography(const std::vector<Eigen::Vector2d>& src,
+                         const std::vector<Eigen::Vector2d>& dst,
+                         std::optional<RansacOptions> ransac_opts) -> HomographyResult;
 
 struct HomographyOptions final : public OptimOptions {};
 

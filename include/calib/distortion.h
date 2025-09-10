@@ -55,7 +55,7 @@ concept distortion_model =
  * @brief Observation structure for distortion parameter estimation
  * @ingroup distortion_correction
  *
- * This structure holds corresponding normalized undistorted coordinates
+ * This structure holds corresponding normalized undistorted coordinates (X_c / Z_c, Y_c / Z_c)
  * and observed distorted pixel coordinates, used for distortion parameter
  * estimation through linear least squares or bundle adjustment.
  *
@@ -63,7 +63,7 @@ concept distortion_model =
  */
 template <typename T>
 struct Observation final {
-    T x, y;  ///< Normalized undistorted coordinates
+    T x, y;  ///< Normalized undistorted coordinates (X_c / Z_c, Y_c / Z_c)
     T u, v;  ///< Observed distorted pixel coordinates
 };
 

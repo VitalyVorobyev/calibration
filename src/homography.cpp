@@ -42,6 +42,7 @@ static auto params_to_h(const HomographyParams& params) -> Mat3 {
     return mat_h;
 }
 
+#if 0
 // Normalize points (Hartley): translate to centroid, scale to mean distance sqrt(2).
 static void normalize_points(const std::vector<Vec2>& points, std::vector<Vec2>& norm_points,
                              Mat3& transform) {
@@ -79,7 +80,37 @@ static void normalize_points(const std::vector<Vec2>& points, std::vector<Vec2>&
         norm_points[idx] = Vec2(q.x() / q.z(), q.y() / q.z());
     }
 }
+#else
 
+static Eigen::Matrix3d normalize_points_2d(const std::vector<Eigen::Vector2d>& pts,
+                                  std::vector<Eigen::Vector2d>& out) {
+    out.resize(pts.size());
+
+    Eigen::Vector2d centroid = std::accumulate(pts.begin(), pts.end(), Eigen::Vector2d::Zero());
+    centroid /= std::max<size_t>(1, pts.size());
+
+    double mean_dist = 0.0;
+    for (auto& p : pts) mean_dist += (p - centroid).norm();
+    mean_dist /= std::max<size_t>(1, pts.size());
+
+    const double sigma = (mean_dist > 0) ? std::sqrt(2.0) / mean_dist : 1.0;
+
+    Eigen::Matrix3d transform = Eigen::Matrix3d::Identity();
+    transform(0, 0) = sigma;
+    transform(1, 1) = sigma;
+    transform(0, 2) = -sigma * centroid.x();
+    transform(1, 2) = -sigma * centroid.y();
+
+    std::transform(pts.begin(), pts.end(), out.begin(), [&](const Eigen::Vector2d& pt) {
+        Eigen::Vector3d hp(pt.x(), pt.y(), 1.0);
+        Eigen::Vector3d hn = transform * hp;
+        return hn.hnormalized();
+    });
+    return {transform};
+}
+#endif
+
+#if 0
 // DLT initial estimate with normalization
 auto estimate_homography_dlt(const std::vector<Vec2>& src, const std::vector<Vec2>& dst) -> Mat3 {
     const int num_pts = static_cast<int>(src.size());
@@ -135,6 +166,166 @@ auto estimate_homography_dlt(const std::vector<Vec2>& src, const std::vector<Vec
         mat_h /= (mat_h.norm() + k_eps);
     }
     return mat_h;
+}
+#else
+static Eigen::Matrix3d dlt_homography_normalized(const std::vector<Eigen::Vector2d>& src_xy,
+                                                 const std::vector<Eigen::Vector2d>& dst_uv) {
+    // Build A from normalized correspondences (2N x 9)
+    const int npts = static_cast<int>(src_xy.size());
+    Eigen::MatrixXd amtx(2 * npts, 9);
+    for (int i = 0; i < npts; ++i) {
+        const double xcoord = src_xy[i].x();
+        const double ycoord = src_xy[i].y();
+        const double ucoord = dst_uv[i].x();
+        const double vcoord = dst_uv[i].y();
+
+        amtx.row(2 * i) << -xcoord, -ycoord, -1, 0, 0, 0, ucoord * xcoord, ucoord * ycoord, ucoord;
+        amtx.row(2 * i + 1) << 0, 0, 0, -xcoord, -ycoord, -1, vcoord * xcoord, vcoord * ycoord, vcoord;
+    }
+
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(amtx, Eigen::ComputeFullV);
+    Eigen::VectorXd hvec = svd.matrixV().col(8);
+    Eigen::Matrix3d hmtx;
+    hmtx << hvec(0), hvec(1), hvec(2), hvec(3), hvec(4), hvec(5), hvec(6), hvec(7), hvec(8);
+    return hmtx / hmtx(2, 2);
+}
+
+static HomographyResult estimate_homography(const std::vector<Eigen::Vector2d>& src_xy,
+                                            const std::vector<Eigen::Vector2d>& dst_uv) {
+    HomographyResult result;
+    if (src_xy.size() < 4 || dst_uv.size() != src_xy.size()) return result;
+
+    // Hartley normalization on both sides
+    std::vector<Eigen::Vector2d> n_src, n_dst;
+    auto transform_src = normalize_points_2d(src_xy, n_src);
+    auto transform_dst = normalize_points_2d(dst_uv, n_dst);
+
+    // DLT
+    Eigen::Matrix3d hmtx_norm = dlt_homography_normalized(n_src, n_dst);
+    // Denormalize
+    result.hmtx = transform_dst.inverse() * hmtx_norm * transform_src;
+
+    // All-inlier by default; the caller may override with RANSAC
+    result.success = true;
+    result.inliers.resize(src_xy.size());
+    std::iota(result.inliers.begin(), result.inliers.end(), 0);
+    result.symmetric_rms_px = 0.0;
+    return result;
+}
+#endif
+
+static double point_transfer_error_px(const Eigen::Matrix3d& H, const Eigen::Vector2d& X,
+                                      const Eigen::Vector2d& x) {
+    // forward transfer |x - H*X|
+    Eigen::Vector3d Xh(X.x(), X.y(), 1.0);
+    Eigen::Vector3d xh(x.x(), x.y(), 1.0);
+
+    Eigen::Vector3d Hx = H * Xh;
+    Eigen::Vector2d x_hat = (Hx / Hx.z()).hnormalized();
+    double e1 = (x - x_hat).norm();
+
+    // backward transfer |X - H^{-1}*x|
+    Eigen::Matrix3d Hinv = H.inverse();
+    Eigen::Vector3d HX = Hinv * xh;
+    Eigen::Vector2d X_hat = (HX / HX.z()).hnormalized();
+    double e2 = (X - X_hat).norm();
+
+    return std::sqrt(0.5 * (e1 * e1 + e2 * e2));
+}
+
+static HomographyResult ransac_homography(const std::vector<Eigen::Vector2d>& src_xy,
+                                          const std::vector<Eigen::Vector2d>& dst_uv, int max_iters,
+                                          double thresh_px, int min_inliers) {
+    HomographyResult best;
+    if (src_xy.size() < 4) return best;
+
+    std::mt19937_64 rng{1234567};
+    std::uniform_int_distribution<int> uni(0, static_cast<int>(src_xy.size()) - 1);
+
+    auto choose4 = [&](std::array<int, 4>& idx) {
+        for (;;) {
+            for (int k = 0; k < 4; ++k) idx[k] = uni(rng);
+            // ensure uniqueness
+            std::sort(idx.begin(), idx.end());
+            if (std::unique(idx.begin(), idx.end()) == idx.end()) return;
+        }
+    };
+
+    for (int it = 0; it < max_iters; ++it) {
+        std::array<int, 4> idx;
+        choose4(idx);
+
+        std::vector<Eigen::Vector2d> s(4), d(4);
+        for (int k = 0; k < 4; ++k) {
+            s[k] = src_xy[idx[k]];
+            d[k] = dst_uv[idx[k]];
+        }
+
+        HomographyResult cand = estimate_homography(s, d);
+        if (!cand.success) continue;
+
+        // Score all points
+        std::vector<int> inliers;
+        inliers.reserve(src_xy.size());
+        double sum_sq = 0.0;
+        int cnt = 0;
+
+        for (int i = 0; i < (int)src_xy.size(); ++i) {
+            double e = point_transfer_error_px(cand.H, src_xy[i], dst_uv[i]);
+            if (e < thresh_px) {
+                inliers.push_back(i);
+                sum_sq += e * e;
+                ++cnt;
+            }
+        }
+        if ((int)inliers.size() < min_inliers) continue;
+
+        // Refit on inliers (full DLT with normalization)
+        std::vector<Eigen::Vector2d> s_in, d_in;
+        s_in.reserve(inliers.size());
+        d_in.reserve(inliers.size());
+        for (int id : inliers) {
+            s_in.push_back(src_xy[id]);
+            d_in.push_back(dst_uv[id]);
+        }
+        HomographyResult refit = estimate_homography(s_in, d_in);
+        if (!refit.success) continue;
+
+        // Compute symmetric RMS on inliers
+        double ss = 0.0;
+        for (int id : inliers) {
+            double e = point_transfer_error_px(refit.H, src_xy[id], dst_uv[id]);
+            ss += e * e;
+        }
+        refit.inliers = std::move(inliers);
+        refit.symmetric_rms_px = std::sqrt(ss / std::max(1, (int)refit.inliers.size()));
+
+        // Keep best (lowest RMS, then most inliers)
+        bool better = false;
+        if (!best.success)
+            better = true;
+        else if (refit.inliers.size() > best.inliers.size())
+            better = true;
+        else if (refit.inliers.size() == best.inliers.size() &&
+                 refit.symmetric_rms_px < best.symmetric_rms_px)
+            better = true;
+
+        if (better) best = std::move(refit);
+    }
+
+    if (!best.success) {
+        // fallback to all-inlier DLT (no RANSAC)
+        best = estimate_homography(src_xy, dst_uv);
+        if (best.success) {
+            double ss = 0.0;
+            for (int i = 0; i < (int)src_xy.size(); ++i) {
+                double e = point_transfer_error_px(best.H, src_xy[i], dst_uv[i]);
+                ss += e * e;
+            }
+            best.symmetric_rms_px = std::sqrt(ss / std::max(1, (int)src_xy.size()));
+        }
+    }
+    return best;
 }
 
 // Ceres residual: maps (x,y) -> (u,v) using H(h) and compares to (u*, v*)

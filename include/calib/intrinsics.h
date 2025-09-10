@@ -77,13 +77,13 @@ struct ImageSize final {
 };
 
 struct CalibrateIntrinsicsOptions {
-    int num_radial = 2;  ///< Number of radial distortion coefficients to estimate
+    int num_radial = 2;    ///< Number of radial distortion coefficients to estimate
     bool recenter = true;  ///< Re-center pixels about the image center
 };
 
 struct IntrinsicsResult {
-    PinholeCamera<BrownConradyd> camera;            ///< Estimated camera model
-    std::vector<Eigen::Isometry3d> c_se3_t;         ///< Pose of each view (camera -> target)
+    PinholeCamera<BrownConradyd> camera;     ///< Estimated camera model
+    std::vector<Eigen::Isometry3d> c_se3_t;  ///< Pose of each view (camera -> target)
 };
 
 template <camera_model CameraT>
@@ -104,9 +104,8 @@ auto optimize_intrinsics(const std::vector<PlanarView>& views, const CameraT& in
                          const IntrinsicsOptions& opts = {})
     -> IntrinsicsOptimizationResult<CameraT>;
 
-auto extimate_intrinsics_from_planar(const std::vector<PlanarView>& views,
-                                     const ImageSize& image_size,
-                                     const CalibrateIntrinsicsOptions& opts = {})
-    -> IntrinsicsResult;
+auto estimate_intrinsics_from_planar(
+    const std::vector<PlanarView>& views, const ImageSize& image_size,
+    const CalibrateIntrinsicsOptions& opts = {}) -> IntrinsicsResult;
 
 }  // namespace calib

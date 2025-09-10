@@ -156,7 +156,7 @@ static Eigen::Matrix<double, 6, 1> v_ij(const Eigen::Matrix3d& H, int i, int j) 
     return v;
 }
 
-IntrinsicsResult extimate_intrinsics_from_planar(const std::vector<PlanarView>& views,
+IntrinsicsResult estimate_intrinsics_from_planar(const std::vector<PlanarView>& views,
                                                  const ImageSize& image_size,
                                                  const CalibrateIntrinsicsOptions& opts) {
     if (views.empty()) {
