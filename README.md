@@ -89,6 +89,7 @@ cmake --build build --config Release -j2
 The library exposes lightweight C++ APIs with a common optimisation interface.
 Typical entry points include:
 
+- `estimate_intrinsics` – linear intrinsics and pose initialization from planar views
 - `optimize_intrinsics` – refine camera intrinsics and poses from planar views
 - `optimize_extrinsics` – calibrate camera poses relative to a target
 - `optimize_handeye` – refine gripper→camera transform from motion pairs

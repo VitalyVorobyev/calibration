@@ -1,4 +1,6 @@
+#include "calib/homography.h"
 #include "calib/intrinsics.h"
+#include "observationutils.h"
 
 // std
 #include <algorithm>
@@ -12,13 +14,67 @@
 
 namespace calib {
 
+std::optional<IntrinsicsEstimateResult> estimate_intrinsics(const std::vector<PlanarView>& views,
+                                                            const Eigen::Vector2i& image_size,
+                                                            const IntrinsicsEstimateOptions& opts) {
+    if (views.empty()) {
+        return std::nullopt;
+    }
+
+    const double fx0 = static_cast<double>(image_size.x());
+    const double fy0 = static_cast<double>(image_size.y());
+    const double cx0 = fx0 * 0.5;
+    const double cy0 = fy0 * 0.5;
+
+    // Initial guess used for homography normalization
+    CameraMatrix guess{fx0, fy0, cx0, cy0, 0.0};
+
+    std::vector<Eigen::Isometry3d> poses;
+    poses.reserve(views.size());
+
+    size_t total_points = 0;
+    for (const auto& v : views) {
+        total_points += v.size();
+    }
+    std::vector<Observation<double>> all_obs;
+    all_obs.reserve(total_points);
+
+    for (const auto& view : views) {
+        std::vector<Eigen::Vector2d> obj_pts;
+        std::vector<Eigen::Vector2d> img_norm;
+        obj_pts.reserve(view.size());
+        img_norm.reserve(view.size());
+        for (const auto& ob : view) {
+            obj_pts.push_back(ob.object_xy);
+            double un = (ob.image_uv.x() - guess.cx) / guess.fx;
+            double vn = (ob.image_uv.y() - guess.cy) / guess.fy;
+            img_norm.emplace_back(un, vn);
+        }
+
+        Eigen::Matrix3d Hn = estimate_homography_dlt(obj_pts, img_norm);
+        Eigen::Isometry3d pose = pose_from_homography_normalized(Hn);
+        poses.push_back(pose);
+
+        std::vector<Observation<double>> obs_view(view.size());
+        planar_observables_to_observables(view, obs_view, pose);
+        all_obs.insert(all_obs.end(), obs_view.begin(), obs_view.end());
+    }
+
+    auto kmtx_opt = estimate_intrinsics_linear(all_obs, opts.bounds, opts.use_skew);
+    if (!kmtx_opt) {
+        return std::nullopt;
+    }
+
+    return IntrinsicsEstimateResult{*kmtx_opt, std::move(poses)};
+}
+
 struct LinearSystem final {
     Eigen::MatrixXd amtx;
     Eigen::VectorXd bvec;
 };
 
-static auto build_u_system(const std::vector<Observation<double>>& obs,
-                           bool use_skew) -> LinearSystem {
+static auto build_u_system(const std::vector<Observation<double>>& obs, bool use_skew)
+    -> LinearSystem {
     const size_t nobs = obs.size();
     const int cols = use_skew ? 3 : 2;
 
@@ -72,8 +128,8 @@ static auto solve_linear_system(const LinearSystem& system) -> std::optional<Eig
 
 static auto apply_bounds_and_fallback(const Eigen::VectorXd& xu, const Eigen::VectorXd& xv,
                                       const std::vector<Observation<double>>& obs,
-                                      const CalibrationBounds& bounds,
-                                      bool use_skew) -> CameraMatrix {
+                                      const CalibrationBounds& bounds, bool use_skew)
+    -> CameraMatrix {
     const double fx = xu[0];
     const double fy = xv[0];
     const double cx = use_skew ? xu[2] : xu[1];
@@ -112,9 +168,10 @@ static auto apply_bounds_and_fallback(const Eigen::VectorXd& xu, const Eigen::Ve
     return CameraMatrix{fx, fy, cx, cy, skew};
 }
 
-static auto correct_observations_for_distortion(
-    const std::vector<Observation<double>>& obs, const CameraMatrix& kmtx,
-    const Eigen::VectorXd& distortion) -> std::vector<Observation<double>> {
+static auto correct_observations_for_distortion(const std::vector<Observation<double>>& obs,
+                                                const CameraMatrix& kmtx,
+                                                const Eigen::VectorXd& distortion)
+    -> std::vector<Observation<double>> {
     std::vector<Observation<double>> corrected;
     corrected.reserve(obs.size());
 
@@ -132,15 +189,15 @@ static auto correct_observations_for_distortion(
     return corrected;
 }
 
-static auto compute_camera_matrix_difference(const CameraMatrix& k1,
-                                             const CameraMatrix& k2) -> double {
+static auto compute_camera_matrix_difference(const CameraMatrix& k1, const CameraMatrix& k2)
+    -> double {
     return std::abs(k1.fx - k2.fx) + std::abs(k1.fy - k2.fy) + std::abs(k1.cx - k2.cx) +
            std::abs(k1.cy - k2.cy) + std::abs(k1.skew - k2.skew);
 }
 
 static auto estimate_distortion_for_camera(const std::vector<Observation<double>>& obs,
-                                           const CameraMatrix& kmtx,
-                                           int num_radial) -> std::optional<Eigen::VectorXd> {
+                                           const CameraMatrix& kmtx, int num_radial)
+    -> std::optional<Eigen::VectorXd> {
     auto dist_opt = fit_distortion(obs, kmtx, num_radial);
     return dist_opt ? std::make_optional(dist_opt->distortion) : std::nullopt;
 }

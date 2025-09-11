@@ -15,6 +15,7 @@
 
 // std
 #include <optional>
+#include <vector>
 
 // eigen
 #include <Eigen/Core>
@@ -26,6 +27,47 @@
 #include "calib/planarpose.h"
 
 namespace calib {
+
+/**
+ * @brief Options for linear intrinsic estimation from planar views
+ * @ingroup camera_calibration
+ *
+ * Controls bounds and whether skew is estimated when computing the
+ * initial camera matrix from a collection of @ref PlanarView observations.
+ */
+struct IntrinsicsEstimateOptions final {
+    std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Optional parameter bounds
+    bool use_skew = false;                                   ///< Estimate skew parameter
+};
+
+/**
+ * @brief Result of linear intrinsic estimation
+ * @ingroup camera_calibration
+ *
+ * Contains the estimated camera matrix and the per-view poses recovered
+ * from homography decomposition.
+ */
+struct IntrinsicsEstimateResult final {
+    CameraMatrix kmtx;                       ///< Estimated intrinsic matrix
+    std::vector<Eigen::Isometry3d> c_se3_t;  ///< Estimated pose of each view
+};
+
+/**
+ * @brief Estimate camera intrinsics from planar views using a linear method
+ * @ingroup camera_calibration
+ *
+ * Fits a homography for each planar view, extracts the corresponding camera
+ * pose and constructs normalized observations. These observations are then
+ * used by @ref estimate_intrinsics_linear to compute the camera matrix.
+ *
+ * @param views      Vector of planar views with pixel measurements
+ * @param image_size Image dimensions in pixels (width, height)
+ * @param opts       Estimation options (bounds and skew)
+ * @return Optional result containing camera matrix and per-view poses
+ */
+auto estimate_intrinsics(const std::vector<PlanarView>& views, const Eigen::Vector2i& image_size,
+                         const IntrinsicsEstimateOptions& opts = {})
+    -> std::optional<IntrinsicsEstimateResult>;
 
 /**
  * @brief Estimate camera intrinsics using linear least squares
@@ -58,10 +100,11 @@ auto estimate_intrinsics_linear(const std::vector<Observation<double>>& observat
  * radial distortion coefficients and the number of refinement iterations can be specified.
  */
 constexpr int k_default_max_iterations = 5;
-auto estimate_intrinsics_linear_iterative(
-    const std::vector<Observation<double>>& observations, int num_radial,
-    int max_iterations = k_default_max_iterations,
-    bool use_skew = false) -> std::optional<PinholeCamera<BrownConradyd>>;
+auto estimate_intrinsics_linear_iterative(const std::vector<Observation<double>>& observations,
+                                          int num_radial,
+                                          int max_iterations = k_default_max_iterations,
+                                          bool use_skew = false)
+    -> std::optional<PinholeCamera<BrownConradyd>>;
 
 struct IntrinsicsOptions final : public OptimOptions {
     int num_radial = 2;          ///< Number of radial distortion coefficients
