@@ -20,6 +20,7 @@
 #include <Eigen/Dense>
 
 #include "calib/optimize.h"
+#include "calib/ransac.h"  // for RansacOptions
 
 namespace calib {
 
@@ -28,12 +29,6 @@ struct HomographyResult final {
     Eigen::Matrix3d hmtx = Eigen::Matrix3d::Identity();
     std::vector<int> inliers;      // indices of inlier correspondences
     double symmetric_rms_px{0.0};  // symmetric transfer RMS in pixels
-};
-
-struct HomographyRansacOptions final {
-    int ransac_max_iterations = 1000;  ///< Maximum RANSAC iterations
-    double ransac_threshold_px = 3.0;  ///< RANSAC inlier threshold in pixels
-    int ransac_min_inliers = 12;       ///< RANSAC minimum inliers to accept a model
 };
 
 /**
@@ -48,9 +43,8 @@ struct HomographyRansacOptions final {
  *
  * @note Both src and dst must contain at least 4 points and have the same size.
  */
-auto estimate_homography_dlt(
-    const std::vector<Eigen::Vector2d>& src, const std::vector<Eigen::Vector2d>& dst,
-    std::optional<HomographyRansacOptions> ransac_opts) -> HomographyResult;
+auto estimate_homography_dlt(const std::vector<PlanarObservation>& data,
+                             std::optional<RansacOptions> ransac_opts) -> HomographyResult;
 
 struct HomographyOptions final : public OptimOptions {};
 
