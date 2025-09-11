@@ -2,6 +2,7 @@
 
 namespace calib {
 
+// Hartley normalization
 static auto normalize(const std::vector<Eigen::Vector2d>& P, std::vector<Eigen::Vector2d>& Pn,
                       Eigen::Matrix3d& T) {
     Eigen::Vector2d c(0, 0);
@@ -27,30 +28,39 @@ static auto normalize(const std::vector<Eigen::Vector2d>& P, std::vector<Eigen::
     }
 }
 
-// --- Helpers: Hartley normalization and normalized DLT ---
+static auto dlt_homography_normalized(const std::vector<Eigen::Vector2d>& src_xy,
+                                                 const std::vector<Eigen::Vector2d>& dst_uv) -> Eigen::Matrix3d {
+    // Build A from normalized correspondences (2N x 9)
+    const int npts = static_cast<int>(src_xy.size());
+    Eigen::MatrixXd amtx(2 * npts, 9);
+    for (int i = 0; i < npts; ++i) {
+        const double xcoord = src_xy[i].x();
+        const double ycoord = src_xy[i].y();
+        const double ucoord = dst_uv[i].x();
+        const double vcoord = dst_uv[i].y();
+
+        amtx.row(2 * i) << -xcoord, -ycoord, -1, 0, 0, 0, ucoord * xcoord, ucoord * ycoord, ucoord;
+        amtx.row(2 * i + 1) << 0, 0, 0, -xcoord, -ycoord, -1, vcoord * xcoord, vcoord * ycoord, vcoord;
+    }
+
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(amtx, Eigen::ComputeFullV);
+    Eigen::VectorXd hvec = svd.matrixV().col(8);
+    Eigen::Matrix3d hmtx;
+    hmtx << hvec(0), hvec(1), hvec(2), hvec(3), hvec(4), hvec(5), hvec(6), hvec(7), hvec(8);
+    return hmtx / hmtx(2, 2);
+}
+
+// --- Helpers: and normalized DLT ---
 static auto normalize_and_dlt(const std::vector<Eigen::Vector2d>& src,
                               const std::vector<Eigen::Vector2d>& dst) -> Eigen::Matrix3d {
     std::vector<Eigen::Vector2d> src_n, dst_n;
-    Eigen::Matrix3d Ts, Td;
-    normalize(src, src_n, Ts);
-    normalize(dst, dst_n, Td);
+    Eigen::Matrix3d t_src;
+    Eigen::Matrix3d t_dst;
+    normalize(src, src_n, t_src);
+    normalize(dst, dst_n, t_dst);
 
-    const int N = static_cast<int>(src_n.size());
-    Eigen::MatrixXd A(2 * N, 9);
-    for (int i = 0; i < N; ++i) {
-        double X = src_n[i].x(), Y = src_n[i].y();
-        double u = dst_n[i].x(), v = dst_n[i].y();
-        A.row(2 * i) << -X, -Y, -1, 0, 0, 0, u * X, u * Y, u;
-        A.row(2 * i + 1) << 0, 0, 0, -X, -Y, -1, v * X, v * Y, v;
-    }
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullV);
-    Eigen::VectorXd h = svd.matrixV().col(8);
-
-    Eigen::Matrix3d Hn;
-    Hn << h(0), h(1), h(2), h(3), h(4), h(5), h(6), h(7), h(8);
-    Hn /= Hn(2, 2);
-    // denormalize
-    return Td.inverse() * Hn * Ts;
+    Eigen::Matrix3d hnorm = dlt_homography_normalized(src_n, dst_n);  // Hn: src_n -> dst_n
+    return t_dst.inverse() * hnorm * t_src;
 }
 
 static double symmetric_transfer_error(const Eigen::Matrix3d& H, const Eigen::Vector2d& XY,
@@ -68,7 +78,10 @@ static double symmetric_transfer_error(const Eigen::Matrix3d& H, const Eigen::Ve
     return std::sqrt(0.5 * (e1 * e1 + e2 * e2));
 }
 
-std::optional<Model> fit(const std::vector<Datum>& data, std::span<const int> sample) const {
+using Model = HomographyEstimator::Model;
+using Datum = HomographyEstimator::Datum;
+
+auto HomographyEstimator::fit(const std::vector<Datum>& data, std::span<const int> sample) const -> std::optional<Model> {
     if (sample.size() < k_min_samples) return std::nullopt;
     std::vector<Eigen::Vector2d> src, dst;
     src.reserve(sample.size());
@@ -82,12 +95,12 @@ std::optional<Model> fit(const std::vector<Datum>& data, std::span<const int> sa
     return H;
 }
 
-double residual(const Model& H, const Datum& d) const {
+auto HomographyEstimator::residual(const Model& H, const Datum& d) const -> double {
     return symmetric_transfer_error(H, d.object_xy, d.image_uv);
 }
 
 // Optional: better final model on all inliers
-std::optional<Model> refit(const std::vector<Datum>& data, std::span<const int> inliers) const {
+auto HomographyEstimator::refit(const std::vector<Datum>& data, std::span<const int> inliers) const -> std::optional<Model> {
     if (inliers.size() < k_min_samples) return std::nullopt;
     std::vector<Eigen::Vector2d> src, dst;
     src.reserve(inliers.size());
@@ -102,7 +115,7 @@ std::optional<Model> refit(const std::vector<Datum>& data, std::span<const int> 
 }
 
 // Optional: reject degenerate minimal sets (near-collinear points)
-bool is_degenerate(const std::vector<Datum>& data, std::span<const int> sample) const {
+auto HomographyEstimator::is_degenerate(const std::vector<Datum>& data, std::span<const int> sample) const -> bool {
     auto tri_area2 = [](const Eigen::Vector2d& a, const Eigen::Vector2d& b,
                         const Eigen::Vector2d& c) {
         return std::abs((b - a).x() * (c - a).y() - (b - a).y() * (c - a).x());
