@@ -10,7 +10,7 @@
 
 namespace calib {
 
-struct PlanarObservation {
+struct PlanarObservation final {
     Eigen::Vector2d object_xy;  // Planar target coordinates (Z=0)
     Eigen::Vector2d image_uv;   // Corresponding pixel measurements
 };
