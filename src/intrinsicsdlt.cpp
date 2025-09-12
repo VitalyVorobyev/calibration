@@ -14,125 +14,9 @@
 #include "calib/posefromhomography.h"  // for pose_from_homography
 #include "observationutils.h"
 
+#include "zhang.h"  // for zhang_intrinsics_from_hs
+
 namespace calib {
-
-static auto zhang_bmtx(const Eigen::VectorXd& b) -> Eigen::Matrix3d {
-    Eigen::Matrix3d bmtx;
-    bmtx << b(0), b(1), b(3), b(1), b(2), b(4), b(3), b(4), b(5);
-    return bmtx;
-}
-
-// b is homogeneous: try both signs to make B^{-1} SPD
-static auto run_zhang(const Eigen::VectorXd& bv) -> std::optional<Eigen::Matrix3d> {
-    Eigen::Matrix3d bmtx = zhang_bmtx(bv);
-    if (!bmtx.allFinite()) {
-        std::cout << "try_one_sign: non-finite B matrix\n";
-        return std::nullopt;
-    }
-
-    // We expect B to be SPD (up to scale). Work with Binv = (K K^T).
-    Eigen::Matrix3d binv = bmtx.inverse();
-    if (!binv.allFinite()) {
-        std::cout << "try_one_sign: non-finite Binv matrix\n";
-        return std::nullopt;
-    }
-
-    std::cout << "Binv:\n" << binv << "\n";
-    Eigen::LLT<Eigen::Matrix3d> llt(binv);
-    if (llt.info() != Eigen::Success) {
-        std::cout << "try_one_sign: LLT failed\n";
-        return std::nullopt;
-    }
-
-    // Upper-triangular K (positive diag), normalize K(2,2)=1
-    Eigen::Matrix3d kmtx = llt.matrixU();
-    if (kmtx(0, 0) <= 0 || kmtx(1, 1) <= 0 || kmtx(2, 2) <= 0) {
-        std::cout << "try_one_sign: non-positive diagonal in K\n";
-        return std::nullopt;
-    }
-    kmtx /= kmtx(2, 2);
-    if (!kmtx.allFinite()) {
-        std::cout << "try_one_sign: non-finite K matrix\n";
-        return std::nullopt;
-    }
-    return kmtx;
-};
-
-// ---------- Zhang: recover K from homographies ----------
-inline auto v_ij(const Eigen::Matrix3d& hmtx, int i, int j) -> Eigen::Matrix<double, 1, 6> {
-    assert(0 <= i && i < 3 && 0 <= j && j < 3);
-    const double h0i = hmtx(0, i);
-    const double h1i = hmtx(1, i);
-    const double h2i = hmtx(2, i);
-    const double h0j = hmtx(0, j);
-    const double h1j = hmtx(1, j);
-    const double h2j = hmtx(2, j);
-
-    Eigen::Matrix<double, 1, 6> v;
-    v << h0i * h0j, h0i * h1j + h1i * h0j, h1i * h1j, h2i * h0j + h0i * h2j, h2i * h1j + h1i * h2j,
-        h2i * h2j;
-    return v;
-}
-
-inline auto normalize_hmtx(const Eigen::Matrix3d& hmtx) -> Eigen::Matrix3d {
-    Eigen::Matrix3d hnorm = hmtx;
-    const double n1 = hnorm.col(0).norm();
-    const double n2 = hnorm.col(1).norm();
-    if (n1 > 0) hnorm.col(0) /= n1;
-    if (n2 > 0) hnorm.col(1) /= n2;
-    // Consistent orientation
-    if ((hnorm.col(0).cross(hnorm.col(1))).dot(hnorm.col(2)) < 0) hnorm = -hnorm;
-    return hnorm;
-}
-
-static auto make_zhang_design_matrix(const std::vector<HomographyResult>& hs)
-    -> std::optional<Eigen::MatrixXd> {
-    const int m = static_cast<int>(hs.size());
-    if (m < 2) {
-        std::cerr << "Zhang method requires at least 2 views\n";
-        return std::nullopt;
-    }
-
-    Eigen::MatrixXd vmtx(2 * m, 6);
-    for (int k = 0; k < m; ++k) {
-        Eigen::Matrix3d hmtx = normalize_hmtx(hs[static_cast<size_t>(k)].hmtx);  // <-- important
-        Eigen::Matrix<double, 1, 6> v12 = v_ij(hmtx, 0, 1);
-        Eigen::Matrix<double, 1, 6> v11 = v_ij(hmtx, 0, 0);
-        Eigen::Matrix<double, 1, 6> v22 = v_ij(hmtx, 1, 1);
-        vmtx.row(2 * k) = v12;
-        vmtx.row(2 * k + 1) = v11 - v22;
-    }
-    return vmtx;
-}
-
-static auto zhang_intrinsics_from_hs(const std::vector<HomographyResult>& hs)
-    -> std::optional<CameraMatrix> {
-    const auto vmtx_opt = make_zhang_design_matrix(hs);
-    if (!vmtx_opt.has_value()) {
-        std::cout << "Zhang design matrix creation failed.\n";
-        return std::nullopt;
-    }
-
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(vmtx_opt.value(), Eigen::ComputeFullV);
-    Eigen::VectorXd bvec = svd.matrixV().col(5);  // smallest singular value
-
-    auto kmtx_opt = run_zhang(bvec);
-    if (!kmtx_opt.has_value()) {
-        std::cout << "Zhang run_zhang failed for one sign, trying the other.\n";
-        bvec *= -1;
-        kmtx_opt = run_zhang(bvec);
-        if (!kmtx_opt.has_value()) {
-            std::cout << "Zhang run_zhang failed for both signs.\n";
-            return std::nullopt;
-        }
-    }
-
-    return CameraMatrix{.fx = kmtx_opt.value()(0, 0),
-                        .fy = kmtx_opt.value()(1, 1),
-                        .cx = kmtx_opt.value()(0, 2),
-                        .cy = kmtx_opt.value()(1, 2),
-                        .skew = kmtx_opt.value()(0, 1)};
-}
 
 static auto compute_planar_homographies(const std::vector<PlanarView>& views,
                                         const std::optional<RansacOptions>& ransac_opts)
@@ -140,7 +24,17 @@ static auto compute_planar_homographies(const std::vector<PlanarView>& views,
     std::vector<HomographyResult> homographies(views.size());
     std::transform(
         views.begin(), views.end(), homographies.begin(),
-        [&ransac_opts](const PlanarView& view) { return estimate_homography(view, ransac_opts); });
+        [&ransac_opts](const PlanarView& view) {
+            auto hres = estimate_homography(view, ransac_opts);
+            std::cout << hres.symmetric_rms_px << '\n';
+            #if 0
+            if (hres.success) {
+                hres.hmtx = hres.hmtx.inverse();
+                hres.hmtx /= hres.hmtx(2, 2);
+            }
+            #endif
+            return hres;
+        });
     return homographies;
 }
 
@@ -177,6 +71,10 @@ auto estimate_intrinsics(const std::vector<PlanarView>& views,
         std::cout << "Zhang intrinsic estimation failed.\n";
         return result;
     }
+
+    // Set the estimated camera matrix
+    result.kmtx = zhang_kmtx_opt.value();
+    result.success = true;
 
     result.views.resize(valid_hs.size());
     std::transform(valid_hs.begin(), valid_hs.end(), result.views.begin(),

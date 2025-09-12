@@ -78,8 +78,8 @@ inline Eigen::Isometry3d make_pose(const Eigen::Vector3d& t, const Eigen::Vector
  * @return std::vector<Eigen::Isometry3d> Vector of generated poses as affine transformations.
  */
 inline std::vector<Eigen::Isometry3d> make_circle_poses(int n, double radius, double z0,
-                                                      double z_step, double rot_step,
-                                                      double axis_z = 1.0) {
+                                                        double z_step, double rot_step,
+                                                        double axis_z = 1.0) {
     std::vector<Eigen::Isometry3d> poses;
     poses.reserve(n);
     for (int i = 0; i < n; ++i) {

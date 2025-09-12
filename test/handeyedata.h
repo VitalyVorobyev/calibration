@@ -100,34 +100,34 @@ struct SimulatedHandEye final {
                        std::pair<double,double> rot_deg = {5.0, 25.0},
                        const Eigen::Vector3d& t_lo = {-0.10, -0.10, -0.10},
                        const Eigen::Vector3d& t_hi = {+0.10, +0.10, +0.10},
-                       const std::optional<Eigen::Isometry3d>& start_Tbg = std::nullopt) {
+                       const std::optional<Eigen::Isometry3d>& start_b_se3_g = std::nullopt) {
         c_se3_t.clear();
         observations.clear();
         c_se3_t.reserve(n_frames);
         observations.reserve(n_frames);
 
-        Eigen::Isometry3d Tbg = start_Tbg.value_or(Eigen::Isometry3d::Identity()); // ^bT_g at k=0
+        Eigen::Isometry3d b_se3_g = start_b_se3_g.value_or(Eigen::Isometry3d::Identity()); // ^bT_g at k=0
 
         for (size_t k = 0; k < n_frames; ++k) {
             // Record observation *first* to keep vectors aligned
-            observations.push_back({ make_view({}, {}), Tbg, 0 });
+            observations.push_back({ make_view({}, {}), b_se3_g, 0 });
 
             // Compute ^cT_t = (^gT_c)^-1 * (^bT_g)^-1 * (^bT_t)
-            c_se3_t.push_back( g_se3_c_gt.inverse() * Tbg.inverse() * b_se3_t_gt );
+            c_se3_t.push_back( g_se3_c_gt.inverse() * b_se3_g.inverse() * b_se3_t_gt );
 
             if (k + 1 < n_frames) {
                 const double ang = deg2rad(rng.uni(rot_deg.first, rot_deg.second));
                 const Eigen::Vector3d ax = rng.rand_unit_axis();
                 const Eigen::Vector3d dt = rng.rand_translation(t_lo, t_hi);
                 const Eigen::Isometry3d d = make_pose(dt, ax, ang);
-                Tbg = Tbg * d; // cumulative screw motion
+                b_se3_g = b_se3_g * d; // cumulative screw motion
 
                 // Optional: re-center to avoid drifting absurdly far
                 // (keeps conditioning OK without changing relative motions)
                 if (k % 8 == 7) {
                     Eigen::Isometry3d recenter = Eigen::Isometry3d::Identity();
-                    recenter.translation() = -Tbg.translation() * 0.2; // gentle pullback
-                    Tbg = recenter * Tbg;
+                    recenter.translation() = -b_se3_g.translation() * 0.2; // gentle pullback
+                    b_se3_g = recenter * b_se3_g;
                 }
             }
         }

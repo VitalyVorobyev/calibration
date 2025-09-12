@@ -16,7 +16,7 @@ TEST(EstimateIntrinsics, RecoversIntrinsicsNoSkew) {
 
     Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d b_se3_t =
-        Eigen::Translation3d(0.0, 0.0, 2.0) * Eigen::Isometry3d::Identity();
+        Eigen::Translation3d(0.0, 0.0, 6.0) * Eigen::Isometry3d::Identity();
 
     SimulatedHandEye sim{g_se3_c, b_se3_t, cam_gt};
     constexpr size_t num_frames = 15;
