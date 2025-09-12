@@ -30,7 +30,7 @@ static auto normalize_points_2d(const std::vector<Eigen::Vector2d>& pts,
     transform(0, 2) = -sigma * centroid.x();
     transform(1, 2) = -sigma * centroid.y();
 
-    std::transform(pts.begin(), pts.end(), out.begin(), [&](const Eigen::Vector2d& pt) {
+    std::transform(pts.begin(), pts.end(), out.begin(), [&transform](const Eigen::Vector2d& pt) -> Eigen::Vector2d {
         Eigen::Vector3d hp(pt.x(), pt.y(), 1.0);
         Eigen::Vector3d hn = transform * hp;
         return hn.hnormalized();

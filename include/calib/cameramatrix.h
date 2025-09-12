@@ -15,7 +15,7 @@ struct CameraMatrixT final {
     Scalar skew = Scalar(0);
 
     Eigen::Matrix<Scalar, 3, 3> matrix() const {
-        auto K = Eigen::Matrix<Scalar, 3, 3>::Identity();
+        Eigen::Matrix<Scalar, 3, 3> K = Eigen::Matrix<Scalar, 3, 3>::Identity();
         K(0, 0) = fx;
         K(0, 1) = skew;
         K(0, 2) = cx;

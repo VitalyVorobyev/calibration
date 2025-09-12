@@ -30,16 +30,14 @@ TEST(EstimateIntrinsics, RecoversIntrinsicsNoSkew) {
 
     IntrinsicsEstimateOptions opts;
     opts.use_skew = false;
-    auto res_opt = estimate_intrinsics(views, Eigen::Vector2i(1280, 720), opts);
-    ASSERT_TRUE(res_opt.has_value());
-    const auto& Kf = res_opt->kmtx;
-    const auto& K_gt = cam_gt.kmtx;
-    EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-3);
-    EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-3);
-    EXPECT_NEAR(Kf.cx, K_gt.cx, 1e-3);
-    EXPECT_NEAR(Kf.cy, K_gt.cy, 1e-3);
-    EXPECT_NEAR(Kf.skew, K_gt.skew, 1e-6);
-    EXPECT_EQ(res_opt->c_se3_t.size(), views.size());
+    IntrinsicsEstimateResult ires = estimate_intrinsics(views, opts);
+    ASSERT_TRUE(ires.success);
+    EXPECT_NEAR(ires.kmtx.fx, cam_gt.kmtx.fx, 1e-3);
+    EXPECT_NEAR(ires.kmtx.fy, cam_gt.kmtx.fy, 1e-3);
+    EXPECT_NEAR(ires.kmtx.cx, cam_gt.kmtx.cx, 1e-3);
+    EXPECT_NEAR(ires.kmtx.cy, cam_gt.kmtx.cy, 1e-3);
+    EXPECT_NEAR(ires.kmtx.skew, cam_gt.kmtx.skew, 1e-6);
+    EXPECT_EQ(ires.views.size(), views.size());
 }
 
 TEST(EstimateIntrinsics, RecoversSkew) {
@@ -67,9 +65,9 @@ TEST(EstimateIntrinsics, RecoversSkew) {
 
     IntrinsicsEstimateOptions opts;
     opts.use_skew = true;
-    auto res_opt = estimate_intrinsics(views, Eigen::Vector2i(1280, 720), opts);
-    ASSERT_TRUE(res_opt.has_value());
-    const auto& Kf = res_opt->kmtx;
+    const IntrinsicsEstimateResult ires = estimate_intrinsics(views, opts);
+    ASSERT_TRUE(ires.success);
+    const auto& Kf = ires.kmtx;
     const auto& K_gt = cam_gt.kmtx;
     EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-3);
     EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-3);
@@ -77,4 +75,3 @@ TEST(EstimateIntrinsics, RecoversSkew) {
     EXPECT_NEAR(Kf.cy, K_gt.cy, 1e-3);
     EXPECT_NEAR(Kf.skew, K_gt.skew, 1e-5);
 }
-

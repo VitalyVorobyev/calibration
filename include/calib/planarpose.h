@@ -20,7 +20,7 @@ using PlanarView = std::vector<PlanarObservation>;
 auto pose_from_homography_normalized(const Eigen::Matrix3d& hmtx) -> Eigen::Isometry3d;
 
 // Convenience: one-shot planar pose from pixels & kmtx
-auto estimate_planar_pose_dlt(const PlanarView& view,
+auto estimate_planar_pose_dlt(PlanarView view,
                               const CameraMatrix& kmtx) -> Eigen::Isometry3d;
 
 struct PlanarPoseOptions final : public OptimOptions {

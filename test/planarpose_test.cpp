@@ -43,48 +43,6 @@ static auto create_synthetic_planar_data(const Eigen::Isometry3d& pose, const Ca
 
 namespace calib {
 
-using Pose6 = Eigen::Matrix<double, 6, 1>;
-
-// Functor mirroring the production PlanarPoseVPResidual for testing Jacobians.
-struct PlanarPoseVPResidualTestFunctor {
-    PlanarView obs;
-    std::array<double, 5> kmtx;
-    int num_radial;
-
-    template <typename T>
-    bool operator()(const T* pose6, T* residuals) const {
-        std::vector<Observation<T>> o(obs.size());
-        std::transform(obs.begin(), obs.end(), o.begin(),
-            [pose6, this](const PlanarObservation& s) -> Observation<T> {
-                Eigen::Matrix<T, 3, 1> P(T(s.object_xy.x()), T(s.object_xy.y()), T(0.0));
-                Eigen::Matrix<T, 3, 1> Pc;
-                ceres::AngleAxisRotatePoint(pose6, P.data(), Pc.data());
-                Pc += Eigen::Matrix<T, 3, 1>(pose6[3], pose6[4], pose6[5]);
-                T invZ = T(1.0) / Pc.z();
-                return {
-                    .x = Pc.x() * invZ,
-                    .y = Pc.y() * invZ,
-                    .u = T(s.image_uv.x()) * T(kmtx[0]) + T(s.image_uv.y()) * T(kmtx[4]) + T(kmtx[2]),
-                    .v = T(s.image_uv.y()) * T(kmtx[1]) + T(kmtx[3])
-                };
-            }
-        );
-
-        CameraMatrixT<T> intrinsics {
-            T(kmtx[0]), T(kmtx[1]), T(kmtx[2]), T(kmtx[3]), T(kmtx[4])
-        };
-        auto dr = fit_distortion_full(o, intrinsics, num_radial);
-        if (!dr) {
-            return false;
-        }
-        const auto& r = dr->residuals;
-        for (int i = 0; i < r.size(); ++i) {
-            residuals[i] = r[i];
-        }
-        return true;
-    }
-};
-
 TEST(PlanarPoseTest, HomographyDecomposition) {
     // Create a known homography matrix
     Eigen::Matrix3d R = Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitX()).toRotationMatrix();
@@ -204,7 +162,7 @@ TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
     true_pose.linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
     true_pose.translation() = Eigen::Vector3d(0.1, 0.2, 2.0);
 
-    const auto view = create_synthetic_planar_data(true_pose, intrinsics);
+    auto view = create_synthetic_planar_data(true_pose, intrinsics);
 
     // Apply simple radial distortion to image points
     const double k1 = 0.1; // Distortion coefficient
