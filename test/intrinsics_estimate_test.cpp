@@ -20,10 +20,10 @@ TEST(EstimateIntrinsics, RecoversIntrinsicsNoSkew) {
 
     SimulatedHandEye sim{g_se3_c, b_se3_t, cam_gt};
     constexpr size_t num_frames = 15;
-    sim.make_sequence(num_frames, rng);
     constexpr int rows = 8;
     constexpr int cols = 11;
     constexpr double spacing = 0.02;
+    sim.make_sequence(num_frames, rng);
     sim.make_target_grid(rows, cols, spacing);
     sim.render_pixels();
 

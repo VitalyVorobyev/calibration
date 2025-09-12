@@ -62,19 +62,34 @@ static auto run_zhang(const Eigen::VectorXd& bv) -> std::optional<Eigen::Matrix3
 };
 
 // ---------- Zhang: recover K from homographies ----------
-static Eigen::Matrix<double, 1, 6> v_ij(const Eigen::Matrix3d& hmtx, int i, int j) {
-    const auto& h1 = hmtx.col(0);
-    const auto& h2 = hmtx.col(1);
-    const auto& h3 = hmtx.col(2);
-    Eigen::Matrix<double, 1, 6> v;
-    v <<
-        h1(i) * h1(j),
-        h1(i) * h2(j) + h2(i) * h1(j),
-        h2(i) * h2(j),
-        h3(i) * h1(j) + h1(i) * h3(j),
-        h3(i) * h2(j) + h2(i) * h3(j),
-        h3(i) * h3(j);
+inline auto v_ij(const Eigen::Matrix3d& H, int i, int j) -> Eigen::Matrix<double,1,6> {
+    assert(0 <= i && i < 3 && 0 <= j && j < 3);
+    const double h0i = H(0,i);
+    const double h1i = H(1,i);
+    const double h2i = H(2,i);
+    const double h0j = H(0,j);
+    const double h1j = H(1,j);
+    const double h2j = H(2,j);
+
+    Eigen::Matrix<double,1,6> v;
+    v << h0i*h0j,
+         h0i*h1j + h1i*h0j,
+         h1i*h1j,
+         h2i*h0j + h0i*h2j,
+         h2i*h1j + h1i*h2j,
+         h2i*h2j;
     return v;
+}
+
+inline auto normalize_hmtx(const Eigen::Matrix3d& hmtx) -> Eigen::Matrix3d {
+    Eigen::Matrix3d hnorm = hmtx;
+    const double n1 = hnorm.col(0).norm();
+    const double n2 = hnorm.col(1).norm();
+    if (n1 > 0) hnorm.col(0) /= n1;
+    if (n2 > 0) hnorm.col(1) /= n2;
+    // Consistent orientation
+    if ((hnorm.col(0).cross(hnorm.col(1))).dot(hnorm.col(2)) < 0) hnorm = -hnorm;
+    return hnorm;
 }
 
 static auto make_zhang_design_matrix(const std::vector<HomographyResult>& hs)
@@ -86,13 +101,13 @@ static auto make_zhang_design_matrix(const std::vector<HomographyResult>& hs)
     }
 
     Eigen::MatrixXd vmtx(2 * m, 6);
-    for (int i = 0; i < m; ++i) {
-        const auto& hmtx = hs[i].hmtx;
+    for (int k = 0; k < m; ++k) {
+        Eigen::Matrix3d hmtx = normalize_hmtx(hs[static_cast<size_t>(k)].hmtx);  // <-- important
         Eigen::Matrix<double, 1, 6> v12 = v_ij(hmtx, 0, 1);
         Eigen::Matrix<double, 1, 6> v11 = v_ij(hmtx, 0, 0);
         Eigen::Matrix<double, 1, 6> v22 = v_ij(hmtx, 1, 1);
-        vmtx.row(2 * i) = v12;
-        vmtx.row(2 * i + 1) = v11 - v22;
+        vmtx.row(2 * k) = v12;
+        vmtx.row(2 * k + 1) = v11 - v22;
     }
     return vmtx;
 }

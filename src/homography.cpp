@@ -38,9 +38,8 @@ static void estimate_homography_dlt(const PlanarView& data, HomographyResult& re
         return;
     }
     result.hmtx = hmtx_opt.value();
-    result.symmetric_rms_px = symmetric_rms_px(result.hmtx, data, std::span<const int>());
-    result.inliers.resize(data.size());
-    std::iota(result.inliers.begin(), result.inliers.end(), 0);
+    result.symmetric_rms_px = symmetric_rms_px(result.hmtx, data, inliers);
+    result.inliers = inliers;
     result.success = true;
 }
 
