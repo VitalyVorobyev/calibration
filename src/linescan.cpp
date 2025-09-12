@@ -73,26 +73,33 @@ static void validate_observations(const std::vector<LineScanObservation>& views)
 }
 
 // Processes a single view to extract 3D points
-static std::vector<Vec3> process_view(const LineScanObservation& view,
-                                      const Camera<DualDistortion>& camera) {
+static auto process_view(const LineScanObservation& view,
+                                      const Camera<DualDistortion>& camera) -> std::vector<Vec3> {
     std::vector<Vec3> points;
+    PlanarView pview(view.target_xy.size());
 
     // Normalize and undistort target pixel coordinates
-    std::vector<Vec2> img_norm(view.target_uv.size());
-    std::transform(view.target_uv.begin(), view.target_uv.end(), img_norm.begin(),
-                   [&camera](const Vec2& uv) { return camera.unproject(uv); });
+    std::transform(
+        view.target_xy.begin(), view.target_xy.end(), view.target_uv.begin(), pview.begin(),
+        [&camera](const Vec2& xy, const Vec2& uv) {
+            return PlanarObservation{xy, camera.unproject(uv)};
+        });
 
     // Homography from normalized pixels to plane
     // TODO: consider homography optimization
-    Mat3 h_norm_to_obj = estimate_homography(img_norm, view.target_xy);
+    auto h_norm_to_obj = estimate_homography(pview);
+    if (!h_norm_to_obj.success) {
+        std::cout << "Failed to estimate homography for view\n";
+        return points;
+    }
 
     // Pose of plane (world->camera)
-    Eigen::Isometry3d pose = estimate_planar_pose_dlt(view.target_xy, view.target_uv, camera.kmtx);
+    Eigen::Isometry3d pose = estimate_planar_pose_dlt(pview, camera.kmtx);
 
     // Reproject laser pixels to plane and transform to camera coordinates
     for (const auto& lpix : view.laser_uv) {
         Vec2 norm = camera.unproject(lpix);
-        Eigen::Vector3d hp = h_norm_to_obj * Eigen::Vector3d(norm.x(), norm.y(), 1.0);
+        Eigen::Vector3d hp = h_norm_to_obj.hmtx * Eigen::Vector3d(norm.x(), norm.y(), 1.0);
         Vec2 plane_xy = hp.hnormalized();
         Vec3 obj_pt(plane_xy.x(), plane_xy.y(), 0.0);
         Vec3 cam_pt = pose * obj_pt;

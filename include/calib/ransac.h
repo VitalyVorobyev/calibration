@@ -72,7 +72,7 @@ inline auto rms(const std::vector<double>& vals) -> double {
 template <class Estimator>
 auto ransac(const std::vector<typename Estimator::Datum>& data, const Estimator& est,
             const RansacOptions& opts = {}) -> RansacResult<typename Estimator::Model> {
-    using Datum = typename Estimator::Datum;
+    // using Datum = typename Estimator::Datum;
     using Model = typename Estimator::Model;
 
     RansacResult<Model> best;

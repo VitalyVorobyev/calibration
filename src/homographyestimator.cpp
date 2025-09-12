@@ -13,11 +13,13 @@ static auto normalize_points_2d(const std::vector<Eigen::Vector2d>& pts,
                                 std::vector<Eigen::Vector2d>& out) -> Eigen::Matrix3d {
     out.resize(pts.size());
 
-    Eigen::Vector2d centroid = std::accumulate(pts.begin(), pts.end(), Eigen::Vector2d::Zero());
+    Eigen::Vector2d centroid = std::accumulate(pts.begin(), pts.end(), Eigen::Vector2d{0, 0});
     centroid /= std::max<size_t>(1, pts.size());
 
     double mean_dist = 0.0;
-    for (auto& p : pts) mean_dist += (p - centroid).norm();
+    for (auto& p : pts) {
+        mean_dist += (p - centroid).norm();
+    }
     mean_dist /= std::max<size_t>(1, pts.size());
 
     const double sigma = (mean_dist > 0) ? std::sqrt(2.0) / mean_dist : 1.0;
@@ -72,10 +74,10 @@ static auto normalize_and_estimate_homography(const std::vector<Eigen::Vector2d>
 
 static auto symmetric_transfer_error(const Eigen::Matrix3d& hmtx, const Eigen::Vector2d& xy,
                                      const Eigen::Vector2d& uv) -> double {
-    auto hmul = [](const Eigen::Matrix3d& M, const Eigen::Vector2d& p) {
+    auto hmul = [](const Eigen::Matrix3d& M, const Eigen::Vector2d& p) -> Eigen::Vector2d {
         Eigen::Vector3d hp(p.x(), p.y(), 1.0);
         Eigen::Vector3d q = M * hp;
-        return (q / q.z()).hnormalized();
+        return Eigen::Vector2d{ q.hnormalized() };
     };
     const Eigen::Matrix3d hmtxinv = hmtx.inverse();
     const Eigen::Vector2d uv_hat = hmul(hmtx, xy);

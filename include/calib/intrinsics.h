@@ -81,7 +81,7 @@ struct IntrinsicsEstimateResult final {
  * @param opts       Estimation options (bounds and skew)
  * @return Optional result containing camera matrix and per-view poses
  */
-auto estimate_intrinsics(const std::vector<PlanarView>& views, const Eigen::Vector2i& image_size,
+auto estimate_intrinsics(const std::vector<PlanarView>& views,
                          const IntrinsicsEstimateOptions& opts = {}) -> IntrinsicsEstimateResult;
 
 /**

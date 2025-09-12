@@ -104,7 +104,7 @@ static auto process_planar_view(const CameraMatrix& kmtx,
     return ved;
 }
 
-auto estimate_intrinsics(const std::vector<PlanarView>& views, const Eigen::Vector2i& image_size,
+auto estimate_intrinsics(const std::vector<PlanarView>& views,
                          const IntrinsicsEstimateOptions& opts) -> IntrinsicsEstimateResult {
     IntrinsicsEstimateResult result;
     if (views.empty()) {

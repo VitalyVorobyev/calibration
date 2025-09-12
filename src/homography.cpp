@@ -102,7 +102,7 @@ static auto params_to_h(const HomographyParams& params) -> Mat3 {
 }
 
 // Ceres residual: maps (x,y) -> (u,v) using H(h) and compares to (u*, v*)
-struct HomographyResidual {
+struct HomographyResidual final {
     double x_, y_, u_, v_;
 
     HomographyResidual(double x, double y, double u, double v) : x_(x), y_(y), u_(u), v_(v) {}
@@ -115,8 +115,6 @@ struct HomographyResidual {
         // 6 7 8
         Eigen::Matrix<T, 3, 3> hmtx;
         hmtx << h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], T(1);
-        T xvar = ;
-        T yvar = T(y_);
         Eigen::Vector3<T> xyvec(T(x_), T(y_), T(1));
 
 #if 0
@@ -129,7 +127,7 @@ struct HomographyResidual {
 #endif
 
         Eigen::Vector3<T> uvw = hmtx * xyvec;
-        Eigen::Vector2<T> uv_hat = uvw.hnormalized().head<2>();
+        Eigen::Vector2<T> uv_hat = uvw.hnormalized();
         residuals[0] = uv_hat.x() - T(u_);
         residuals[1] = uv_hat.y() - T(v_);
         return true;
