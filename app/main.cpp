@@ -76,15 +76,7 @@ int main(int argc, char** argv) {
 
                 std::vector<Eigen::Isometry3d> init_poses;
                 for (const auto& view : views) {
-                    std::vector<Eigen::Vector2d> obj_xy;
-                    std::vector<Eigen::Vector2d> img_uv;
-                    obj_xy.reserve(view.size());
-                    img_uv.reserve(view.size());
-                    for (const auto& obs : view) {
-                        obj_xy.push_back(obs.object_xy);
-                        img_uv.push_back(obs.image_uv);
-                    }
-                    init_poses.push_back(estimate_planar_pose_dlt(obj_xy, img_uv, init_cam_opt->kmtx));
+                    init_poses.push_back(estimate_planar_pose_dlt(view, init_cam_opt->kmtx));
                 }
 
                 IntrinsicsOptions opts;

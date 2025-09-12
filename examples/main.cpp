@@ -22,34 +22,27 @@ int main() {
         return 1;
     }
 
-    std::vector<Vec2> src(N), dst(N);
+    PlanarView view(static_cast<size_t>(N));
     for (int i = 0; i < N; ++i) {
         double x, y, u, v;
         if (!(std::cin >> x >> y >> u >> v)) {
             std::cerr << "Failed to read correspondence " << i << "\n";
             return 1;
         }
-        src[i] = Vec2(x, y);
-        dst[i] = Vec2(u, v);
+        view[i] = PlanarObservation{Vec2(x, y), Vec2(u, v)};
     }
 
-    auto H = estimate_homography_dlt(src, dst);
+    const HomographyResult hres = estimate_homography(view, std::nullopt);
+    if (!hres.success) {
+        std::cerr << "Homography estimation failed\n";
+        return 1;
+    }
 
     std::cout.setf(std::ios::fixed); std::cout.precision(10);
     std::cout << "Refined H:\n";
     for (int r = 0; r < 3; ++r) {
-        std::cout << H(r,0) << " " << H(r,1) << " " << H(r,2) << "\n";
+        std::cout << hres.hmtx(r, 0) << " " << hres.hmtx(r, 1) << " " << hres.hmtx(r, 2) << "\n";
     }
 
-    // Report mean reprojection error (pixels)
-    double total_err = 0.0;
-    for (int i = 0; i < N; ++i) {
-        Eigen::Vector3d p(src[i].x(), src[i].y(), 1.0);
-        Eigen::Vector3d q = H * p; q /= q.z();
-        double du = q.x() - dst[i].x();
-        double dv = q.y() - dst[i].y();
-        total_err += std::sqrt(du*du + dv*dv);
-    }
-
-    std::cout << "Mean reprojection error: " << (total_err / N) << " px\n";
+    std::cout << "Mean reprojection error: " << hres.symmetric_rms_px << " px\n";
 }

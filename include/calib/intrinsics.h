@@ -15,17 +15,74 @@
 
 // std
 #include <optional>
+#include <vector>
 
 // eigen
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
 #include "calib/cameramodel.h"
+#include "calib/homography.h"  // for HomographyResult
 #include "calib/optimize.h"
 #include "calib/pinhole.h"
 #include "calib/planarpose.h"
+#include "calib/ransac.h"
 
 namespace calib {
+
+/**
+ * @brief Options for linear intrinsic estimation from planar views
+ * @ingroup camera_calibration
+ *
+ * Controls bounds and whether skew is estimated when computing the
+ * initial camera matrix from a collection of @ref PlanarView observations.
+ */
+struct IntrinsicsEstimateOptions final {
+    std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Optional parameter bounds
+    std::optional<RansacOptions> homography_ransac =
+        std::nullopt;       ///< RANSAC options for homography fitting
+    bool use_skew = false;  ///< Estimate skew parameter
+};
+
+struct ViewEstimateData final {
+    size_t view_index = 0;
+    Eigen::Isometry3d c_se3_t = Eigen::Isometry3d::Identity();
+    // Diagnostics
+    HomographyResult homography;
+    double forward_rms_px = 0.0;
+};
+
+/**
+ * @brief Result of linear intrinsic estimation
+ * @ingroup camera_calibration
+ *
+ * Contains the estimated camera matrix and the per-view poses recovered
+ * from homography decomposition.
+ */
+struct IntrinsicsEstimateResult final {
+    bool success{false};
+
+    CameraMatrix kmtx;                        ///< Estimated intrinsic matrix
+    std::vector<double> dist = {0, 0, 0, 0};  ///< Distortion coefficients (k1, k2, p1, p2)
+    std::vector<ViewEstimateData> views;      ///< Per-view estimation data
+    std::string log;
+};
+
+/**
+ * @brief Estimate camera intrinsics from planar views using a linear method
+ * @ingroup camera_calibration
+ *
+ * Fits a homography for each planar view, extracts the corresponding camera
+ * pose and constructs normalized observations. These observations are then
+ * used by @ref estimate_intrinsics_linear to compute the camera matrix.
+ *
+ * @param views      Vector of planar views with pixel measurements
+ * @param image_size Image dimensions in pixels (width, height)
+ * @param opts       Estimation options (bounds and skew)
+ * @return Optional result containing camera matrix and per-view poses
+ */
+auto estimate_intrinsics(const std::vector<PlanarView>& views,
+                         const IntrinsicsEstimateOptions& opts = {}) -> IntrinsicsEstimateResult;
 
 /**
  * @brief Estimate camera intrinsics using linear least squares

@@ -24,6 +24,14 @@ target_link_libraries(intrinsics_optimize_test PRIVATE
 )
 gtest_discover_tests(intrinsics_optimize_test)
 
+# Test for linear intrinsics estimation
+add_executable(intrinsics_estimate_test intrinsics_estimate_test.cpp)
+target_link_libraries(intrinsics_estimate_test PRIVATE
+    calibration
+    GTest::gtest_main GTest::gmock_main
+)
+gtest_discover_tests(intrinsics_estimate_test)
+
 # Test for planar pose estimation
 add_executable(planarpose_test planarpose_test.cpp)
 target_link_libraries(planarpose_test PRIVATE

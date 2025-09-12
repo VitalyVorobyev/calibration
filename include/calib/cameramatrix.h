@@ -14,6 +14,16 @@ struct CameraMatrixT final {
     Scalar fx, fy, cx, cy;
     Scalar skew = Scalar(0);
 
+    Eigen::Matrix<Scalar, 3, 3> matrix() const {
+        Eigen::Matrix<Scalar, 3, 3> K = Eigen::Matrix<Scalar, 3, 3>::Identity();
+        K(0, 0) = fx;
+        K(0, 1) = skew;
+        K(0, 2) = cx;
+        K(1, 1) = fy;
+        K(1, 2) = cy;
+        return K;
+    }
+
     /**
      * @brief Normalizes a 2D pixel coordinate using the intrinsic camera parameters.
      *

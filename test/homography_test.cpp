@@ -18,11 +18,10 @@ static Vec2 apply_homography(const Mat3& H, const Vec2& p) {
 }
 
 // Generate synthetic data with a known homography
-void generate_synthetic_data(std::vector<Vec2>& src,
-                             std::vector<Vec2>& dst,
-                             Mat3& true_H,
-                             int n_points = 50,
-                             double noise_level = -1) {
+static void generate_synthetic_data(PlanarView& data,
+                                    Mat3& true_H,
+                                    size_t n_points = 50,
+                                    double noise_level = -1) {
     // Create a non-trivial homography (rotation + translation + perspective)
     const double angle = 0.1;  // radians
     const double c = std::cos(angle), s = std::sin(angle);
@@ -39,22 +38,13 @@ void generate_synthetic_data(std::vector<Vec2>& src,
     std::uniform_real_distribution<double> dist(-100.0, 100.0);
     std::normal_distribution<double> noise(0.0, noise_level);
 
-    src.resize(n_points);
-    dst.resize(n_points);
-
-    for (int i = 0; i < n_points; ++i) {
-        // Random source point
-        src[i] = Vec2(dist(rng), dist(rng));
-
-        // Apply true homography
-        Vec2 exact_dst = apply_homography(true_H, src[i]);
-
-        // Add noise to destination points
-        dst[i] = exact_dst;
-        if (noise_level > 0) {
-            dst[i] += Vec2(noise(rng), noise(rng));
-        }
-    }
+    data.resize(n_points);
+    std::generate(data.begin(), data.end(), [&]() {
+        const Eigen::Vector2d object_xy(dist(rng), dist(rng));
+        Eigen::Vector2d image_uv = apply_homography(true_H, object_xy);
+        image_uv += noise_level > 0 ? Vec2(noise(rng), noise(rng)) : Vec2(0, 0);
+        return PlanarObservation{object_xy, image_uv};
+    });
 }
 
 TEST(HomographyTest, ExactHomography) {
@@ -64,22 +54,16 @@ TEST(HomographyTest, ExactHomography) {
     H_true(1, 2) = -5.0;  // y translation
 
     // Create source and destination points with exact transformation
-    std::vector<Vec2> src = {
-        {0.0, 0.0},
-        {1.0, 0.0},
-        {0.0, 1.0},
-        {1.0, 1.0}
+    const PlanarView view {
+        {{0.0, 0.0}, apply_homography(H_true, {0.0, 0.0})},
+        {{1.0, 0.0}, apply_homography(H_true, {1.0, 0.0})},
+        {{0.0, 1.0}, apply_homography(H_true, {0.0, 1.0})},
+        {{1.0, 1.0}, apply_homography(H_true, {1.0, 1.0})}
     };
 
-    std::vector<Vec2> dst;
-    dst.reserve(src.size());
-    for (const auto& p : src) {
-        dst.push_back(apply_homography(H_true, p));
-    }
-
     // Estimate homography
-    Mat3 h0 = estimate_homography_dlt(src, dst);
-    auto result = optimize_homography(src, dst, h0);
+    auto hres = estimate_homography(view);
+    auto result = optimize_homography(view, hres.hmtx);
     ASSERT_TRUE(result.success);
 
     // The estimated homography should be very close to the true one
@@ -87,15 +71,15 @@ TEST(HomographyTest, ExactHomography) {
 }
 
 TEST(HomographyTest, NoisyHomography) {
-    std::vector<Vec2> src, dst;
+    PlanarView data;
     Mat3 H_true;
 
     // Generate data with low noise
-    generate_synthetic_data(src, dst, H_true, 50, 0.1);
+    generate_synthetic_data(data, H_true, 50, 0.1);
 
     // Estimate homography
-    Mat3 h0 = estimate_homography_dlt(src, dst);
-    auto result = optimize_homography(src, dst, h0);
+    auto hres = estimate_homography(data);
+    auto result = optimize_homography(data, hres.hmtx);
     ASSERT_TRUE(result.success);
 
     // Verify that the estimated homography is close to the ground truth
@@ -105,11 +89,11 @@ TEST(HomographyTest, NoisyHomography) {
 
     // Check the reprojection error
     double avg_error = 0.0;
-    for (size_t i = 0; i < src.size(); ++i) {
-        Vec2 projected = apply_homography(result.homography, src[i]);
-        avg_error += (projected - dst[i]).norm();
+    for (size_t i = 0; i < data.size(); ++i) {
+        Vec2 projected = apply_homography(result.homography, data[i].object_xy);
+        avg_error += (projected - data[i].image_uv).norm();
     }
-    avg_error /= src.size();
+    avg_error /= data.size();
 
     // Average reprojection error should be small
     EXPECT_LT(avg_error, 0.15); // Should be close to the noise level
@@ -117,16 +101,11 @@ TEST(HomographyTest, NoisyHomography) {
 
 TEST(HomographyTest, InsufficientPoints) {
     // Less than 4 points should throw an exception
-    std::vector<Vec2> src = {{0.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}};
-    std::vector<Vec2> dst = {{10.0, 0.0}, {11.0, 0.0}, {10.0, 1.0}};
+    PlanarView view = {
+        {{0.0, 0.0}, {10.0, 0.0}},
+        {{1.0, 0.0}, {11.0, 0.0}},
+        {{0.0, 1.0}, {10.0, 1.0}}
+    };
 
-    EXPECT_THROW(optimize_homography(src, dst, Mat3::Identity()), std::invalid_argument);
-}
-
-TEST(HomographyTest, MismatchedSizes) {
-    // Different number of source and destination points should throw
-    std::vector<Vec2> src = {{0.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}};
-    std::vector<Vec2> dst = {{10.0, 0.0}, {11.0, 0.0}, {10.0, 1.0}};
-
-    EXPECT_THROW(optimize_homography(src, dst, Mat3::Identity()), std::invalid_argument);
+    EXPECT_THROW(optimize_homography(view, Mat3::Identity()), std::invalid_argument);
 }

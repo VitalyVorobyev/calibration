@@ -54,18 +54,6 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j2
 ```
 
-Run a smoke test:
-
-```bash
-./build/examples/homography <<EOF
-4
-0   0    10 20
-100 0    110 18
-100 50   120 70
-0   50   8  72
-EOF
-```
-
 ### Windows
 
 Install dependencies with [vcpkg](https://github.com/microsoft/vcpkg):
@@ -89,6 +77,7 @@ cmake --build build --config Release -j2
 The library exposes lightweight C++ APIs with a common optimisation interface.
 Typical entry points include:
 
+- `estimate_intrinsics` – linear intrinsics and pose initialization from planar views
 - `optimize_intrinsics` – refine camera intrinsics and poses from planar views
 - `optimize_extrinsics` – calibrate camera poses relative to a target
 - `optimize_handeye` – refine gripper→camera transform from motion pairs

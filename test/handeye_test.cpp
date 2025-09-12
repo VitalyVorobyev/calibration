@@ -6,7 +6,7 @@
 
 #include "calib/handeye.h"
 
-#include "utils.h"
+#include "handeyedata.h"
 
 using namespace calib;
 // ---------- TESTS ----------

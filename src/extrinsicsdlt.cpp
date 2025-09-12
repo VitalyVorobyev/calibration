@@ -15,15 +15,9 @@ static auto estimate_pose(const PlanarView& view,
         std::cerr << "Warning: Insufficient observations (need ≥4 points)\n";
         return Eigen::Isometry3d::Identity();
     }
-    std::vector<Eigen::Vector2d> object_points;
-    std::vector<Eigen::Vector2d> image_points;
-    for (const auto& obs : view) {
-        object_points.push_back(obs.object_xy);
-        image_points.push_back(obs.image_uv);
-    }
 
     // Estimate pose using DLT
-    return estimate_planar_pose_dlt(object_points, image_points, intrinsics);
+    return estimate_planar_pose_dlt(view, intrinsics);
 }
 
 static auto estimate_camera_poses_for_views(const std::vector<MulticamPlanarView>& views,

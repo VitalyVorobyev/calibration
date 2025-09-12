@@ -60,7 +60,7 @@ inline Eigen::Isometry3d restore_pose(const std::array<double, 4>& quat,
 }
 
 // ---------- small SO(3) helpers (double) ----------
-inline Eigen::Matrix3d project_to_so3(const Eigen::Matrix3d& rmtx) {
+inline void project_to_so3(Eigen::Matrix3d& rmtx) {
     Eigen::JacobiSVD<Eigen::Matrix3d> svd(rmtx, Eigen::ComputeFullU | Eigen::ComputeFullV);
     const Eigen::Matrix3d& umtx = svd.matrixU();
     Eigen::Matrix3d vmtx = svd.matrixV();
@@ -68,7 +68,7 @@ inline Eigen::Matrix3d project_to_so3(const Eigen::Matrix3d& rmtx) {
     if ((umtx * vmtx.transpose()).determinant() < 0.0) {
         sigma(2, 2) = -1.0;
     }
-    return umtx * sigma * vmtx.transpose();
+    rmtx = umtx * sigma * vmtx.transpose();
 }
 
 // Utility: skew-symmetric matrix from vector
@@ -79,8 +79,8 @@ inline Eigen::Matrix3d skew(const Eigen::Vector3d& vec) {
 }
 
 // log(R) as a 3-vector (axis*angle)
-inline Eigen::Vector3d log_so3(const Eigen::Matrix3d& rot_in) {
-    const Eigen::Matrix3d rotation = project_to_so3(rot_in);
+inline Eigen::Vector3d log_so3(Eigen::Matrix3d rotation) {
+    project_to_so3(rotation);
     double cos_theta = (rotation.trace() - 1.0) * 0.5;
     cos_theta = std::min(1.0, std::max(-1.0, cos_theta));
     double theta = std::acos(cos_theta);
@@ -105,8 +105,19 @@ inline Eigen::Matrix3d exp_so3(const Eigen::Vector3d& wvec) {
            (1.0 - std::cos(theta)) * (askew * askew);
 }
 
-inline Eigen::VectorXd solve_llsq(const Eigen::MatrixXd& amtx, const Eigen::VectorXd& bvec) {
-    return amtx.bdcSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(bvec);
+struct LinearSystem final {
+    Eigen::MatrixXd amtx;
+    Eigen::VectorXd bvec;
+};
+
+inline auto solve_llsq(const LinearSystem& system) -> std::optional<Eigen::VectorXd> {
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(system.amtx, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+    if (svd.singularValues().minCoeff() < 1e-12) {
+        return std::nullopt;  // Degenerate system
+    }
+
+    return svd.solve(system.bvec);
 }
 
 // ---------- stable ridge LS solve ----------
