@@ -2,8 +2,8 @@
 
 // std
 #include <cmath>
-#include <limits>
 #include <iostream>
+#include <limits>
 
 #include "observationutils.h"  // for project_to_so3
 

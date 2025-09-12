@@ -13,7 +13,6 @@
 #include "calib/homography.h"
 #include "calib/posefromhomography.h"  // for pose_from_homography
 #include "observationutils.h"
-
 #include "zhang.h"  // for zhang_intrinsics_from_hs
 
 namespace calib {
@@ -22,19 +21,18 @@ static auto compute_planar_homographies(const std::vector<PlanarView>& views,
                                         const std::optional<RansacOptions>& ransac_opts)
     -> std::vector<HomographyResult> {
     std::vector<HomographyResult> homographies(views.size());
-    std::transform(
-        views.begin(), views.end(), homographies.begin(),
-        [&ransac_opts](const PlanarView& view) {
-            auto hres = estimate_homography(view, ransac_opts);
-            #if 0
+    std::transform(views.begin(), views.end(), homographies.begin(),
+                   [&ransac_opts](const PlanarView& view) {
+                       auto hres = estimate_homography(view, ransac_opts);
+#if 0
             std::cout << hres.symmetric_rms_px << '\n';
             if (hres.success) {
                 hres.hmtx = hres.hmtx.inverse();
                 hres.hmtx /= hres.hmtx(2, 2);
             }
-            #endif
-            return hres;
-        });
+#endif
+                       return hres;
+                   });
     return homographies;
 }
 

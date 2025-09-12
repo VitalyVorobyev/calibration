@@ -13,11 +13,14 @@ static auto normalize_points_2d(const std::vector<Eigen::Vector2d>& pts,
                                 std::vector<Eigen::Vector2d>& out) -> Eigen::Matrix3d {
     out.resize(pts.size());
 
-    const Eigen::Vector2d centroid = std::accumulate(pts.begin(), pts.end(), Eigen::Vector2d{0, 0}) / std::max<size_t>(1, pts.size());
-    const double mean_dist = std::accumulate(
-        pts.begin(), pts.end(), 0.0, [&centroid](double sum, const Eigen::Vector2d& p) {
-            return sum + (p - centroid).norm();
-        }) / std::max<size_t>(1, pts.size());
+    const Eigen::Vector2d centroid =
+        std::accumulate(pts.begin(), pts.end(), Eigen::Vector2d{0, 0}) /
+        std::max<size_t>(1, pts.size());
+    const double mean_dist = std::accumulate(pts.begin(), pts.end(), 0.0,
+                                             [&centroid](double sum, const Eigen::Vector2d& p) {
+                                                 return sum + (p - centroid).norm();
+                                             }) /
+                             std::max<size_t>(1, pts.size());
     const double sigma = (mean_dist > 0) ? std::sqrt(2.0) / mean_dist : 1.0;
 
     Eigen::Matrix3d transform = Eigen::Matrix3d::Identity();
