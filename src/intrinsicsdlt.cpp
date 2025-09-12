@@ -26,8 +26,8 @@ static auto compute_planar_homographies(const std::vector<PlanarView>& views,
         views.begin(), views.end(), homographies.begin(),
         [&ransac_opts](const PlanarView& view) {
             auto hres = estimate_homography(view, ransac_opts);
-            std::cout << hres.symmetric_rms_px << '\n';
             #if 0
+            std::cout << hres.symmetric_rms_px << '\n';
             if (hres.success) {
                 hres.hmtx = hres.hmtx.inverse();
                 hres.hmtx /= hres.hmtx(2, 2);

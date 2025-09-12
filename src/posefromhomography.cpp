@@ -3,6 +3,7 @@
 // std
 #include <cmath>
 #include <limits>
+#include <iostream>
 
 #include "observationutils.h"  // for project_to_so3
 
@@ -14,7 +15,8 @@ auto pose_from_homography(const CameraMatrix& kmtx,
 
     // Basic checks
     if (!std::isfinite(kmtx.fx) || !std::isfinite(kmtx.fy) || kmtx.cx <= 0 || kmtx.cy <= 0) {
-        out.message = "Invalid camera matrix K.";
+        std::cerr << "Invalid camera matrix K:\n" << kmtx.matrix() << "\n";
+        out.message = "Invalid camera matrix K";
         return out;
     }
     if (!std::isfinite(hmtx(2, 2))) {

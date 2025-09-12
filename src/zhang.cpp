@@ -39,7 +39,10 @@ static auto kmtx_from_dual_conic(const Eigen::VectorXd& bv) -> std::optional<Eig
     // Check if Binv is positive definite using eigenvalues
     Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(binv);
     Eigen::Vector3d eigenvals = eigensolver.eigenvalues();
+
+    #if 0
     std::cerr << "eig(Binv): " << eigenvals.transpose() << "\n";
+    #endif
 
     if (eigensolver.info() != Eigen::Success) {
         return std::nullopt;
@@ -53,16 +56,19 @@ static auto kmtx_from_dual_conic(const Eigen::VectorXd& bv) -> std::optional<Eig
     // Use Cholesky decomposition to get K
     Eigen::LLT<Eigen::Matrix3d> llt(binv);
     if (llt.info() != Eigen::Success) {
+        std::cerr << "Zhang: LLT decomposition failed\n";
         return std::nullopt;
     }
 
     // Upper-triangular K (positive diag), normalize K(2,2)=1
     Eigen::Matrix3d kmtx = llt.matrixU();
     if (kmtx(0, 0) <= 0 || kmtx(1, 1) <= 0 || kmtx(2, 2) <= 0) {
+        std::cerr << "Zhang: invalid K diagonal\n";
         return std::nullopt;
     }
     kmtx /= kmtx(2, 2);
     if (!kmtx.allFinite()) {
+        std::cerr << "Zhang: invalid K matrix\n";
         return std::nullopt;
     }
     return kmtx;
@@ -86,12 +92,14 @@ static auto v_ij(const Eigen::Matrix3d& hmtx, int i, int j) -> Eigen::Matrix<dou
 
 static auto normalize_hmtx(const Eigen::Matrix3d& hmtx) -> Eigen::Matrix3d {
     Eigen::Matrix3d hnorm = hmtx;
+    #if 0
     const double n1 = hnorm.col(0).norm();
     const double n2 = hnorm.col(1).norm();
     if (n1 > 0) hnorm.col(0) /= n1;
     if (n2 > 0) hnorm.col(1) /= n2;
     // Consistent orientation
     if ((hnorm.col(0).cross(hnorm.col(1))).dot(hnorm.col(2)) < 0) hnorm = -hnorm;
+    #endif
     return hnorm;
 }
 
@@ -125,12 +133,17 @@ auto zhang_intrinsics_from_hs(const std::vector<HomographyResult>& hs)
 
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(vmtx_opt.value(), Eigen::ComputeFullV);
 
+    #if 0
     // Try different approaches to find the right solution
     std::cout << "SVD singular values: " << svd.singularValues().transpose() << std::endl;
+    #endif
 
     // The null space should correspond to the smallest singular value
     Eigen::VectorXd bvec = svd.matrixV().col(5);  // smallest singular value
+
+    #if 0
     std::cout << "b vector: " << bvec.transpose() << std::endl;
+    #endif
 
     // Try both signs of the b vector
     std::optional<Eigen::Matrix3d> kmtx_opt = kmtx_from_dual_conic(bvec);
