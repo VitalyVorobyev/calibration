@@ -66,7 +66,7 @@ auto estimate_planar_pose_dlt(PlanarView view, const CameraMatrix& kmtx) -> Eige
     std::vector<Eigen::Vector2d> img_norm(view.size());
 
     std::for_each(view.begin(), view.end(),
-        [&kmtx](auto& item) { item.image_uv = kmtx.normalize(item.image_uv); });
+                  [&kmtx](auto& item) { item.image_uv = kmtx.normalize(item.image_uv); });
 
     auto hres = estimate_homography(view);
     if (!hres.success) {
@@ -141,15 +141,14 @@ static auto axisangle_to_pose(const Pose6& pose6) -> Eigen::Isometry3d {
     return transform;
 }
 
-auto optimize_planar_pose(const PlanarView& view,
-                          const CameraMatrix& kmtx,
+auto optimize_planar_pose(const PlanarView& view, const CameraMatrix& kmtx,
                           const Eigen::Isometry3d& initial_pose,
                           const PlanarPoseOptions& opts) -> PlanarPoseResult {
     PlanarPoseResult result;
 
     PlanarPoseBlocks blocks;
-    ceres::RotationMatrixToAngleAxis(reinterpret_cast<const double*>(initial_pose.rotation().data()),
-                                     blocks.pose6.data());
+    ceres::RotationMatrixToAngleAxis(
+        reinterpret_cast<const double*>(initial_pose.rotation().data()), blocks.pose6.data());
     blocks.pose6[3] = initial_pose.translation().x();
     blocks.pose6[4] = initial_pose.translation().y();
     blocks.pose6[5] = initial_pose.translation().z();

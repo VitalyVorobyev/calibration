@@ -74,16 +74,15 @@ static void validate_observations(const std::vector<LineScanObservation>& views)
 
 // Processes a single view to extract 3D points
 static auto process_view(const LineScanObservation& view,
-                                      const Camera<DualDistortion>& camera) -> std::vector<Vec3> {
+                         const Camera<DualDistortion>& camera) -> std::vector<Vec3> {
     std::vector<Vec3> points;
     PlanarView pview(view.target_xy.size());
 
     // Normalize and undistort target pixel coordinates
-    std::transform(
-        view.target_xy.begin(), view.target_xy.end(), view.target_uv.begin(), pview.begin(),
-        [&camera](const Vec2& xy, const Vec2& uv) {
-            return PlanarObservation{xy, camera.unproject(uv)};
-        });
+    std::transform(view.target_xy.begin(), view.target_xy.end(), view.target_uv.begin(),
+                   pview.begin(), [&camera](const Vec2& xy, const Vec2& uv) {
+                       return PlanarObservation{xy, camera.unproject(uv)};
+                   });
 
     // Homography from normalized pixels to plane
     // TODO: consider homography optimization

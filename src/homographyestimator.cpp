@@ -30,11 +30,12 @@ static auto normalize_points_2d(const std::vector<Eigen::Vector2d>& pts,
     transform(0, 2) = -sigma * centroid.x();
     transform(1, 2) = -sigma * centroid.y();
 
-    std::transform(pts.begin(), pts.end(), out.begin(), [&transform](const Eigen::Vector2d& pt) -> Eigen::Vector2d {
-        Eigen::Vector3d hp(pt.x(), pt.y(), 1.0);
-        Eigen::Vector3d hn = transform * hp;
-        return hn.hnormalized();
-    });
+    std::transform(pts.begin(), pts.end(), out.begin(),
+                   [&transform](const Eigen::Vector2d& pt) -> Eigen::Vector2d {
+                       Eigen::Vector3d hp(pt.x(), pt.y(), 1.0);
+                       Eigen::Vector3d hn = transform * hp;
+                       return hn.hnormalized();
+                   });
     return {transform};
 }
 
@@ -77,7 +78,7 @@ static auto symmetric_transfer_error(const Eigen::Matrix3d& hmtx, const Eigen::V
     auto hmul = [](const Eigen::Matrix3d& M, const Eigen::Vector2d& p) -> Eigen::Vector2d {
         Eigen::Vector3d hp(p.x(), p.y(), 1.0);
         Eigen::Vector3d q = M * hp;
-        return Eigen::Vector2d{ q.hnormalized() };
+        return Eigen::Vector2d{q.hnormalized()};
     };
     const Eigen::Matrix3d hmtxinv = hmtx.inverse();
     const Eigen::Vector2d uv_hat = hmul(hmtx, xy);

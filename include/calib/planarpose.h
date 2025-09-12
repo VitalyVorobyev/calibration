@@ -20,8 +20,7 @@ using PlanarView = std::vector<PlanarObservation>;
 auto pose_from_homography_normalized(const Eigen::Matrix3d& hmtx) -> Eigen::Isometry3d;
 
 // Convenience: one-shot planar pose from pixels & kmtx
-auto estimate_planar_pose_dlt(PlanarView view,
-                              const CameraMatrix& kmtx) -> Eigen::Isometry3d;
+auto estimate_planar_pose_dlt(PlanarView view, const CameraMatrix& kmtx) -> Eigen::Isometry3d;
 
 struct PlanarPoseOptions final : public OptimOptions {
     int num_radial = 2;  ///< Number of radial distortion coefficients
@@ -33,8 +32,7 @@ struct PlanarPoseResult final : public OptimResult {
     double reprojection_error = 0.0;  ///< RMS reprojection error
 };
 
-auto optimize_planar_pose(const PlanarView& view,
-                          const CameraMatrix& kmtx,
+auto optimize_planar_pose(const PlanarView& view, const CameraMatrix& kmtx,
                           const Eigen::Isometry3d& initial_pose,
                           const PlanarPoseOptions& opts = {}) -> PlanarPoseResult;
 

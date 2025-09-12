@@ -18,10 +18,7 @@ namespace calib {
 
 static auto zhang_bmtx(const Eigen::VectorXd& b) -> Eigen::Matrix3d {
     Eigen::Matrix3d bmtx;
-    bmtx <<
-        b(0), b(1), b(3),
-        b(1), b(2), b(4),
-        b(3), b(4), b(5);
+    bmtx << b(0), b(1), b(3), b(1), b(2), b(4), b(3), b(4), b(5);
     return bmtx;
 }
 
@@ -49,7 +46,7 @@ static auto run_zhang(const Eigen::VectorXd& bv) -> std::optional<Eigen::Matrix3
 
     // Upper-triangular K (positive diag), normalize K(2,2)=1
     Eigen::Matrix3d kmtx = llt.matrixU();
-    if (kmtx(0,0) <= 0 || kmtx(1,1) <= 0 || kmtx(2,2) <= 0) {
+    if (kmtx(0, 0) <= 0 || kmtx(1, 1) <= 0 || kmtx(2, 2) <= 0) {
         std::cout << "try_one_sign: non-positive diagonal in K\n";
         return std::nullopt;
     }
@@ -62,22 +59,18 @@ static auto run_zhang(const Eigen::VectorXd& bv) -> std::optional<Eigen::Matrix3
 };
 
 // ---------- Zhang: recover K from homographies ----------
-inline auto v_ij(const Eigen::Matrix3d& H, int i, int j) -> Eigen::Matrix<double,1,6> {
+inline auto v_ij(const Eigen::Matrix3d& hmtx, int i, int j) -> Eigen::Matrix<double, 1, 6> {
     assert(0 <= i && i < 3 && 0 <= j && j < 3);
-    const double h0i = H(0,i);
-    const double h1i = H(1,i);
-    const double h2i = H(2,i);
-    const double h0j = H(0,j);
-    const double h1j = H(1,j);
-    const double h2j = H(2,j);
+    const double h0i = hmtx(0, i);
+    const double h1i = hmtx(1, i);
+    const double h2i = hmtx(2, i);
+    const double h0j = hmtx(0, j);
+    const double h1j = hmtx(1, j);
+    const double h2j = hmtx(2, j);
 
-    Eigen::Matrix<double,1,6> v;
-    v << h0i*h0j,
-         h0i*h1j + h1i*h0j,
-         h1i*h1j,
-         h2i*h0j + h0i*h2j,
-         h2i*h1j + h1i*h2j,
-         h2i*h2j;
+    Eigen::Matrix<double, 1, 6> v;
+    v << h0i * h0j, h0i * h1j + h1i * h0j, h1i * h1j, h2i * h0j + h0i * h2j, h2i * h1j + h1i * h2j,
+        h2i * h2j;
     return v;
 }
 
@@ -134,13 +127,11 @@ static auto zhang_intrinsics_from_hs(const std::vector<HomographyResult>& hs)
         }
     }
 
-    return CameraMatrix{
-        .fx = kmtx_opt.value()(0, 0),
-        .fy = kmtx_opt.value()(1, 1),
-        .cx = kmtx_opt.value()(0, 2),
-        .cy = kmtx_opt.value()(1, 2),
-        .skew = kmtx_opt.value()(0, 1)
-    };
+    return CameraMatrix{.fx = kmtx_opt.value()(0, 0),
+                        .fy = kmtx_opt.value()(1, 1),
+                        .cx = kmtx_opt.value()(0, 2),
+                        .cy = kmtx_opt.value()(1, 2),
+                        .skew = kmtx_opt.value()(0, 1)};
 }
 
 static auto compute_planar_homographies(const std::vector<PlanarView>& views,
