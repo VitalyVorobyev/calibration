@@ -92,7 +92,10 @@ using Datum = HomographyEstimator::Datum;
 
 auto HomographyEstimator::fit(const std::vector<Datum>& data,
                               std::span<const int> sample) const -> std::optional<Model> {
-    if (sample.size() < k_min_samples) return std::nullopt;
+    if (sample.size() < k_min_samples) {
+        std::cout << "HomographyEstimator::fit: sample too small\n";
+        return std::nullopt;
+    }
     std::vector<Eigen::Vector2d> src(sample.size());
     std::vector<Eigen::Vector2d> dst(sample.size());
     src.reserve(sample.size());
@@ -102,7 +105,10 @@ auto HomographyEstimator::fit(const std::vector<Datum>& data,
         dst.push_back(data[idx].image_uv);
     }
     Eigen::Matrix3d hmtx = normalize_and_estimate_homography(src, dst);
-    if (!std::isfinite(hmtx(0, 0))) return std::nullopt;
+    if (!std::isfinite(hmtx(0, 0))) {
+        std::cout << "HomographyEstimator::fit: non-finite homography\n";
+        return std::nullopt;
+    }
     return hmtx;
 }
 

@@ -16,21 +16,69 @@
 
 namespace calib {
 
+static auto zhang_bmtx(const Eigen::VectorXd& b) -> Eigen::Matrix3d {
+    Eigen::Matrix3d bmtx;
+    bmtx <<
+        b(0), b(1), b(3),
+        b(1), b(2), b(4),
+        b(3), b(4), b(5);
+    return bmtx;
+}
+
+// b is homogeneous: try both signs to make B^{-1} SPD
+static auto run_zhang(const Eigen::VectorXd& bv) -> std::optional<Eigen::Matrix3d> {
+    Eigen::Matrix3d bmtx = zhang_bmtx(bv);
+    if (!bmtx.allFinite()) {
+        std::cout << "try_one_sign: non-finite B matrix\n";
+        return std::nullopt;
+    }
+
+    // We expect B to be SPD (up to scale). Work with Binv = (K K^T).
+    Eigen::Matrix3d binv = bmtx.inverse();
+    if (!binv.allFinite()) {
+        std::cout << "try_one_sign: non-finite Binv matrix\n";
+        return std::nullopt;
+    }
+
+    std::cout << "Binv:\n" << binv << "\n";
+    Eigen::LLT<Eigen::Matrix3d> llt(binv);
+    if (llt.info() != Eigen::Success) {
+        std::cout << "try_one_sign: LLT failed\n";
+        return std::nullopt;
+    }
+
+    // Upper-triangular K (positive diag), normalize K(2,2)=1
+    Eigen::Matrix3d kmtx = llt.matrixU();
+    if (kmtx(0,0) <= 0 || kmtx(1,1) <= 0 || kmtx(2,2) <= 0) {
+        std::cout << "try_one_sign: non-positive diagonal in K\n";
+        return std::nullopt;
+    }
+    kmtx /= kmtx(2, 2);
+    if (!kmtx.allFinite()) {
+        std::cout << "try_one_sign: non-finite K matrix\n";
+        return std::nullopt;
+    }
+    return kmtx;
+};
+
 // ---------- Zhang: recover K from homographies ----------
 static Eigen::Matrix<double, 1, 6> v_ij(const Eigen::Matrix3d& hmtx, int i, int j) {
-    // hmtx columns: h1, h2, h3
-    // v_ij = [h1i h1j, h1i h2j + h2i h1j, h2i h2j, h3i h1j + h1i h3j, h3i h2j + h2i h3j, h3i h3j]
     const auto& h1 = hmtx.col(0);
     const auto& h2 = hmtx.col(1);
     const auto& h3 = hmtx.col(2);
     Eigen::Matrix<double, 1, 6> v;
-    v << h1(i) * h1(j), h1(i) * h2(j) + h2(i) * h1(j), h2(i) * h2(j), h3(i) * h1(j) + h1(i) * h3(j),
-        h3(i) * h2(j) + h2(i) * h3(j), h3(i) * h3(j);
+    v <<
+        h1(i) * h1(j),
+        h1(i) * h2(j) + h2(i) * h1(j),
+        h2(i) * h2(j),
+        h3(i) * h1(j) + h1(i) * h3(j),
+        h3(i) * h2(j) + h2(i) * h3(j),
+        h3(i) * h3(j);
     return v;
 }
 
-static auto zhang_intrinsics_from_hs(const std::vector<HomographyResult>& hs)
-    -> std::optional<CameraMatrix> {
+static auto make_zhang_design_matrix(const std::vector<HomographyResult>& hs)
+    -> std::optional<Eigen::MatrixXd> {
     const int m = static_cast<int>(hs.size());
     if (m < 2) {
         std::cerr << "Zhang method requires at least 2 views\n";
@@ -46,37 +94,37 @@ static auto zhang_intrinsics_from_hs(const std::vector<HomographyResult>& hs)
         vmtx.row(2 * i) = v12;
         vmtx.row(2 * i + 1) = v11 - v22;
     }
+    return vmtx;
+}
 
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(vmtx, Eigen::ComputeFullV);
-    Eigen::VectorXd b = svd.matrixV().col(5);  // smallest singular value
-    if (b(0) < 0) {
-        b *= -1;  // Enforce positive sign so that fx, fy are real
-    }
-    Eigen::Matrix3d bmtx;
-    bmtx << b(0), b(1), b(3), b(1), b(2), b(4), b(3), b(4), b(5);
-
-    const double v0 = (bmtx(0, 1) * bmtx(0, 2) - bmtx(0, 0) * bmtx(1, 2)) /
-                      (bmtx(0, 0) * bmtx(1, 1) - bmtx(0, 1) * bmtx(0, 1));
-    const double lambda = bmtx(2, 2) - (bmtx(0, 2) * bmtx(0, 2) +
-                                        v0 * (bmtx(0, 1) * bmtx(0, 2) - bmtx(0, 0) * bmtx(1, 2))) /
-                                           bmtx(0, 0);
-    if (!(lambda > 0)) {
-        std::cerr << "Zhang method failed: lambda <= 0\n";
+static auto zhang_intrinsics_from_hs(const std::vector<HomographyResult>& hs)
+    -> std::optional<CameraMatrix> {
+    const auto vmtx_opt = make_zhang_design_matrix(hs);
+    if (!vmtx_opt.has_value()) {
+        std::cout << "Zhang design matrix creation failed.\n";
         return std::nullopt;
     }
 
-    const double alpha = std::sqrt(lambda / bmtx(0, 0));
-    const double beta =
-        std::sqrt(lambda * bmtx(0, 0) / (bmtx(0, 0) * bmtx(1, 1) - bmtx(0, 1) * bmtx(0, 1)));
-    const double gamma = -bmtx(0, 1) * alpha * alpha * beta / lambda;
-    const double u0 = (gamma * v0 / alpha) - (bmtx(0, 2) * alpha * alpha / lambda);
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(vmtx_opt.value(), Eigen::ComputeFullV);
+    Eigen::VectorXd bvec = svd.matrixV().col(5);  // smallest singular value
+
+    auto kmtx_opt = run_zhang(bvec);
+    if (!kmtx_opt.has_value()) {
+        std::cout << "Zhang run_zhang failed for one sign, trying the other.\n";
+        bvec *= -1;
+        kmtx_opt = run_zhang(bvec);
+        if (!kmtx_opt.has_value()) {
+            std::cout << "Zhang run_zhang failed for both signs.\n";
+            return std::nullopt;
+        }
+    }
 
     return CameraMatrix{
-        .fx = alpha,
-        .fy = beta,
-        .cx = u0,
-        .cy = v0,
-        .skew = gamma,
+        .fx = kmtx_opt.value()(0, 0),
+        .fy = kmtx_opt.value()(1, 1),
+        .cx = kmtx_opt.value()(0, 2),
+        .cy = kmtx_opt.value()(1, 2),
+        .skew = kmtx_opt.value()(0, 1)
     };
 }
 

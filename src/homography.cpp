@@ -29,7 +29,9 @@ static auto symmetric_rms_px(const Eigen::Matrix3d& hmtx,
 
 static void estimate_homography_dlt(const PlanarView& data, HomographyResult& result,
                                     HomographyEstimator& estimator) {
-    auto hmtx_opt = estimator.fit(data, std::span<const int>());
+    std::vector<int> inliers(data.size());
+    std::iota(inliers.begin(), inliers.end(), 0);
+    auto hmtx_opt = estimator.fit(data, inliers);
     if (!hmtx_opt.has_value()) {
         std::cout << "Homography estimation failed.\n";
         result.success = false;

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 
 #include "calib/intrinsics.h"
-#include "utils.h"
+#include "handeyedata.h"
 
 using namespace calib;
 
@@ -19,8 +19,12 @@ TEST(EstimateIntrinsics, RecoversIntrinsicsNoSkew) {
         Eigen::Translation3d(0.0, 0.0, 2.0) * Eigen::Isometry3d::Identity();
 
     SimulatedHandEye sim{g_se3_c, b_se3_t, cam_gt};
-    sim.make_sequence(15, rng);
-    sim.make_target_grid(8, 11, 0.02);
+    constexpr size_t num_frames = 15;
+    sim.make_sequence(num_frames, rng);
+    constexpr int rows = 8;
+    constexpr int cols = 11;
+    constexpr double spacing = 0.02;
+    sim.make_target_grid(rows, cols, spacing);
     sim.render_pixels();
 
     std::vector<PlanarView> views;
