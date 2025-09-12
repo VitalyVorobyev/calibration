@@ -15,8 +15,10 @@ static auto make_motion_pair(const Eigen::Isometry3d& base_se3_gripper_a,
     Eigen::Isometry3d affine_a = base_se3_gripper_a.inverse() * base_se3_gripper_b;
     Eigen::Isometry3d affine_b = cam_se3_target_a * cam_se3_target_b.inverse();
     MotionPair motion_pair;
-    motion_pair.rot_a = project_to_so3(affine_a.linear());
-    motion_pair.rot_b = project_to_so3(affine_b.linear());
+    motion_pair.rot_a = affine_a.linear();
+    motion_pair.rot_b = affine_b.linear();
+    project_to_so3(motion_pair.rot_a);
+    project_to_so3(motion_pair.rot_b);
     motion_pair.tra_a = affine_a.translation();
     motion_pair.tra_b = affine_b.translation();
     return motion_pair;

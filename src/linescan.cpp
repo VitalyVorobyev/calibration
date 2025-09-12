@@ -84,7 +84,7 @@ static std::vector<Vec3> process_view(const LineScanObservation& view,
 
     // Homography from normalized pixels to plane
     // TODO: consider homography optimization
-    Mat3 h_norm_to_obj = estimate_homography_dlt(img_norm, view.target_xy);
+    Mat3 h_norm_to_obj = estimate_homography(img_norm, view.target_xy);
 
     // Pose of plane (world->camera)
     Eigen::Isometry3d pose = estimate_planar_pose_dlt(view.target_xy, view.target_uv, camera.kmtx);

@@ -27,36 +27,50 @@ static auto symmetric_rms_px(const Eigen::Matrix3d& hmtx,
     return std::sqrt(sum_sq_err / (2.0 * inliers.size()));
 }
 
-auto estimate_homography_dlt(const std::vector<PlanarObservation>& data,
-                             std::optional<RansacOptions> ransac_opts) -> HomographyResult {
+static void estimate_homography_dlt(const PlanarView& data, HomographyResult& result,
+                                    HomographyEstimator& estimator) {
+    auto hmtx_opt = estimator.fit(data, std::span<const int>());
+    if (!hmtx_opt.has_value()) {
+        std::cout << "Homography estimation failed.\n";
+        result.success = false;
+        return;
+    }
+    result.hmtx = hmtx_opt.value();
+    result.symmetric_rms_px = symmetric_rms_px(result.hmtx, data, std::span<const int>());
+    result.inliers.resize(data.size());
+    std::iota(result.inliers.begin(), result.inliers.end(), 0);
+    result.success = true;
+}
+
+static void estimate_homography_ransac(const PlanarView& data, HomographyResult& result,
+                                       HomographyEstimator& estimator,
+                                       const RansacOptions& ransac_opts) {
+    auto ransac_result = ransac(data, estimator, ransac_opts);
+    if (!ransac_result.success) {
+        std::cout << "Homography RANSAC failed.\n";
+        result.success = false;
+        return;
+    }
+    result.hmtx = ransac_result.model;
+    result.inliers = std::move(ransac_result.inliers);
+    result.symmetric_rms_px = symmetric_rms_px(result.hmtx, data, result.inliers);
+    result.success = true;
+
+    std::cout << "Homography inliers: " << result.inliers.size() << " / " << data.size()
+              << ", symmetric RMS: " << result.symmetric_rms_px << " px\n";
+}
+
+auto estimate_homography(const PlanarView& data,
+                         std::optional<RansacOptions> ransac_opts) -> HomographyResult {
     HomographyResult result;
     HomographyEstimator estimator;
 
     if (!ransac_opts.has_value()) {
-        auto hmtx_opt = estimator.fit(data, std::span<const int>());
-        if (!hmtx_opt.has_value()) {
-            std::cout << "Homography estimation failed.\n";
-            return result;
-        }
-        result.hmtx = hmtx_opt.value();
-        result.symmetric_rms_px = symmetric_rms_px(result.hmtx, data, std::span<const int>());
-        result.inliers.resize(data.size());
-        std::iota(result.inliers.begin(), result.inliers.end(), 0);
+        estimate_homography_dlt(data, result, estimator);
     } else {
-        auto ransac_result = ransac(data, estimator, ransac_opts.value());
-        if (!ransac_result.success) {
-            std::cout << "Homography RANSAC failed.\n";
-            return result;
-        }
-        result.hmtx = ransac_result.model;
-        result.inliers = std::move(ransac_result.inliers);
-        result.symmetric_rms_px = symmetric_rms_px(result.hmtx, data, result.inliers);
+        estimate_homography_ransac(data, result, estimator, ransac_opts.value());
     }
 
-    std::cout << "Homography inliers: " << result.inliers.size() << " / " << data.size()
-              << ", symmetric RMS: " << result.symmetric_rms_px << " px\n";
-
-    result.success = true;
     return result;
 }
 
@@ -105,16 +119,17 @@ struct HomographyResidual {
         T yvar = T(y_);
         Eigen::Vector3<T> xyvec(T(x_), T(y_), T(1));
 
-        #if 0
+#if 0
         // Guard against division by zero in autodiff context
         if (ceres::isnan(den) || ceres::abs(den) < T(1e-15)) {
             residuals[0] = T(0);
             residuals[1] = T(0);
             return true;
         }
-        #endif
+#endif
 
-        Eigen::Vector2<T> uv_hat = (hmtx * xyvec).hnormalized().head<2>();
+        Eigen::Vector3<T> uvw = hmtx * xyvec;
+        Eigen::Vector2<T> uv_hat = uvw.hnormalized().head<2>();
         residuals[0] = uv_hat.x() - T(u_);
         residuals[1] = uv_hat.y() - T(v_);
         return true;
@@ -126,28 +141,27 @@ struct HomographyResidual {
     }
 };
 
-static ceres::Problem build_problem(const std::vector<Vec2>& src, const std::vector<Vec2>& dst,
-                                    const HomographyOptions& options, HomographyBlocks& blocks) {
+static ceres::Problem build_problem(const PlanarView& data, const HomographyOptions& options,
+                                    HomographyBlocks& blocks) {
     ceres::Problem problem;
-    for (size_t i = 0; i < src.size(); ++i) {
+    std::for_each(data.begin(), data.end(), [&](const auto& obs) {
         problem.AddResidualBlock(
-            HomographyResidual::create(src[i].x(), src[i].y(), dst[i].x(), dst[i].y()),
+            HomographyResidual::create(obs.object_xy.x(), obs.object_xy.y(), obs.image_uv.x(),
+                                       obs.image_uv.y()),
             options.huber_delta > 0 ? new ceres::HuberLoss(options.huber_delta) : nullptr,
             blocks.params.data());
-    }
+    });
     return problem;
 }
 
-OptimizeHomographyResult optimize_homography(const std::vector<Vec2>& src,
-                                             const std::vector<Vec2>& dst,
-                                             const Eigen::Matrix3d& init_h,
+OptimizeHomographyResult optimize_homography(const PlanarView& data, const Eigen::Matrix3d& init_h,
                                              const HomographyOptions& options) {
-    if (src.size() < 4 || src.size() != dst.size()) {
+    if (data.size() < 4) {
         throw std::invalid_argument("At least 4 correspondences are required.");
     }
 
     auto blocks = HomographyBlocks::create(init_h);
-    ceres::Problem problem = build_problem(src, dst, options, blocks);
+    ceres::Problem problem = build_problem(data, options, blocks);
 
     OptimizeHomographyResult result;
     solve_problem(problem, options, &result);
@@ -159,7 +173,7 @@ OptimizeHomographyResult optimize_homography(const std::vector<Vec2>& src,
     result.homography = hmtx;
 
     if (options.compute_covariance) {
-        std::vector<double> residuals(src.size() * 2);
+        std::vector<double> residuals(data.size() * 2);
         ceres::Problem::EvaluateOptions evopts;
         problem.Evaluate(evopts, nullptr, &residuals, nullptr, nullptr);
         const double ssr = std::accumulate(residuals.begin(), residuals.end(), 0.0,

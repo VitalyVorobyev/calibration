@@ -1,6 +1,4 @@
-#include "calib/homography.h"
 #include "calib/intrinsics.h"
-#include "observationutils.h"
 
 // std
 #include <algorithm>
@@ -12,22 +10,26 @@
 // ceres
 #include <ceres/ceres.h>
 
+#include "calib/homography.h"
+#include "calib/posefromhomography.h"  // for pose_from_homography
+#include "observationutils.h"
+
 namespace calib {
 
 // ---------- Zhang: recover K from homographies ----------
-static inline Eigen::Matrix<double, 1, 6> v_ij(const Eigen::Matrix3d& H, int i, int j) {
-    // H columns: h1, h2, h3
+static Eigen::Matrix<double, 1, 6> v_ij(const Eigen::Matrix3d& hmtx, int i, int j) {
+    // hmtx columns: h1, h2, h3
     // v_ij = [h1i h1j, h1i h2j + h2i h1j, h2i h2j, h3i h1j + h1i h3j, h3i h2j + h2i h3j, h3i h3j]
-    const Eigen::Vector3d h1 = H.col(0);
-    const Eigen::Vector3d h2 = H.col(1);
-    const Eigen::Vector3d h3 = H.col(2);
+    const auto& h1 = hmtx.col(0);
+    const auto& h2 = hmtx.col(1);
+    const auto& h3 = hmtx.col(2);
     Eigen::Matrix<double, 1, 6> v;
     v << h1(i) * h1(j), h1(i) * h2(j) + h2(i) * h1(j), h2(i) * h2(j), h3(i) * h1(j) + h1(i) * h3(j),
         h3(i) * h2(j) + h2(i) * h3(j), h3(i) * h3(j);
     return v;
 }
 
-static auto zhang_intrinsics_from_hs(const std::vector<Eigen::Matrix3d>& hs)
+static auto zhang_intrinsics_from_hs(const std::vector<HomographyResult>& hs)
     -> std::optional<CameraMatrix> {
     const int m = static_cast<int>(hs.size());
     if (m < 2) {
@@ -37,7 +39,7 @@ static auto zhang_intrinsics_from_hs(const std::vector<Eigen::Matrix3d>& hs)
 
     Eigen::MatrixXd vmtx(2 * m, 6);
     for (int i = 0; i < m; ++i) {
-        const auto& hmtx = hs[i];
+        const auto& hmtx = hs[i].hmtx;
         Eigen::Matrix<double, 1, 6> v12 = v_ij(hmtx, 0, 1);
         Eigen::Matrix<double, 1, 6> v11 = v_ij(hmtx, 0, 0);
         Eigen::Matrix<double, 1, 6> v22 = v_ij(hmtx, 1, 1);
@@ -78,56 +80,66 @@ static auto zhang_intrinsics_from_hs(const std::vector<Eigen::Matrix3d>& hs)
     };
 }
 
-auto estimate_intrinsics(const std::vector<PlanarView>& views, const Eigen::Vector2i& image_size,
-                         const IntrinsicsEstimateOptions& opts)
-    -> std::optional<IntrinsicsEstimateResult> {
-    if (views.empty()) {
-        return std::nullopt;
-    }
-
-    std::vector<Eigen::Isometry3d> poses;
-    poses.reserve(views.size());
-
-    size_t total_points = 0;
-    for (const auto& v : views) {
-        total_points += v.size();
-    }
-    std::vector<Observation<double>> all_obs;
-    all_obs.reserve(total_points);
-
-    for (const auto& view : views) {
-        std::vector<Eigen::Vector2d> obj_pts;
-        std::vector<Eigen::Vector2d> img_norm;
-        obj_pts.reserve(view.size());
-        img_norm.reserve(view.size());
-        for (const auto& ob : view) {
-            obj_pts.push_back(ob.object_xy);
-            double un = (ob.image_uv.x() - guess.cx) / guess.fx;
-            double vn = (ob.image_uv.y() - guess.cy) / guess.fy;
-            img_norm.emplace_back(un, vn);
-        }
-
-        Eigen::Matrix3d Hn = estimate_homography_dlt(obj_pts, img_norm);
-        Eigen::Isometry3d pose = pose_from_homography_normalized(Hn);
-        poses.push_back(pose);
-
-        std::vector<Observation<double>> obs_view(view.size());
-        planar_observables_to_observables(view, obs_view, pose);
-        all_obs.insert(all_obs.end(), obs_view.begin(), obs_view.end());
-    }
-
-    auto kmtx_opt = estimate_intrinsics_linear(all_obs, opts.bounds, opts.use_skew);
-    if (!kmtx_opt) {
-        return std::nullopt;
-    }
-
-    return IntrinsicsEstimateResult{*kmtx_opt, std::move(poses)};
+static auto compute_planar_homographies(const std::vector<PlanarView>& views,
+                                        const std::optional<RansacOptions>& ransac_opts)
+    -> std::vector<HomographyResult> {
+    std::vector<HomographyResult> homographies(views.size());
+    std::transform(
+        views.begin(), views.end(), homographies.begin(),
+        [&ransac_opts](const PlanarView& view) { return estimate_homography(view, ransac_opts); });
+    return homographies;
 }
 
-struct LinearSystem final {
-    Eigen::MatrixXd amtx;
-    Eigen::VectorXd bvec;
-};
+static auto process_planar_view(const CameraMatrix& kmtx,
+                                const HomographyResult& hres) -> ViewEstimateData {
+    ViewEstimateData ved;
+    ved.forward_rms_px = hres.symmetric_rms_px;
+
+    auto pose_res = pose_from_homography(kmtx, hres.hmtx);
+    if (!pose_res.success) {
+        std::cerr << "Warning: Homography decomposition failed: " << pose_res.message << "\n";
+    } else {
+        ved.c_se3_t = std::move(pose_res.c_se3_t);
+    }
+    return ved;
+}
+
+auto estimate_intrinsics(const std::vector<PlanarView>& views, const Eigen::Vector2i& image_size,
+                         const IntrinsicsEstimateOptions& opts) -> IntrinsicsEstimateResult {
+    IntrinsicsEstimateResult result;
+    if (views.empty()) {
+        return result;
+    }
+
+    auto planar_homographies = compute_planar_homographies(views, opts.homography_ransac);
+
+    std::vector<HomographyResult> valid_hs;
+    valid_hs.reserve(planar_homographies.size());
+    std::copy_if(planar_homographies.begin(), planar_homographies.end(),
+                 std::back_inserter(valid_hs),
+                 [](const HomographyResult& hr) { return hr.success; });
+    auto zhang_kmtx_opt = zhang_intrinsics_from_hs(valid_hs);
+    if (!zhang_kmtx_opt.has_value()) {
+        std::cout << "Zhang intrinsic estimation failed.\n";
+        return result;
+    }
+
+    result.views.resize(valid_hs.size());
+    std::transform(valid_hs.begin(), valid_hs.end(), result.views.begin(),
+                   [&zhang_kmtx_opt](const HomographyResult& hres) {
+                       return process_planar_view(zhang_kmtx_opt.value(), hres);
+                   });
+    // fill view indices
+    size_t vidx = 0;
+    for (size_t i = 0; i < planar_homographies.size(); ++i) {
+        if (planar_homographies[i].success) {
+            result.views[vidx].view_index = i;
+            ++vidx;
+        }
+    }
+
+    return result;
+}
 
 static auto build_u_system(const std::vector<Observation<double>>& obs,
                            bool use_skew) -> LinearSystem {
@@ -170,16 +182,6 @@ static auto build_v_system(const std::vector<Observation<double>>& obs) -> Linea
     }
 
     return {std::move(amtx), std::move(bvec)};
-}
-
-static auto solve_linear_system(const LinearSystem& system) -> std::optional<Eigen::VectorXd> {
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(system.amtx, Eigen::ComputeThinU | Eigen::ComputeThinV);
-
-    if (svd.singularValues().minCoeff() < 1e-12) {
-        return std::nullopt;  // Degenerate system
-    }
-
-    return svd.solve(system.bvec);
 }
 
 static auto apply_bounds_and_fallback(const Eigen::VectorXd& xu, const Eigen::VectorXd& xv,
@@ -274,15 +276,15 @@ std::optional<CameraMatrix> estimate_intrinsics_linear(const std::vector<Observa
 
     // Build and solve u-equation system: u = fx*x + [skew*y] + cx
     const auto u_system = build_u_system(obs, use_skew);
-    const auto xu_opt = solve_linear_system(u_system);
-    if (!xu_opt) {
+    const auto xu_opt = solve_llsq(u_system);
+    if (!xu_opt.has_value()) {
         return std::nullopt;
     }
 
     // Build and solve v-equation system: v = fy*y + cy
     const auto v_system = build_v_system(obs);
-    const auto xv_opt = solve_linear_system(v_system);
-    if (!xv_opt) {
+    const auto xv_opt = solve_llsq(v_system);
+    if (!xv_opt.has_value()) {
         return std::nullopt;
     }
 

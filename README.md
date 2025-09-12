@@ -54,18 +54,6 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j2
 ```
 
-Run a smoke test:
-
-```bash
-./build/examples/homography <<EOF
-4
-0   0    10 20
-100 0    110 18
-100 50   120 70
-0   50   8  72
-EOF
-```
-
 ### Windows
 
 Install dependencies with [vcpkg](https://github.com/microsoft/vcpkg):

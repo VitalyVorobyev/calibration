@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <numeric>
 
-#include "calib/homography.h"  // for estimate_homography_dlt
+#include "calib/homography.h"  // for estimate_homography
 
 namespace calib {
 

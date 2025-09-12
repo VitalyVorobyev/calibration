@@ -64,22 +64,16 @@ TEST(HomographyTest, ExactHomography) {
     H_true(1, 2) = -5.0;  // y translation
 
     // Create source and destination points with exact transformation
-    std::vector<Vec2> src = {
-        {0.0, 0.0},
-        {1.0, 0.0},
-        {0.0, 1.0},
-        {1.0, 1.0}
+    const PlanarView view {
+        {{0.0, 0.0}, apply_homography(H_true, {0.0, 0.0})},
+        {{1.0, 0.0}, apply_homography(H_true, {1.0, 0.0})},
+        {{0.0, 1.0}, apply_homography(H_true, {0.0, 1.0})},
+        {{1.0, 1.0}, apply_homography(H_true, {1.0, 1.0})}
     };
 
-    std::vector<Vec2> dst;
-    dst.reserve(src.size());
-    for (const auto& p : src) {
-        dst.push_back(apply_homography(H_true, p));
-    }
-
     // Estimate homography
-    Mat3 h0 = estimate_homography_dlt(src, dst);
-    auto result = optimize_homography(src, dst, h0);
+    auto hres = estimate_homography(view);
+    auto result = optimize_homography(view, hres.hmtx);
     ASSERT_TRUE(result.success);
 
     // The estimated homography should be very close to the true one
@@ -94,7 +88,7 @@ TEST(HomographyTest, NoisyHomography) {
     generate_synthetic_data(src, dst, H_true, 50, 0.1);
 
     // Estimate homography
-    Mat3 h0 = estimate_homography_dlt(src, dst);
+    Mat3 h0 = estimate_homography(src, dst);
     auto result = optimize_homography(src, dst, h0);
     ASSERT_TRUE(result.success);
 

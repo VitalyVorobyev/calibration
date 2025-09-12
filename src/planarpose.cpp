@@ -84,7 +84,7 @@ auto estimate_planar_pose_dlt(const std::vector<Eigen::Vector2d>& object_xy,
     std::transform(image_uv.begin(), image_uv.end(), img_norm.begin(),
                    [&intrinsics](const Eigen::Vector2d& pix) { return intrinsics.normalize(pix); });
 
-    Eigen::Matrix3d h = estimate_homography_dlt(object_xy, img_norm);
+    Eigen::Matrix3d h = estimate_homography(object_xy, img_norm);
     return pose_from_homography_normalized(h);
 }
 

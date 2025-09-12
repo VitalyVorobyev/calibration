@@ -20,7 +20,8 @@
 #include <Eigen/Dense>
 
 #include "calib/optimize.h"
-#include "calib/ransac.h"  // for RansacOptions
+#include "calib/planarpose.h"  // for PlanarView
+#include "calib/ransac.h"      // for RansacOptions
 
 namespace calib {
 
@@ -43,8 +44,8 @@ struct HomographyResult final {
  *
  * @note Both src and dst must contain at least 4 points and have the same size.
  */
-auto estimate_homography_dlt(const std::vector<PlanarObservation>& data,
-                             std::optional<RansacOptions> ransac_opts) -> HomographyResult;
+auto estimate_homography(const PlanarView& data, std::optional<RansacOptions> ransac_opts =
+                                                     std::nullopt) -> HomographyResult;
 
 struct HomographyOptions final : public OptimOptions {};
 
@@ -66,8 +67,7 @@ struct OptimizeHomographyResult final : OptimResult {
  *
  * @note The input vectors `src` and `dst` must have the same size and contain at least four points.
  */
-auto optimize_homography(const std::vector<Eigen::Vector2d>& src,
-                         const std::vector<Eigen::Vector2d>& dst, const Eigen::Matrix3d& init_h,
+auto optimize_homography(const PlanarView& data, const Eigen::Matrix3d& init_h,
                          const HomographyOptions& options = {}) -> OptimizeHomographyResult;
 
 }  // namespace calib

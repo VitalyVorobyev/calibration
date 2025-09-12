@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <iostream>
 #include <limits>
 #include <optional>
 #include <random>
@@ -58,9 +59,12 @@ concept HasDegeneracyCheck =
     };
 
 inline auto rms(const std::vector<double>& vals) -> double {
-    if (vals.empty()) return std::numeric_limits<double>::infinity();
-    double ss = 0.0;
-    for (double v : vals) ss += v * v;
+    if (vals.empty()) {
+        std::cout << "Warning: RMS of empty set\n";
+        return std::numeric_limits<double>::infinity();
+    }
+    double ss = std::accumulate(vals.begin(), vals.end(), 0.0,
+                                [](double acc, double v) { return acc + v * v; });
     return std::sqrt(ss / static_cast<double>(vals.size()));
 }
 }  // namespace detail
@@ -81,9 +85,13 @@ auto ransac(const std::vector<typename Estimator::Datum>& data, const Estimator&
         out.resize(k);
         // Simple rejection sampling (OK for small k, e.g., 4 for H)
         for (;;) {
-            for (size_t i = 0; i < k; ++i) out[i] = uni(rng);
+            for (size_t i = 0; i < k; ++i) {
+                out[i] = uni(rng);
+            }
             std::sort(out.begin(), out.end());
-            if (std::unique(out.begin(), out.end()) == out.end()) return;
+            if (std::unique(out.begin(), out.end()) == out.end()) {
+                return;
+            }
         }
     };
 
@@ -94,7 +102,9 @@ auto ransac(const std::vector<typename Estimator::Datum>& data, const Estimator&
         double w = inlier_ratio;
         double m = static_cast<double>(Estimator::k_min_samples);
         double denom = std::log(std::max(1e-12, 1.0 - std::pow(w, m)));
-        if (denom >= 0.0) return opts.max_iters;  // avoid degenerate
+        if (denom >= 0.0) {
+            return opts.max_iters;
+        }  // avoid degenerate
         int N = static_cast<int>(std::ceil(std::log(1.0 - p) / denom));
         return std::clamp(N, iters_so_far, opts.max_iters);
     };
@@ -114,7 +124,9 @@ auto ransac(const std::vector<typename Estimator::Datum>& data, const Estimator&
         }
 
         auto model_opt = est.fit(data, std::span<const int>(idxs));
-        if (!model_opt) continue;
+        if (!model_opt) {
+            continue;
+        }
         const Model& M = *model_opt;
 
         inliers.clear();
@@ -130,7 +142,9 @@ auto ransac(const std::vector<typename Estimator::Datum>& data, const Estimator&
             }
         }
 
-        if (static_cast<int>(inliers.size()) < opts.min_inliers) continue;
+        if (static_cast<int>(inliers.size()) < opts.min_inliers) {
+            continue;
+        }
 
         // optional refit on inliers
         Model M_refit = M;
@@ -156,12 +170,13 @@ auto ransac(const std::vector<typename Estimator::Datum>& data, const Estimator&
 
         // choose best by: more inliers, then lower RMS
         bool better = false;
-        if (!best.success)
+        if (!best.success) {
             better = true;
-        else if (inliers.size() > best.inliers.size())
+        } else if (inliers.size() > best.inliers.size()) {
             better = true;
-        else if (inliers.size() == best.inliers.size() && rms_now < best.inlier_rms)
+        } else if (inliers.size() == best.inliers.size() && rms_now < best.inlier_rms) {
             better = true;
+        }
 
         if (better) {
             best.success = true;
@@ -175,7 +190,9 @@ auto ransac(const std::vector<typename Estimator::Datum>& data, const Estimator&
             dynamic_max_iters = maybe_update_iters(best.iters, w);
 
             // Early exit if perfect consensus
-            if (best.inliers.size() == data.size()) break;
+            if (best.inliers.size() == data.size()) {
+                break;
+            }
         }
     }
 

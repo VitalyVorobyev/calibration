@@ -22,9 +22,11 @@
 #include <Eigen/Dense>
 
 #include "calib/cameramodel.h"
+#include "calib/homography.h"  // for HomographyResult
 #include "calib/optimize.h"
 #include "calib/pinhole.h"
 #include "calib/planarpose.h"
+#include "calib/ransac.h"
 
 namespace calib {
 
@@ -37,7 +39,17 @@ namespace calib {
  */
 struct IntrinsicsEstimateOptions final {
     std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Optional parameter bounds
-    bool use_skew = false;                                   ///< Estimate skew parameter
+    std::optional<RansacOptions> homography_ransac =
+        std::nullopt;       ///< RANSAC options for homography fitting
+    bool use_skew = false;  ///< Estimate skew parameter
+};
+
+struct ViewEstimateData final {
+    size_t view_index = 0;
+    Eigen::Isometry3d c_se3_t = Eigen::Isometry3d::Identity();
+    // Diagnostics
+    HomographyResult homography;
+    double forward_rms_px = 0.0;
 };
 
 /**
@@ -48,8 +60,12 @@ struct IntrinsicsEstimateOptions final {
  * from homography decomposition.
  */
 struct IntrinsicsEstimateResult final {
-    CameraMatrix kmtx;                       ///< Estimated intrinsic matrix
-    std::vector<Eigen::Isometry3d> c_se3_t;  ///< Estimated pose of each view
+    bool success{false};
+
+    CameraMatrix kmtx;                        ///< Estimated intrinsic matrix
+    std::vector<double> dist = {0, 0, 0, 0};  ///< Distortion coefficients (k1, k2, p1, p2)
+    std::vector<ViewEstimateData> views;      ///< Per-view estimation data
+    std::string log;
 };
 
 /**
@@ -66,8 +82,7 @@ struct IntrinsicsEstimateResult final {
  * @return Optional result containing camera matrix and per-view poses
  */
 auto estimate_intrinsics(const std::vector<PlanarView>& views, const Eigen::Vector2i& image_size,
-                         const IntrinsicsEstimateOptions& opts = {})
-    -> std::optional<IntrinsicsEstimateResult>;
+                         const IntrinsicsEstimateOptions& opts = {}) -> IntrinsicsEstimateResult;
 
 /**
  * @brief Estimate camera intrinsics using linear least squares
