@@ -159,12 +159,13 @@ TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
     PlanarView view = create_synthetic_planar_data(true_pose, intrinsics);
 
     // Apply simple radial distortion to image points
-    constexpr double k1 = 0.1; // Distortion coefficient
-    std::for_each(view.begin(), view.end(), [k1, &intrinsics](PlanarObservation& item) {
+    BrownConrady<double> brownconrady;
+    brownconrady.coeffs = Eigen::Vector2d(0.1, 0);
+
+    std::for_each(view.begin(), view.end(), [&brownconrady, &intrinsics](PlanarObservation& item) {
         auto norm_pix = intrinsics.normalize(item.image_uv);
-        const double factor = norm_pix.squaredNorm();
-        item.image_uv.x() = intrinsics.fx * norm_pix.x() * factor + intrinsics.cx;
-        item.image_uv.y() = intrinsics.fx * norm_pix.y() * factor + intrinsics.cx;
+        auto distorted_norm = brownconrady.distort(norm_pix);
+        item.image_uv = intrinsics.denormalize(distorted_norm);
     });
 
     // Make pose estimate
@@ -201,5 +202,5 @@ TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
 
     // The first coefficient should be close to our synthetic k1 value
     // We're a bit more lenient here because distortion estimation can be sensitive
-    EXPECT_NEAR(result.distortion[0], k1, 0.2);
+    EXPECT_NEAR(result.distortion[0], brownconrady.coeffs(0), 0.2);
 }
