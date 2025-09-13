@@ -35,7 +35,7 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     std::vector<Eigen::Isometry3d> init_poses;
     init_poses.reserve(views.size());
     for (const auto& view : views) {
-        auto pose = estimate_planar_pose_dlt(view, guess_cam.kmtx);
+        auto pose = estimate_planar_pose(view, guess_cam.kmtx);
         init_poses.push_back(pose);
     }
 
@@ -85,7 +85,7 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     std::vector<Eigen::Isometry3d> init_poses;
     init_poses.reserve(views.size());
     for (const auto& view : views) {
-        auto pose = estimate_planar_pose_dlt(view, guess_cam.kmtx);
+        auto pose = estimate_planar_pose(view, guess_cam.kmtx);
         init_poses.push_back(pose);
     }
 

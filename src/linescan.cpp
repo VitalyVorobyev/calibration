@@ -78,16 +78,26 @@ static std::vector<Vec3> process_view(const LineScanObservation& view,
     std::vector<Vec3> points;
 
     // Normalize and undistort target pixel coordinates
-    std::vector<Vec2> img_norm(view.target_uv.size());
-    std::transform(view.target_uv.begin(), view.target_uv.end(), img_norm.begin(),
-                   [&camera](const Vec2& uv) { return camera.unproject(uv); });
+    PlanarView planar_view(view.target_uv.size());
+    // std::vector<Vec2> img_norm(view.target_uv.size());
+    std::transform(view.target_uv.begin(), view.target_uv.end(), view.target_xy.begin(),
+                   planar_view.begin(),
+                   [&camera](const Vec2& uv, const Vec2& xy) -> PlanarObservation {
+                       return {xy, camera.unproject(uv)};
+                   });
 
     // Homography from normalized pixels to plane
     // TODO: consider homography optimization
-    Mat3 h_norm_to_obj = estimate_homography_dlt(img_norm, view.target_xy);
+    auto hres = estimate_homography(planar_view);
+    if (!hres.success) {
+        std::cerr << "Failed to estimate homography\n";
+        return points;
+    }
+
+    const Mat3& h_norm_to_obj = hres.hmtx;
 
     // Pose of plane (world->camera)
-    Eigen::Isometry3d pose = estimate_planar_pose_dlt(view.target_xy, view.target_uv, camera.kmtx);
+    Eigen::Isometry3d pose = estimate_planar_pose(planar_view, camera.kmtx);
 
     // Reproject laser pixels to plane and transform to camera coordinates
     for (const auto& lpix : view.laser_uv) {

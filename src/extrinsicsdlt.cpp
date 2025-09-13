@@ -8,24 +8,6 @@
 
 namespace calib {
 
-static auto estimate_pose(const PlanarView& view,
-                          const CameraMatrix& intrinsics) -> Eigen::Isometry3d {
-    // Extract object points and image points
-    if (view.size() < 4) {
-        std::cerr << "Warning: Insufficient observations (need ≥4 points)\n";
-        return Eigen::Isometry3d::Identity();
-    }
-    std::vector<Eigen::Vector2d> object_points;
-    std::vector<Eigen::Vector2d> image_points;
-    for (const auto& obs : view) {
-        object_points.push_back(obs.object_xy);
-        image_points.push_back(obs.image_uv);
-    }
-
-    // Estimate pose using DLT
-    return estimate_planar_pose_dlt(object_points, image_points, intrinsics);
-}
-
 static auto estimate_camera_poses_for_views(const std::vector<MulticamPlanarView>& views,
                                             const std::vector<Camera<DualDistortion>>& cameras)
     -> std::vector<std::vector<Eigen::Isometry3d>> {
@@ -44,8 +26,8 @@ static auto estimate_camera_poses_for_views(const std::vector<MulticamPlanarView
         }
 
         for (size_t cam_idx = 0; cam_idx < num_cameras; ++cam_idx) {
-            const auto& obs = view[cam_idx];
-            cam_se3_ref[view_idx][cam_idx] = estimate_pose(obs, cameras[cam_idx].kmtx);
+            cam_se3_ref[view_idx][cam_idx] =
+                estimate_planar_pose(view[cam_idx], cameras[cam_idx].kmtx);
         }
     }
 

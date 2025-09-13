@@ -29,7 +29,7 @@ src/                   # Implementation files
 
 ### Data Flow Pattern
 1. **Observations** → `PlanarView` (vector of `PlanarObservation`)
-2. **Initial Estimates** → DLT/linear methods (e.g., `estimate_planar_pose_dlt`)
+2. **Initial Estimates** → DLT/linear methods (e.g., `estimate_planar_pose`)
 3. **Refinement** → Ceres-based bundle adjustment
 4. **Results** → Structured result types with covariance and error metrics
 
