@@ -86,10 +86,11 @@ static std::vector<Vec3> process_view(LineScanView view, const Camera<DualDistor
         return points;
     }
 
-    const Mat3& h_norm_to_obj = hres.hmtx;
-
     // Pose of plane (world->camera)
     Eigen::Isometry3d pose = pose_from_homography_normalized(hres.hmtx);
+
+    Mat3 h_norm_to_obj = hres.hmtx.inverse();
+    h_norm_to_obj /= h_norm_to_obj(2, 2);
 
     // Reproject laser pixels to plane and transform to camera coordinates
     for (const auto& lpix : view.laser_uv) {

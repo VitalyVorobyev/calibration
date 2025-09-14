@@ -115,6 +115,7 @@ fill_target_view_from_xy(const Eigen::Isometry3d& pose_t2c,
                          const CameraT& cam,
                          const std::vector<Eigen::Vector2d>& xy,
                          PlanarView& out_view) {
+    out_view.resize(xy.size());
     std::transform(xy.begin(), xy.end(), out_view.begin(),
                    [&](const Eigen::Vector2d& p) -> PlanarObservation {
                        const Eigen::Vector3d X_c = pose_t2c * Eigen::Vector3d(p.x(), p.y(), 0.0);
@@ -136,7 +137,7 @@ static auto create_view(const Eigen::Isometry3d& c_se3_t,
     };
 
     // 2) Init view and fill planar features
-    LineScanView view(PlanarView{object_xy.size()}, {});
+    LineScanView view;
     fill_target_view_from_xy(c_se3_t, camera, object_xy, view.target_view);
 
     // 3) Make target plane in camera frame
