@@ -1,23 +1,26 @@
+#include "calib/linescan.h"
+
 #include <gtest/gtest.h>
+
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calib/linescan.h"
+#include "calib/ransac.h"
 
 using namespace calib;
 
 // ---- Helpers ---------------------------------------------------------------
 constexpr double kEps = 1e-12;
-constexpr double kHalf = 0.5;                // square is [-0.5, 0.5]^2
-constexpr double kSamplesPerUnit = 400.0;    // along the target segment
+constexpr double kHalf = 0.5;              // square is [-0.5, 0.5]^2
+constexpr double kSamplesPerUnit = 400.0;  // along the target segment
 
-using Line3 = Eigen::ParametrizedLine<double,3>;
-using Plane = Eigen::Hyperplane<double,3>;
+using Line3 = Eigen::ParametrizedLine<double, 3>;
+using Plane = Eigen::Hyperplane<double, 3>;
 
 static auto make_target_plane_in_camera(const Eigen::Isometry3d& c_se3_t) -> Plane {
-    const Eigen::Vector3d p0 = c_se3_t * Eigen::Vector3d(0,0,0);
-    const Eigen::Vector3d p1 = c_se3_t * Eigen::Vector3d(1,0,0);
-    const Eigen::Vector3d p2 = c_se3_t * Eigen::Vector3d(0,1,0);
+    const Eigen::Vector3d p0 = c_se3_t * Eigen::Vector3d(0, 0, 0);
+    const Eigen::Vector3d p1 = c_se3_t * Eigen::Vector3d(1, 0, 0);
+    const Eigen::Vector3d p2 = c_se3_t * Eigen::Vector3d(0, 1, 0);
     return Plane::Through(p0, p1, p2);
 }
 
@@ -25,7 +28,7 @@ static auto make_target_plane_in_camera(const Eigen::Isometry3d& c_se3_t) -> Pla
 static auto plane_plane_intersection(const Plane& a, const Plane& b) -> std::optional<Line3> {
     const Eigen::Vector3d na = a.normal();
     const Eigen::Vector3d nb = b.normal();
-    const double da = a.offset(); // plane: n·x + d = 0
+    const double da = a.offset();  // plane: n·x + d = 0
     const double db = b.offset();
 
     const Eigen::Vector3d dir = na.cross(nb);
@@ -44,18 +47,15 @@ static auto plane_plane_intersection(const Plane& a, const Plane& b) -> std::opt
 }
 
 static auto to_target_frame(const Line3& line_c, const Eigen::Isometry3d& t_se3_c) -> Line3 {
-    return {
-        t_se3_c * line_c.origin(),
-        t_se3_c.linear() * line_c.direction()
-    };
+    return {t_se3_c * line_c.origin(), t_se3_c.linear() * line_c.direction()};
 }
 
 // Clip parametric line X(s) = p + s*d to the axis-aligned square [-kHalf,kHalf]^2 in XY.
 // Returns {smin,smax} or nullopt if it misses.
 static auto clip_to_square_xy(const Eigen::Vector3d& p, const Eigen::Vector3d& d)
-    -> std::optional<std::pair<double,double>> {
-    auto clip_1d = [&](double p0, double v, double lo, double hi,
-                       double& smin, double& smax) -> bool {
+    -> std::optional<std::pair<double, double>> {
+    auto clip_1d = [&](double p0, double v, double lo, double hi, double& smin,
+                       double& smax) -> bool {
         if (std::abs(v) < kEps) {
             return (p0 >= lo - 1e-14 && p0 <= hi + 1e-14);
         }
@@ -68,18 +68,17 @@ static auto clip_to_square_xy(const Eigen::Vector3d& p, const Eigen::Vector3d& d
     };
 
     double smin = -std::numeric_limits<double>::infinity();
-    double smax =  std::numeric_limits<double>::infinity();
+    double smax = std::numeric_limits<double>::infinity();
     if (!clip_1d(p.x(), d.x(), -kHalf, kHalf, smin, smax)) return std::nullopt;
     if (!clip_1d(p.y(), d.y(), -kHalf, kHalf, smin, smax)) return std::nullopt;
     if (!(smin < smax)) return std::nullopt;
     return std::make_pair(smin, smax);
 }
 
-static auto sample_segment_xy_on_plane(const Eigen::Vector3d& p,
-                                       const Eigen::Vector3d& d,
+static auto sample_segment_xy_on_plane(const Eigen::Vector3d& p, const Eigen::Vector3d& d,
                                        double smin, double smax) -> std::vector<Eigen::Vector3d> {
-    const Eigen::Vector2d a = (p + smin*d).head<2>();
-    const Eigen::Vector2d b = (p + smax*d).head<2>();
+    const Eigen::Vector2d a = (p + smin * d).head<2>();
+    const Eigen::Vector2d b = (p + smax * d).head<2>();
     const double L = (b - a).norm();
     const int N = std::max(2, static_cast<int>(std::ceil(L * kSamplesPerUnit)));
 
@@ -89,17 +88,16 @@ static auto sample_segment_xy_on_plane(const Eigen::Vector3d& p,
         const double t = (N == 1) ? 0.0 : double(i) / double(N - 1);
         const double s = smin + t * (smax - smin);
         Eigen::Vector3d X = p + s * d;
-        X.z() = 0.0; // enforce the target plane z=0
+        X.z() = 0.0;  // enforce the target plane z=0
         pts.emplace_back(X);
     }
     return pts;
 }
 
-template<class CameraT>
-static auto project_points_target_to_pixels(const CameraT& cam,
-                                            const Eigen::Isometry3d& pose_t2c,
+template <class CameraT>
+static auto project_points_target_to_pixels(const CameraT& cam, const Eigen::Isometry3d& pose_t2c,
                                             const std::vector<Eigen::Vector3d>& pts_t)
-                                            -> std::vector<Eigen::Vector2d> {
+    -> std::vector<Eigen::Vector2d> {
     std::vector<Eigen::Vector2d> uv;
     uv.reserve(pts_t.size());
     for (const auto& X_t : pts_t) {
@@ -109,17 +107,14 @@ static auto project_points_target_to_pixels(const CameraT& cam,
     return uv;
 }
 
-template<class CameraT>
-static void
-fill_target_view_from_xy(const Eigen::Isometry3d& pose_t2c,
-                         const CameraT& cam,
-                         const std::vector<Eigen::Vector2d>& xy,
-                         PlanarView& out_view) {
+template <class CameraT>
+static void fill_target_view_from_xy(const Eigen::Isometry3d& pose_t2c, const CameraT& cam,
+                                     const std::vector<Eigen::Vector2d>& xy, PlanarView& out_view) {
     out_view.resize(xy.size());
     std::transform(xy.begin(), xy.end(), out_view.begin(),
                    [&](const Eigen::Vector2d& p) -> PlanarObservation {
                        const Eigen::Vector3d X_c = pose_t2c * Eigen::Vector3d(p.x(), p.y(), 0.0);
-                       return { p, cam.project(X_c) };
+                       return {p, cam.project(X_c)};
                    });
 }
 
@@ -130,11 +125,7 @@ static auto create_view(const Eigen::Isometry3d& c_se3_t,
                         const PinholeCamera<DualDistortion>& camera) -> LineScanView {
     // 1) Target feature points in target frame
     const std::vector<Eigen::Vector2d> object_xy = {
-        {-0.5, -0.5},
-        { 0.5, -0.5},
-        { 0.5,  0.5},
-        {-0.5,  0.5}
-    };
+        {-0.5, -0.5}, {0.5, -0.5}, {0.5, 0.5}, {-0.5, 0.5}};
 
     // 2) Init view and fill planar features
     LineScanView view;
@@ -171,15 +162,14 @@ static auto create_view(const Eigen::Isometry3d& c_se3_t,
     return view;
 }
 
-
 TEST(LineScanCalibration, PlaneFitFailsSingleView) {
     CameraMatrix kmtx{1.0, 1.0, 0.0, 0.0};
     auto dist = Eigen::VectorXd::Zero(5);
     PinholeCamera<DualDistortion> camera(kmtx, dist);
 
-    const LineScanView view = create_view(Eigen::Isometry3d::Identity(),
-                                          Eigen::Hyperplane<double, 3>(Eigen::Vector3d(0,1,0), -0.5),
-                                          camera);
+    const LineScanView view =
+        create_view(Eigen::Isometry3d::Identity(),
+                    Eigen::Hyperplane<double, 3>(Eigen::Vector3d(0, 1, 0), -0.5), camera);
 
     ASSERT_THROW(calibrate_laser_plane({view}, camera), std::invalid_argument);
 }
@@ -209,4 +199,41 @@ TEST(LineScanCalibration, PlaneFitMultipleViews) {
     EXPECT_NEAR(res.plane[2], plane_norm.z(), 1e-6);
     EXPECT_NEAR(res.plane[3], plane_d, 1e-6);
     EXPECT_NEAR(res.rms_error, 0.0, 1e-9);
+}
+
+TEST(LineScanCalibration, RansacRejectsOutliers) {
+    CameraMatrix kmtx{1.0, 1.0, 0.0, 0.0};
+    auto dist = Eigen::VectorXd::Zero(5);
+    PinholeCamera<DualDistortion> camera(kmtx, dist);
+
+    const Eigen::Vector3d plane_norm = Eigen::Vector3d(0.1, 1, -0.1).normalized();
+    constexpr double plane_d = 0.5;
+    Eigen::Hyperplane<double, 3> plane(plane_norm, plane_d);
+
+    Eigen::Isometry3d pose1 = Eigen::Isometry3d::Identity();
+    pose1.translation() = Eigen::Vector3d(0.0, 0.0, 1.0);
+
+    Eigen::Isometry3d pose2 = Eigen::Isometry3d::Identity();
+    pose2.translation() = Eigen::Vector3d(0.0, 0.0, 1.0);
+
+    auto v1 = create_view(pose1, plane, camera);
+    auto v2 = create_view(pose2, plane, camera);
+
+    // Inject a handful of gross outliers
+    for (int i = 0; i < 20; ++i) {
+        v1.laser_uv.emplace_back(100.0 + i, -100.0 - i);
+    }
+
+    RansacOptions opts;
+    opts.thresh = 1e-4;
+    opts.min_inliers = 10;
+
+    auto res = calibrate_laser_plane({v1, v2}, camera, opts);
+
+    EXPECT_NEAR(res.plane[0], plane_norm.x(), 1e-6);
+    EXPECT_NEAR(res.plane[1], plane_norm.y(), 1e-6);
+    EXPECT_NEAR(res.plane[2], plane_norm.z(), 1e-6);
+    EXPECT_NEAR(res.plane[3], plane_d, 1e-6);
+    // All inliers lie exactly on the plane
+    EXPECT_NEAR(res.rms_error, 0.0, 1e-6);
 }
