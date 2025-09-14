@@ -3,6 +3,10 @@
 // std
 #include <algorithm>
 #include <numeric>
+#include <numbers>
+#include <random>
+#include <span>
+#include <vector>
 
 #include "calib/homography.h"  // for estimate_homography
 
