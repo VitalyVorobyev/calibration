@@ -120,7 +120,9 @@ auto HomographyEstimator::residual(const Model& hmtx, const Datum& observation) 
 // Optional: better final model on all inliers
 auto HomographyEstimator::refit(const std::vector<Datum>& data,
                                 std::span<const int> inliers) -> std::optional<Model> {
-    if (inliers.size() < k_min_samples) { return std::nullopt; }
+    if (inliers.size() < k_min_samples) {
+        return std::nullopt;
+    }
     std::vector<Eigen::Vector2d> src;
     std::vector<Eigen::Vector2d> dst;
     src.reserve(inliers.size());
@@ -130,7 +132,9 @@ auto HomographyEstimator::refit(const std::vector<Datum>& data,
         dst.push_back(data[idx].image_uv);
     }
     Eigen::Matrix3d hmtx = normalize_and_estimate_homography(src, dst);
-    if (!std::isfinite(hmtx(0, 0))) { return std::nullopt; }
+    if (!std::isfinite(hmtx(0, 0))) {
+        return std::nullopt;
+    }
     return hmtx;
 }
 
@@ -148,7 +152,9 @@ auto HomographyEstimator::is_degenerate(const std::vector<Datum>& data,
             for (size_t k = j + 1; k < sample.size(); ++k) {
                 double a2 = tri_area2(data[sample[i]].object_xy, data[sample[j]].object_xy,
                                       data[sample[k]].object_xy);
-                if (a2 < eps) { return true; }  // near-collinear
+                if (a2 < eps) {
+                    return true;
+                }  // near-collinear
             }
         }
     }

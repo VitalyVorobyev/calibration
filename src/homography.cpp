@@ -19,19 +19,19 @@ namespace calib {
 static auto symmetric_rms_px(const Eigen::Matrix3d& hmtx,
                              const std::vector<PlanarObservation>& data,
                              std::span<const int> inliers) -> double {
-    if (inliers.empty()) { return std::numeric_limits<double>::infinity(); }
-    HomographyEstimator estimator;
+    if (inliers.empty()) {
+        return std::numeric_limits<double>::infinity();
+    }
     const double sum_sq_err = std::accumulate(
         inliers.begin(), inliers.end(), 0.0,
-        [&](double acc, int idx) { return acc + estimator.residual(hmtx, data[idx]); });
+        [&](double acc, int idx) { return acc + HomographyEstimator::residual(hmtx, data[idx]); });
     return std::sqrt(sum_sq_err / (2.0 * static_cast<double>(inliers.size())));
 }
 
-static void estimate_homography_dlt(const PlanarView& data, HomographyResult& result,
-                                    HomographyEstimator& estimator) {
+static void estimate_homography_dlt(const PlanarView& data, HomographyResult& result) {
     std::vector<int> inliers(data.size());
     std::iota(inliers.begin(), inliers.end(), 0);
-    auto hmtx_opt = estimator.fit(data, inliers);
+    auto hmtx_opt = HomographyEstimator::fit(data, inliers);
     if (!hmtx_opt.has_value()) {
         std::cout << "Homography estimation failed.\n";
         result.success = false;
@@ -65,8 +65,7 @@ auto estimate_homography(const PlanarView& data,
     HomographyResult result;
 
     if (!ransac_opts.has_value()) {
-        HomographyEstimator estimator;
-        estimate_homography_dlt(data, result, estimator);
+        estimate_homography_dlt(data, result);
     } else {
         estimate_homography_ransac(data, result, ransac_opts.value());
     }

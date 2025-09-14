@@ -40,8 +40,9 @@ struct RansacResult final {
 //   static std::optional<Model> fit(const std::vector<Datum>& data, std::span<const int> sample);
 //   static double residual(const Model& M, const Datum& d);
 //   // optional:
-//   static std::optional<Model> refit(const std::vector<Datum>& data, std::span<const int> inliers);
-//   static bool is_degenerate(const std::vector<Datum>& data, std::span<const int> sample);
+//   static std::optional<Model> refit(const std::vector<Datum>& data, std::span<const int>
+//   inliers); static bool is_degenerate(const std::vector<Datum>& data, std::span<const int>
+//   sample);
 // };
 
 namespace detail {
@@ -87,29 +88,31 @@ inline void sample_k_unique(size_t k, size_t size, RNG& rng, std::vector<int>& o
 }
 
 // Calculate number of iterations based on inlier ratio
-inline int calculate_iterations(double confidence, double inlier_ratio,
-                               int min_samples, int iters_so_far, int max_iters) {
-    if (confidence <= 0.0 || inlier_ratio <= 0.0) return max_iters;
+inline int calculate_iterations(double confidence, double inlier_ratio, int min_samples,
+                                int iters_so_far, int max_iters) {
+    if (confidence <= 0.0 || inlier_ratio <= 0.0) {
+        return max_iters;
+    }
 
     // N >= log(1 - p) / log(1 - w^m)
     double p = confidence;
     double w = inlier_ratio;
-    double m = static_cast<double>(min_samples);
+    auto m = static_cast<double>(min_samples);
     double denom = std::log(std::max(1e-12, 1.0 - std::pow(w, m)));
 
     if (denom >= 0.0) {
         return max_iters;  // avoid degenerate case
     }
 
-    int N = static_cast<int>(std::ceil(std::log(1.0 - p) / denom));
-    return std::clamp(N, iters_so_far, max_iters);
+    const int niter = static_cast<int>(std::ceil(std::log(1.0 - p) / denom));
+    return std::clamp(niter, iters_so_far, max_iters);
 }
 
 // Find inliers for a given model
 template <typename Estimator, typename Model>
-inline void find_inliers(const std::vector<typename Estimator::Datum>& data,
-                        const Model& model, double threshold,
-                        std::vector<int>& inliers, std::vector<double>& inlier_residuals) {
+inline void find_inliers(const std::vector<typename Estimator::Datum>& data, const Model& model,
+                         double threshold, std::vector<int>& inliers,
+                         std::vector<double>& inlier_residuals) {
     inliers.clear();
     inlier_residuals.clear();
     inliers.reserve(data.size());
@@ -126,19 +129,18 @@ inline void find_inliers(const std::vector<typename Estimator::Datum>& data,
 
 // Refit model on inliers if possible
 template <typename Estimator, typename Model>
-inline Model refit_model(const std::vector<typename Estimator::Datum>& data,
-                        const Model& model,
-                        const std::vector<int>& inliers, double threshold,
-                        std::vector<int>& updated_inliers,
-                        std::vector<double>& updated_residuals) {
+inline Model refit_model(const std::vector<typename Estimator::Datum>& data, const Model& model,
+                         const std::vector<int>& inliers, double threshold,
+                         std::vector<int>& updated_inliers,
+                         std::vector<double>& updated_residuals) {
     Model refined_model = model;
 
     if constexpr (HasRefit<Estimator>) {
         if (auto m2 = Estimator::refit(data, std::span<const int>(inliers))) {
             refined_model = *m2;
             // Recompute inliers after refit
-            find_inliers<Estimator>(data, refined_model, threshold,
-                        updated_inliers, updated_residuals);
+            find_inliers<Estimator>(data, refined_model, threshold, updated_inliers,
+                                    updated_residuals);
         }
     }
 
@@ -146,17 +148,10 @@ inline Model refit_model(const std::vector<typename Estimator::Datum>& data,
 }
 
 // Check if new model is better than current best
-inline bool is_better_model(bool has_current_best,
-                           size_t new_inlier_count, double new_inlier_rms,
-                           size_t best_inlier_count, double best_inlier_rms) {
-    if (!has_current_best) {
-        return true;
-    } else if (new_inlier_count > best_inlier_count) {
-        return true;
-    } else if (new_inlier_count == best_inlier_count && new_inlier_rms < best_inlier_rms) {
-        return true;
-    }
-    return false;
+inline bool is_better_model(bool has_current_best, size_t new_inlier_count, double new_inlier_rms,
+                            size_t best_inlier_count, double best_inlier_rms) {
+    return !has_current_best || (new_inlier_count > best_inlier_count) ||
+           (new_inlier_count == best_inlier_count && new_inlier_rms < best_inlier_rms);
 }
 
 }  // namespace detail
@@ -167,7 +162,7 @@ auto ransac(const std::vector<typename Estimator::Datum>& data,
     using Model = typename Estimator::Model;
 
     RansacResult<Model> best;
-    if (data.size() < Estimator::k_min_samples) return best;
+    if (data.size() < Estimator::k_min_samples) { return best; }
 
     std::mt19937_64 rng(opts.seed);
 
@@ -205,7 +200,7 @@ auto ransac(const std::vector<typename Estimator::Datum>& data,
             refined_inliers = inliers;
             refined_residuals = inlier_residuals;
             model_refit = detail::refit_model<Estimator>(data, model, inliers, opts.thresh,
-                                              refined_inliers, refined_residuals);
+                                                         refined_inliers, refined_residuals);
             inliers = refined_inliers;
             inlier_residuals = refined_residuals;
         }
@@ -224,9 +219,8 @@ auto ransac(const std::vector<typename Estimator::Datum>& data,
 
             // Update dynamic iteration budget based on observed inlier ratio
             double w = static_cast<double>(best.inliers.size()) / static_cast<double>(data.size());
-            dynamic_max_iters = detail::calculate_iterations(opts.confidence, w,
-                                                           Estimator::k_min_samples,
-                                                           best.iters, opts.max_iters);
+            dynamic_max_iters = detail::calculate_iterations(
+                opts.confidence, w, Estimator::k_min_samples, best.iters, opts.max_iters);
 
             // Early exit if perfect consensus
             if (best.inliers.size() == data.size()) {
