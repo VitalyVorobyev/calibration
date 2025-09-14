@@ -2,8 +2,8 @@
 
 // std
 #include <algorithm>
-#include <numeric>
 #include <numbers>
+#include <numeric>
 #include <random>
 #include <span>
 #include <vector>
