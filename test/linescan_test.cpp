@@ -189,9 +189,9 @@ TEST(LineScanCalibration, PlaneFitMultipleViews) {
     auto dist = Eigen::VectorXd::Zero(5);
     PinholeCamera<DualDistortion> camera(kmtx, dist);
 
-    const Eigen::Vector3d norm(0, 1, 0);
-    constexpr double plane_d = -0.5;
-    Eigen::Hyperplane<double, 3> plane(norm, plane_d);
+    const Eigen::Vector3d plane_norm = Eigen::Vector3d(0.1, 1, -0.1).normalized();
+    constexpr double plane_d = 0.5;
+    Eigen::Hyperplane<double, 3> plane(plane_norm, plane_d);
 
     Eigen::Isometry3d pose1 = Eigen::Isometry3d::Identity();
     pose1.translation() = Eigen::Vector3d(0.0, 0.0, 1.0);
@@ -204,9 +204,9 @@ TEST(LineScanCalibration, PlaneFitMultipleViews) {
     auto v2 = create_view(pose2, plane, camera);
 
     auto res = calibrate_laser_plane({v1, v2}, camera);
-    EXPECT_NEAR(res.plane[0], norm.x(), 1e-6);
-    EXPECT_NEAR(res.plane[1], norm.y(), 1e-6);
-    EXPECT_NEAR(res.plane[2], norm.z(), 1e-6);
+    EXPECT_NEAR(res.plane[0], plane_norm.x(), 1e-6);
+    EXPECT_NEAR(res.plane[1], plane_norm.y(), 1e-6);
+    EXPECT_NEAR(res.plane[2], plane_norm.z(), 1e-6);
     EXPECT_NEAR(res.plane[3], plane_d, 1e-6);
     EXPECT_NEAR(res.rms_error, 0.0, 1e-9);
 }
