@@ -105,7 +105,7 @@ static auto make_zhang_design_matrix(const std::vector<HomographyResult>& hs)
     }
 
     Eigen::MatrixXd vmtx(2 * m, 6);
-    for (int k = 0; k < m; ++k) {
+    for (Eigen::Index k = 0; k < m; ++k) {
         Eigen::Matrix3d hmtx = normalize_hmtx(hs[static_cast<size_t>(k)].hmtx);  // <-- important
         Eigen::Matrix<double, 1, 6> v12 = v_ij(hmtx, 0, 1);
         Eigen::Matrix<double, 1, 6> v11 = v_ij(hmtx, 0, 0);
