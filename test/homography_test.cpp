@@ -18,8 +18,7 @@ static Vec2 apply_homography(const Mat3& H, const Vec2& p) {
 }
 
 // Generate synthetic data with a known homography
-void generate_synthetic_data(std::vector<Vec2>& src,
-                             std::vector<Vec2>& dst,
+void generate_synthetic_data(PlanarView& view,
                              Mat3& true_H,
                              int n_points = 50,
                              double noise_level = -1) {
@@ -31,30 +30,25 @@ void generate_synthetic_data(std::vector<Vec2>& src,
               s,  c, ty,
               0.001, -0.002, 1.0;
 
-    // Normalize the scale
-    true_H /= true_H(2, 2);
-
     // Random number generator
     std::mt19937 rng(42);
     std::uniform_real_distribution<double> dist(-100.0, 100.0);
     std::normal_distribution<double> noise(0.0, noise_level);
 
-    src.resize(n_points);
-    dst.resize(n_points);
-
-    for (int i = 0; i < n_points; ++i) {
-        // Random source point
-        src[i] = Vec2(dist(rng), dist(rng));
+    view.resize(n_points);
+    std::generate(view.begin(), view.end(), [&]() -> PlanarObservation {
+        const Vec2 point(dist(rng), dist(rng));
 
         // Apply true homography
-        Vec2 exact_dst = apply_homography(true_H, src[i]);
+        Vec2 pixel = apply_homography(true_H, point);
 
         // Add noise to destination points
-        dst[i] = exact_dst;
         if (noise_level > 0) {
-            dst[i] += Vec2(noise(rng), noise(rng));
+            pixel += Vec2(noise(rng), noise(rng));
         }
-    }
+
+        return { point, pixel };
+    });
 }
 
 TEST(HomographyTest, ExactHomography) {
@@ -70,16 +64,16 @@ TEST(HomographyTest, ExactHomography) {
         {0.0, 1.0},
         {1.0, 1.0}
     };
-
-    std::vector<Vec2> dst;
-    dst.reserve(src.size());
-    for (const auto& p : src) {
-        dst.push_back(apply_homography(H_true, p));
-    }
+    PlanarView view(src.size());
+    std::transform(src.begin(), src.end(), view.begin(),
+        [&H_true](const Vec2& point) -> PlanarObservation {
+            return {point, apply_homography(H_true, point)};
+        });
 
     // Estimate homography
-    Mat3 h0 = estimate_homography_dlt(src, dst);
-    auto result = optimize_homography(src, dst, h0);
+    const auto hres = estimate_homography(view);
+    ASSERT_TRUE(hres.success);
+    auto result = optimize_homography(view, hres.hmtx);
     ASSERT_TRUE(result.success);
 
     // The estimated homography should be very close to the true one
@@ -87,46 +81,92 @@ TEST(HomographyTest, ExactHomography) {
 }
 
 TEST(HomographyTest, NoisyHomography) {
-    std::vector<Vec2> src, dst;
+    PlanarView view;
     Mat3 H_true;
 
     // Generate data with low noise
-    generate_synthetic_data(src, dst, H_true, 50, 0.1);
+    generate_synthetic_data(view, H_true, 50, 0.1);
 
     // Estimate homography
-    Mat3 h0 = estimate_homography_dlt(src, dst);
-    auto result = optimize_homography(src, dst, h0);
+    const auto hres = estimate_homography(view);
+    ASSERT_TRUE(hres.success);
+    // Average reprojection error should be small
+    EXPECT_LT(hres.symmetric_rms_px, 0.25); // Should be close to the noise level
+
+    auto result = optimize_homography(view, hres.hmtx);
     ASSERT_TRUE(result.success);
 
     // Verify that the estimated homography is close to the ground truth
     // with some tolerance for noise
-    double tolerance = 1e-2;
+    constexpr double tolerance = 1e-2;
     ASSERT_TRUE(result.homography.isApprox(H_true, tolerance));
-
-    // Check the reprojection error
-    double avg_error = 0.0;
-    for (size_t i = 0; i < src.size(); ++i) {
-        Vec2 projected = apply_homography(result.homography, src[i]);
-        avg_error += (projected - dst[i]).norm();
-    }
-    avg_error /= src.size();
-
-    // Average reprojection error should be small
-    EXPECT_LT(avg_error, 0.15); // Should be close to the noise level
 }
 
 TEST(HomographyTest, InsufficientPoints) {
     // Less than 4 points should throw an exception
-    std::vector<Vec2> src = {{0.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}};
-    std::vector<Vec2> dst = {{10.0, 0.0}, {11.0, 0.0}, {10.0, 1.0}};
-
-    EXPECT_THROW(optimize_homography(src, dst, Mat3::Identity()), std::invalid_argument);
+    PlanarView view {
+        {{0.0, 0.0}, {10.0, 0.0}},
+        {{1.0, 0.0}, {11.0, 0.0}},
+        {{0.0, 1.0}, {10.0, 1.0}}
+    };
+    EXPECT_THROW(optimize_homography(view, Mat3::Identity()), std::invalid_argument);
 }
 
-TEST(HomographyTest, MismatchedSizes) {
-    // Different number of source and destination points should throw
-    std::vector<Vec2> src = {{0.0, 0.0}, {1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}};
-    std::vector<Vec2> dst = {{10.0, 0.0}, {11.0, 0.0}, {10.0, 1.0}};
+// RANSAC should recover the correct homography in presence of outliers
+TEST(HomographyTest, RansacRecoversHomographyWithOutliers) {
+    PlanarView view;
+    Mat3 H_true;
 
-    EXPECT_THROW(optimize_homography(src, dst, Mat3::Identity()), std::invalid_argument);
+    // Generate inlier correspondences without noise
+    generate_synthetic_data(view, H_true, 100, 0.0);
+
+    // Add random outliers
+    std::mt19937 rng(7);
+    std::uniform_real_distribution<double> dist(-100.0, 100.0);
+    for (int i = 0; i < 30; ++i) {
+        Vec2 src(dist(rng), dist(rng));
+        Vec2 dst(dist(rng), dist(rng));
+        view.push_back({src, dst});
+    }
+
+    RansacOptions opts;
+    opts.thresh = 1.0;      // allow small deviations
+    opts.min_inliers = 90;  // expect most points to be inliers
+    opts.seed = 123;
+
+    const auto hres = estimate_homography(view, opts);
+    ASSERT_TRUE(hres.success);
+    EXPECT_GE(hres.inliers.size(), 95);
+    EXPECT_LT(hres.symmetric_rms_px, 1e-3);
+
+    auto result = optimize_homography(view, hres.hmtx);
+    ASSERT_TRUE(result.success);
+    constexpr double tolerance = 1e-2;
+    EXPECT_TRUE(result.homography.isApprox(H_true, tolerance));
+}
+
+// RANSAC should fail if the number of inliers is below the required threshold
+TEST(HomographyTest, RansacFailsWithTooFewInliers) {
+    PlanarView view;
+    Mat3 H_true;
+
+    // Only a few inliers
+    generate_synthetic_data(view, H_true, 4, 0.0);
+
+    // Add many outliers
+    std::mt19937 rng(3);
+    std::uniform_real_distribution<double> dist(-100.0, 100.0);
+    for (int i = 0; i < 50; ++i) {
+        Vec2 src(dist(rng), dist(rng));
+        Vec2 dst(dist(rng), dist(rng));
+        view.push_back({src, dst});
+    }
+
+    RansacOptions opts;
+    opts.thresh = 0.5;
+    opts.min_inliers = 10;  // require more inliers than available
+    opts.seed = 42;
+
+    const auto hres = estimate_homography(view, opts);
+    EXPECT_FALSE(hres.success);
 }

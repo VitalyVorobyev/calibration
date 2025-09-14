@@ -6,3 +6,5 @@ coverage.info
 # Doxygen documentation
 doc/doxygen/
 *.tag
+
+*.pyc

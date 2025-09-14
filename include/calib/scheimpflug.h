@@ -58,8 +58,8 @@ struct ScheimpflugCamera final {
      * @param tau_y_angle Tilt around Y axis (radians)
      */
     template <camera_model OtherCamT, typename T>
-    ScheimpflugCamera(const OtherCamT& cam, T tau_x_angle, T tau_y_angle)
-        : camera(cam), tau_x(Scalar(tau_x_angle)), tau_y(Scalar(tau_y_angle)) {}
+    ScheimpflugCamera(OtherCamT cam, T tau_x_angle, T tau_y_angle)
+        : camera(std::move(cam)), tau_x(Scalar(tau_x_angle)), tau_y(Scalar(tau_y_angle)) {}
 
     /// @brief Copy constructor
     ScheimpflugCamera(const ScheimpflugCamera& other)
@@ -101,6 +101,7 @@ struct ScheimpflugCamera final {
      * @return 2D pixel coordinates after applying linear intrinsics
      */
     template <typename T>
+    [[nodiscard]]
     Eigen::Matrix<T, 2, 1> apply_intrinsics(const Eigen::Matrix<T, 2, 1>& plane_point) const {
         return camera.template apply_intrinsics<T>(plane_point);
     }
@@ -116,6 +117,7 @@ struct ScheimpflugCamera final {
      * @return 2D plane coordinates after removing linear intrinsics
      */
     template <typename T>
+    [[nodiscard]]
     Eigen::Matrix<T, 2, 1> remove_intrinsics(const Eigen::Matrix<T, 2, 1>& pixel) const {
         return camera.template remove_intrinsics<T>(pixel);
     }

@@ -20,8 +20,17 @@
 #include <Eigen/Dense>
 
 #include "calib/optimize.h"
+#include "calib/planarpose.h"  // for PlanarView
+#include "calib/ransac.h"      // for RansacOptions
 
 namespace calib {
+
+struct HomographyResult final {
+    bool success{false};
+    Eigen::Matrix3d hmtx = Eigen::Matrix3d::Identity();
+    std::vector<int> inliers;      // indices of inlier correspondences
+    double symmetric_rms_px{0.0};  // symmetric transfer RMS in pixels
+};
 
 /**
  * @brief Estimates a 3x3 homography matrix using the Direct Linear Transform (DLT) algorithm.
@@ -35,8 +44,8 @@ namespace calib {
  *
  * @note Both src and dst must contain at least 4 points and have the same size.
  */
-auto estimate_homography_dlt(const std::vector<Eigen::Vector2d>& src,
-                             const std::vector<Eigen::Vector2d>& dst) -> Eigen::Matrix3d;
+auto estimate_homography(const PlanarView& data, std::optional<RansacOptions> ransac_opts =
+                                                     std::nullopt) -> HomographyResult;
 
 struct HomographyOptions final : public OptimOptions {};
 
@@ -50,16 +59,14 @@ struct OptimizeHomographyResult final : OptimResult {
  * This function computes the optimal homography matrix that maps the source points (`src`)
  * to the destination points (`dst`) using a specified optimization strategy.
  *
- * @param src A vector of 2D points (Eigen::Vector2d) representing the source coordinates.
- * @param dst A vector of 2D points (Eigen::Vector2d) representing the destination coordinates.
+ * @param data A vector of planar views (input data).
  * @param options Optional optimization parameters (default is OptimOptions()).
  * @return OptimizeHomographyResult The result of the optimization, including the estimated
  * homography matrix and optimization status.
  *
  * @note The input vectors `src` and `dst` must have the same size and contain at least four points.
  */
-auto optimize_homography(const std::vector<Eigen::Vector2d>& src,
-                         const std::vector<Eigen::Vector2d>& dst, const Eigen::Matrix3d& init_h,
+auto optimize_homography(const PlanarView& data, const Eigen::Matrix3d& init_h,
                          const HomographyOptions& options = {}) -> OptimizeHomographyResult;
 
 }  // namespace calib

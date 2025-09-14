@@ -5,7 +5,7 @@ pose recovery and mapping tasks.
 
 ## Algorithms
 
-* **Direct Linear Transform** – `estimate_homography_dlt` solves for the
+* **Direct Linear Transform** – `estimate_homography` solves for the
   homography matrix using the classic DLT algorithm with point correspondences.
 * **Non-linear Refinement** – `optimize_homography` performs least-squares
   optimisation with optional robust loss and covariance estimation.
@@ -13,7 +13,7 @@ pose recovery and mapping tasks.
 ## API
 
 ```
-Eigen::Matrix3d estimate_homography_dlt(
+Eigen::Matrix3d estimate_homography(
     const std::vector<Eigen::Vector2d>& src,
     const std::vector<Eigen::Vector2d>& dst);
 
