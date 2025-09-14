@@ -162,7 +162,9 @@ auto ransac(const std::vector<typename Estimator::Datum>& data,
     using Model = typename Estimator::Model;
 
     RansacResult<Model> best;
-    if (data.size() < Estimator::k_min_samples) { return best; }
+    if (data.size() < Estimator::k_min_samples) {
+        return best;
+    }
 
     std::mt19937_64 rng(opts.seed);
 
