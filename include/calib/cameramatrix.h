@@ -9,10 +9,51 @@
 
 namespace calib {
 
+/**
+ * @brief A struct representing the intrinsic parameters of a camera.
+ *
+ * This struct encapsulates the intrinsic parameters of a pinhole camera model:
+ * - Focal lengths (fx, fy)
+ * - Principal point coordinates (cx, cy)
+ * - Skew parameter (default: 0)
+ *
+ * It provides methods to:
+ * - Construct the standard 3x3 camera intrinsic matrix
+ * - Normalize pixel coordinates (convert from pixel to normalized coordinates)
+ * - Denormalize coordinates (convert from normalized to pixel coordinates)
+ *
+ * The camera model follows the standard convention:
+ * [fx    skew  cx]
+ * [0     fy    cy]
+ * [0     0     1 ]
+ *
+ * @tparam Scalar The numeric type used for the camera parameters (e.g., float, double)
+ */
 template <typename Scalar>
 struct CameraMatrixT final {
     Scalar fx, fy, cx, cy;
     Scalar skew = Scalar(0);
+
+    /**
+     * @brief Constructs and returns the camera intrinsic matrix.
+     *
+     * Builds the standard 3x3 camera intrinsic matrix using the internal parameters:
+     * [fx    skew  cx]
+     * [0     fy    cy]
+     * [0     0     1 ]
+     *
+     * @return Eigen::Matrix<Scalar, 3, 3> The 3x3 camera intrinsic matrix
+     */
+    Eigen::Matrix<Scalar, 3, 3> matrix() const {
+        Eigen::Matrix<Scalar, 3, 3> kmtx = Eigen::Matrix<Scalar, 3, 3>::Zero();
+        kmtx(0, 0) = fx;
+        kmtx(1, 1) = fy;
+        kmtx(0, 1) = skew;
+        kmtx(0, 2) = cx;
+        kmtx(1, 2) = cy;
+        kmtx(2, 2) = Scalar(1);
+        return kmtx;
+    }
 
     /**
      * @brief Normalizes a 2D pixel coordinate using the intrinsic camera parameters.
