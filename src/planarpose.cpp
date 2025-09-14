@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <numeric>
+#include <spdlog/spdlog.h>
 
 // ceres
 #include <ceres/ceres.h>
@@ -67,7 +68,7 @@ auto estimate_planar_pose(PlanarView view, const CameraMatrix& intrinsics) -> Ei
 
     const auto hres = estimate_homography(view);
     if (!hres.success) {
-        std::cerr << "Failed to estimate homography\n";
+        spdlog::error("Failed to estimate homography");
         return Eigen::Isometry3d::Identity();
     }
     return pose_from_homography_normalized(hres.hmtx);

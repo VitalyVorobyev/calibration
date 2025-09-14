@@ -4,6 +4,8 @@
 
 #include "calib/extrinsics.h"
 
+#include <spdlog/spdlog.h>
+
 using namespace calib;
 
 TEST(Extrinsics, RecoverCameraAndTargetPoses) {
@@ -137,7 +139,7 @@ TEST(Extrinsics, RecoverAllParameters) {
 
     ExtrinsicOptions opts; opts.verbose = false;
     auto res = optimize_extrinsics(views, cam_init, guess.c_se3_r, guess.r_se3_t, opts);
-    std::cout << res.report << std::endl;
+    spdlog::info("{}", res.report);
 
     EXPECT_LT(res.final_cost, 1e-6);
     ASSERT_EQ(res.cameras.size(), static_cast<size_t>(kCams));

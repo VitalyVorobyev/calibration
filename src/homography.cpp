@@ -5,6 +5,7 @@
 #include <numbers>
 #include <numeric>
 #include <thread>
+#include <spdlog/spdlog.h>
 
 // ceres
 #include <ceres/ceres.h>
@@ -32,7 +33,7 @@ static void estimate_homography_dlt(const PlanarView& data, HomographyResult& re
     std::iota(inliers.begin(), inliers.end(), 0);
     auto hmtx_opt = HomographyEstimator::fit(data, inliers);
     if (!hmtx_opt.has_value()) {
-        std::cout << "Homography estimation failed.\n";
+        spdlog::error("Homography estimation failed.");
         result.success = false;
         return;
     }
@@ -46,7 +47,7 @@ static void estimate_homography_ransac(const PlanarView& data, HomographyResult&
                                        const RansacOptions& ransac_opts) {
     auto ransac_result = ransac<HomographyEstimator>(data, ransac_opts);
     if (!ransac_result.success) {
-        std::cout << "Homography RANSAC failed.\n";
+        spdlog::error("Homography RANSAC failed.");
         result.success = false;
         return;
     }
@@ -55,8 +56,8 @@ static void estimate_homography_ransac(const PlanarView& data, HomographyResult&
     result.symmetric_rms_px = symmetric_rms_px(result.hmtx, data, result.inliers);
     result.success = true;
 
-    std::cout << "Homography inliers: " << result.inliers.size() << " / " << data.size()
-              << ", symmetric RMS: " << result.symmetric_rms_px << " px\n";
+    spdlog::info("Homography inliers: {} / {}, symmetric RMS: {} px", result.inliers.size(),
+                 data.size(), result.symmetric_rms_px);
 }
 
 auto estimate_homography(const PlanarView& data,

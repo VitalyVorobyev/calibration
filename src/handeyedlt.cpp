@@ -1,7 +1,7 @@
 #include "calib/handeye.h"
 
 // std
-#include <iostream>
+#include <spdlog/spdlog.h>
 #include <numbers>
 
 #include "observationutils.h"
@@ -30,8 +30,7 @@ static auto is_good_pair(const MotionPair& motion_pair, double min_angle, bool r
     const double norm_b = beta.norm();
     const double min_rot = std::min(norm_a, norm_b);
     if (min_rot < min_angle) {
-        std::cerr << "Motion pair with too small motion: " << (min_rot * 180.0 / std::numbers::pi)
-                  << " deg\n";
+        spdlog::warn("Motion pair with too small motion: {} deg", min_rot * 180.0 / std::numbers::pi);
         return false;
     }
     if (reject_axis_parallel) {
@@ -40,7 +39,7 @@ static auto is_good_pair(const MotionPair& motion_pair, double min_angle, bool r
         if (aa * bb > 0.0) {
             double sin_axis = (alpha.normalized().cross(beta.normalized())).norm();
             if (sin_axis < axis_parallel_eps) {
-                std::cerr << "Motion pair with near-parallel axes\n";
+                spdlog::warn("Motion pair with near-parallel axes");
                 return false;
             }
         }
@@ -69,7 +68,7 @@ auto build_all_pairs(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
             if (is_good_pair(motion_pair, min_angle, reject_axis_parallel, axis_parallel_eps)) {
                 pairs.push_back(std::move(motion_pair));
             } else {
-                std::cerr << "Skipping pair (" << idx_i << "," << idx_j << '\n';
+                spdlog::warn("Skipping pair ({},{})", idx_i, idx_j);
             }
         }
     }

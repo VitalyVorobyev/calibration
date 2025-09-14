@@ -34,14 +34,14 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev libcli11-dev
+          sudo apt-get install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev libcli11-dev libspdlog-dev
 
       # ---------- macOS deps ----------
       - name: Install deps (macOS)
         if: startsWith(matrix.os, 'macos')
         run: |
           brew update
-          brew install eigen ceres-solver nlohmann-json googletest boost cli11
+          brew install eigen ceres-solver nlohmann-json googletest boost cli11 spdlog
 
       # Set VCPKG vars
       - name: Set VCPKG_ROOT (Windows)
@@ -58,7 +58,7 @@ jobs:
         run: |
           if (-not (Test-Path $env:VCPKG_ROOT)) { git clone https://github.com/microsoft/vcpkg $env:VCPKG_ROOT }
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat"
-          & "$env:VCPKG_ROOT\vcpkg.exe" install ceres eigen3 nlohmann-json gtest boost-pfr cli11 --triplet $env:VCPKG_TRIPLET
+          & "$env:VCPKG_ROOT\vcpkg.exe" install ceres eigen3 nlohmann-json gtest boost-pfr cli11 spdlog --triplet $env:VCPKG_TRIPLET
 
       # Configure & Build for Linux/macOS
       - name: Configure (Unix)
@@ -127,7 +127,7 @@ jobs:
       - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev libcli11-dev lcov
+          sudo apt-get install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev libcli11-dev libspdlog-dev lcov
 
       - name: Configure with coverage
         run: |

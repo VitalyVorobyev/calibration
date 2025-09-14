@@ -5,6 +5,7 @@
 #include <cmath>
 #include <numeric>
 #include <stdexcept>
+#include <spdlog/spdlog.h>
 
 // ceres
 #include <ceres/ceres.h>
@@ -82,7 +83,7 @@ static std::vector<Vec3> process_view(LineScanView view, const Camera<DualDistor
     // TODO: consider homography optimization
     auto hres = estimate_homography(view.target_view);
     if (!hres.success) {
-        std::cerr << "Failed to estimate homography\n";
+        spdlog::error("Failed to estimate homography");
         return points;
     }
 

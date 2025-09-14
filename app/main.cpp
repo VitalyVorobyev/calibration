@@ -1,7 +1,7 @@
 #include <CLI/CLI.hpp>
 
 #include <fstream>
-#include <iostream>
+#include <spdlog/spdlog.h>
 
 #include "calib/serialization.h"
 #include "config.h"
@@ -23,7 +23,7 @@ int main(int argc, char** argv) {
 
     std::ifstream cfg_stream(config_path);
     if (!cfg_stream) {
-        std::cerr << "Failed to open config: " << config_path << std::endl;
+        spdlog::error("Failed to open config: {}", config_path);
         return 1;
     }
     nlohmann::json cfg; cfg_stream >> cfg;
@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
     if (!output_override.empty()) app_config.output = output_override;
 
     if (app_config.task.empty()) {
-        std::cerr << "Task not specified in config" << std::endl;
+        spdlog::error("Task not specified in config");
         return 1;
     }
 
@@ -59,11 +59,11 @@ int main(int argc, char** argv) {
             auto r = optimize_bundle(in.observations, in.initial_cameras, in.init_g_se3_c, in.init_b_se3_t, in.options);
             result = r;
         } else {
-            std::cerr << "Unknown task: " << task << std::endl;
+            spdlog::error("Unknown task: {}", task);
             return 1;
         }
     } catch (const std::exception& e) {
-        std::cerr << "Calibration failed: " << e.what() << std::endl;
+        spdlog::error("Calibration failed: {}", e.what());
         return 1;
     }
 
@@ -72,5 +72,5 @@ int main(int argc, char** argv) {
         std::ofstream out(out_path);
         out << result.dump(2);
     }
-    std::cout << result.dump(2) << std::endl;
+    spdlog::info("{}", result.dump(2));
 }
