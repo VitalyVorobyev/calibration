@@ -27,7 +27,7 @@ auto create_synthetic_planar_data(const Eigen::Isometry3d& pose, const CameraMat
 
             // Apply camera intrinsics
             Eigen::Vector2d pixel = intrinsics.denormalize(point_camera);
-            view.emplace_back(obj_pt, pixel);
+            view.emplace_back(PlanarObservation{obj_pt, pixel});
         }
     }
     return view;
