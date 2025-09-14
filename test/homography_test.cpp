@@ -111,3 +111,62 @@ TEST(HomographyTest, InsufficientPoints) {
     };
     EXPECT_THROW(optimize_homography(view, Mat3::Identity()), std::invalid_argument);
 }
+
+// RANSAC should recover the correct homography in presence of outliers
+TEST(HomographyTest, RansacRecoversHomographyWithOutliers) {
+    PlanarView view;
+    Mat3 H_true;
+
+    // Generate inlier correspondences without noise
+    generate_synthetic_data(view, H_true, 100, 0.0);
+
+    // Add random outliers
+    std::mt19937 rng(7);
+    std::uniform_real_distribution<double> dist(-100.0, 100.0);
+    for (int i = 0; i < 30; ++i) {
+        Vec2 src(dist(rng), dist(rng));
+        Vec2 dst(dist(rng), dist(rng));
+        view.push_back({src, dst});
+    }
+
+    RansacOptions opts;
+    opts.thresh = 1.0;      // allow small deviations
+    opts.min_inliers = 90;  // expect most points to be inliers
+    opts.seed = 123;
+
+    const auto hres = estimate_homography(view, opts);
+    ASSERT_TRUE(hres.success);
+    EXPECT_GE(hres.inliers.size(), 95);
+    EXPECT_LT(hres.symmetric_rms_px, 1e-3);
+
+    auto result = optimize_homography(view, hres.hmtx);
+    ASSERT_TRUE(result.success);
+    constexpr double tolerance = 1e-2;
+    EXPECT_TRUE(result.homography.isApprox(H_true, tolerance));
+}
+
+// RANSAC should fail if the number of inliers is below the required threshold
+TEST(HomographyTest, RansacFailsWithTooFewInliers) {
+    PlanarView view;
+    Mat3 H_true;
+
+    // Only a few inliers
+    generate_synthetic_data(view, H_true, 4, 0.0);
+
+    // Add many outliers
+    std::mt19937 rng(3);
+    std::uniform_real_distribution<double> dist(-100.0, 100.0);
+    for (int i = 0; i < 50; ++i) {
+        Vec2 src(dist(rng), dist(rng));
+        Vec2 dst(dist(rng), dist(rng));
+        view.push_back({src, dst});
+    }
+
+    RansacOptions opts;
+    opts.thresh = 0.5;
+    opts.min_inliers = 10;  // require more inliers than available
+    opts.seed = 42;
+
+    const auto hres = estimate_homography(view, opts);
+    EXPECT_FALSE(hres.success);
+}
