@@ -19,17 +19,21 @@ struct HomographyEstimator final {
     static constexpr size_t k_min_samples = 4;
 
     // --- Estimator API ---
-    auto fit(const std::vector<Datum>& data,
-             std::span<const int> sample) const -> std::optional<Model>;
+    [[nodiscard]]
+    static auto fit(const std::vector<Datum>& data,
+                    std::span<const int> sample) -> std::optional<Model>;
 
-    auto residual(const Model& hmtx, const Datum& observation) const -> double;
+    [[nodiscard]]
+    static auto residual(const Model& hmtx, const Datum& observation) -> double;
 
     // Optional: better final model on all inliers
-    auto refit(const std::vector<Datum>& data,
-               std::span<const int> inliers) const -> std::optional<Model>;
+    [[nodiscard]]
+    static auto refit(const std::vector<Datum>& data,
+                      std::span<const int> inliers) -> std::optional<Model>;
 
     // Optional: reject degenerate minimal sets (near-collinear points)
-    auto is_degenerate(const std::vector<Datum>& data, std::span<const int> sample) const -> bool;
+    [[nodiscard]]
+    static auto is_degenerate(const std::vector<Datum>& data, std::span<const int> sample) -> bool;
 };
 
 }  // namespace calib

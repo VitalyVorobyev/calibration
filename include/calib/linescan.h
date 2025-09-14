@@ -9,16 +9,16 @@
 #include <Eigen/Geometry>
 
 #include "calib/pinhole.h"
+#include "calib/planarpose.h"
 
 namespace calib {
 
 /** @brief Observation for line-scan calibration.
  * Contains planar target correspondences and laser line pixel features
  */
-struct LineScanObservation final {
-    std::vector<Eigen::Vector2d> target_xy;  // Target plane coordinates (Z=0)
-    std::vector<Eigen::Vector2d> target_uv;  // Pixel measurements of target points
-    std::vector<Eigen::Vector2d> laser_uv;   // Pixel measurements of laser line points
+struct LineScanView final {
+    PlanarView target_view;
+    std::vector<Eigen::Vector2d> laser_uv;  // Pixel measurements of laser line points
 };
 
 struct LineScanCalibrationResult final {
@@ -40,7 +40,7 @@ struct LineScanCalibrationResult final {
  * this frame is returned. The plane coefficients are normalised so that
  * ||n|| = 1.
  */
-auto calibrate_laser_plane(const std::vector<LineScanObservation>& views,
+auto calibrate_laser_plane(const std::vector<LineScanView>& views,
                            const PinholeCamera<DualDistortion>& camera)
     -> LineScanCalibrationResult;
 

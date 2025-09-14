@@ -19,12 +19,12 @@ namespace calib {
 static auto symmetric_rms_px(const Eigen::Matrix3d& hmtx,
                              const std::vector<PlanarObservation>& data,
                              std::span<const int> inliers) -> double {
-    if (inliers.size() == 0) return std::numeric_limits<double>::infinity();
+    if (inliers.empty()) { return std::numeric_limits<double>::infinity(); }
     HomographyEstimator estimator;
     const double sum_sq_err = std::accumulate(
         inliers.begin(), inliers.end(), 0.0,
         [&](double acc, int idx) { return acc + estimator.residual(hmtx, data[idx]); });
-    return std::sqrt(sum_sq_err / (2.0 * inliers.size()));
+    return std::sqrt(sum_sq_err / (2.0 * static_cast<double>(inliers.size())));
 }
 
 static void estimate_homography_dlt(const PlanarView& data, HomographyResult& result,
@@ -44,9 +44,8 @@ static void estimate_homography_dlt(const PlanarView& data, HomographyResult& re
 }
 
 static void estimate_homography_ransac(const PlanarView& data, HomographyResult& result,
-                                       HomographyEstimator& estimator,
                                        const RansacOptions& ransac_opts) {
-    auto ransac_result = ransac(data, estimator, ransac_opts);
+    auto ransac_result = ransac<HomographyEstimator>(data, ransac_opts);
     if (!ransac_result.success) {
         std::cout << "Homography RANSAC failed.\n";
         result.success = false;
@@ -64,12 +63,12 @@ static void estimate_homography_ransac(const PlanarView& data, HomographyResult&
 auto estimate_homography(const PlanarView& data,
                          std::optional<RansacOptions> ransac_opts) -> HomographyResult {
     HomographyResult result;
-    HomographyEstimator estimator;
 
     if (!ransac_opts.has_value()) {
+        HomographyEstimator estimator;
         estimate_homography_dlt(data, result, estimator);
     } else {
-        estimate_homography_ransac(data, result, estimator, ransac_opts.value());
+        estimate_homography_ransac(data, result, ransac_opts.value());
     }
 
     return result;
@@ -117,15 +116,6 @@ struct HomographyResidual final {
         Eigen::Matrix<T, 3, 3> hmtx;
         hmtx << h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], T(1);
         Eigen::Vector3<T> xyvec(T(x_), T(y_), T(1));
-
-#if 0
-        // Guard against division by zero in autodiff context
-        if (ceres::isnan(den) || ceres::abs(den) < T(1e-15)) {
-            residuals[0] = T(0);
-            residuals[1] = T(0);
-            return true;
-        }
-#endif
 
         Eigen::Vector3<T> uvw = hmtx * xyvec;
         Eigen::Vector2<T> uv_hat = uvw.hnormalized();

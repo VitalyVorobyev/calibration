@@ -60,35 +60,27 @@ struct PlaneResidual final {
 };
 
 // Validates that the observations meet minimum requirements
-static void validate_observations(const std::vector<LineScanObservation>& views) {
+static void validate_observations(const std::vector<LineScanView>& views) {
     if (views.size() < 2) {
         throw std::invalid_argument("At least 2 views are required");
     }
 
-    if (std::any_of(views.begin(), views.end(), [](const auto& v) {
-            return v.target_xy.size() < 4 || v.target_xy.size() != v.target_uv.size();
-        })) {
+    if (std::any_of(views.begin(), views.end(),
+                    [](const auto& v) { return v.target_view.size() < 4; })) {
         throw std::invalid_argument("Each view requires >=4 target correspondences");
     }
 }
 
 // Processes a single view to extract 3D points
-static std::vector<Vec3> process_view(const LineScanObservation& view,
-                                      const Camera<DualDistortion>& camera) {
+static std::vector<Vec3> process_view(LineScanView view, const Camera<DualDistortion>& camera) {
     std::vector<Vec3> points;
-
-    // Normalize and undistort target pixel coordinates
-    PlanarView planar_view(view.target_uv.size());
-    // std::vector<Vec2> img_norm(view.target_uv.size());
-    std::transform(view.target_uv.begin(), view.target_uv.end(), view.target_xy.begin(),
-                   planar_view.begin(),
-                   [&camera](const Vec2& uv, const Vec2& xy) -> PlanarObservation {
-                       return {xy, camera.unproject(uv)};
-                   });
+    std::for_each(
+        view.target_view.begin(), view.target_view.end(),
+        [&camera](PlanarObservation& item) { item.image_uv = camera.unproject(item.image_uv); });
 
     // Homography from normalized pixels to plane
     // TODO: consider homography optimization
-    auto hres = estimate_homography(planar_view);
+    auto hres = estimate_homography(view.target_view);
     if (!hres.success) {
         std::cerr << "Failed to estimate homography\n";
         return points;
@@ -97,7 +89,7 @@ static std::vector<Vec3> process_view(const LineScanObservation& view,
     const Mat3& h_norm_to_obj = hres.hmtx;
 
     // Pose of plane (world->camera)
-    Eigen::Isometry3d pose = estimate_planar_pose(planar_view, camera.kmtx);
+    Eigen::Isometry3d pose = pose_from_homography_normalized(hres.hmtx);
 
     // Reproject laser pixels to plane and transform to camera coordinates
     for (const auto& lpix : view.laser_uv) {
@@ -196,7 +188,7 @@ static Mat3 build_plane_homography(const Eigen::Vector4d& plane) {
     return h_plane_to_norm.inverse();
 }
 
-LineScanCalibrationResult calibrate_laser_plane(const std::vector<LineScanObservation>& views,
+LineScanCalibrationResult calibrate_laser_plane(const std::vector<LineScanView>& views,
                                                 const PinholeCamera<DualDistortion>& camera) {
     // Validate input observations
     validate_observations(views);
