@@ -11,8 +11,7 @@
 #include <ceres/ceres.h>
 
 #include "calib/posefromhomography.h"  // for pose_from_homography
-
-#include "zhang.h"  // for zhang_intrinsics_from_hs
+#include "zhang.h"                     // for zhang_intrinsics_from_hs
 
 namespace calib {
 
@@ -32,6 +31,7 @@ static auto process_planar_view(const CameraMatrix& kmtx,
                                 const HomographyResult& hres) -> ViewEstimateData {
     ViewEstimateData ved;
     ved.forward_rms_px = hres.symmetric_rms_px;
+    ved.homography = hres;
 
     auto pose_res = pose_from_homography(kmtx, hres.hmtx);
     if (!pose_res.success) {

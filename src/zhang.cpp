@@ -12,60 +12,68 @@ static auto zhang_bmtx(const Eigen::VectorXd& b) -> Eigen::Matrix3d {
     return 0.5 * (bmtx + bmtx.transpose());  // symmetrize
 }
 
-// b is homogeneous: try both signs to make B^{-1} SPD
+static void check_conic_decomposition(const Eigen::Matrix3d& bmtx, const Eigen::Matrix3d& kmtx) {
+    // Optional self-check: B ≈ K^{-T} K^{-1} up to scale (should be exact after our normalization)
+    const Eigen::Matrix3d bhat = kmtx.inverse().transpose() * kmtx.inverse();
+    if (bhat.allFinite()) {
+        // Compare relative Frobenius error after aligning scale by a single element
+        double s = 1.0;
+        if (std::abs(bhat(2, 2)) > 0) s = bmtx(2, 2) / bhat(2, 2);
+        const double rel_err = (bmtx - s * bhat).norm() / std::max(1e-12, bmtx.norm());
+        if (!std::isfinite(rel_err) || rel_err > 1e-6) {
+            std::cerr << "Zhang: B consistency warning, rel_err=" << rel_err << "\n";
+        }
+    }
+}
+
+// b is homogeneous: recover K from B = K^{-T} K^{-1} via Cholesky of B
 static auto kmtx_from_dual_conic(const Eigen::VectorXd& bv) -> std::optional<Eigen::Matrix3d> {
-    Eigen::Matrix3d bmtx = zhang_bmtx(bv);
-    if (!bmtx.allFinite()) {
+    // Expect a 6-vector: [b11, b12, b22, b13, b23, b33]^T
+    if (bv.size() != 6) {
+        std::cerr << "Zhang: dual-conic vector must have size 6, got " << bv.size() << "\n";
         return std::nullopt;
     }
 
-    // Check if B has the right structure for a dual conic
-    // B should be symmetric and represent omega = K^(-T) * K^(-1)
-    double det_upper = bmtx(0, 0) * bmtx(1, 1) - bmtx(0, 1) * bmtx(0, 1);
-    if (det_upper <= 0) {
-        std::cerr << "Zhang: invalid dual conic structure: " << det_upper << '\n';
-        return std::nullopt;
-    }
+    const auto try_factor = [](const Eigen::Matrix3d& bmtx) -> std::optional<Eigen::Matrix3d> {
+        // B should be symmetric positive-definite (omega = K^{-T} K^{-1})
+        if (!bmtx.allFinite()) return std::nullopt;
 
-    // We need B^(-1) = K*K^T to be positive definite
-    Eigen::Matrix3d binv = bmtx.inverse();
-    if (!binv.allFinite()) {
-        return std::nullopt;
-    }
+        // Fast SPD check via LLT; also gives us the factor in one shot
+        Eigen::LLT<Eigen::Matrix3d> llt(bmtx);
+        if (llt.info() != Eigen::Success) return std::nullopt;
 
-    // Check if Binv is positive definite using eigenvalues
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigensolver(binv);
-    Eigen::Vector3d eigenvals = eigensolver.eigenvalues();
+        // Cholesky: B = U^T * U, with U upper-triangular, diag > 0
+        const Eigen::Matrix3d umtx = llt.matrixU();
 
-    if (eigensolver.info() != Eigen::Success) {
-        return std::nullopt;
-    }
+        // Since B = (K^{-1})^T (K^{-1}), we have U = K^{-1}  (same triangular form)
+        Eigen::Matrix3d kmtx = umtx.inverse();
+        if (!kmtx.allFinite()) return std::nullopt;
 
-    if (eigenvals.minCoeff() <= 1e-8) {
-        std::cerr << "Zhang: Binv not positive definite\n";
-        return std::nullopt;
-    }
+        // Normalize so K(2,2) = 1
+        const double k22 = kmtx(2, 2);
+        if (std::abs(k22) < 1e-15) return std::nullopt;
+        kmtx /= k22;
 
-    // Use Cholesky decomposition to get K
-    Eigen::LLT<Eigen::Matrix3d> llt(binv);
-    if (llt.info() != Eigen::Success) {
-        std::cerr << "Zhang: LLT decomposition failed\n";
-        return std::nullopt;
-    }
+        // Ensure a conventional calibration matrix: positive focal lengths
+        if (kmtx(0, 0) <= 0.0 || kmtx(1, 1) <= 0.0) {
+            // Flip sign uniformly if needed (numerical edge cases)
+            kmtx = -kmtx;
+        }
 
-    // Upper-triangular K (positive diag), normalize K(2,2)=1
-    Eigen::Matrix3d kmtx = llt.matrixU();
-    if (kmtx(0, 0) <= 0 || kmtx(1, 1) <= 0 || kmtx(2, 2) <= 0) {
-        std::cerr << "Zhang: invalid K diagonal\n";
-        return std::nullopt;
-    }
-    kmtx /= kmtx(2, 2);
-    if (!kmtx.allFinite()) {
-        std::cerr << "Zhang: invalid K matrix\n";
-        return std::nullopt;
-    }
-    return kmtx;
-};
+        check_conic_decomposition(bmtx, kmtx);
+        return kmtx;
+    };
+
+    // Rebuild symmetric B from the 6-vector
+    const Eigen::Matrix3d bmtx = zhang_bmtx(bv);
+
+    // Try as-is, then the opposite sign (b is homogeneous)
+    if (auto kmtx = try_factor(bmtx))  return kmtx;
+    if (auto kmtx = try_factor(-bmtx)) return kmtx;
+
+    std::cerr << "Zhang: failed to recover K from dual conic (both signs).\n";
+    return std::nullopt;
+}
 
 // ---------- Zhang: recover K from homographies ----------
 static auto v_ij(const Eigen::Matrix3d& hmtx, int i, int j) -> Eigen::Matrix<double, 1, 6> {
@@ -78,7 +86,12 @@ static auto v_ij(const Eigen::Matrix3d& hmtx, int i, int j) -> Eigen::Matrix<dou
     const double h2j = hmtx(2, j);
 
     Eigen::Matrix<double, 1, 6> v;
-    v << h0i * h0j, h0i * h1j + h1i * h0j, h1i * h1j, h0i * h2j + h2i * h0j, h1i * h2j + h2i * h1j,
+    v <<
+        h0i * h0j,
+        h0i * h1j + h1i * h0j,
+        h1i * h1j,
+        h0i * h2j + h2i * h0j,
+        h1i * h2j + h2i * h1j,
         h2i * h2j;
     return v;
 }
@@ -128,6 +141,13 @@ auto zhang_intrinsics_from_hs(const std::vector<HomographyResult>& hs)
 
     // The null space should correspond to the smallest singular value
     Eigen::VectorXd bvec = svd.matrixV().col(5);  // smallest singular value
+    Eigen::VectorXd resid = vmtx_opt.value() * bvec;
+    double rms = std::sqrt(resid.squaredNorm() / static_cast<double>(resid.size()));
+    if (rms > 1e-3) {
+        std::cout << "Zhang warning: large residual in solving for b: " << rms << '\n';
+    } else {
+        std::cout << "Zhang: solved for b with residual " << rms << '\n';
+    }
 
     // Try both signs of the b vector
     std::optional<Eigen::Matrix3d> kmtx_opt = kmtx_from_dual_conic(bvec);
