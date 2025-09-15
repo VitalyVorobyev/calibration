@@ -68,7 +68,7 @@ static auto kmtx_from_dual_conic(const Eigen::VectorXd& bv) -> std::optional<Eig
     const Eigen::Matrix3d bmtx = zhang_bmtx(bv);
 
     // Try as-is, then the opposite sign (b is homogeneous)
-    if (auto kmtx = try_factor(bmtx))  return kmtx;
+    if (auto kmtx = try_factor(bmtx)) return kmtx;
     if (auto kmtx = try_factor(-bmtx)) return kmtx;
 
     std::cerr << "Zhang: failed to recover K from dual conic (both signs).\n";
@@ -86,27 +86,34 @@ static auto v_ij(const Eigen::Matrix3d& hmtx, int i, int j) -> Eigen::Matrix<dou
     const double h2j = hmtx(2, j);
 
     Eigen::Matrix<double, 1, 6> v;
-    v <<
-        h0i * h0j,
-        h0i * h1j + h1i * h0j,
-        h1i * h1j,
-        h0i * h2j + h2i * h0j,
-        h1i * h2j + h2i * h1j,
+    v << h0i * h0j, h0i * h1j + h1i * h0j, h1i * h1j, h0i * h2j + h2i * h0j, h1i * h2j + h2i * h1j,
         h2i * h2j;
     return v;
 }
 
+// Safe per-homography normalization for Zhang
+// - enforce a consistent sign (h33 >= 0) and try to set h33 = 1 when possible
+// - otherwise fall back to a Frobenius scaling to bring entries to O(1)
+// This uses a SINGLE scalar per H (critical for Zhang).
 static auto normalize_hmtx(const Eigen::Matrix3d& hmtx) -> Eigen::Matrix3d {
-    Eigen::Matrix3d hnorm = hmtx;
-#if 0
-    const double n1 = hnorm.col(0).norm();
-    const double n2 = hnorm.col(1).norm();
-    if (n1 > 0) hnorm.col(0) /= n1;
-    if (n2 > 0) hnorm.col(1) /= n2;
-    // Consistent orientation
-    if ((hnorm.col(0).cross(hnorm.col(1))).dot(hnorm.col(2)) < 0) hnorm = -hnorm;
-#endif
-    return hnorm;
+    Eigen::Matrix3d hmtx_norm = hmtx;
+    if (!hmtx_norm.allFinite()) return hmtx_norm;
+
+    // Make sign consistent across views: prefer h33 >= 0
+    if (hmtx_norm(2, 2) < 0.0) hmtx_norm = -hmtx_norm;
+
+    // Primary: set h33 = 1 if well-conditioned
+    const double h33 = hmtx_norm(2, 2);
+    if (std::abs(h33) > 1e-12) {
+        hmtx_norm /= h33;  // h33 becomes +1
+        return hmtx_norm;
+    }
+
+    // Fallback: scale by Frobenius norm to keep numbers ~ O(1)
+    const double nf = hmtx_norm.norm();
+    if (nf > 1e-12) hmtx_norm /= nf;
+
+    return hmtx_norm;
 }
 
 static auto make_zhang_design_matrix(const std::vector<HomographyResult>& hs)
@@ -123,8 +130,18 @@ static auto make_zhang_design_matrix(const std::vector<HomographyResult>& hs)
         Eigen::Matrix<double, 1, 6> v12 = v_ij(hmtx, 0, 1);
         Eigen::Matrix<double, 1, 6> v11 = v_ij(hmtx, 0, 0);
         Eigen::Matrix<double, 1, 6> v22 = v_ij(hmtx, 1, 1);
+
+        auto normalize_row = [](Eigen::Matrix<double, 1, 6>& r) {
+            double s = r.norm();
+            if (s > 0) r /= s;
+        };
+
+        normalize_row(v12);
+        Eigen::Matrix<double, 1, 6> vr = v11 - v22;
+        normalize_row(vr);
+
         vmtx.row(2 * k) = v12;
-        vmtx.row(2 * k + 1) = v11 - v22;
+        vmtx.row(2 * k + 1) = vr;
     }
     return vmtx;
 }
