@@ -18,7 +18,9 @@ static void check_conic_decomposition(const Eigen::Matrix3d& bmtx, const Eigen::
     if (bhat.allFinite()) {
         // Compare relative Frobenius error after aligning scale by a single element
         double s = 1.0;
-        if (std::abs(bhat(2, 2)) > 0) s = bmtx(2, 2) / bhat(2, 2);
+        if (std::abs(bhat(2, 2)) > 0) {
+            s = bmtx(2, 2) / bhat(2, 2);
+        }
         const double rel_err = (bmtx - s * bhat).norm() / std::max(1e-12, bmtx.norm());
         if (!std::isfinite(rel_err) || rel_err > 1e-6) {
             std::cerr << "Zhang: B consistency warning, rel_err=" << rel_err << "\n";
@@ -36,22 +38,30 @@ static auto kmtx_from_dual_conic(const Eigen::VectorXd& bv) -> std::optional<Eig
 
     const auto try_factor = [](const Eigen::Matrix3d& bmtx) -> std::optional<Eigen::Matrix3d> {
         // B should be symmetric positive-definite (omega = K^{-T} K^{-1})
-        if (!bmtx.allFinite()) return std::nullopt;
+        if (!bmtx.allFinite()) {
+            return std::nullopt;
+        }
 
         // Fast SPD check via LLT; also gives us the factor in one shot
         Eigen::LLT<Eigen::Matrix3d> llt(bmtx);
-        if (llt.info() != Eigen::Success) return std::nullopt;
+        if (llt.info() != Eigen::Success) {
+            return std::nullopt;
+        }
 
         // Cholesky: B = U^T * U, with U upper-triangular, diag > 0
         const Eigen::Matrix3d umtx = llt.matrixU();
 
         // Since B = (K^{-1})^T (K^{-1}), we have U = K^{-1}  (same triangular form)
         Eigen::Matrix3d kmtx = umtx.inverse();
-        if (!kmtx.allFinite()) return std::nullopt;
+        if (!kmtx.allFinite()) {
+            return std::nullopt;
+        }
 
         // Normalize so K(2,2) = 1
         const double k22 = kmtx(2, 2);
-        if (std::abs(k22) < 1e-15) return std::nullopt;
+        if (std::abs(k22) < 1e-15) {
+            return std::nullopt;
+        }
         kmtx /= k22;
 
         // Ensure a conventional calibration matrix: positive focal lengths
@@ -68,8 +78,12 @@ static auto kmtx_from_dual_conic(const Eigen::VectorXd& bv) -> std::optional<Eig
     const Eigen::Matrix3d bmtx = zhang_bmtx(bv);
 
     // Try as-is, then the opposite sign (b is homogeneous)
-    if (auto kmtx = try_factor(bmtx)) return kmtx;
-    if (auto kmtx = try_factor(-bmtx)) return kmtx;
+    if (auto kmtx = try_factor(bmtx)) {
+        return kmtx;
+    }
+    if (auto kmtx = try_factor(-bmtx)) {
+        return kmtx;
+    }
 
     std::cerr << "Zhang: failed to recover K from dual conic (both signs).\n";
     return std::nullopt;
@@ -97,10 +111,14 @@ static auto v_ij(const Eigen::Matrix3d& hmtx, int i, int j) -> Eigen::Matrix<dou
 // This uses a SINGLE scalar per H (critical for Zhang).
 static auto normalize_hmtx(const Eigen::Matrix3d& hmtx) -> Eigen::Matrix3d {
     Eigen::Matrix3d hmtx_norm = hmtx;
-    if (!hmtx_norm.allFinite()) return hmtx_norm;
+    if (!hmtx_norm.allFinite()) {
+        return hmtx_norm;
+    }
 
     // Make sign consistent across views: prefer h33 >= 0
-    if (hmtx_norm(2, 2) < 0.0) hmtx_norm = -hmtx_norm;
+    if (hmtx_norm(2, 2) < 0.0) {
+        hmtx_norm = -hmtx_norm;
+    }
 
     // Primary: set h33 = 1 if well-conditioned
     const double h33 = hmtx_norm(2, 2);
@@ -111,7 +129,9 @@ static auto normalize_hmtx(const Eigen::Matrix3d& hmtx) -> Eigen::Matrix3d {
 
     // Fallback: scale by Frobenius norm to keep numbers ~ O(1)
     const double nf = hmtx_norm.norm();
-    if (nf > 1e-12) hmtx_norm /= nf;
+    if (nf > 1e-12) {
+        hmtx_norm /= nf;
+    }
 
     return hmtx_norm;
 }
@@ -133,7 +153,9 @@ static auto make_zhang_design_matrix(const std::vector<HomographyResult>& hs)
 
         auto normalize_row = [](Eigen::Matrix<double, 1, 6>& r) {
             double s = r.norm();
-            if (s > 0) r /= s;
+            if (s > 0) {
+                r /= s;
+            }
         };
 
         normalize_row(v12);
