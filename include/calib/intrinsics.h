@@ -21,11 +21,11 @@
 #include <Eigen/Dense>
 
 #include "calib/cameramodel.h"
+#include "calib/homography.h"  // For HomographyResult
 #include "calib/optimize.h"
 #include "calib/pinhole.h"
 #include "calib/planarpose.h"
 #include "calib/ransac.h"  // For RANSAC options
-#include "calib/homography.h"  // For HomographyResult
 
 namespace calib {
 
