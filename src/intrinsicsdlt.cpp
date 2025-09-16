@@ -3,7 +3,7 @@
 // std
 #include <algorithm>
 #include <cmath>
-#include <iostream>
+#include <spdlog/spdlog.h>
 #include <numeric>
 #include <random>
 
@@ -158,7 +158,7 @@ static auto apply_bounds_and_fallback(const Eigen::VectorXd& xu, const Eigen::Ve
                                (use_skew && (skew < bounds.skew_min || skew > bounds.skew_max));
 
     if (out_of_bounds) {
-        std::cerr << "Warning: Linear calibration produced unreasonable intrinsics\n";
+        spdlog::warn("Linear calibration produced unreasonable intrinsics");
 
         // Compute fallback values
         const double avg_u =

@@ -2,7 +2,7 @@
 
 // std
 #include <algorithm>
-#include <iostream>
+#include <spdlog/spdlog.h>
 
 #include "observationutils.h"
 
@@ -52,8 +52,8 @@ static auto compute_relative_camera_poses(
 
             // Skip views with insufficient observations
             if (obs_ref.size() < 4 || obs_cam.size() < 4) {
-                std::cerr << "Warning: Insufficient observations for view " << view_idx
-                          << " and camera " << cam_idx << " (need ≥4 points)\n";
+                spdlog::warn("Insufficient observations for view {} and camera {} (need ≥4 points)",
+                             view_idx, cam_idx);
                 continue;
             }
 
@@ -66,7 +66,7 @@ static auto compute_relative_camera_poses(
         if (!relative_poses.empty()) {
             c_se3_r[cam_idx] = average_affines(relative_poses);
         } else {
-            std::cerr << "Warning: No valid relative poses found for camera " << cam_idx << "\n";
+            spdlog::warn("No valid relative poses found for camera {}", cam_idx);
         }
     }
 
@@ -101,7 +101,7 @@ static auto compute_target_poses(const std::vector<std::vector<Eigen::Isometry3d
         if (!target_poses.empty()) {
             r_se3_t[view_idx] = average_affines(target_poses);
         } else {
-            std::cerr << "Warning: No valid target poses found for view " << view_idx << "\n";
+            spdlog::warn("No valid target poses found for view {}", view_idx);
         }
     }
 

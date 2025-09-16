@@ -14,6 +14,7 @@ target_include_directories(${TARGET} PUBLIC
 target_link_libraries(${TARGET} PUBLIC Eigen3::Eigen)
 target_link_libraries(${TARGET} PUBLIC Ceres::ceres)
 target_link_libraries(${TARGET} PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(${TARGET} PUBLIC spdlog::spdlog_header_only)
 
 # set max warning level if unix, warnings as errors
 if(UNIX)

@@ -4,6 +4,7 @@
 
 // std
 #include <iostream>
+#include <spdlog/spdlog.h>
 
 #include "calib/homography.h"
 
@@ -18,7 +19,7 @@ int main() {
 
     size_t N;
     if (!(std::cin >> N) || N < 4) {
-        std::cerr << "Provide N>=4 correspondences, then N lines: x y u v\n";
+        spdlog::error("Provide N>=4 correspondences, then N lines: x y u v");
         return 1;
     }
 
@@ -26,7 +27,7 @@ int main() {
     for (int i = 0; i < N; ++i) {
         double x, y, u, v;
         if (!(std::cin >> x >> y >> u >> v)) {
-            std::cerr << "Failed to read correspondence " << i << "\n";
+            spdlog::error("Failed to read correspondence {}", i);
             return 1;
         }
 
@@ -36,15 +37,13 @@ int main() {
 
     auto hres = estimate_homography(view);
     if (!hres.success) {
-        std::cerr << "Failed to estimate homography\n";
+        spdlog::error("Failed to estimate homography");
         return 1;
     }
-
-    std::cout.setf(std::ios::fixed); std::cout.precision(10);
-    std::cout << "Refined H:\n";
+    spdlog::info("Refined H:");
     for (int r = 0; r < 3; ++r) {
-        std::cout << hres.hmtx(r,0) << " " << hres.hmtx(r,1) << " " << hres.hmtx(r,2) << "\n";
+        spdlog::info("{:.10f} {:.10f} {:.10f}", hres.hmtx(r,0), hres.hmtx(r,1), hres.hmtx(r,2));
     }
 
-    std::cout << "Mean reprojection error: " << hres.symmetric_rms_px << " px\n";
+    spdlog::info("Mean reprojection error: {:.10f} px", hres.symmetric_rms_px);
 }

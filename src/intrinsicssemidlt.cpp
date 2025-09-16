@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <numeric>
 #include <optional>
+#include <spdlog/spdlog.h>
 
 // ceres
 #include <ceres/ceres.h>
@@ -158,7 +159,7 @@ IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> optimize_intrinsics_s
     const size_t total_obs = count_total_observations(views);
     const size_t num_views = views.size();
     if (num_views < 4) {
-        std::cerr << "Insufficient views for calibration (at least 4 required)." << '\n';
+        spdlog::error("Insufficient views for calibration (at least 4 required).");
         return result;
     }
 

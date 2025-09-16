@@ -2,6 +2,8 @@
 
 #include "calib/bundle.h"
 
+#include <spdlog/spdlog.h>
+#include <spdlog/fmt/ostr.h>
 #include "utils.h"
 
 using namespace calib;
@@ -253,7 +255,7 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
     opts.optimize_hand_eye = true;
 
     auto res = optimize_bundle<Camera<BrownConradyd>>(observations, cams, {init_g_se3_c}, b_se3_t, opts);
-    std::cout << res.report << std::endl;
+    spdlog::info("{}", res.report);
 
     EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c.translation()).norm(),1e-3);
     Eigen::AngleAxisd diff(res.g_se3_c[0].linear()*g_se3_c.linear().transpose());
@@ -330,10 +332,10 @@ TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
 
     auto res = optimize_bundle<Camera<BrownConradyd>>(observations, cams, {init_g_se3_c0, init_g_se3_c1}, b_se3_t, opts);
 
-    std::cout << "True g_se3_c0 translation: " << g_se3_c0.translation().transpose() << std::endl;
-    std::cout << "Result g_se3_c0 translation: " << res.g_se3_c[0].translation().transpose() << std::endl;
-    std::cout << "True g_se3_c1 translation: " << g_se3_c1.translation().transpose() << std::endl;
-    std::cout << "Result g_se3_c1 translation: " << res.g_se3_c[1].translation().transpose() << std::endl;
+    spdlog::info("True g_se3_c0 translation: {}", g_se3_c0.translation().transpose());
+    spdlog::info("Result g_se3_c0 translation: {}", res.g_se3_c[0].translation().transpose());
+    spdlog::info("True g_se3_c1 translation: {}", g_se3_c1.translation().transpose());
+    spdlog::info("Result g_se3_c1 translation: {}", res.g_se3_c[1].translation().transpose());
 
     EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c0.translation()).norm(),1e-3);
     Eigen::AngleAxisd diff(res.g_se3_c[0].linear() * g_se3_c0.linear().transpose());

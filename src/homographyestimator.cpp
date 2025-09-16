@@ -7,6 +7,7 @@
 #include <random>
 #include <span>
 #include <vector>
+#include <spdlog/spdlog.h>
 
 #include "calib/homography.h"  // for estimate_homography
 
@@ -98,7 +99,7 @@ using Datum = HomographyEstimator::Datum;
 auto HomographyEstimator::fit(const std::vector<Datum>& data,
                               std::span<const int> sample) -> std::optional<Model> {
     if (sample.size() < k_min_samples) {
-        std::cout << "HomographyEstimator::fit: sample too small\n";
+        spdlog::warn("HomographyEstimator::fit: sample too small");
         return std::nullopt;
     }
     std::vector<Eigen::Vector2d> src;
@@ -111,7 +112,7 @@ auto HomographyEstimator::fit(const std::vector<Datum>& data,
     }
     Eigen::Matrix3d hmtx = normalize_and_estimate_homography(src, dst);
     if (!std::isfinite(hmtx(0, 0))) {
-        std::cout << "HomographyEstimator::fit: non-finite homography\n";
+        spdlog::warn("HomographyEstimator::fit: non-finite homography");
         return std::nullopt;
     }
     return hmtx;

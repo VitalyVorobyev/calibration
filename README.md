@@ -26,6 +26,7 @@ A C++ library for camera calibration and vision-related geometric transformation
 - CLI11: Command-line argument parsing
 - GoogleTest & GoogleMock: Unit testing frameworks
 - Boost.PFR: Header-only reflection for aggregates
+- spdlog: Logging and formatting (bundled fmt)
 
 ## Build
 
@@ -37,14 +38,14 @@ Install the build dependencies using your system package manager.
 
 ```bash
 sudo apt update
-sudo apt install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev cli11
+sudo apt install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev cli11 libspdlog-dev
 ```
 
 #### macOS
 
 ```bash
 brew update
-brew install cmake ninja eigen ceres-solver nlohmann-json googletest boost cli11
+brew install cmake ninja eigen ceres-solver nlohmann-json googletest boost cli11 spdlog
 ```
 
 Configure and build:
@@ -73,7 +74,7 @@ Install dependencies with [vcpkg](https://github.com/microsoft/vcpkg):
 ```powershell
 git clone https://github.com/microsoft/vcpkg $env:USERPROFILE\vcpkg
 & $env:USERPROFILE\vcpkg\bootstrap-vcpkg.bat
-& $env:USERPROFILE\vcpkg\vcpkg.exe install ceres eigen3 nlohmann-json gtest boost-pfr cli11 --triplet x64-windows
+& $env:USERPROFILE\vcpkg\vcpkg.exe install ceres eigen3 nlohmann-json gtest boost-pfr cli11 spdlog --triplet x64-windows
 ```
 
 Configure and build:

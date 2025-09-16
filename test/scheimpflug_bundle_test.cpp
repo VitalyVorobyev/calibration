@@ -8,6 +8,8 @@
 #include "calib/scheimpflug.h"
 #include "utils.h"
 
+#include <spdlog/spdlog.h>
+
 using namespace calib;
 
 TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
@@ -43,7 +45,7 @@ TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
     opts.verbose = false;
 
     auto res = optimize_bundle(obs, std::vector<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>{sc}, {init_g_se3_c}, b_se3_t, opts);
-    std::cout << res.report << std::endl;
+    spdlog::info("{}", res.report);
 
     EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c.translation()).norm(), 1e-6);
     Eigen::AngleAxisd diff(res.g_se3_c[0].linear()*g_se3_c.linear().transpose());

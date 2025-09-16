@@ -2,7 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <iostream>
+#include <spdlog/spdlog.h>
 #include <limits>
 #include <numeric>  // for std::iota
 #include <optional>
@@ -60,7 +60,7 @@ concept HasDegeneracyCheck =
 
 inline auto rms(const std::vector<double>& vals) -> double {
     if (vals.empty()) {
-        std::cout << "Warning: RMS of empty set\n";
+        spdlog::warn("RMS of empty set");
         return std::numeric_limits<double>::infinity();
     }
     double ss = std::accumulate(vals.begin(), vals.end(), 0.0,
@@ -72,7 +72,7 @@ inline auto rms(const std::vector<double>& vals) -> double {
 template <typename RNG>
 inline void sample_k_unique(size_t k, size_t size, RNG& rng, std::vector<int>& out) {
     if (k > size) {
-        std::cerr << "Warning: sample_k_unique called with k > size\n";
+        spdlog::warn("sample_k_unique called with k > size");
         k = size;
     }
 
