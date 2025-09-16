@@ -152,15 +152,14 @@ jobs:
           lcov --remove coverage.info '*/build/_deps/*' --output-file coverage.info --ignore-errors negative,gcov,mismatch,unused
           lcov --list coverage.info
 
-      - name: Upload coverage to Codecov (v5 + OIDC, explicit slug)
+      - name: Upload coverage to Codecov (v5 + OIDC)
         uses: codecov/codecov-action@v5
         with:
           use_oidc: true
           files: ./coverage.info
           flags: unittests
-          slug: VitalyVorobyev/calibration   # ← avoids the ::::: path bug
-          fail_ci_if_error: false  # Don't fail CI if CodeCov has server issues
+          slug: VitalyVorobyev/calibration
+          fail_ci_if_error: false
           verbose: true
-          # Stabilizers for 5xx errors from CodeCov ingest service:
-          use_legacy_upload_endpoint: true
-          version: v0.7.3
+          # use_legacy_upload_endpoint: true   # keep only if you truly need the legacy endpoint
+          # version: v10.5.1                   # optional; or omit to use 'latest'
