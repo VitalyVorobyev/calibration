@@ -12,6 +12,8 @@
 #include "calib/distortion.h"
 #include "calib/homography.h"
 #include "calib/planarpose.h"
+#include "calib/ransac.h"
+#include "planeestimator.h"
 
 namespace calib {
 
@@ -133,6 +135,25 @@ static Eigen::Vector4d fit_plane(const std::vector<Vec3>& points, std::string& s
     return {params[0] / nrm, params[1] / nrm, params[2] / nrm, params[3] / nrm};
 }
 
+// Robust plane fit using RANSAC followed by non-linear refinement
+static Eigen::Vector4d fit_plane_ransac(const std::vector<Vec3>& points, const RansacOptions& opts,
+                                        std::vector<Vec3>& inlier_pts, std::string& summary) {
+    auto rres = ransac<PlaneEstimator>(points, opts);
+    if (!rres.success) {
+        throw std::runtime_error("Plane RANSAC failed");
+    }
+    inlier_pts.clear();
+    inlier_pts.reserve(rres.inliers.size());
+    for (int idx : rres.inliers) {
+        inlier_pts.push_back(points[static_cast<size_t>(idx)]);
+    }
+
+    Eigen::Vector4d plane = fit_plane(inlier_pts, summary);
+    summary = "RANSAC inliers: " + std::to_string(rres.inliers.size()) + "/" +
+              std::to_string(points.size()) + "; " + summary;
+    return plane;
+}
+
 // Computes statistics for the fitted plane
 static void compute_plane_statistics(const std::vector<Vec3>& points, const Eigen::Vector4d& plane,
                                      LineScanCalibrationResult& result) {
@@ -190,7 +211,8 @@ static Mat3 build_plane_homography(const Eigen::Vector4d& plane) {
 }
 
 LineScanCalibrationResult calibrate_laser_plane(const std::vector<LineScanView>& views,
-                                                const PinholeCamera<DualDistortion>& camera) {
+                                                const PinholeCamera<DualDistortion>& camera,
+                                                std::optional<RansacOptions> ransac_opts) {
     // Validate input observations
     validate_observations(views);
 
@@ -203,11 +225,16 @@ LineScanCalibrationResult calibrate_laser_plane(const std::vector<LineScanView>&
         all_points.insert(all_points.end(), view_points.begin(), view_points.end());
     }
 
-    // Fit plane to all points
-    result.plane = fit_plane(all_points, result.summary);
+    std::vector<Vec3> used_points = all_points;
+    if (ransac_opts.has_value()) {
+        result.plane =
+            fit_plane_ransac(all_points, ransac_opts.value(), used_points, result.summary);
+    } else {
+        result.plane = fit_plane(all_points, result.summary);
+    }
 
     // Compute statistics
-    compute_plane_statistics(all_points, result.plane, result);
+    compute_plane_statistics(used_points, result.plane, result);
 
     // Build homography
     result.homography = build_plane_homography(result.plane);

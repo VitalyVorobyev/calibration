@@ -10,6 +10,7 @@
 
 #include "calib/pinhole.h"
 #include "calib/planarpose.h"
+#include "calib/ransac.h"
 
 namespace calib {
 
@@ -41,7 +42,8 @@ struct LineScanCalibrationResult final {
  * ||n|| = 1.
  */
 auto calibrate_laser_plane(const std::vector<LineScanView>& views,
-                           const PinholeCamera<DualDistortion>& camera)
+                           const PinholeCamera<DualDistortion>& camera,
+                           std::optional<RansacOptions> ransac_opts = std::nullopt)
     -> LineScanCalibrationResult;
 
 }  // namespace calib
