@@ -4,8 +4,7 @@
 #include <algorithm>
 #include <numeric>
 #include <optional>
-#include <stdexcept>
-#include <unordered_set>
+#include <span>
 
 // ceres
 #include <ceres/ceres.h>
@@ -20,140 +19,6 @@ namespace calib {
 static size_t count_total_observations(const std::vector<PlanarView>& views) {
     return std::accumulate(views.begin(), views.end(), size_t{0},
                            [](size_t total, const auto& view) { return total + view.size(); });
-}
-
-static auto build_distortion_system(const std::vector<Observation<double>>& observations,
-                                    const CameraMatrix& intrinsics, int num_radial)
-    -> std::pair<Eigen::MatrixXd, Eigen::VectorXd> {
-    const int num_coeffs = num_radial + 2;
-    const int num_obs = static_cast<int>(observations.size());
-    const int num_rows = num_obs * 2;
-
-    Eigen::MatrixXd design_matrix = Eigen::MatrixXd::Zero(num_rows, num_coeffs);
-    Eigen::VectorXd rhs = Eigen::VectorXd::Zero(num_rows);
-
-    const int idx_p1 = num_radial;
-    const int idx_p2 = num_radial + 1;
-
-    for (int obs_idx = 0; obs_idx < num_obs; ++obs_idx) {
-        const double x_coord = observations[obs_idx].x;
-        const double y_coord = observations[obs_idx].y;
-        const double r2_val = x_coord * x_coord + y_coord * y_coord;
-
-        const double undistorted_u =
-            intrinsics.fx * x_coord + intrinsics.skew * y_coord + intrinsics.cx;
-        const double undistorted_v = intrinsics.fy * y_coord + intrinsics.cy;
-
-        const double residual_u = observations[obs_idx].u - undistorted_u;
-        const double residual_v = observations[obs_idx].v - undistorted_v;
-
-        const int row_u = 2 * obs_idx;
-        const int row_v = row_u + 1;
-
-        double rpow = r2_val;
-        for (int j = 0; j < num_radial; ++j) {
-            design_matrix(row_u, j) =
-                intrinsics.fx * x_coord * rpow + intrinsics.skew * y_coord * rpow;
-            design_matrix(row_v, j) = intrinsics.fy * y_coord * rpow;
-            rpow *= r2_val;
-        }
-
-        design_matrix(row_u, idx_p1) = intrinsics.fx * (2.0 * x_coord * y_coord) +
-                                       intrinsics.skew * (r2_val + 2.0 * y_coord * y_coord);
-        design_matrix(row_u, idx_p2) = intrinsics.fx * (r2_val + 2.0 * x_coord * x_coord) +
-                                       intrinsics.skew * (2.0 * x_coord * y_coord);
-        design_matrix(row_v, idx_p1) = intrinsics.fy * (r2_val + 2.0 * y_coord * y_coord);
-        design_matrix(row_v, idx_p2) = intrinsics.fy * (2.0 * x_coord * y_coord);
-
-        rhs(row_u) = residual_u;
-        rhs(row_v) = residual_v;
-    }
-
-    return {std::move(design_matrix), std::move(rhs)};
-}
-
-static auto solve_distortion(const std::vector<Observation<double>>& observations,
-                             const CameraMatrix& intrinsics, const IntrinsicsOptions& opts)
-    -> std::optional<DistortionWithResiduals<double>> {
-    constexpr int k_min_observations = 8;
-    if (static_cast<int>(observations.size()) < k_min_observations) {
-        return std::nullopt;
-    }
-
-    const int num_coeffs = opts.num_radial + 2;
-    auto [design_matrix, rhs] = build_distortion_system(observations, intrinsics, opts.num_radial);
-
-    if (opts.fixed_distortion_indices.empty()) {
-        Eigen::JacobiSVD<Eigen::MatrixXd> svd(design_matrix,
-                                              Eigen::ComputeThinU | Eigen::ComputeThinV);
-        Eigen::VectorXd alpha = svd.solve(rhs);
-        Eigen::VectorXd residuals = design_matrix * alpha - rhs;
-        return DistortionWithResiduals<double>{std::move(alpha), std::move(residuals)};
-    }
-
-    std::vector<std::pair<int, double>> fixed_pairs;
-    fixed_pairs.reserve(opts.fixed_distortion_indices.size());
-    for (size_t i = 0; i < opts.fixed_distortion_indices.size(); ++i) {
-        int idx = opts.fixed_distortion_indices[i];
-        double value = 0.0;
-        if (i < opts.fixed_distortion_values.size()) {
-            value = opts.fixed_distortion_values[i];
-        }
-        fixed_pairs.emplace_back(idx, value);
-    }
-    std::sort(fixed_pairs.begin(), fixed_pairs.end(),
-              [](const auto& a, const auto& b) { return a.first < b.first; });
-    fixed_pairs.erase(std::unique(fixed_pairs.begin(), fixed_pairs.end(),
-                                  [](const auto& a, const auto& b) { return a.first == b.first; }),
-                      fixed_pairs.end());
-
-    std::vector<int> fixed_indices_only;
-    fixed_indices_only.reserve(fixed_pairs.size());
-    for (const auto& [idx, _] : fixed_pairs) {
-        fixed_indices_only.push_back(idx);
-    }
-
-    Eigen::VectorXd coeffs = Eigen::VectorXd::Zero(num_coeffs);
-    for (const auto& [idx, value] : fixed_pairs) {
-        if (idx < 0 || idx >= num_coeffs) {
-            throw std::invalid_argument("Fixed distortion index out of range");
-        }
-        coeffs(idx) = value;
-    }
-
-    Eigen::VectorXd rhs_adjusted = rhs;
-    for (const auto& [idx, value] : fixed_pairs) {
-        rhs_adjusted -= design_matrix.col(idx) * value;
-    }
-
-    std::vector<int> free_indices;
-    free_indices.reserve(num_coeffs - static_cast<int>(fixed_pairs.size()));
-    for (int idx = 0; idx < num_coeffs; ++idx) {
-        if (!std::binary_search(fixed_indices_only.begin(), fixed_indices_only.end(), idx)) {
-            free_indices.push_back(idx);
-        }
-    }
-
-    Eigen::VectorXd residuals;
-    if (free_indices.empty()) {
-        residuals = design_matrix * coeffs - rhs;
-        return DistortionWithResiduals<double>{std::move(coeffs), std::move(residuals)};
-    }
-
-    Eigen::MatrixXd free_design(design_matrix.rows(), static_cast<int>(free_indices.size()));
-    for (int col = 0; col < static_cast<int>(free_indices.size()); ++col) {
-        free_design.col(col) = design_matrix.col(free_indices[col]);
-    }
-
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(free_design, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    Eigen::VectorXd free_alpha = svd.solve(rhs_adjusted);
-
-    for (int col = 0; col < static_cast<int>(free_indices.size()); ++col) {
-        coeffs(free_indices[col]) = free_alpha(col);
-    }
-
-    residuals = design_matrix * coeffs - rhs;
-    return DistortionWithResiduals<double>{std::move(coeffs), std::move(residuals)};
 }
 
 struct IntrinsicBlocks final : public ProblemParamBlocks {
@@ -221,7 +86,9 @@ static auto solve_full(const std::vector<PlanarView>& views, const IntrinsicBloc
     }
     CameraMatrix kmtx{blocks.intrinsics[0], blocks.intrinsics[1], blocks.intrinsics[2],
                       blocks.intrinsics[3], blocks.intrinsics[4]};
-    return solve_distortion(obs, kmtx, opts);
+    return fit_distortion_full(obs, kmtx, opts.num_radial,
+                               std::span<const int>(opts.fixed_distortion_indices),
+                               std::span<const double>(opts.fixed_distortion_values));
 }
 
 // Set up the Ceres optimization problem

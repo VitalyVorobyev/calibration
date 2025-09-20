@@ -14,8 +14,10 @@
       "huber_delta": 2.0,
       "max_iterations": 200,
       "epsilon": 1e-9,
-      "point_scale": 10.0,
-      "auto_center_points": true,
+      "point_scale": 1.0,
+      "auto_center_points": false,
+      "fixed_distortion_indices": [],
+      "fixed_distortion_values": [],
       "homography_ransac": {
         "max_iters": 4000,
         "thresh": 1.0,

@@ -13,8 +13,11 @@
 #pragma once
 
 // std
+#include <algorithm>
 #include <concepts>
 #include <optional>
+#include <span>
+#include <stdexcept>
 #include <vector>
 
 // eigen
@@ -225,7 +228,9 @@ struct DualDistortionWithResiduals final {
 template <typename T>
 [[nodiscard]]
 auto fit_distortion_full(const std::vector<Observation<T>>& observations,
-                         const CameraMatrixT<T>& intrinsics, int num_radial = 2)
+                         const CameraMatrixT<T>& intrinsics, int num_radial = 2,
+                         std::span<const int> fixed_indices = {},
+                         std::span<const T> fixed_values = {})
     -> std::optional<DistortionWithResiduals<T>> {
     constexpr int k_min_observations = 8;
     if (observations.size() < k_min_observations) {
@@ -280,25 +285,97 @@ auto fit_distortion_full(const std::vector<Observation<T>>& observations,
         rhs(row_v) = residual_v;
     }
 
-    Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(
-        design_matrix, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    auto alpha = svd.solve(rhs);
-    Eigen::Matrix<T, Eigen::Dynamic, 1> residuals = design_matrix * alpha - rhs;
+    if (fixed_indices.empty()) {
+        Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(
+            design_matrix, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        auto alpha = svd.solve(rhs);
+        Eigen::Matrix<T, Eigen::Dynamic, 1> residuals = design_matrix * alpha - rhs;
+        return DistortionWithResiduals<T>{alpha, residuals};
+    }
 
-    return DistortionWithResiduals<T>{alpha, residuals};
+    std::vector<std::pair<int, T>> fixed_pairs;
+    fixed_pairs.reserve(fixed_indices.size());
+    for (size_t i = 0; i < fixed_indices.size(); ++i) {
+        int idx = fixed_indices[i];
+        T value = T(0);
+        if (i < fixed_values.size()) {
+            value = fixed_values[i];
+        }
+        fixed_pairs.emplace_back(idx, value);
+    }
+    std::sort(fixed_pairs.begin(), fixed_pairs.end(),
+              [](const auto& a, const auto& b) { return a.first < b.first; });
+    fixed_pairs.erase(std::unique(fixed_pairs.begin(), fixed_pairs.end(),
+                                  [](const auto& a, const auto& b) { return a.first == b.first; }),
+                      fixed_pairs.end());
+
+    std::vector<int> fixed_only;
+    fixed_only.reserve(fixed_pairs.size());
+    for (const auto& [idx, value] : fixed_pairs) {
+        if (idx < 0 || idx >= num_coeffs) {
+            throw std::invalid_argument("Fixed distortion index out of range");
+        }
+        fixed_only.push_back(idx);
+    }
+
+    Eigen::Matrix<T, Eigen::Dynamic, 1> alpha =
+        Eigen::Matrix<T, Eigen::Dynamic, 1>::Zero(num_coeffs);
+    for (const auto& [idx, value] : fixed_pairs) {
+        alpha(idx) = value;
+    }
+
+    Eigen::Matrix<T, Eigen::Dynamic, 1> rhs_adjusted = rhs;
+    for (const auto& [idx, value] : fixed_pairs) {
+        rhs_adjusted -= design_matrix.col(idx) * value;
+    }
+
+    std::vector<int> free_indices;
+    free_indices.reserve(num_coeffs - static_cast<int>(fixed_pairs.size()));
+    for (int idx = 0; idx < num_coeffs; ++idx) {
+        if (!std::binary_search(fixed_only.begin(), fixed_only.end(), idx)) {
+            free_indices.push_back(idx);
+        }
+    }
+
+    Eigen::Matrix<T, Eigen::Dynamic, 1> residuals;
+    if (free_indices.empty()) {
+        residuals = design_matrix * alpha - rhs;
+        return DistortionWithResiduals<T>{alpha, residuals};
+    }
+
+    Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic> free_design(
+        design_matrix.rows(), static_cast<int>(free_indices.size()));
+    for (int col = 0; col < static_cast<int>(free_indices.size()); ++col) {
+        free_design.col(col) = design_matrix.col(free_indices[col]);
+    }
+
+    Eigen::JacobiSVD<Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic>> svd(
+        free_design, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    Eigen::Matrix<T, Eigen::Dynamic, 1> free_alpha = svd.solve(rhs_adjusted);
+
+    for (int col = 0; col < static_cast<int>(free_indices.size()); ++col) {
+        alpha(free_indices[col]) = free_alpha(col);
+    }
+
+    residuals = design_matrix * alpha - rhs;
+    return DistortionWithResiduals<T>{std::move(alpha), std::move(residuals)};
 }
 
 template <typename T>
 auto fit_distortion(const std::vector<Observation<T>>& observations,
-                    const CameraMatrixT<T>& intrinsics, int num_radial = 2)
+                    const CameraMatrixT<T>& intrinsics, int num_radial = 2,
+                    std::span<const int> fixed_indices = {}, std::span<const T> fixed_values = {})
     -> std::optional<DistortionWithResiduals<T>> {
-    return fit_distortion_full(observations, intrinsics, num_radial);
+    return fit_distortion_full(observations, intrinsics, num_radial, fixed_indices, fixed_values);
 }
 
 inline auto fit_distortion_dual(const std::vector<Observation<double>>& observations,
-                                const CameraMatrix& intrinsics, int num_radial = 2)
+                                const CameraMatrix& intrinsics, int num_radial = 2,
+                                std::span<const int> fixed_indices = {},
+                                std::span<const double> fixed_values = {})
     -> std::optional<DualDistortionWithResiduals> {
-    auto forward = fit_distortion_full(observations, intrinsics, num_radial);
+    auto forward =
+        fit_distortion_full(observations, intrinsics, num_radial, fixed_indices, fixed_values);
     if (!forward) {
         return std::nullopt;
     }
@@ -313,7 +390,8 @@ inline auto fit_distortion_dual(const std::vector<Observation<double>>& observat
         inv_observations.push_back({x_dist, y_dist, u_undist, v_undist});
     }
 
-    auto inverse = fit_distortion_full(inv_observations, intrinsics, num_radial);
+    auto inverse =
+        fit_distortion_full(inv_observations, intrinsics, num_radial, fixed_indices, fixed_values);
     if (!inverse) {
         return std::nullopt;
     }
