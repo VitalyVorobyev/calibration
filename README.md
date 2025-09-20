@@ -152,6 +152,9 @@ The sample config highlights the most relevant knobs:
   `point_center` to override the automatically detected midpoint.
 - `homography_ransac` mirrors the options exposed by the library for robust
   homography estimation.
+- `fixed_distortion_indices`/`fixed_distortion_values` let you freeze individual
+  Brown-Conrady coefficients (indexed as `[k1, k2, k3, p1, p2]`) when you want
+  to assume zero distortion or keep prior values.
 
 The detections file consumed by `--features` is validated against
 `examples/charuco_features_schema.json` and captures:

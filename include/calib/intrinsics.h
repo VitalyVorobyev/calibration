@@ -15,6 +15,7 @@
 
 // std
 #include <optional>
+#include <vector>
 
 // eigen
 #include <Eigen/Core>
@@ -124,6 +125,8 @@ struct IntrinsicsOptions final : public OptimOptions {
     int num_radial = 2;          ///< Number of radial distortion coefficients
     bool optimize_skew = false;  ///< Estimate skew parameter
     std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Parameter bounds
+    std::vector<int> fixed_distortion_indices;    ///< Indices of distortion coeffs to keep fixed
+    std::vector<double> fixed_distortion_values;  ///< Values to assign to fixed coefficients
 };
 
 template <camera_model CameraT>

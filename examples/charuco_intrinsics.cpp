@@ -81,6 +81,8 @@ struct IntrinsicsExampleOptions {
     double point_scale = 1.0;
     bool auto_center = true;
     std::optional<std::array<double, 2>> point_center_override;
+    std::vector<int> fixed_distortion_indices;
+    std::vector<double> fixed_distortion_values;
     std::optional<HomographyRansacConfig> homography_ransac;
 };
 
@@ -166,6 +168,26 @@ struct ActiveView {
         cfg.options.point_center_override =
             std::array<double, 2>{arr[0].get<double>(), arr[1].get<double>()};
         cfg.options.auto_center = false;
+    }
+    if (opts_json.contains("fixed_distortion_indices")) {
+        const auto& arr = opts_json.at("fixed_distortion_indices");
+        if (!arr.is_array()) {
+            throw std::runtime_error("options.fixed_distortion_indices must be an array.");
+        }
+        cfg.options.fixed_distortion_indices.clear();
+        for (const auto& v : arr) {
+            cfg.options.fixed_distortion_indices.push_back(v.get<int>());
+        }
+    }
+    if (opts_json.contains("fixed_distortion_values")) {
+        const auto& arr = opts_json.at("fixed_distortion_values");
+        if (!arr.is_array()) {
+            throw std::runtime_error("options.fixed_distortion_values must be an array.");
+        }
+        cfg.options.fixed_distortion_values.clear();
+        for (const auto& v : arr) {
+            cfg.options.fixed_distortion_values.push_back(v.get<double>());
+        }
     }
 
     if (opts_json.contains("homography_ransac")) {
@@ -420,6 +442,8 @@ struct CalibrationOutputs final {
     refine_opts.epsilon = config.options.epsilon;
     refine_opts.verbose = config.options.verbose;
     refine_opts.bounds = bounds;
+    refine_opts.fixed_distortion_indices = config.options.fixed_distortion_indices;
+    refine_opts.fixed_distortion_values = config.options.fixed_distortion_values;
 
     IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> refine;
     if (config.options.refine) {
@@ -503,6 +527,12 @@ struct CalibrationOutputs final {
     if (cfg.options.point_center_override.has_value()) {
         const auto& center = cfg.options.point_center_override.value();
         options_json["point_center"] = {center[0], center[1]};
+    }
+    if (!cfg.options.fixed_distortion_indices.empty()) {
+        options_json["fixed_distortion_indices"] = cfg.options.fixed_distortion_indices;
+        if (!cfg.options.fixed_distortion_values.empty()) {
+            options_json["fixed_distortion_values"] = cfg.options.fixed_distortion_values;
+        }
     }
     if (cfg.options.homography_ransac.has_value()) {
         const auto& r = *cfg.options.homography_ransac;
