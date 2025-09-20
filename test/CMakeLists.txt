@@ -81,3 +81,8 @@ add_executable(charuco_intrinsics_test charuco_intrinsics_test.cpp)
 target_link_libraries(charuco_intrinsics_test PRIVATE calibration GTest::gtest_main
                                                      GTest::gmock_main)
 gtest_discover_tests(charuco_intrinsics_test)
+
+add_executable(stream_capture_test stream_capture_test.cpp)
+target_link_libraries(stream_capture_test PRIVATE calibration GTest::gtest_main
+                                                     GTest::gmock_main)
+gtest_discover_tests(stream_capture_test)

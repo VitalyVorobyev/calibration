@@ -4,6 +4,7 @@
 #include <array>
 #include <filesystem>
 #include <optional>
+#include <ostream>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -31,7 +32,7 @@ struct HomographyRansacConfig {
     double confidence = 0.99;
 };
 
-struct IntrinsicsExampleOptions {
+struct IntrinsicCalibrationOptions {
     std::size_t min_corners_per_view = 80;
     bool refine = true;
     bool optimize_skew = false;
@@ -54,10 +55,10 @@ struct CameraConfig {
     std::optional<std::array<int, 2>> image_size;
 };
 
-struct ExampleConfig {
+struct CharucoCalibrationConfig {
     SessionConfig session;
     std::string algorithm = "charuco_planar";
-    IntrinsicsExampleOptions options;
+    IntrinsicCalibrationOptions options;
     std::vector<CameraConfig> cameras;
 };
 
@@ -108,11 +109,11 @@ struct CalibrationOutputs final {
 [[nodiscard]] auto count_occurrences(std::string_view text, std::string_view needle) -> std::size_t;
 
 [[nodiscard]] auto determine_point_center(const CharucoDetections& detections,
-                                          const IntrinsicsExampleOptions& opts)
+                                          const IntrinsicCalibrationOptions& opts)
     -> std::array<double, 2>;
 
 [[nodiscard]] auto collect_planar_views(const CharucoDetections& detections,
-                                        const IntrinsicsExampleOptions& opts,
+                                        const IntrinsicCalibrationOptions& opts,
                                         const std::array<double, 2>& point_center,
                                         std::vector<ActiveView>& views) -> std::vector<PlanarView>;
 
@@ -124,9 +125,25 @@ struct CalibrationOutputs final {
 
 [[nodiscard]] auto compute_global_rms(const CalibrationOutputs& out) -> double;
 
-[[nodiscard]] auto build_output_json(const ExampleConfig& cfg, const CameraConfig& cam_cfg,
+[[nodiscard]] auto build_output_json(const CharucoCalibrationConfig& cfg,
+                                     const CameraConfig& cam_cfg,
                                      const CharucoDetections& detections,
                                      const CalibrationOutputs& outputs,
                                      const std::filesystem::path& features_path) -> nlohmann::json;
+
+struct CalibrationRunResult {
+    CalibrationOutputs outputs;
+    nlohmann::json report;
+};
+
+class CharucoIntrinsicCalibrationFacade {
+  public:
+    auto calibrate(const CharucoCalibrationConfig& cfg, const CameraConfig& cam_cfg,
+                   const CharucoDetections& detections,
+                   const std::filesystem::path& features_path) const -> CalibrationRunResult;
+};
+
+void print_calibration_summary(std::ostream& out, const CameraConfig& cam_cfg,
+                               const CalibrationOutputs& outputs);
 
 }  // namespace calib::charuco

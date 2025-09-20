@@ -7,13 +7,14 @@
 #include <vector>
 
 #include "calib/charuco_intrinsics_utils.h"
+#include "utils.h"
 
 using namespace calib;
 using namespace calib::charuco;
 
 TEST(CharucoIntrinsicsUtils, DeterminePointCenterOverrideWins) {
     CharucoDetections detections;
-    IntrinsicsExampleOptions opts;
+    IntrinsicCalibrationOptions opts;
     opts.auto_center = false;
     opts.point_center_override = std::array<double, 2>{10.0, -5.0};
 
@@ -29,7 +30,7 @@ TEST(CharucoIntrinsicsUtils, DeterminePointCenterAutoFromPoints) {
     img.points.push_back(CharucoPoint{.local_x = 4.0, .local_y = -3.0});
     detections.images.push_back(img);
 
-    IntrinsicsExampleOptions opts;
+    IntrinsicCalibrationOptions opts;
     opts.auto_center = true;
     opts.point_scale = 1.0;
 
@@ -51,7 +52,7 @@ TEST(CharucoIntrinsicsUtils, CollectPlanarViewsRespectsThresholdAndScaling) {
                        CharucoPoint{.x = 55.0, .y = 70.0, .local_x = 0.5, .local_y = 0.5}};
     detections.images = {accepted, rejected};
 
-    IntrinsicsExampleOptions opts;
+    IntrinsicCalibrationOptions opts;
     opts.min_corners_per_view = 3;
     opts.point_scale = 2.0;
 
@@ -75,7 +76,7 @@ TEST(CharucoIntrinsicsUtils, CollectPlanarViewsRespectsThresholdAndScaling) {
 }
 
 TEST(CharucoIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
-    ExampleConfig cfg;
+    CharucoCalibrationConfig cfg;
     cfg.session.id = "session";
     cfg.session.description = "test";
     cfg.algorithm = "charuco_planar";
@@ -138,4 +139,83 @@ TEST(CharucoIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
     const auto& result = camera_json.at("result");
     ASSERT_TRUE(result.contains("distortion"));
     EXPECT_EQ(result.at("distortion").at("coefficients").size(), 5);
+}
+
+TEST(CharucoIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
+    RNG rng(7);
+
+    Camera<BrownConradyd> cam_gt;
+    cam_gt.kmtx.fx = 900.0;
+    cam_gt.kmtx.fy = 880.0;
+    cam_gt.kmtx.cx = 640.0;
+    cam_gt.kmtx.cy = 360.0;
+    cam_gt.kmtx.skew = 0.0;
+    cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
+
+    Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
+    Eigen::Isometry3d b_se3_t = Eigen::Translation3d(0.0, 0.0, 2.0) * Eigen::Isometry3d::Identity();
+
+    SimulatedHandEye sim{g_se3_c, b_se3_t, cam_gt};
+    sim.make_sequence(6, rng);
+    sim.make_target_grid(6, 9, 0.03);
+    sim.render_pixels();
+
+    CharucoDetections detections;
+    detections.feature_type = "charuco";
+    detections.image_directory = "synthetic";
+    detections.algo_version = "v1";
+    detections.params_hash = "hash";
+    detections.images.reserve(sim.observations.size());
+
+    for (std::size_t idx = 0; idx < sim.observations.size(); ++idx) {
+        const auto& observation = sim.observations[idx];
+        CharucoImageDetections image;
+        image.file = "view" + std::to_string(idx) + ".png";
+        image.points.reserve(observation.view.size());
+        image.count = static_cast<int>(observation.view.size());
+        for (std::size_t j = 0; j < observation.view.size(); ++j) {
+            const auto& ob = observation.view[j];
+            CharucoPoint pt;
+            pt.x = ob.image_uv.x();
+            pt.y = ob.image_uv.y();
+            pt.id = static_cast<int>(j);
+            pt.local_x = ob.object_xy.x();
+            pt.local_y = ob.object_xy.y();
+            pt.local_z = 0.0;
+            image.points.push_back(pt);
+        }
+        detections.images.push_back(std::move(image));
+    }
+
+    CharucoCalibrationConfig cfg;
+    cfg.session.id = "session";
+    cfg.session.description = "synthetic";
+    cfg.algorithm = "charuco_planar";
+    cfg.options.min_corners_per_view = 20;
+    cfg.options.refine = true;
+    cfg.options.point_scale = 1.0;
+    cfg.options.auto_center = true;
+
+    CameraConfig cam_cfg;
+    cam_cfg.camera_id = "cam0";
+    cam_cfg.model = "pinhole_brown_conrady";
+    cam_cfg.image_size = std::array<int, 2>{1280, 720};
+    cfg.cameras = {cam_cfg};
+
+    CharucoIntrinsicCalibrationFacade facade;
+    auto result =
+        facade.calibrate(cfg, cam_cfg, detections, std::filesystem::path{"synthetic.json"});
+
+    EXPECT_TRUE(result.outputs.refine_result.success);
+    const auto& estimated = result.outputs.refine_result.camera.kmtx;
+    EXPECT_NEAR(estimated.fx, cam_gt.kmtx.fx, 5.0);
+    EXPECT_NEAR(estimated.fy, cam_gt.kmtx.fy, 5.0);
+    EXPECT_NEAR(estimated.cx, cam_gt.kmtx.cx, 5.0);
+    EXPECT_NEAR(estimated.cy, cam_gt.kmtx.cy, 5.0);
+
+    ASSERT_TRUE(result.report.contains("calibrations"));
+    const auto& cameras_json =
+        result.report.at("calibrations")[0].at("cameras")[0].at("initial_guess");
+    EXPECT_EQ(cameras_json.at("used_view_indices").size(),
+              result.outputs.linear_view_indices.size());
 }
