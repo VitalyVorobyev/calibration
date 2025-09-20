@@ -1,5 +1,9 @@
 #include <gtest/gtest.h>
 
+#include <limits>
+#include <optional>
+
+#include "calib/detail/intrinsics_utils.h"
 #include "calib/intrinsics.h"
 #include "utils.h"
 
@@ -75,4 +79,29 @@ TEST(EstimateIntrinsics, FailsWithTooFewViews) {
 
     auto res = estimate_intrinsics(views);
     EXPECT_FALSE(res.success);
+}
+
+TEST(SanitizeIntrinsics, ClampsValuesWithinBounds) {
+    CameraMatrix original{-50.0, std::numeric_limits<double>::infinity(), -100.0, 2000.0,
+                          std::numeric_limits<double>::quiet_NaN()};
+
+    CalibrationBounds bounds;
+    bounds.fx_min = 200.0;
+    bounds.fy_min = 150.0;
+    bounds.cx_min = 100.0;
+    bounds.cx_max = 200.0;
+    bounds.cy_min = 50.0;
+    bounds.cy_max = 75.0;
+    bounds.skew_min = -1.0;
+    bounds.skew_max = 1.0;
+
+    auto [adjusted, modified] =
+        calib::detail::sanitize_intrinsics(original, std::optional<CalibrationBounds>(bounds));
+
+    EXPECT_TRUE(modified);
+    EXPECT_DOUBLE_EQ(adjusted.fx, bounds.fx_min);
+    EXPECT_DOUBLE_EQ(adjusted.fy, bounds.fy_min);
+    EXPECT_DOUBLE_EQ(adjusted.cx, 150.0);
+    EXPECT_DOUBLE_EQ(adjusted.cy, 62.5);
+    EXPECT_DOUBLE_EQ(adjusted.skew, 0.0);
 }

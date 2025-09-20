@@ -76,3 +76,8 @@ add_executable(scheimpflug_bundle_test scheimpflug_bundle_test.cpp)
 target_link_libraries(scheimpflug_bundle_test
                       PRIVATE calibration GTest::gtest_main GTest::gmock_main)
 gtest_discover_tests(scheimpflug_bundle_test)
+
+add_executable(charuco_intrinsics_test charuco_intrinsics_test.cpp)
+target_link_libraries(charuco_intrinsics_test PRIVATE calibration GTest::gtest_main
+                                                     GTest::gmock_main)
+gtest_discover_tests(charuco_intrinsics_test)

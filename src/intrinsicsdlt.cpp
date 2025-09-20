@@ -1,3 +1,4 @@
+#include "calib/detail/intrinsics_utils.h"
 #include "calib/intrinsics.h"
 
 // std
@@ -43,8 +44,9 @@ static auto process_planar_view(const CameraMatrix& kmtx, const HomographyResult
     return ved;
 }
 
-static auto sanitize_intrinsics(const CameraMatrix& kmtx,
-                                const std::optional<CalibrationBounds>& bounds)
+namespace detail {
+
+auto sanitize_intrinsics(const CameraMatrix& kmtx, const std::optional<CalibrationBounds>& bounds)
     -> std::pair<CameraMatrix, bool> {
     if (!bounds.has_value()) {
         return {kmtx, false};
@@ -89,9 +91,10 @@ static auto sanitize_intrinsics(const CameraMatrix& kmtx,
         const double zero = 0.0;
         adjusted.skew = std::clamp(zero, skew_min, skew_max);
     }
-
     return {adjusted, modified};
 }
+
+}  // namespace detail
 
 auto estimate_intrinsics(const std::vector<PlanarView>& views,
                          const IntrinsicsEstimateOptions& opts) -> IntrinsicsEstimateResult {
@@ -114,7 +117,8 @@ auto estimate_intrinsics(const std::vector<PlanarView>& views,
     }
 
     // Set the estimated camera matrix
-    auto [sanitized_kmtx, modified] = sanitize_intrinsics(zhang_kmtx_opt.value(), opts.bounds);
+    auto [sanitized_kmtx, modified] =
+        detail::sanitize_intrinsics(zhang_kmtx_opt.value(), opts.bounds);
     result.kmtx = sanitized_kmtx;
     result.success = true;
 
