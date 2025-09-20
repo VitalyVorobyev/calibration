@@ -1,4 +1,4 @@
-#include "calib/charuco_intrinsics_utils.h"
+#include "calib/planar_intrinsics_utils.h"
 
 #include "calib/stream_capture.h"
 
@@ -7,13 +7,14 @@
 #include <chrono>
 #include <cmath>
 #include <ctime>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <limits>
 #include <sstream>
 #include <stdexcept>
 
-namespace calib::charuco {
+namespace calib::planar {
 
 namespace {
 
@@ -50,7 +51,7 @@ auto count_occurrences(std::string_view text, std::string_view needle) -> std::s
     return count;
 }
 
-auto determine_point_center(const CharucoDetections& detections,
+auto determine_point_center(const PlanarDetections& detections,
                             const IntrinsicCalibrationOptions& opts) -> std::array<double, 2> {
     if (opts.point_center_override.has_value()) {
         return opts.point_center_override.value();
@@ -79,7 +80,7 @@ auto determine_point_center(const CharucoDetections& detections,
     return {0.5 * (min_x + max_x), 0.5 * (min_y + max_y)};
 }
 
-auto collect_planar_views(const CharucoDetections& detections,
+auto collect_planar_views(const PlanarDetections& detections,
                           const IntrinsicCalibrationOptions& opts,
                           const std::array<double, 2>& point_center, std::vector<ActiveView>& views)
     -> std::vector<PlanarView> {
@@ -147,8 +148,8 @@ auto compute_global_rms(const CalibrationOutputs& out) -> double {
     return std::sqrt(sum_sq / static_cast<double>(total_measurements));
 }
 
-auto build_output_json(const CharucoCalibrationConfig& cfg, const CameraConfig& cam_cfg,
-                       const CharucoDetections& detections, const CalibrationOutputs& outputs,
+auto build_output_json(const PlanarCalibrationConfig& cfg, const CameraConfig& cam_cfg,
+                       const PlanarDetections& detections, const CalibrationOutputs& outputs,
                        const std::filesystem::path& features_path) -> nlohmann::json {
     nlohmann::json session_json{{"id", cfg.session.id},
                                 {"description", cfg.session.description},
@@ -238,10 +239,10 @@ auto build_output_json(const CharucoCalibrationConfig& cfg, const CameraConfig& 
                           {"calibrations", nlohmann::json::array({calibration_json})}};
 }
 
-auto CharucoIntrinsicCalibrationFacade::calibrate(const CharucoCalibrationConfig& cfg,
-                                                  const CameraConfig& cam_cfg,
-                                                  const CharucoDetections& detections,
-                                                  const std::filesystem::path& features_path) const
+auto PlanarIntrinsicCalibrationFacade::calibrate(const PlanarCalibrationConfig& cfg,
+                                                 const CameraConfig& cam_cfg,
+                                                 const PlanarDetections& detections,
+                                                 const std::filesystem::path& features_path) const
     -> CalibrationRunResult {
     CalibrationOutputs output;
     output.total_input_views = detections.images.size();
@@ -385,4 +386,145 @@ void print_calibration_summary(std::ostream& out, const CameraConfig& cam_cfg,
     out << "\n";
 }
 
-}  // namespace calib::charuco
+auto load_calibration_config(const std::filesystem::path& path) -> PlanarCalibrationConfig {
+    std::ifstream stream(path);
+    if (!stream) {
+        throw std::runtime_error("Failed to open config: " + path.string());
+    }
+
+    nlohmann::json json_cfg;
+    stream >> json_cfg;
+
+    PlanarCalibrationConfig cfg;
+    const auto& session = json_cfg.at("session");
+    cfg.session.id = session.value("id", "planar_session");
+    cfg.session.description = session.value("description", "");
+
+    const auto& calibration = json_cfg.at("calibration");
+    const auto type = calibration.value("type", "intrinsics");
+    if (type != "intrinsics") {
+        throw std::runtime_error("Planar calibration example only supports intrinsics, got: " +
+                                 type);
+    }
+    cfg.algorithm = calibration.value("algorithm", cfg.algorithm);
+
+    const auto& opts_json = calibration.value("options", nlohmann::json::object());
+    cfg.options.min_corners_per_view =
+        opts_json.value("min_corners_per_view", cfg.options.min_corners_per_view);
+    cfg.options.refine = opts_json.value("refine", cfg.options.refine);
+    cfg.options.optimize_skew = opts_json.value("optimize_skew", cfg.options.optimize_skew);
+    cfg.options.num_radial = opts_json.value("num_radial", cfg.options.num_radial);
+    cfg.options.huber_delta = opts_json.value("huber_delta", cfg.options.huber_delta);
+    cfg.options.max_iterations = opts_json.value("max_iterations", cfg.options.max_iterations);
+    cfg.options.epsilon = opts_json.value("epsilon", cfg.options.epsilon);
+    cfg.options.verbose = opts_json.value("verbose", cfg.options.verbose);
+    cfg.options.point_scale = opts_json.value("point_scale", cfg.options.point_scale);
+    cfg.options.auto_center = opts_json.value("auto_center_points", cfg.options.auto_center);
+    if (opts_json.contains("point_center")) {
+        const auto& arr = opts_json.at("point_center");
+        if (!arr.is_array() || arr.size() != 2) {
+            throw std::runtime_error("options.point_center must be an array [x, y].");
+        }
+        cfg.options.point_center_override =
+            std::array<double, 2>{arr[0].get<double>(), arr[1].get<double>()};
+        cfg.options.auto_center = false;
+    }
+    if (opts_json.contains("fixed_distortion_indices")) {
+        const auto& arr = opts_json.at("fixed_distortion_indices");
+        if (!arr.is_array()) {
+            throw std::runtime_error("options.fixed_distortion_indices must be an array.");
+        }
+        cfg.options.fixed_distortion_indices.clear();
+        for (const auto& v : arr) {
+            cfg.options.fixed_distortion_indices.push_back(v.get<int>());
+        }
+    }
+    if (opts_json.contains("fixed_distortion_values")) {
+        const auto& arr = opts_json.at("fixed_distortion_values");
+        if (!arr.is_array()) {
+            throw std::runtime_error("options.fixed_distortion_values must be an array.");
+        }
+        cfg.options.fixed_distortion_values.clear();
+        for (const auto& v : arr) {
+            cfg.options.fixed_distortion_values.push_back(v.get<double>());
+        }
+    }
+
+    if (opts_json.contains("homography_ransac")) {
+        const auto& r = opts_json.at("homography_ransac");
+        HomographyRansacConfig ransac_cfg;
+        ransac_cfg.max_iters = r.value("max_iters", ransac_cfg.max_iters);
+        ransac_cfg.thresh = r.value("thresh", ransac_cfg.thresh);
+        ransac_cfg.min_inliers = r.value("min_inliers", ransac_cfg.min_inliers);
+        ransac_cfg.confidence = r.value("confidence", ransac_cfg.confidence);
+        cfg.options.homography_ransac = ransac_cfg;
+    }
+
+    const auto& cameras_json = json_cfg.at("cameras");
+    if (!cameras_json.is_array() || cameras_json.empty()) {
+        throw std::runtime_error("Config must list at least one camera under 'cameras'.");
+    }
+
+    cfg.cameras.clear();
+    cfg.cameras.reserve(cameras_json.size());
+    for (const auto& cam_json : cameras_json) {
+        CameraConfig cam;
+        cam.camera_id = cam_json.at("camera_id").get<std::string>();
+        cam.model = cam_json.value("model", cam.model);
+        if (cam_json.contains("image_size")) {
+            const auto& arr = cam_json.at("image_size");
+            if (!arr.is_array() || arr.size() != 2) {
+                throw std::runtime_error("camera.image_size must be an array of [width, height].");
+            }
+            cam.image_size = std::array<int, 2>{arr[0].get<int>(), arr[1].get<int>()};
+        }
+        cfg.cameras.push_back(cam);
+    }
+
+    return cfg;
+}
+
+auto load_planar_observations(const std::filesystem::path& path) -> PlanarDetections {
+    std::ifstream stream(path);
+    if (!stream) {
+        throw std::runtime_error("Failed to open features JSON: " + path.string());
+    }
+
+    nlohmann::json json_data;
+    stream >> json_data;
+
+    PlanarDetections detections;
+    detections.image_directory = json_data.value("image_directory", "");
+    detections.feature_type = json_data.value("feature_type", "");
+    detections.algo_version = json_data.value("algo_version", "");
+    detections.params_hash = json_data.value("params_hash", "");
+
+    if (detections.feature_type.empty()) {
+        throw std::runtime_error("Feature file missing 'feature_type'.");
+    }
+
+    const auto& images_json = json_data.at("images");
+    detections.images.reserve(images_json.size());
+    for (const auto& img_json : images_json) {
+        PlanarImageDetections img;
+        img.count = img_json.value("count", 0);
+        img.file = img_json.value("file", "");
+        const auto& points_json = img_json.at("points");
+        img.points.reserve(points_json.size());
+        for (const auto& pt_json : points_json) {
+            PlanarTargetPoint pt;
+            pt.x = pt_json.value("x", 0.0);
+            pt.y = pt_json.value("y", 0.0);
+            pt.id = pt_json.value("id", -1);
+            pt.local_x = pt_json.value("local_x", 0.0);
+            pt.local_y = pt_json.value("local_y", 0.0);
+            pt.local_z = pt_json.value("local_z", 0.0);
+            img.points.push_back(pt);
+        }
+        detections.images.push_back(std::move(img));
+    }
+
+    return detections;
+}
+
+}  // namespace calib::planar

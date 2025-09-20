@@ -1,11 +1,11 @@
 {
   "session": {
-    "id": "charuco_cam1_demo",
-    "description": "Intrinsic calibration example for the bundled ChArUco detections."
+    "id": "default_planar_session",
+    "description": "Intrinsic calibration example for planar target detections."
   },
   "calibration": {
     "type": "intrinsics",
-    "algorithm": "charuco_planar",
+    "algorithm": "planar",
     "options": {
       "min_corners_per_view": 150,
       "refine": true,
@@ -28,7 +28,7 @@
   },
   "cameras": [
     {
-      "camera_id": "cam1",
+      "camera_id": "cam0",
       "model": "pinhole_brown_conrady",
       "image_size": [2048, 1536]
     }

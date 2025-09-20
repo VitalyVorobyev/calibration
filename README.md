@@ -125,18 +125,18 @@ The config file specifies the calibration input and task type, while the
 command-line options provided by CLI11 allow overriding the task mode or the
 output file.
 
-### ChArUco intrinsics example
+### Planar intrinsics example
 
 An end-to-end intrinsic calibration example is available under `examples/`. It
-takes a high-level config file together with ChArUco detections that follow the
-schema documented in `examples/charuco_features_schema.json`:
+takes a high-level config file together with planar target detections that follow the
+schema documented in `examples/planar_features_schema.json`:
 
 ```bash
 cmake --build build -j2
-./build/examples/charuco_intrinsics \
-  --config examples/charuco_intrinsics_config.json \
-  --features charuco_detection_cam1.json \
-  --output charuco_cam1_intrinsics.json
+./build/examples/planar_intrinsics \
+  --config examples/planar_intrinsics_config.json \
+  --features path/to/planar_detections.json \
+  --output planar_intrinsics_result.json
 ```
 
 During the run the executable reports which views were accepted, the initial
@@ -157,11 +157,11 @@ The sample config highlights the most relevant knobs:
   to assume zero distortion or keep prior values.
 
 The detections file consumed by `--features` is validated against
-`examples/charuco_features_schema.json` and captures:
+`examples/planar_features_schema.json` and captures:
 
 - the image directory, detector metadata (`feature_type`, `algo_version`, `params_hash`)
-- per-image entries (`file`, detected `count`) and the list of ChArUco corners
-- per-corner measurements with image pixels (`x`, `y`), marker `id`, and board-space
+- per-image entries (`file`, detected `count`) and the list of planar target points
+- per-point measurements with image pixels (`x`, `y`), point `id`, and board-space
   coordinates (`local_x`, `local_y`, `local_z`)
 
 The resulting calibration report stores all calibration runs under a single

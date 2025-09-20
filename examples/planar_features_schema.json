@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.local/fds-cli-output.charuco.json",
-  "title": "FDS CLI Output (ChArUco)",
+  "$id": "https://schemas.local/fds-cli-output.planar.json",
+  "title": "FDS CLI Output (Planar Target)",
   "type": "object",
   "additionalProperties": false,
   "required": ["image_directory", "feature_type", "algo_version", "params_hash", "images"],
@@ -11,8 +11,8 @@
       "description": "Absolute path to the directory that was scanned for images."
     },
     "feature_type": {
-      "const": "charuco",
-      "description": "Indicates the ChArUco detector was used."
+      "const": "planar",
+      "description": "Indicates a planar calibration target was detected."
     },
     "algo_version": {
       "type": "string",
@@ -27,12 +27,12 @@
     "images": {
       "type": "array",
       "minItems": 0,
-      "items": { "$ref": "#/$defs/charucoImage" },
+      "items": { "$ref": "#/$defs/planarImage" },
       "description": "Per-image detection results."
     }
   },
   "$defs": {
-    "charucoImage": {
+    "planarImage": {
       "type": "object",
       "additionalProperties": false,
       "required": ["file", "count", "points"],
@@ -45,24 +45,24 @@
         "count": {
           "type": "integer",
           "minimum": 0,
-          "description": "Number of detected ChArUco corners."
+          "description": "Number of detected planar target points."
         },
         "points": {
           "type": "array",
           "minItems": 0,
-          "items": { "$ref": "#/$defs/charucoPoint" },
-          "description": "Detected ChArUco corner observations."
+          "items": { "$ref": "#/$defs/planarPoint" },
+          "description": "Detected planar target point observations."
         }
       }
     },
-    "charucoPoint": {
+    "planarPoint": {
       "type": "object",
       "additionalProperties": false,
       "required": ["x", "y", "id", "local_x", "local_y", "local_z"],
       "properties": {
         "x": { "type": "number", "description": "Corner x-coordinate in image pixels." },
         "y": { "type": "number", "description": "Corner y-coordinate in image pixels." },
-        "id": { "type": "integer", "description": "Marker id assigned by the board layout." },
+        "id": { "type": "integer", "description": "Identifier assigned by the board layout." },
         "local_x": { "type": "number", "description": "Board-space X coordinate of the corner." },
         "local_y": { "type": "number", "description": "Board-space Y coordinate of the corner." },
         "local_z": { "type": "number", "description": "Board-space Z coordinate of the corner (usually 0)." }

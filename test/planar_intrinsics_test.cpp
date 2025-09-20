@@ -6,14 +6,14 @@
 #include <string>
 #include <vector>
 
-#include "calib/charuco_intrinsics_utils.h"
+#include "calib/planar_intrinsics_utils.h"
 #include "utils.h"
 
 using namespace calib;
-using namespace calib::charuco;
+using namespace calib::planar;
 
-TEST(CharucoIntrinsicsUtils, DeterminePointCenterOverrideWins) {
-    CharucoDetections detections;
+TEST(PlanarIntrinsicsUtils, DeterminePointCenterOverrideWins) {
+    PlanarDetections detections;
     IntrinsicCalibrationOptions opts;
     opts.auto_center = false;
     opts.point_center_override = std::array<double, 2>{10.0, -5.0};
@@ -23,11 +23,11 @@ TEST(CharucoIntrinsicsUtils, DeterminePointCenterOverrideWins) {
     EXPECT_DOUBLE_EQ(center[1], -5.0);
 }
 
-TEST(CharucoIntrinsicsUtils, DeterminePointCenterAutoFromPoints) {
-    CharucoDetections detections;
-    CharucoImageDetections img;
-    img.points.push_back(CharucoPoint{.local_x = -2.0, .local_y = 1.0});
-    img.points.push_back(CharucoPoint{.local_x = 4.0, .local_y = -3.0});
+TEST(PlanarIntrinsicsUtils, DeterminePointCenterAutoFromPoints) {
+    PlanarDetections detections;
+    PlanarImageDetections img;
+    img.points.push_back(PlanarTargetPoint{.local_x = -2.0, .local_y = 1.0});
+    img.points.push_back(PlanarTargetPoint{.local_x = 4.0, .local_y = -3.0});
     detections.images.push_back(img);
 
     IntrinsicCalibrationOptions opts;
@@ -39,17 +39,17 @@ TEST(CharucoIntrinsicsUtils, DeterminePointCenterAutoFromPoints) {
     EXPECT_DOUBLE_EQ(center[1], -1.0);
 }
 
-TEST(CharucoIntrinsicsUtils, CollectPlanarViewsRespectsThresholdAndScaling) {
-    CharucoDetections detections;
-    CharucoImageDetections accepted;
+TEST(PlanarIntrinsicsUtils, CollectPlanarViewsRespectsThresholdAndScaling) {
+    PlanarDetections detections;
+    PlanarImageDetections accepted;
     accepted.file = "view0.png";
-    accepted.points = {CharucoPoint{.x = 100.0, .y = 200.0, .local_x = 1.0, .local_y = 1.0},
-                       CharucoPoint{.x = 150.0, .y = 220.0, .local_x = 2.0, .local_y = 1.0},
-                       CharucoPoint{.x = 180.0, .y = 240.0, .local_x = 1.0, .local_y = 3.0}};
-    CharucoImageDetections rejected;
+    accepted.points = {PlanarTargetPoint{.x = 100.0, .y = 200.0, .local_x = 1.0, .local_y = 1.0},
+                       PlanarTargetPoint{.x = 150.0, .y = 220.0, .local_x = 2.0, .local_y = 1.0},
+                       PlanarTargetPoint{.x = 180.0, .y = 240.0, .local_x = 1.0, .local_y = 3.0}};
+    PlanarImageDetections rejected;
     rejected.file = "view1.png";
-    rejected.points = {CharucoPoint{.x = 50.0, .y = 60.0, .local_x = 0.0, .local_y = 0.0},
-                       CharucoPoint{.x = 55.0, .y = 70.0, .local_x = 0.5, .local_y = 0.5}};
+    rejected.points = {PlanarTargetPoint{.x = 50.0, .y = 60.0, .local_x = 0.0, .local_y = 0.0},
+                       PlanarTargetPoint{.x = 55.0, .y = 70.0, .local_x = 0.5, .local_y = 0.5}};
     detections.images = {accepted, rejected};
 
     IntrinsicCalibrationOptions opts;
@@ -75,11 +75,11 @@ TEST(CharucoIntrinsicsUtils, CollectPlanarViewsRespectsThresholdAndScaling) {
     EXPECT_DOUBLE_EQ(view[2].object_xy.y(), 4.0);
 }
 
-TEST(CharucoIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
-    CharucoCalibrationConfig cfg;
+TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
+    PlanarCalibrationConfig cfg;
     cfg.session.id = "session";
     cfg.session.description = "test";
-    cfg.algorithm = "charuco_planar";
+    cfg.algorithm = "planar";
     cfg.options.fixed_distortion_indices = {0, 2};
     cfg.options.fixed_distortion_values = {0.1, 0.05};
     cfg.options.num_radial = 3;
@@ -90,7 +90,7 @@ TEST(CharucoIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
     cam_cfg.model = "pinhole_brown_conrady";
     cam_cfg.image_size = std::array<int, 2>{640, 480};
 
-    CharucoDetections detections;
+    PlanarDetections detections;
     detections.image_directory = "imgs";
     detections.algo_version = "v1";
     detections.params_hash = "hash";
@@ -141,7 +141,7 @@ TEST(CharucoIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
     EXPECT_EQ(result.at("distortion").at("coefficients").size(), 5);
 }
 
-TEST(CharucoIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
+TEST(PlanarIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
     RNG rng(7);
 
     Camera<BrownConradyd> cam_gt;
@@ -160,8 +160,8 @@ TEST(CharucoIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
     sim.make_target_grid(6, 9, 0.03);
     sim.render_pixels();
 
-    CharucoDetections detections;
-    detections.feature_type = "charuco";
+    PlanarDetections detections;
+    detections.feature_type = "planar";
     detections.image_directory = "synthetic";
     detections.algo_version = "v1";
     detections.params_hash = "hash";
@@ -169,13 +169,13 @@ TEST(CharucoIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
 
     for (std::size_t idx = 0; idx < sim.observations.size(); ++idx) {
         const auto& observation = sim.observations[idx];
-        CharucoImageDetections image;
+        PlanarImageDetections image;
         image.file = "view" + std::to_string(idx) + ".png";
         image.points.reserve(observation.view.size());
         image.count = static_cast<int>(observation.view.size());
         for (std::size_t j = 0; j < observation.view.size(); ++j) {
             const auto& ob = observation.view[j];
-            CharucoPoint pt;
+            PlanarTargetPoint pt;
             pt.x = ob.image_uv.x();
             pt.y = ob.image_uv.y();
             pt.id = static_cast<int>(j);
@@ -187,10 +187,10 @@ TEST(CharucoIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
         detections.images.push_back(std::move(image));
     }
 
-    CharucoCalibrationConfig cfg;
+    PlanarCalibrationConfig cfg;
     cfg.session.id = "session";
     cfg.session.description = "synthetic";
-    cfg.algorithm = "charuco_planar";
+    cfg.algorithm = "planar";
     cfg.options.min_corners_per_view = 20;
     cfg.options.refine = true;
     cfg.options.point_scale = 1.0;
@@ -202,7 +202,7 @@ TEST(CharucoIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
     cam_cfg.image_size = std::array<int, 2>{1280, 720};
     cfg.cameras = {cam_cfg};
 
-    CharucoIntrinsicCalibrationFacade facade;
+    PlanarIntrinsicCalibrationFacade facade;
     auto result =
         facade.calibrate(cfg, cam_cfg, detections, std::filesystem::path{"synthetic.json"});
 
@@ -218,4 +218,16 @@ TEST(CharucoIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
         result.report.at("calibrations")[0].at("cameras")[0].at("initial_guess");
     EXPECT_EQ(cameras_json.at("used_view_indices").size(),
               result.outputs.linear_view_indices.size());
+}
+
+TEST(PlanarIntrinsicConfig, LoadConfigParsesOptions) {
+    const auto src_dir = std::filesystem::path(__FILE__).parent_path().parent_path();
+    const auto config_path = src_dir / "examples" / "planar_intrinsics_config.json";
+    auto cfg = load_calibration_config(config_path);
+
+    EXPECT_EQ(cfg.session.id, "default_planar_session");
+    EXPECT_FALSE(cfg.cameras.empty());
+    EXPECT_EQ(cfg.cameras[0].camera_id, "cam0");
+    EXPECT_TRUE(cfg.options.homography_ransac.has_value());
+    EXPECT_EQ(cfg.options.homography_ransac->min_inliers, 50);
 }
