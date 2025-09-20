@@ -6,6 +6,7 @@
 #include <iostream>
 #include <numeric>
 #include <random>
+#include <utility>
 
 // ceres
 #include <ceres/ceres.h>
@@ -42,6 +43,56 @@ static auto process_planar_view(const CameraMatrix& kmtx, const HomographyResult
     return ved;
 }
 
+static auto sanitize_intrinsics(const CameraMatrix& kmtx,
+                                const std::optional<CalibrationBounds>& bounds)
+    -> std::pair<CameraMatrix, bool> {
+    if (!bounds.has_value()) {
+        return {kmtx, false};
+    }
+
+    const auto& b = bounds.value();
+    CameraMatrix adjusted = kmtx;
+    bool modified = false;
+
+    const auto enforce_min_focal = [&modified](double value, double min_val) {
+        if (!std::isfinite(value) || value < min_val) {
+            modified = true;
+            return min_val;
+        }
+        return value;
+    };
+
+    const auto midpoint = [](double min_val, double max_val) { return 0.5 * (min_val + max_val); };
+
+    const auto adjust_principal_point = [&modified, &midpoint](double value, double min_val,
+                                                               double max_val) {
+        if (!std::isfinite(value)) {
+            modified = true;
+            return midpoint(min_val, max_val);
+        }
+        if (value < min_val || value > max_val) {
+            modified = true;
+            return midpoint(min_val, max_val);
+        }
+        return value;
+    };
+
+    adjusted.fx = enforce_min_focal(adjusted.fx, b.fx_min);
+    adjusted.fy = enforce_min_focal(adjusted.fy, b.fy_min);
+    adjusted.cx = adjust_principal_point(adjusted.cx, b.cx_min, b.cx_max);
+    adjusted.cy = adjust_principal_point(adjusted.cy, b.cy_min, b.cy_max);
+
+    const double skew_min = std::min(b.skew_min, b.skew_max);
+    const double skew_max = std::max(b.skew_min, b.skew_max);
+    if (!std::isfinite(adjusted.skew) || adjusted.skew < skew_min || adjusted.skew > skew_max) {
+        modified = true;
+        const double zero = 0.0;
+        adjusted.skew = std::clamp(zero, skew_min, skew_max);
+    }
+
+    return {adjusted, modified};
+}
+
 auto estimate_intrinsics(const std::vector<PlanarView>& views,
                          const IntrinsicsEstimateOptions& opts) -> IntrinsicsEstimateResult {
     IntrinsicsEstimateResult result;
@@ -63,13 +114,18 @@ auto estimate_intrinsics(const std::vector<PlanarView>& views,
     }
 
     // Set the estimated camera matrix
-    result.kmtx = zhang_kmtx_opt.value();
+    auto [sanitized_kmtx, modified] = sanitize_intrinsics(zhang_kmtx_opt.value(), opts.bounds);
+    result.kmtx = sanitized_kmtx;
     result.success = true;
+
+    if (modified) {
+        result.log = "Intrinsics sanitized by bounds.";
+    }
 
     result.views.resize(valid_hs.size());
     std::transform(valid_hs.begin(), valid_hs.end(), result.views.begin(),
-                   [&zhang_kmtx_opt](const HomographyResult& hres) {
-                       return process_planar_view(zhang_kmtx_opt.value(), hres);
+                   [&sanitized_kmtx](const HomographyResult& hres) {
+                       return process_planar_view(sanitized_kmtx, hres);
                    });
     // fill view indices
     size_t vidx = 0;

@@ -361,10 +361,31 @@ struct CalibrationOutputs final {
     }
 
     IntrinsicsEstimateOptions estimate_opts;
-    estimate_opts.use_skew = config.options.optimize_skew;
+    estimate_opts.use_skew = false;
     if (config.options.homography_ransac.has_value()) {
         estimate_opts.homography_ransac = build_ransac_options(*config.options.homography_ransac);
     }
+
+    std::optional<CalibrationBounds> bounds;
+    if (cam_cfg.image_size.has_value()) {
+        const double width = static_cast<double>((*cam_cfg.image_size)[0]);
+        const double height = static_cast<double>((*cam_cfg.image_size)[1]);
+        const double short_side = std::min(width, height);
+        const double long_side = std::max(width, height);
+
+        CalibrationBounds b;
+        b.fx_min = b.fy_min = std::max(1.0, 0.25 * short_side);
+        b.fx_max = b.fy_max = std::numeric_limits<double>::max();
+        b.cx_min = 0.05 * width;
+        b.cx_max = 0.95 * width;
+        b.cy_min = 0.05 * height;
+        b.cy_max = 0.95 * height;
+        const double skew_limit = 0.05 * long_side;
+        b.skew_min = -skew_limit;
+        b.skew_max = skew_limit;
+        bounds = b;
+    }
+    estimate_opts.bounds = bounds;
 
     IntrinsicsEstimateResult linear;
     std::string captured_warnings;
@@ -398,6 +419,7 @@ struct CalibrationOutputs final {
     refine_opts.max_iterations = config.options.max_iterations;
     refine_opts.epsilon = config.options.epsilon;
     refine_opts.verbose = config.options.verbose;
+    refine_opts.bounds = bounds;
 
     IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> refine;
     if (config.options.refine) {

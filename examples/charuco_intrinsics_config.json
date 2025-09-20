@@ -9,7 +9,7 @@
     "options": {
       "min_corners_per_view": 150,
       "refine": true,
-      "optimize_skew": false,
+      "optimize_skew": true,
       "num_radial": 3,
       "huber_delta": 2.0,
       "max_iterations": 200,

@@ -129,7 +129,7 @@ output file.
 
 An end-to-end intrinsic calibration example is available under `examples/`. It
 takes a high-level config file together with ChArUco detections that follow the
-`charuco_schema.json` definition:
+schema documented in `examples/charuco_features_schema.json`:
 
 ```bash
 cmake --build build -j2
@@ -152,6 +152,18 @@ The sample config highlights the most relevant knobs:
   `point_center` to override the automatically detected midpoint.
 - `homography_ransac` mirrors the options exposed by the library for robust
   homography estimation.
+
+The detections file consumed by `--features` is validated against
+`examples/charuco_features_schema.json` and captures:
+
+- the image directory, detector metadata (`feature_type`, `algo_version`, `params_hash`)
+- per-image entries (`file`, detected `count`) and the list of ChArUco corners
+- per-corner measurements with image pixels (`x`, `y`), marker `id`, and board-space
+  coordinates (`local_x`, `local_y`, `local_z`)
+
+The resulting calibration report stores all calibration runs under a single
+`calibrations` array so that multiple cameras or additional task types can be
+aggregated in future extensions without breaking downstream tooling.
 
 ## Code Quality
 
