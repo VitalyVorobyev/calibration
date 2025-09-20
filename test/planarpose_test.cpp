@@ -7,13 +7,14 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calib/planarpose.h"
 #include "calib/intrinsics.h"
+#include "calib/planarpose.h"
 
 using namespace calib;
 
 // Helper function to create a simple synthetic planar target
-auto create_synthetic_planar_data(const Eigen::Isometry3d& pose, const CameraMatrix& intrinsics) -> PlanarView {
+auto create_synthetic_planar_data(const Eigen::Isometry3d& pose, const CameraMatrix& intrinsics)
+    -> PlanarView {
     // Create a grid of points on the plane Z=0
     PlanarView view;
     for (int i = -5; i <= 5; i += 2) {
@@ -66,7 +67,8 @@ TEST(PlanarPoseTest, DLTEstimation) {
 
     // Create a known pose
     Eigen::Isometry3d true_pose = Eigen::Isometry3d::Identity();
-    true_pose.linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
+    true_pose.linear() =
+        Eigen::AngleAxisd(0.1, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
     true_pose.translation() = Eigen::Vector3d(0.1, 0.2, 2.0);
 
     // Generate synthetic data
@@ -88,7 +90,7 @@ TEST(PlanarPoseTest, DLTEstimation) {
     Eigen::Vector3d est_t = estimated_pose.translation();
 
     double cosine_similarity = true_t.normalized().dot(est_t.normalized());
-    EXPECT_GT(std::abs(cosine_similarity), 0.9); // Vectors should point in similar directions
+    EXPECT_GT(std::abs(cosine_similarity), 0.9);  // Vectors should point in similar directions
 }
 
 // Temporarily disable this test while we investigate segmentation fault
@@ -102,7 +104,8 @@ TEST(PlanarPoseTest, OptimizePlanarPose) {
 
     // Create a known pose
     Eigen::Isometry3d true_pose = Eigen::Isometry3d::Identity();
-    true_pose.linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
+    true_pose.linear() =
+        Eigen::AngleAxisd(0.1, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
     true_pose.translation() = Eigen::Vector3d(0.1, 0.2, 2.0);
 
     // Generate synthetic data - generate more points for stability
@@ -110,7 +113,8 @@ TEST(PlanarPoseTest, OptimizePlanarPose) {
 
     // Make pose estimate
     Eigen::Isometry3d init_pose = Eigen::Isometry3d::Identity();
-    init_pose.linear() = Eigen::AngleAxisd(0.12, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
+    init_pose.linear() =
+        Eigen::AngleAxisd(0.12, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
     init_pose.translation() = Eigen::Vector3d(0.19, 0.23, 2.1);
 
     // Optimize the pose
@@ -152,7 +156,8 @@ TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
 
     // Create a known pose
     Eigen::Isometry3d true_pose = Eigen::Isometry3d::Identity();
-    true_pose.linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
+    true_pose.linear() =
+        Eigen::AngleAxisd(0.1, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
     true_pose.translation() = Eigen::Vector3d(0.1, 0.2, 2.0);
 
     // Generate synthetic data - generate more points for stability
@@ -170,7 +175,8 @@ TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
 
     // Make pose estimate
     Eigen::Isometry3d init_pose = Eigen::Isometry3d::Identity();
-    init_pose.linear() = Eigen::AngleAxisd(0.12, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
+    init_pose.linear() =
+        Eigen::AngleAxisd(0.12, Eigen::Vector3d(1, 1, 1).normalized()).toRotationMatrix();
     init_pose.translation() = Eigen::Vector3d(0.19, 0.23, 2.1);
 
     // Optimize the pose with distortion

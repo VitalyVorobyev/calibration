@@ -20,7 +20,7 @@ clean: ## Clean build directory
 	rm -rf $(BUILD_DIR)
 
 format: ## Format source code with clang-format
-	find src include examples -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+	find src include examples test -name "*.cpp" -o -name "*.h" | xargs clang-format -i
 
 format-check: ## Check code formatting
 	find src include examples -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror
@@ -57,5 +57,5 @@ all: clean build test lint ## Clean, build, test, and lint
 release: BUILD_TYPE=Release
 release: clean build test ## Build release version
 
-debug: BUILD_TYPE=Debug  
+debug: BUILD_TYPE=Debug
 debug: clean build test ## Build debug version

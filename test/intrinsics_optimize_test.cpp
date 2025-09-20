@@ -9,14 +9,17 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     RNG rng(7);
 
     Camera<BrownConradyd> cam_gt;
-    cam_gt.kmtx.fx = 1000; cam_gt.kmtx.fy = 1005;
-    cam_gt.kmtx.cx = 640;  cam_gt.kmtx.cy = 360;
+    cam_gt.kmtx.fx = 1000;
+    cam_gt.kmtx.fy = 1005;
+    cam_gt.kmtx.cx = 640;
+    cam_gt.kmtx.cy = 360;
     cam_gt.kmtx.skew = 0.0;
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Use proper transforms: camera at origin looking at target in front
-    Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity(); // gripper to camera
-    Eigen::Isometry3d b_se3_t = Eigen::Translation3d(0.0, 0.0, 2.0) * Eigen::Isometry3d::Identity(); // base to target (target 2m away)
+    Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();  // gripper to camera
+    Eigen::Isometry3d b_se3_t = Eigen::Translation3d(0.0, 0.0, 2.0) *
+                                Eigen::Isometry3d::Identity();  // base to target (target 2m away)
     SimulatedHandEye sim{g_se3_c, b_se3_t, cam_gt};
     sim.make_sequence(15, rng);
     sim.make_target_grid(8, 11, 0.02);
@@ -27,8 +30,10 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
 
     // Create initial camera guess
     Camera<BrownConradyd> guess_cam = cam_gt;
-    guess_cam.kmtx.fx *= 0.97; guess_cam.kmtx.fy *= 1.03;
-    guess_cam.kmtx.cx += 5.0; guess_cam.kmtx.cy -= 4.0;
+    guess_cam.kmtx.fx *= 0.97;
+    guess_cam.kmtx.fy *= 1.03;
+    guess_cam.kmtx.cx += 5.0;
+    guess_cam.kmtx.cy -= 4.0;
     guess_cam.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Estimate initial poses for each view
@@ -58,14 +63,17 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     RNG rng(5);
 
     Camera<BrownConradyd> cam_gt;
-    cam_gt.kmtx.fx = 1000; cam_gt.kmtx.fy = 1005;
-    cam_gt.kmtx.cx = 640;  cam_gt.kmtx.cy = 360;
+    cam_gt.kmtx.fx = 1000;
+    cam_gt.kmtx.fy = 1005;
+    cam_gt.kmtx.cx = 640;
+    cam_gt.kmtx.cy = 360;
     cam_gt.kmtx.skew = 0.001;
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Use proper transforms: camera at origin looking at target in front
-    Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity(); // gripper to camera
-    Eigen::Isometry3d b_se3_t = Eigen::Translation3d(0.0, 0.0, 2.0) * Eigen::Isometry3d::Identity(); // base to target (target 2m away)
+    Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();  // gripper to camera
+    Eigen::Isometry3d b_se3_t = Eigen::Translation3d(0.0, 0.0, 2.0) *
+                                Eigen::Isometry3d::Identity();  // base to target (target 2m away)
     SimulatedHandEye sim{g_se3_c, b_se3_t, cam_gt};
     sim.make_sequence(15, rng);
     sim.make_target_grid(8, 11, 0.02);
@@ -76,8 +84,10 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
 
     // Create initial camera guess
     Camera<BrownConradyd> guess_cam = cam_gt;
-    guess_cam.kmtx.fx *= 0.95; guess_cam.kmtx.fy *= 1.05;
-    guess_cam.kmtx.cx += 10.0; guess_cam.kmtx.cy -= 6.0;
+    guess_cam.kmtx.fx *= 0.95;
+    guess_cam.kmtx.fy *= 1.05;
+    guess_cam.kmtx.cx += 10.0;
+    guess_cam.kmtx.cy -= 6.0;
     guess_cam.kmtx.skew = 0.0;
     guess_cam.distortion.coeffs = Eigen::VectorXd::Zero(5);
 

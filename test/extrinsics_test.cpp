@@ -1,8 +1,8 @@
+#include "calib/extrinsics.h"
+
 #include <gtest/gtest.h>
 
 #include <Eigen/Geometry>
-
-#include "calib/extrinsics.h"
 
 using namespace calib;
 
@@ -10,11 +10,9 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     const int kCams = 2;
     CameraMatrix kmtx{100.0, 100.0, 0.0, 0.0};
     Eigen::VectorXd dist(5);
-    dist << 0.0, 0.0, 0.0, 0.0, 0.0; // no distortion
-    std::vector<Camera<BrownConradyd>> cameras = {
-        Camera<BrownConradyd>{kmtx, dist},
-        Camera<BrownConradyd>{kmtx, dist}
-    };
+    dist << 0.0, 0.0, 0.0, 0.0, 0.0;  // no distortion
+    std::vector<Camera<BrownConradyd>> cameras = {Camera<BrownConradyd>{kmtx, dist},
+                                                  Camera<BrownConradyd>{kmtx, dist}};
 
     // Ground-truth camera poses (reference camera is identity)
     Eigen::Isometry3d cam0 = Eigen::Isometry3d::Identity();
@@ -24,33 +22,31 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     // Initial guesses (perturbed)
     std::vector<Eigen::Isometry3d> cam_init = {
         cam0,
-        Eigen::Translation3d(1.2, -0.1, 0.05) * Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitZ())
-    };
+        Eigen::Translation3d(1.2, -0.1, 0.05) * Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitZ())};
 
     // Target poses for three views
     std::vector<Eigen::Isometry3d> target_gt = {
         Eigen::Translation3d(0.0, 0.0, 5.0) * Eigen::Isometry3d::Identity(),
         Eigen::Translation3d(0.5, -0.2, 4.0) * Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitY()),
-        Eigen::Translation3d(-0.3, 0.4, 6.0) * Eigen::AngleAxisd(-0.2, Eigen::Vector3d::UnitX())
-    };
+        Eigen::Translation3d(-0.3, 0.4, 6.0) * Eigen::AngleAxisd(-0.2, Eigen::Vector3d::UnitX())};
 
     std::vector<Eigen::Isometry3d> target_init = {
-        target_gt[0] * Eigen::Translation3d(0.1, 0.0, 0.0) * Eigen::AngleAxisd(0.02, Eigen::Vector3d::UnitZ()),
-        target_gt[1] * Eigen::Translation3d(-0.05, 0.1, 0.05) * Eigen::AngleAxisd(-0.03, Eigen::Vector3d::UnitY()),
-        target_gt[2] * Eigen::Translation3d(0.02, -0.02, -0.1) * Eigen::AngleAxisd(0.01, Eigen::Vector3d::UnitX())
-    };
+        target_gt[0] * Eigen::Translation3d(0.1, 0.0, 0.0) *
+            Eigen::AngleAxisd(0.02, Eigen::Vector3d::UnitZ()),
+        target_gt[1] * Eigen::Translation3d(-0.05, 0.1, 0.05) *
+            Eigen::AngleAxisd(-0.03, Eigen::Vector3d::UnitY()),
+        target_gt[2] * Eigen::Translation3d(0.02, -0.02, -0.1) *
+            Eigen::AngleAxisd(0.01, Eigen::Vector3d::UnitX())};
 
     // Planar points on target
-    std::vector<Eigen::Vector2d> points = {
-        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}
-    };
+    std::vector<Eigen::Vector2d> points = {{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}};
 
     std::vector<MulticamPlanarView> views;
     for (size_t v = 0; v < target_gt.size(); ++v) {
         MulticamPlanarView view;
         view.resize(kCams);
         for (int c = 0; c < kCams; ++c) {
-            Eigen::Isometry3d T = cam_gt[c] * target_gt[v]; // target -> camera
+            Eigen::Isometry3d T = cam_gt[c] * target_gt[v];  // target -> camera
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
@@ -80,11 +76,9 @@ TEST(Extrinsics, RecoverAllParameters) {
     const int kCams = 2;
     CameraMatrix kmtx{100.0, 100.0, 0.0, 0.0};
     Eigen::VectorXd dist(5);
-    dist << 0.0, 0.0, 0.0, 0.0, 0.0; // no distortion
-    std::vector<Camera<BrownConradyd>> cameras_gt = {
-        Camera<BrownConradyd>{kmtx, dist},
-        Camera<BrownConradyd>{kmtx, dist}
-    };
+    dist << 0.0, 0.0, 0.0, 0.0, 0.0;  // no distortion
+    std::vector<Camera<BrownConradyd>> cameras_gt = {Camera<BrownConradyd>{kmtx, dist},
+                                                     Camera<BrownConradyd>{kmtx, dist}};
 
     Eigen::Isometry3d cam0 = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Isometry3d::Identity();
@@ -96,10 +90,8 @@ TEST(Extrinsics, RecoverAllParameters) {
     };
 
     // need at least 8 points to fit distortions
-    std::vector<Eigen::Vector2d> points = {
-        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0},
-        {0.5, 0.5}, {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5}
-    };
+    std::vector<Eigen::Vector2d> points = {{0.0, 0.0}, {1.0, 0.0},   {1.0, 1.0}, {0.0, 1.0},
+                                           {0.5, 0.5}, {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5}};
 
     std::vector<MulticamPlanarView> views;
     for (size_t v = 0; v < target_gt.size(); ++v) {
@@ -109,7 +101,7 @@ TEST(Extrinsics, RecoverAllParameters) {
             Eigen::Isometry3d T = cam_gt[c] * target_gt[v];
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
-                Eigen::Vector2d norm(P.x()/P.z(), P.y()/P.z());
+                Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
                 Eigen::Vector2d pix = cameras_gt[c].kmtx.denormalize(norm);
                 view[c].push_back({xy, pix});
             }
@@ -120,14 +112,12 @@ TEST(Extrinsics, RecoverAllParameters) {
     // Perturbed intrinsics for initialization
     std::vector<Camera<BrownConradyd>> cam_init = {
         Camera<BrownConradyd>{CameraMatrix{90.0, 95.0, 1.0, -1.0}, Eigen::VectorXd::Zero(5)},
-        Camera<BrownConradyd>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, Eigen::VectorXd::Zero(5)}
-    };
+        Camera<BrownConradyd>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, Eigen::VectorXd::Zero(5)}};
 
     // Change cameras to BrownConradyd for the estimate function
     std::vector<Camera<DualDistortion>> cameras_for_estimate = {
         Camera<DualDistortion>{kmtx, DualDistortion{Eigen::VectorXd::Zero(2)}},
-        Camera<DualDistortion>{kmtx, DualDistortion{Eigen::VectorXd::Zero(2)}}
-    };
+        Camera<DualDistortion>{kmtx, DualDistortion{Eigen::VectorXd::Zero(2)}}};
 
     auto guess = estimate_extrinsic_dlt(views, cameras_for_estimate);
     ASSERT_TRUE(guess.c_se3_r.front().isApprox(Eigen::Isometry3d::Identity()));
@@ -135,7 +125,8 @@ TEST(Extrinsics, RecoverAllParameters) {
     // Anchor the first target pose to its ground truth to fix the scale.
     guess.r_se3_t[0] = target_gt[0];
 
-    ExtrinsicOptions opts; opts.verbose = false;
+    ExtrinsicOptions opts;
+    opts.verbose = false;
     auto res = optimize_extrinsics(views, cam_init, guess.c_se3_r, guess.r_se3_t, opts);
     std::cout << res.report << std::endl;
 
@@ -152,11 +143,9 @@ TEST(Extrinsics, FirstTargetPoseFixed) {
     const int kCams = 2;
     CameraMatrix kmtx{100.0, 100.0, 0.0, 0.0};
     Eigen::VectorXd dist(5);
-    dist << 0.0, 0.0, 0.0, 0.0, 0.0; // no distortion
-    std::vector<Camera<BrownConradyd>> cameras_gt = {
-        Camera<BrownConradyd>{kmtx, dist},
-        Camera<BrownConradyd>{kmtx, dist}
-    };
+    dist << 0.0, 0.0, 0.0, 0.0, 0.0;  // no distortion
+    std::vector<Camera<BrownConradyd>> cameras_gt = {Camera<BrownConradyd>{kmtx, dist},
+                                                     Camera<BrownConradyd>{kmtx, dist}};
 
     Eigen::Isometry3d cam0 = Eigen::Isometry3d::Identity();
     Eigen::Isometry3d cam1 = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Isometry3d::Identity();
@@ -166,20 +155,18 @@ TEST(Extrinsics, FirstTargetPoseFixed) {
         Eigen::Translation3d(0.5, -0.2, 4.0) * Eigen::AngleAxisd(0.3, Eigen::Vector3d::UnitY()),
     };
 
-    std::vector<Eigen::Vector2d> points = {
-        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0},
-        {0.5, 0.5}, {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5}
-    };
+    std::vector<Eigen::Vector2d> points = {{0.0, 0.0}, {1.0, 0.0},   {1.0, 1.0}, {0.0, 1.0},
+                                           {0.5, 0.5}, {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5}};
 
     std::vector<MulticamPlanarView> views;
     for (size_t v = 0; v < target_gt.size(); ++v) {
         MulticamPlanarView view;
         view.resize(kCams);
         for (int c = 0; c < kCams; ++c) {
-            Eigen::Isometry3d T = (c==0?cam0:cam1) * target_gt[v];
+            Eigen::Isometry3d T = (c == 0 ? cam0 : cam1) * target_gt[v];
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
-                Eigen::Vector2d norm(P.x()/P.z(), P.y()/P.z());
+                Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
                 Eigen::Vector2d pix = cameras_gt[c].kmtx.denormalize(norm);
                 view[c].push_back({xy, pix});
             }
@@ -189,21 +176,22 @@ TEST(Extrinsics, FirstTargetPoseFixed) {
 
     std::vector<Camera<BrownConradyd>> cam_init = {
         Camera<BrownConradyd>{CameraMatrix{90.0, 95.0, 1.0, -1.0}, Eigen::VectorXd::Zero(5)},
-        Camera<BrownConradyd>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, Eigen::VectorXd::Zero(5)}
-    };
+        Camera<BrownConradyd>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, Eigen::VectorXd::Zero(5)}};
 
     // Change cameras to DualDistortion for the estimate function
     std::vector<Camera<DualDistortion>> cameras_for_estimate = {
-        Camera<DualDistortion>{CameraMatrix{90.0, 95.0, 1.0, -1.0}, DualDistortion{Eigen::VectorXd::Zero(2)}},
-        Camera<DualDistortion>{CameraMatrix{105.0, 98.0, -0.5, 0.5}, DualDistortion{Eigen::VectorXd::Zero(2)}}
-    };
+        Camera<DualDistortion>{CameraMatrix{90.0, 95.0, 1.0, -1.0},
+                               DualDistortion{Eigen::VectorXd::Zero(2)}},
+        Camera<DualDistortion>{CameraMatrix{105.0, 98.0, -0.5, 0.5},
+                               DualDistortion{Eigen::VectorXd::Zero(2)}}};
 
     auto guess = estimate_extrinsic_dlt(views, cameras_for_estimate);
     // Deliberately set an incorrect scale for the first target pose. This pose
     // should remain unchanged by the optimisation.
     guess.r_se3_t[0].translation() = Eigen::Vector3d(0.0, 0.0, 3.0);
 
-    ExtrinsicOptions opts; opts.verbose = false;
+    ExtrinsicOptions opts;
+    opts.verbose = false;
     auto res = optimize_extrinsics(views, cam_init, guess.c_se3_r, guess.r_se3_t, opts);
 
     EXPECT_TRUE(res.r_se3_t[0].translation().isApprox(guess.r_se3_t[0].translation(), 1e-12));

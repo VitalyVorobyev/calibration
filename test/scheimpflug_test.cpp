@@ -1,14 +1,19 @@
+#include "calib/scheimpflug.h"
+
 #include <gtest/gtest.h>
+
 #include <Eigen/Core>
 
-#include "calib/scheimpflug.h"
 #include "calib/pinhole.h"
 
 using namespace calib;
 
 TEST(ScheimpflugCamera, ZeroTiltMatchesPinhole) {
     PinholeCamera<DualDistortion> cam;
-    cam.kmtx.fx = 800; cam.kmtx.fy = 820; cam.kmtx.cx = 320; cam.kmtx.cy = 240;
+    cam.kmtx.fx = 800;
+    cam.kmtx.fy = 820;
+    cam.kmtx.cx = 320;
+    cam.kmtx.cy = 240;
     cam.distortion.forward = Eigen::VectorXd::Zero(2);
     cam.distortion.inverse = Eigen::VectorXd::Zero(2);
 
@@ -24,7 +29,10 @@ TEST(ScheimpflugCamera, ZeroTiltMatchesPinhole) {
 
 TEST(ScheimpflugCamera, PrincipalRay) {
     PinholeCamera<DualDistortion> cam;
-    cam.kmtx.fx = 600; cam.kmtx.fy = 600; cam.kmtx.cx = 400; cam.kmtx.cy = 300;
+    cam.kmtx.fx = 600;
+    cam.kmtx.fy = 600;
+    cam.kmtx.cx = 400;
+    cam.kmtx.cy = 300;
     cam.distortion.forward = Eigen::VectorXd::Zero(2);
     cam.distortion.inverse = Eigen::VectorXd::Zero(2);
 
@@ -35,10 +43,7 @@ TEST(ScheimpflugCamera, PrincipalRay) {
     Eigen::Vector3d Xc(0.0, 0.0, 1.0);
     Eigen::Vector2d uv = sc.project(Xc);
 
-    Eigen::Vector2d expected_m0{
-        -std::tan(tauy) / std::cos(taux),
-        std::tan(taux)
-    };
+    Eigen::Vector2d expected_m0{-std::tan(tauy) / std::cos(taux), std::tan(taux)};
     const auto expected_uv = cam.project(expected_m0);
 
     EXPECT_NEAR(uv.x(), expected_uv.x(), 1e-9);
