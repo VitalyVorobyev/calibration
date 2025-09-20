@@ -33,7 +33,7 @@ struct PlanarPoseResult final : public OptimResult {
 };
 
 auto optimize_planar_pose(const PlanarView& view, const CameraMatrix& intrinsics,
-                          const Eigen::Isometry3d& init_pose,
-                          const PlanarPoseOptions& opts = {}) -> PlanarPoseResult;
+                          const Eigen::Isometry3d& init_pose, const PlanarPoseOptions& opts = {})
+    -> PlanarPoseResult;
 
 }  // namespace calib

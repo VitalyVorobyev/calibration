@@ -20,10 +20,10 @@ clean: ## Clean build directory
 	rm -rf $(BUILD_DIR)
 
 format: ## Format source code with clang-format
-	find src include -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+	find src include examples -name "*.cpp" -o -name "*.h" | xargs clang-format -i
 
 format-check: ## Check code formatting
-	find src include -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror
+	find src include examples -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror
 
 lint: build ## Run static analysis
 	@echo "Running clang-tidy..."

@@ -114,8 +114,8 @@ auto apply_distortion(const Eigen::Matrix<T, 2, 1>& norm_xy,
 // Normalize and undistort pixel coordinates
 template <typename T>
 [[nodiscard]]
-auto undistort(Eigen::Matrix<T, 2, 1> norm_xy,
-               const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs) -> Eigen::Matrix<T, 2, 1> {
+auto undistort(Eigen::Matrix<T, 2, 1> norm_xy, const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs)
+    -> Eigen::Matrix<T, 2, 1> {
     if (coeffs.size() < 2) {
         throw std::runtime_error("Insufficient distortion coefficients");
     }
@@ -225,8 +225,8 @@ struct DualDistortionWithResiduals final {
 template <typename T>
 [[nodiscard]]
 auto fit_distortion_full(const std::vector<Observation<T>>& observations,
-                         const CameraMatrixT<T>& intrinsics,
-                         int num_radial = 2) -> std::optional<DistortionWithResiduals<T>> {
+                         const CameraMatrixT<T>& intrinsics, int num_radial = 2)
+    -> std::optional<DistortionWithResiduals<T>> {
     constexpr int k_min_observations = 8;
     if (observations.size() < k_min_observations) {
         return std::nullopt;
@@ -290,14 +290,14 @@ auto fit_distortion_full(const std::vector<Observation<T>>& observations,
 
 template <typename T>
 auto fit_distortion(const std::vector<Observation<T>>& observations,
-                    const CameraMatrixT<T>& intrinsics,
-                    int num_radial = 2) -> std::optional<DistortionWithResiduals<T>> {
+                    const CameraMatrixT<T>& intrinsics, int num_radial = 2)
+    -> std::optional<DistortionWithResiduals<T>> {
     return fit_distortion_full(observations, intrinsics, num_radial);
 }
 
 inline auto fit_distortion_dual(const std::vector<Observation<double>>& observations,
-                                const CameraMatrix& intrinsics,
-                                int num_radial = 2) -> std::optional<DualDistortionWithResiduals> {
+                                const CameraMatrix& intrinsics, int num_radial = 2)
+    -> std::optional<DualDistortionWithResiduals> {
     auto forward = fit_distortion_full(observations, intrinsics, num_radial);
     if (!forward) {
         return std::nullopt;

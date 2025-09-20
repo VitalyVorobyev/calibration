@@ -40,10 +40,11 @@ int main() {
         return 1;
     }
 
-    std::cout.setf(std::ios::fixed); std::cout.precision(10);
+    std::cout.setf(std::ios::fixed);
+    std::cout.precision(10);
     std::cout << "Refined H:\n";
     for (int r = 0; r < 3; ++r) {
-        std::cout << hres.hmtx(r,0) << " " << hres.hmtx(r,1) << " " << hres.hmtx(r,2) << "\n";
+        std::cout << hres.hmtx(r, 0) << " " << hres.hmtx(r, 1) << " " << hres.hmtx(r, 2) << "\n";
     }
 
     std::cout << "Mean reprojection error: " << hres.symmetric_rms_px << " px\n";

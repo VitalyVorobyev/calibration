@@ -95,8 +95,8 @@ static auto symmetric_transfer_error(const Eigen::Matrix3d& hmtx, const Eigen::V
 using Model = HomographyEstimator::Model;
 using Datum = HomographyEstimator::Datum;
 
-auto HomographyEstimator::fit(const std::vector<Datum>& data,
-                              std::span<const int> sample) -> std::optional<Model> {
+auto HomographyEstimator::fit(const std::vector<Datum>& data, std::span<const int> sample)
+    -> std::optional<Model> {
     if (sample.size() < k_min_samples) {
         std::cout << "HomographyEstimator::fit: sample too small\n";
         return std::nullopt;
@@ -122,8 +122,8 @@ auto HomographyEstimator::residual(const Model& hmtx, const Datum& observation) 
 }
 
 // Optional: better final model on all inliers
-auto HomographyEstimator::refit(const std::vector<Datum>& data,
-                                std::span<const int> inliers) -> std::optional<Model> {
+auto HomographyEstimator::refit(const std::vector<Datum>& data, std::span<const int> inliers)
+    -> std::optional<Model> {
     if (inliers.size() < k_min_samples) {
         return std::nullopt;
     }
@@ -143,8 +143,8 @@ auto HomographyEstimator::refit(const std::vector<Datum>& data,
 }
 
 // Optional: reject degenerate minimal sets (near-collinear points)
-auto HomographyEstimator::is_degenerate(const std::vector<Datum>& data,
-                                        std::span<const int> sample) -> bool {
+auto HomographyEstimator::is_degenerate(const std::vector<Datum>& data, std::span<const int> sample)
+    -> bool {
     auto tri_area2 = [](const Eigen::Vector2d& a, const Eigen::Vector2d& b,
                         const Eigen::Vector2d& c) {
         return std::abs((b - a).x() * (c - a).y() - (b - a).y() * (c - a).x());

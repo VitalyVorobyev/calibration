@@ -20,16 +20,16 @@ struct HomographyEstimator final {
 
     // --- Estimator API ---
     [[nodiscard]]
-    static auto fit(const std::vector<Datum>& data,
-                    std::span<const int> sample) -> std::optional<Model>;
+    static auto fit(const std::vector<Datum>& data, std::span<const int> sample)
+        -> std::optional<Model>;
 
     [[nodiscard]]
     static auto residual(const Model& hmtx, const Datum& observation) -> double;
 
     // Optional: better final model on all inliers
     [[nodiscard]]
-    static auto refit(const std::vector<Datum>& data,
-                      std::span<const int> inliers) -> std::optional<Model>;
+    static auto refit(const std::vector<Datum>& data, std::span<const int> inliers)
+        -> std::optional<Model>;
 
     // Optional: reject degenerate minimal sets (near-collinear points)
     [[nodiscard]]

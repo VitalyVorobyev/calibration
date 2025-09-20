@@ -59,8 +59,8 @@ static void estimate_homography_ransac(const PlanarView& data, HomographyResult&
               << ", symmetric RMS: " << result.symmetric_rms_px << " px\n";
 }
 
-auto estimate_homography(const PlanarView& data,
-                         std::optional<RansacOptions> ransac_opts) -> HomographyResult {
+auto estimate_homography(const PlanarView& data, std::optional<RansacOptions> ransac_opts)
+    -> HomographyResult {
     HomographyResult result;
 
     if (!ransac_opts.has_value()) {
