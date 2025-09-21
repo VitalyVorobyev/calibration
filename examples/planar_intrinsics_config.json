@@ -1,0 +1,36 @@
+{
+  "session": {
+    "id": "default_planar_session",
+    "description": "Intrinsic calibration example for planar target detections."
+  },
+  "calibration": {
+    "type": "intrinsics",
+    "algorithm": "planar",
+    "options": {
+      "min_corners_per_view": 150,
+      "refine": true,
+      "optimize_skew": true,
+      "num_radial": 3,
+      "huber_delta": 2.0,
+      "max_iterations": 200,
+      "epsilon": 1e-9,
+      "point_scale": 1.0,
+      "auto_center_points": false,
+      "fixed_distortion_indices": [],
+      "fixed_distortion_values": [],
+      "homography_ransac": {
+        "max_iters": 4000,
+        "thresh": 1.0,
+        "min_inliers": 50,
+        "confidence": 0.995
+      }
+    }
+  },
+  "cameras": [
+    {
+      "camera_id": "cam0",
+      "model": "pinhole_brown_conrady",
+      "image_size": [2048, 1536]
+    }
+  ]
+}

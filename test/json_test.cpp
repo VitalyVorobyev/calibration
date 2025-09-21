@@ -1,9 +1,10 @@
+#include "calib/json.h"
+
 #include <gtest/gtest.h>
 
 #include <nlohmann/json.hpp>
 
 #include "calib/intrinsics.h"
-#include "calib/json.h"
 #include "calib/serialization.h"
 
 using namespace calib;
@@ -22,7 +23,7 @@ TEST(JsonReflection, CameraMatrixRoundTrip) {
 }
 
 TEST(JsonSerialization, ObservationRoundTrip) {
-    Observation<double> o{1.0,2.0,3.0,4.0};
+    Observation<double> o{1.0, 2.0, 3.0, 4.0};
     nlohmann::json j = o;
     auto o2 = j.get<Observation<double>>();
     EXPECT_DOUBLE_EQ(o2.x, o.x);
@@ -33,9 +34,9 @@ TEST(JsonSerialization, ObservationRoundTrip) {
 
 TEST(JsonSerialization, IntrinsicsResultRoundTrip) {
     IntrinsicsOptimizationResult<Camera<BrownConradyd>> res;
-    res.camera.kmtx = CameraMatrix{100,100,0,0,0};
+    res.camera.kmtx = CameraMatrix{100, 100, 0, 0, 0};
     res.camera.distortion.coeffs = Eigen::VectorXd::Zero(5);
-    res.covariance = Eigen::MatrixXd::Identity(5,5);
+    res.covariance = Eigen::MatrixXd::Identity(5, 5);
     res.view_errors = {0.1, 0.2};
     res.report = "ok";
     res.c_se3_t = {Eigen::Isometry3d::Identity()};

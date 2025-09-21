@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.local/fds-cli-output.planar.json",
+  "title": "FDS CLI Output (Planar Target)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["image_directory", "feature_type", "algo_version", "params_hash", "images"],
+  "properties": {
+    "image_directory": {
+      "type": "string",
+      "description": "Absolute path to the directory that was scanned for images."
+    },
+    "feature_type": {
+      "const": "planar",
+      "description": "Indicates a planar calibration target was detected."
+    },
+    "algo_version": {
+      "type": "string",
+      "pattern": "^opencv-(\\d+)(\\.\\d+)*$",
+      "description": "OpenCV version string reported by the runtime (e.g. opencv-4.8.0)."
+    },
+    "params_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$",
+      "description": "16-character SHA-256 hash prefix of the detector parameters."
+    },
+    "images": {
+      "type": "array",
+      "minItems": 0,
+      "items": { "$ref": "#/$defs/planarImage" },
+      "description": "Per-image detection results."
+    }
+  },
+  "$defs": {
+    "planarImage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "count", "points"],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to the processed image, relative to image_directory when possible."
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of detected planar target points."
+        },
+        "points": {
+          "type": "array",
+          "minItems": 0,
+          "items": { "$ref": "#/$defs/planarPoint" },
+          "description": "Detected planar target point observations."
+        }
+      }
+    },
+    "planarPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "id", "local_x", "local_y", "local_z"],
+      "properties": {
+        "x": { "type": "number", "description": "Corner x-coordinate in image pixels." },
+        "y": { "type": "number", "description": "Corner y-coordinate in image pixels." },
+        "id": { "type": "integer", "description": "Identifier assigned by the board layout." },
+        "local_x": { "type": "number", "description": "Board-space X coordinate of the corner." },
+        "local_y": { "type": "number", "description": "Board-space Y coordinate of the corner." },
+        "local_z": { "type": "number", "description": "Board-space Z coordinate of the corner (usually 0)." }
+      }
+    }
+  }
+}

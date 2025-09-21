@@ -37,7 +37,7 @@ Install the build dependencies using your system package manager.
 
 ```bash
 sudo apt update
-sudo apt install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev cli11
+sudo apt install -y cmake ninja-build libeigen3-dev libceres-dev nlohmann-json3-dev libgtest-dev libgmock-dev libboost-dev libcli11-dev
 ```
 
 #### macOS
@@ -124,6 +124,49 @@ calib_app --config input.json [--task intrinsics] [--output result.json]
 The config file specifies the calibration input and task type, while the
 command-line options provided by CLI11 allow overriding the task mode or the
 output file.
+
+### Planar intrinsics example
+
+An end-to-end intrinsic calibration example is available under `examples/`. It
+takes a high-level config file together with planar target detections that follow the
+schema documented in `examples/planar_features_schema.json`:
+
+```bash
+cmake --build build -j2
+./build/examples/planar_intrinsics \
+  --config examples/planar_intrinsics_config.json \
+  --features path/to/planar_detections.json \
+  --output planar_intrinsics_result.json
+```
+
+During the run the executable reports which views were accepted, the initial
+linear estimate and the refined reprojection statistics. The JSON report it
+writes groups results by calibration type so it can be extended with additional
+cameras or future extrinsic/hand-eye calibrations without changing the schema.
+
+The sample config highlights the most relevant knobs:
+
+- `point_scale` rescales the board coordinates if the detector reports values in
+  centimetres or arbitrary units.
+- `auto_center_points` recentres the board origin before scaling; supply
+  `point_center` to override the automatically detected midpoint.
+- `homography_ransac` mirrors the options exposed by the library for robust
+  homography estimation.
+- `fixed_distortion_indices`/`fixed_distortion_values` let you freeze individual
+  Brown-Conrady coefficients (indexed as `[k1, k2, k3, p1, p2]`) when you want
+  to assume zero distortion or keep prior values.
+
+The detections file consumed by `--features` is validated against
+`examples/planar_features_schema.json` and captures:
+
+- the image directory, detector metadata (`feature_type`, `algo_version`, `params_hash`)
+- per-image entries (`file`, detected `count`) and the list of planar target points
+- per-point measurements with image pixels (`x`, `y`), point `id`, and board-space
+  coordinates (`local_x`, `local_y`, `local_z`)
+
+The resulting calibration report stores all calibration runs under a single
+`calibrations` array so that multiple cameras or additional task types can be
+aggregated in future extensions without breaking downstream tooling.
 
 ## Code Quality
 

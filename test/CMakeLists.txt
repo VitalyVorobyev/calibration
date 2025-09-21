@@ -76,3 +76,13 @@ add_executable(scheimpflug_bundle_test scheimpflug_bundle_test.cpp)
 target_link_libraries(scheimpflug_bundle_test
                       PRIVATE calibration GTest::gtest_main GTest::gmock_main)
 gtest_discover_tests(scheimpflug_bundle_test)
+
+add_executable(planar_intrinsics_test planar_intrinsics_test.cpp)
+target_link_libraries(planar_intrinsics_test PRIVATE calibration GTest::gtest_main
+                                                    GTest::gmock_main)
+gtest_discover_tests(planar_intrinsics_test)
+
+add_executable(stream_capture_test stream_capture_test.cpp)
+target_link_libraries(stream_capture_test PRIVATE calibration GTest::gtest_main
+                                                     GTest::gmock_main)
+gtest_discover_tests(stream_capture_test)

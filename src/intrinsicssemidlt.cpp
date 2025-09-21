@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <numeric>
 #include <optional>
+#include <span>
 
 // ceres
 #include <ceres/ceres.h>
@@ -73,8 +74,8 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
     }
 };
 
-static auto solve_full(const std::vector<PlanarView>& views, int num_radial,
-                       const IntrinsicBlocks& blocks)
+static auto solve_full(const std::vector<PlanarView>& views, const IntrinsicBlocks& blocks,
+                       const IntrinsicsOptions& opts)
     -> std::optional<DistortionWithResiduals<double>> {
     std::vector<Observation<double>> obs;
     for (size_t i = 0; i < views.size(); ++i) {
@@ -85,7 +86,9 @@ static auto solve_full(const std::vector<PlanarView>& views, int num_radial,
     }
     CameraMatrix kmtx{blocks.intrinsics[0], blocks.intrinsics[1], blocks.intrinsics[2],
                       blocks.intrinsics[3], blocks.intrinsics[4]};
-    return fit_distortion_full(obs, kmtx, num_radial);
+    return fit_distortion_full(obs, kmtx, opts.num_radial,
+                               std::span<const int>(opts.fixed_distortion_indices),
+                               std::span<const double>(opts.fixed_distortion_values));
 }
 
 // Set up the Ceres optimization problem
@@ -168,7 +171,7 @@ IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> optimize_intrinsics_s
 
     solve_problem(problem, opts, &result);
 
-    auto dr_opt = solve_full(views, opts.num_radial, blocks);
+    auto dr_opt = solve_full(views, blocks, opts);
     if (!dr_opt.has_value()) {
         throw std::runtime_error("Failed to compute distortion parameters");
     }

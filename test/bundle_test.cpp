@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-
 #include "calib/bundle.h"
+
+#include <gtest/gtest.h>
 
 #include "utils.h"
 
@@ -10,14 +10,10 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
     const double skew = 0;
     RNG rng(7);
     // GT
-    Eigen::Isometry3d g_se3_c_gt = make_pose(
-        Eigen::Vector3d(0.03, 0.00, 0.12),
-        Eigen::Vector3d(0,1,0), deg2rad(8.0)
-    );
-    Eigen::Isometry3d b_se3_t_gt = make_pose(
-        Eigen::Vector3d(0.5, -0.1, 0.8),
-        Eigen::Vector3d(1,0,0), deg2rad(14.0)
-    );
+    Eigen::Isometry3d g_se3_c_gt =
+        make_pose(Eigen::Vector3d(0.03, 0.00, 0.12), Eigen::Vector3d(0, 1, 0), deg2rad(8.0));
+    Eigen::Isometry3d b_se3_t_gt =
+        make_pose(Eigen::Vector3d(0.5, -0.1, 0.8), Eigen::Vector3d(1, 0, 0), deg2rad(14.0));
 
     Camera<BrownConradyd> cam_gt;
     cam_gt.kmtx.fx = 1000;
@@ -44,7 +40,9 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
 
     Eigen::Isometry3d g_se3_c0 = g_se3_c_gt;
     g_se3_c0.translation() += Eigen::Vector3d(-0.01, 0.006, -0.004);
-    g_se3_c0.linear() = axis_angle_to_R(Eigen::Vector3d(0.3,0.7,-0.2).normalized(), deg2rad(2.0)) * g_se3_c0.linear();
+    g_se3_c0.linear() =
+        axis_angle_to_R(Eigen::Vector3d(0.3, 0.7, -0.2).normalized(), deg2rad(2.0)) *
+        g_se3_c0.linear();
 
     // Options: refine intrinsics (no distortion)
     BundleOptions opts;
@@ -54,7 +52,8 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
     opts.huber_delta = -1;  // no regularization
     opts.verbose = false;
 
-    auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {g_se3_c0}, b_se3_t_gt, opts);
+    auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {g_se3_c0},
+                                                         b_se3_t_gt, opts);
     const auto& X = result.g_se3_c[0];
     const auto& Kf = result.cameras[0].kmtx;
     const auto& b_se3_t_est = result.b_se3_t;
@@ -63,9 +62,9 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
     const auto& X_gt = g_se3_c_gt;
     // X close to GT
     double rot_err = rad2deg(rotation_angle(X.linear().transpose() * X_gt.linear()));
-    double tr_err  = (X.translation() - X_gt.translation()).norm();
+    double tr_err = (X.translation() - X_gt.translation()).norm();
     EXPECT_LT(rot_err, 1e-6);
-    EXPECT_LT(tr_err,  1e-6);
+    EXPECT_LT(tr_err, 1e-6);
 
     // Intrinsics recovered
     EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-6);
@@ -76,23 +75,19 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
 
     // Recovered base->target should be close
     double bt_rot = rad2deg(rotation_angle(b_se3_t_est.linear().transpose() * b_se3_t_gt.linear()));
-    double bt_tr  = (b_se3_t_est.translation() - b_se3_t_gt.translation()).norm();
+    double bt_tr = (b_se3_t_est.translation() - b_se3_t_gt.translation()).norm();
     EXPECT_LT(bt_rot, 1e-6);
-    EXPECT_LT(bt_tr,  1e-6);
+    EXPECT_LT(bt_tr, 1e-6);
 }
 
 TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortionSkew) {
     constexpr double skew = 0.001;
     RNG rng(7);
     // GT
-    Eigen::Isometry3d g_se3_c_gt = make_pose(
-        Eigen::Vector3d(0.03, 0.00, 0.12),
-        Eigen::Vector3d(0,1,0), deg2rad(8.0)
-    );
-    Eigen::Isometry3d b_se3_t_gt = make_pose(
-        Eigen::Vector3d(0.5, -0.1, 0.8),
-        Eigen::Vector3d(1,0,0), deg2rad(14.0)
-    );
+    Eigen::Isometry3d g_se3_c_gt =
+        make_pose(Eigen::Vector3d(0.03, 0.00, 0.12), Eigen::Vector3d(0, 1, 0), deg2rad(8.0));
+    Eigen::Isometry3d b_se3_t_gt =
+        make_pose(Eigen::Vector3d(0.5, -0.1, 0.8), Eigen::Vector3d(1, 0, 0), deg2rad(14.0));
 
     Camera<BrownConradyd> cam_gt;
     cam_gt.kmtx.fx = 1000;
@@ -119,7 +114,9 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortionSkew) {
 
     Eigen::Isometry3d g_se3_c0 = g_se3_c_gt;
     g_se3_c0.translation() += Eigen::Vector3d(-0.01, 0.006, -0.004);
-    g_se3_c0.linear() = axis_angle_to_R(Eigen::Vector3d(0.3,0.7,-0.2).normalized(), deg2rad(2.0)) * g_se3_c0.linear();
+    g_se3_c0.linear() =
+        axis_angle_to_R(Eigen::Vector3d(0.3, 0.7, -0.2).normalized(), deg2rad(2.0)) *
+        g_se3_c0.linear();
 
     BundleOptions opts;
     opts.optimize_intrinsics = true;
@@ -128,7 +125,8 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortionSkew) {
     opts.huber_delta = -1;  // no regularization
     opts.verbose = false;
 
-    auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {g_se3_c0}, b_se3_t_gt, opts);
+    auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {g_se3_c0},
+                                                         b_se3_t_gt, opts);
     const auto& X = result.g_se3_c[0];
     const auto& Kf = result.cameras[0].kmtx;
     const auto& b_se3_t_est = result.b_se3_t;
@@ -137,9 +135,9 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortionSkew) {
     const auto& X_gt = g_se3_c_gt;
     // X close to GT
     double rot_err = rad2deg(rotation_angle(X.linear().transpose() * X_gt.linear()));
-    double tr_err  = (X.translation() - X_gt.translation()).norm();
+    double tr_err = (X.translation() - X_gt.translation()).norm();
     EXPECT_LT(rot_err, 1e-6);
-    EXPECT_LT(tr_err,  1e-6);
+    EXPECT_LT(tr_err, 1e-6);
 
     // Intrinsics recovered
     EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-6);
@@ -150,9 +148,9 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortionSkew) {
 
     // Recovered base->target should be close
     double bt_rot = rad2deg(rotation_angle(b_se3_t_est.linear().transpose() * b_se3_t_gt.linear()));
-    double bt_tr  = (b_se3_t_est.translation() - b_se3_t_gt.translation()).norm();
+    double bt_tr = (b_se3_t_est.translation() - b_se3_t_gt.translation()).norm();
     EXPECT_LT(bt_rot, 1e-6);
-    EXPECT_LT(bt_tr,  1e-6);
+    EXPECT_LT(bt_tr, 1e-6);
 }
 
 TEST(ReprojectionRefine, DistortionRecoveryOptional) {
@@ -166,14 +164,10 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     cam_gt.distortion.coeffs = Eigen::VectorXd::Zero(5);
     cam_gt.distortion.coeffs << -0.12, 0.02, 0.0005, -0.0007, 0.001;
 
-    Eigen::Isometry3d g_se3_c_gt = make_pose(
-        Eigen::Vector3d(0.03, 0.00, 0.12),
-        Eigen::Vector3d(0,1,0), deg2rad(8.0)
-    );
-    Eigen::Isometry3d b_se3_t_gt = make_pose(
-        Eigen::Vector3d(0.5, -0.1, 80),
-        Eigen::Vector3d(1,0,0), deg2rad(14.0)
-    );
+    Eigen::Isometry3d g_se3_c_gt =
+        make_pose(Eigen::Vector3d(0.03, 0.00, 0.12), Eigen::Vector3d(0, 1, 0), deg2rad(8.0));
+    Eigen::Isometry3d b_se3_t_gt =
+        make_pose(Eigen::Vector3d(0.5, -0.1, 80), Eigen::Vector3d(1, 0, 0), deg2rad(14.0));
 
     SimulatedHandEye sim{g_se3_c_gt, b_se3_t_gt, cam_gt};
     sim.make_sequence(22, rng);
@@ -182,11 +176,12 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
 
     // Start from wrong kmtx (no distortion) and perturbed X
     Camera<BrownConradyd> cam0 = cam_gt;
-    cam0.distortion.coeffs = Eigen::VectorXd::Zero(5); // start at zero
+    cam0.distortion.coeffs = Eigen::VectorXd::Zero(5);  // start at zero
 
     Eigen::Isometry3d X0 = g_se3_c_gt;
     X0.translation() += Eigen::Vector3d(0.01, 0.006, -0.003);
-    X0.linear() = axis_angle_to_R(Eigen::Vector3d(0.1,0.8,0.1).normalized(), deg2rad(2.0)) * X0.linear();
+    X0.linear() =
+        axis_angle_to_R(Eigen::Vector3d(0.1, 0.8, 0.1).normalized(), deg2rad(2.0)) * X0.linear();
 
     BundleOptions opts;
     opts.optimize_intrinsics = true;
@@ -195,7 +190,8 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     opts.optimizer = OptimizerType::DENSE_QR;
     opts.verbose = false;
 
-    auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {X0}, b_se3_t_gt, opts);
+    auto result =
+        optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {X0}, b_se3_t_gt, opts);
     const auto& X = result.g_se3_c[0];
     const auto& dist = result.cameras[0].distortion.coeffs;
 
@@ -203,7 +199,7 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     double rot_err = rad2deg(rotation_angle(X.linear().transpose() * g_se3_c_gt.linear()));
     double tr_err = (X.translation() - g_se3_c_gt.translation()).norm();
     EXPECT_LT(rot_err, 0.1);
-    EXPECT_LT(tr_err,  0.02);
+    EXPECT_LT(tr_err, 0.02);
 
     const auto& dist_gt = cam_gt.distortion.coeffs;
     EXPECT_NEAR(dist[0], dist_gt[0], 1e-5);  // k1
@@ -222,24 +218,27 @@ TEST(OptimizeBundle, InputValidation) {
     Eigen::Isometry3d init_b_se3_t = Eigen::Isometry3d::Identity();
     BundleOptions opts;
 
-    EXPECT_THROW({
-        optimize_bundle<Camera<BrownConradyd>>(observations, {cam, cam}, {X0}, init_b_se3_t, opts);
-    }, std::invalid_argument);
+    EXPECT_THROW(
+        {
+            optimize_bundle<Camera<BrownConradyd>>(observations, {cam, cam}, {X0}, init_b_se3_t,
+                                                   opts);
+        },
+        std::invalid_argument);
 }
 
 TEST(OptimizeBundle, SingleCameraHandEye) {
-    CameraMatrix kmtx{100.0,100.0,64.0,48.0};
+    CameraMatrix kmtx{100.0, 100.0, 64.0, 48.0};
     Camera<BrownConradyd> cam(kmtx, Eigen::VectorXd::Zero(5));
 
     Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     g_se3_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
-    g_se3_c.translation() = Eigen::Vector3d(0.1,0.0,0.05);
+    g_se3_c.translation() = Eigen::Vector3d(0.1, 0.0, 0.05);
 
     Eigen::Isometry3d b_se3_t = Eigen::Isometry3d::Identity();
-    b_se3_t.translation() = Eigen::Vector3d(0.2,0.0,0.0);
+    b_se3_t.translation() = Eigen::Vector3d(0.2, 0.0, 0.0);
 
-    std::vector<Eigen::Vector2d> obj{{-0.1,-0.1},{0.1,-0.1},{0.1,0.1},{-0.1,0.1},
-                                     {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}, {9, 0}};
+    std::vector<Eigen::Vector2d> obj{{-0.1, -0.1}, {0.1, -0.1}, {0.1, 0.1}, {-0.1, 0.1}, {0.5, 0.5},
+                                     {-1.0, -1.0}, {2.0, 2.0},  {2.5, 0.5}, {9, 0}};
 
     std::vector<Camera<BrownConradyd>> cams{cam};
     auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
@@ -252,39 +251,41 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
     opts.optimize_target_pose = false;
     opts.optimize_hand_eye = true;
 
-    auto res = optimize_bundle<Camera<BrownConradyd>>(observations, cams, {init_g_se3_c}, b_se3_t, opts);
+    auto res =
+        optimize_bundle<Camera<BrownConradyd>>(observations, cams, {init_g_se3_c}, b_se3_t, opts);
     std::cout << res.report << std::endl;
 
-    EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c.translation()).norm(),1e-3);
-    Eigen::AngleAxisd diff(res.g_se3_c[0].linear()*g_se3_c.linear().transpose());
-    EXPECT_LT(diff.angle(),1e-3);
+    EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c.translation()).norm(), 1e-3);
+    Eigen::AngleAxisd diff(res.g_se3_c[0].linear() * g_se3_c.linear().transpose());
+    EXPECT_LT(diff.angle(), 1e-3);
     EXPECT_LT(res.final_cost, 0.01);
 }
 
 TEST(OptimizeBundle, SingleCameraTargetPose) {
-    CameraMatrix kmtx{100.0,100.0,64.0,48.0};
+    CameraMatrix kmtx{100.0, 100.0, 64.0, 48.0};
     Camera<BrownConradyd> cam(kmtx, Eigen::VectorXd::Zero(5));
     Eigen::Isometry3d g_se3_c = Eigen::Isometry3d::Identity();
     g_se3_c.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
-    g_se3_c.translation() = Eigen::Vector3d(0.1,0.0,0.05);
+    g_se3_c.translation() = Eigen::Vector3d(0.1, 0.0, 0.05);
 
     Eigen::Isometry3d b_se3_t = Eigen::Isometry3d::Identity();
-    b_se3_t.translation() = Eigen::Vector3d(0.2,0.0,0.0);
+    b_se3_t.translation() = Eigen::Vector3d(0.2, 0.0, 0.0);
 
-    std::vector<Eigen::Vector2d> obj{{-0.1,-0.1},{0.1,-0.1},{0.1,0.1},{-0.1,0.1},
-                                     {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
+    std::vector<Eigen::Vector2d> obj{{-0.1, -0.1}, {0.1, -0.1},  {0.1, 0.1}, {-0.1, 0.1},
+                                     {0.5, 0.5},   {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5}};
     std::vector<Camera<BrownConradyd>> cams{cam};
     auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
     auto observations = make_bundle_observations(cams, {g_se3_c}, b_se3_t, obj, poses);
     Eigen::Isometry3d init_b_se3_t = b_se3_t;
-    init_b_se3_t.translation() += Eigen::Vector3d(0.01,-0.02,0.03);
+    init_b_se3_t.translation() += Eigen::Vector3d(0.01, -0.02, 0.03);
 
     BundleOptions opts;
     opts.optimize_intrinsics = false;
     opts.optimize_target_pose = true;
     opts.optimize_hand_eye = false;
 
-    auto res = optimize_bundle<Camera<BrownConradyd>>(observations, cams, {g_se3_c}, init_b_se3_t, opts);
+    auto res =
+        optimize_bundle<Camera<BrownConradyd>>(observations, cams, {g_se3_c}, init_b_se3_t, opts);
 
     EXPECT_LT((res.b_se3_t.translation() - b_se3_t.translation()).norm(), 1e-3);
     Eigen::AngleAxisd diff(res.b_se3_t.linear() * b_se3_t.linear().transpose());
@@ -298,48 +299,51 @@ TEST(OptimizeBundle, TwoCamerasHandEyeExtrinsics) {
 
     Eigen::Isometry3d g_se3_c0 = Eigen::Isometry3d::Identity();
     g_se3_c0.linear() = Eigen::AngleAxisd(0.05, Eigen::Vector3d::UnitY()).toRotationMatrix();
-    g_se3_c0.translation() = Eigen::Vector3d(0.1,0.0,0.05);
+    g_se3_c0.translation() = Eigen::Vector3d(0.1, 0.0, 0.05);
 
     Eigen::Isometry3d c1_se3_c0 = Eigen::Isometry3d::Identity();
-    c1_se3_c0.translation() = Eigen::Vector3d(0.05,0.0,0.0);
+    c1_se3_c0.translation() = Eigen::Vector3d(0.05, 0.0, 0.0);
     c1_se3_c0.linear() = Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitZ()).toRotationMatrix();
 
     Eigen::Isometry3d g_se3_c1 = g_se3_c0 * c1_se3_c0.inverse();
 
     Eigen::Isometry3d b_se3_t = Eigen::Isometry3d::Identity();
-    b_se3_t.translation() = Eigen::Vector3d(0.2,0.0,0.0);
+    b_se3_t.translation() = Eigen::Vector3d(0.2, 0.0, 0.0);
 
-    std::vector<Eigen::Vector2d> obj{{-0.1,-0.1},{0.1,-0.1},{0.1,0.1},{-0.1,0.1},
-                                     {0.5,0.5},{-1.0,-1.0},{2.0,2.0},{2.5,0.5}};
+    std::vector<Eigen::Vector2d> obj{{-0.1, -0.1}, {0.1, -0.1},  {0.1, 0.1}, {-0.1, 0.1},
+                                     {0.5, 0.5},   {-1.0, -1.0}, {2.0, 2.0}, {2.5, 0.5}};
 
     std::vector<Camera<BrownConradyd>> cams{cam0, cam1};
     auto poses = make_circle_poses(8, 0.1, 0.3, 0.05, 0.1, 0.5);
-    auto observations = make_bundle_observations(
-        cams, {g_se3_c0, g_se3_c1}, b_se3_t, obj, poses);
+    auto observations = make_bundle_observations(cams, {g_se3_c0, g_se3_c1}, b_se3_t, obj, poses);
     Eigen::Isometry3d init_g_se3_c1 = g_se3_c1;
-    init_g_se3_c1.translation() += Eigen::Vector3d(0.01,-0.01,0.0);
-    init_g_se3_c1.linear() = g_se3_c1.linear() * Eigen::AngleAxisd(0.01, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+    init_g_se3_c1.translation() += Eigen::Vector3d(0.01, -0.01, 0.0);
+    init_g_se3_c1.linear() =
+        g_se3_c1.linear() * Eigen::AngleAxisd(0.01, Eigen::Vector3d::UnitZ()).toRotationMatrix();
 
     Eigen::Isometry3d init_g_se3_c0 = g_se3_c0;
-    init_g_se3_c0.translation() += Eigen::Vector3d(-0.01,0.02,-0.02);
+    init_g_se3_c0.translation() += Eigen::Vector3d(-0.01, 0.02, -0.02);
 
     BundleOptions opts;
-    opts.optimize_intrinsics=false;
-    opts.optimize_target_pose=false;
-    opts.optimize_hand_eye=true;
+    opts.optimize_intrinsics = false;
+    opts.optimize_target_pose = false;
+    opts.optimize_hand_eye = true;
 
-    auto res = optimize_bundle<Camera<BrownConradyd>>(observations, cams, {init_g_se3_c0, init_g_se3_c1}, b_se3_t, opts);
+    auto res = optimize_bundle<Camera<BrownConradyd>>(
+        observations, cams, {init_g_se3_c0, init_g_se3_c1}, b_se3_t, opts);
 
     std::cout << "True g_se3_c0 translation: " << g_se3_c0.translation().transpose() << std::endl;
-    std::cout << "Result g_se3_c0 translation: " << res.g_se3_c[0].translation().transpose() << std::endl;
+    std::cout << "Result g_se3_c0 translation: " << res.g_se3_c[0].translation().transpose()
+              << std::endl;
     std::cout << "True g_se3_c1 translation: " << g_se3_c1.translation().transpose() << std::endl;
-    std::cout << "Result g_se3_c1 translation: " << res.g_se3_c[1].translation().transpose() << std::endl;
+    std::cout << "Result g_se3_c1 translation: " << res.g_se3_c[1].translation().transpose()
+              << std::endl;
 
-    EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c0.translation()).norm(),1e-3);
+    EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c0.translation()).norm(), 1e-3);
     Eigen::AngleAxisd diff(res.g_se3_c[0].linear() * g_se3_c0.linear().transpose());
-    EXPECT_LT(diff.angle(),1e-3);
+    EXPECT_LT(diff.angle(), 1e-3);
 
-    EXPECT_LT((res.g_se3_c[1].translation() - g_se3_c1.translation()).norm(),1e-3);
+    EXPECT_LT((res.g_se3_c[1].translation() - g_se3_c1.translation()).norm(), 1e-3);
     Eigen::AngleAxisd diff2(res.g_se3_c[1].linear() * g_se3_c1.linear().transpose());
     EXPECT_LT(diff2.angle(), 1e-3);
 }
