@@ -117,8 +117,8 @@ auto apply_distortion(const Eigen::Matrix<T, 2, 1>& norm_xy,
 // Normalize and undistort pixel coordinates
 template <typename T>
 [[nodiscard]]
-auto undistort(Eigen::Matrix<T, 2, 1> norm_xy, const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs)
-    -> Eigen::Matrix<T, 2, 1> {
+auto undistort(Eigen::Matrix<T, 2, 1> norm_xy,
+               const Eigen::Matrix<T, Eigen::Dynamic, 1>& coeffs) -> Eigen::Matrix<T, 2, 1> {
     if (coeffs.size() < 2) {
         throw std::runtime_error("Insufficient distortion coefficients");
     }
@@ -227,11 +227,10 @@ struct DualDistortionWithResiduals final {
 // TODO: refactor for camera_model as a template parameter
 template <typename T>
 [[nodiscard]]
-auto fit_distortion_full(const std::vector<Observation<T>>& observations,
-                         const CameraMatrixT<T>& intrinsics, int num_radial = 2,
-                         std::span<const int> fixed_indices = {},
-                         std::span<const T> fixed_values = {})
-    -> std::optional<DistortionWithResiduals<T>> {
+auto fit_distortion_full(
+    const std::vector<Observation<T>>& observations, const CameraMatrixT<T>& intrinsics,
+    int num_radial = 2, std::span<const int> fixed_indices = {},
+    std::span<const T> fixed_values = {}) -> std::optional<DistortionWithResiduals<T>> {
     constexpr int k_min_observations = 8;
     if (observations.size() < k_min_observations) {
         return std::nullopt;
@@ -369,11 +368,10 @@ auto fit_distortion(const std::vector<Observation<T>>& observations,
     return fit_distortion_full(observations, intrinsics, num_radial, fixed_indices, fixed_values);
 }
 
-inline auto fit_distortion_dual(const std::vector<Observation<double>>& observations,
-                                const CameraMatrix& intrinsics, int num_radial = 2,
-                                std::span<const int> fixed_indices = {},
-                                std::span<const double> fixed_values = {})
-    -> std::optional<DualDistortionWithResiduals> {
+inline auto fit_distortion_dual(
+    const std::vector<Observation<double>>& observations, const CameraMatrix& intrinsics,
+    int num_radial = 2, std::span<const int> fixed_indices = {},
+    std::span<const double> fixed_values = {}) -> std::optional<DualDistortionWithResiduals> {
     auto forward =
         fit_distortion_full(observations, intrinsics, num_radial, fixed_indices, fixed_values);
     if (!forward) {

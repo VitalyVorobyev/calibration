@@ -44,9 +44,8 @@ struct HomographyResult final {
  *
  * @note Both src and dst must contain at least 4 points and have the same size.
  */
-auto estimate_homography(const PlanarView& data,
-                         std::optional<RansacOptions> ransac_opts = std::nullopt)
-    -> HomographyResult;
+auto estimate_homography(const PlanarView& data, std::optional<RansacOptions> ransac_opts =
+                                                     std::nullopt) -> HomographyResult;
 
 struct HomographyOptions final : public OptimOptions {};
 

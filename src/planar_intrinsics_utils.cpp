@@ -82,8 +82,8 @@ auto determine_point_center(const PlanarDetections& detections,
 
 auto collect_planar_views(const PlanarDetections& detections,
                           const IntrinsicCalibrationOptions& opts,
-                          const std::array<double, 2>& point_center, std::vector<ActiveView>& views)
-    -> std::vector<PlanarView> {
+                          const std::array<double, 2>& point_center,
+                          std::vector<ActiveView>& views) -> std::vector<PlanarView> {
     std::vector<PlanarView> planar_views;
     views.clear();
     planar_views.reserve(detections.images.size());
@@ -239,11 +239,10 @@ auto build_output_json(const PlanarCalibrationConfig& cfg, const CameraConfig& c
                           {"calibrations", nlohmann::json::array({calibration_json})}};
 }
 
-auto PlanarIntrinsicCalibrationFacade::calibrate(const PlanarCalibrationConfig& cfg,
-                                                 const CameraConfig& cam_cfg,
-                                                 const PlanarDetections& detections,
-                                                 const std::filesystem::path& features_path) const
-    -> CalibrationRunResult {
+auto PlanarIntrinsicCalibrationFacade::calibrate(
+    const PlanarCalibrationConfig& cfg, const CameraConfig& cam_cfg,
+    const PlanarDetections& detections,
+    const std::filesystem::path& features_path) const -> CalibrationRunResult {
     CalibrationOutputs output;
     output.total_input_views = detections.images.size();
     output.min_corner_threshold = cfg.options.min_corners_per_view;
