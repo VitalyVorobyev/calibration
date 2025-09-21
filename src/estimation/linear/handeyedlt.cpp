@@ -4,7 +4,7 @@
 #include <iostream>
 #include <numbers>
 
-#include "detail/observationutils.h"
+#include "common/se3_utils.h"
 
 namespace calib {
 
