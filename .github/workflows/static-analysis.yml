@@ -45,7 +45,7 @@ jobs:
 
   format-check:
     name: Code Formatting
-    runs-on: ubuntu-25.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
       - name: Install clang-format
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-format-20
+          sudo apt-get install -y clang-format
 
       - name: Check formatting
         run: |
