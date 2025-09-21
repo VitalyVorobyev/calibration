@@ -5,7 +5,7 @@
 #include <iostream>
 #include <limits>
 
-#include "detail/observationutils.h"  // for project_to_so3
+#include "../common/se3_utils.h"  // for project_to_so3
 
 namespace calib {
 
