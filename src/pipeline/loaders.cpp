@@ -21,7 +21,7 @@ auto JsonPlanarDatasetLoader::load() -> CalibrationDataset {
 
     nlohmann::json sources = nlohmann::json::array();
     for (const auto& entry : entries_) {
-        auto detections = planar::load_planar_observations(entry.path, entry.sensor_id);
+        auto detections = planar::load_planar_dataset(entry.path, entry.sensor_id);
         nlohmann::json source_info{{"path", entry.path.string()},
                                    {"sensor_id", detections.sensor_id}};
         if (!detections.metadata.is_null()) {

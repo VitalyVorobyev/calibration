@@ -18,15 +18,16 @@ target_include_directories(calib_estimation_optim
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     PRIVATE
         ${ESTIMATION_ROOT}
-        ${ESTIMATION_ROOT}/detail
-        ${ESTIMATION_ROOT}/residuals)
+        ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(calib_estimation_optim
     PUBLIC
         calib_core
         calib_models
         calib_estimation_linear
-        Ceres::ceres)
+        Ceres::ceres
+    PRIVATE
+        calib_estimation_common)
 
 calib_set_default_warnings(calib_estimation_optim)
 add_library(calib::estimation_optim ALIAS calib_estimation_optim)

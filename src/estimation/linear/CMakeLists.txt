@@ -18,6 +18,7 @@ target_include_directories(calib_estimation_linear
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     PRIVATE
         ${ESTIMATION_ROOT}
+        ${ESTIMATION_ROOT}/common
         ${ESTIMATION_ROOT}/detail)
 
 target_link_libraries(calib_estimation_linear

@@ -69,7 +69,7 @@ new schema requirements.
 ## Runtime Validation
 
 `calib::planar::validate_planar_dataset` performs lightweight structural checks
-before the data is consumed.  `load_planar_observations` automatically invokes
+before the data is consumed.  `load_planar_dataset` automatically invokes
 validation and reports human-readable error messages when the dataset is
 malformed.  The helper understands both the new schema and legacy input via the
 conversion utility.

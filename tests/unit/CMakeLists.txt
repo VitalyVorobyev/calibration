@@ -3,6 +3,10 @@ include(GoogleTest)
 function(calib_add_unit_test target)
     add_executable(${target} ${ARGN})
     target_link_libraries(${target} PRIVATE calib::calib GTest::gtest_main GTest::gmock_main)
+    target_include_directories(${target} PRIVATE
+        ${PROJECT_SOURCE_DIR}/src/estimation/common
+        ${PROJECT_SOURCE_DIR}/src/estimation/detail
+        ${PROJECT_SOURCE_DIR}/src/estimation/residuals)
     calib_set_default_warnings(${target})
     gtest_discover_tests(${target})
 endfunction()

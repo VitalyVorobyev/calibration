@@ -3,6 +3,7 @@ set(SOURCES
     pipeline.cpp
     stages.cpp
     loaders.cpp
+    planar_intrinsics.cpp
 )
 
 add_library(calib_pipeline STATIC ${SOURCES})
@@ -14,14 +15,15 @@ target_include_directories(calib_pipeline
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/..
-        ${CMAKE_CURRENT_SOURCE_DIR}/../estimation
-        ${CMAKE_CURRENT_SOURCE_DIR}/../estimation/detail)
+        ${CMAKE_CURRENT_SOURCE_DIR}/../estimation)
 
 target_link_libraries(calib_pipeline
     PUBLIC
         calib_core
         calib_models
         calib_estimation_optim
+        calib_datasets
+        calib_reports
         Ceres::ceres)
 
 calib_set_default_warnings(calib_pipeline)

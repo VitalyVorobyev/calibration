@@ -5,7 +5,7 @@
 #include <fstream>
 #include <nlohmann/json.hpp>
 
-#include "calib/utils/planar_intrinsics_utils.h"
+#include "calib/datasets/planar.h"
 
 using namespace calib::planar;
 
@@ -52,7 +52,7 @@ TEST(PlanarDataset, ValidateAndLoadNewFormat) {
         out << dataset.dump(2);
     }
 
-    const auto detections = load_planar_observations(tmp_path, std::string("cam0"));
+    const auto detections = load_planar_dataset(tmp_path, std::string("cam0"));
     EXPECT_EQ(detections.sensor_id, "cam0");
     EXPECT_EQ(detections.images.size(), 1u);
     EXPECT_EQ(detections.images.front().points.size(), 2u);
@@ -99,7 +99,7 @@ TEST(PlanarDataset, ConvertLegacyFormat) {
         out << converted.dump(2);
     }
 
-    const auto detections = load_planar_observations(tmp_path);
+    const auto detections = load_planar_dataset(tmp_path);
     EXPECT_EQ(detections.sensor_id, "cam_legacy");
     EXPECT_EQ(detections.images.size(), 1u);
     EXPECT_EQ(detections.images.front().points.size(), 2u);

@@ -9,7 +9,8 @@
 
 #include "calib/pipeline/loaders.h"
 #include "calib/pipeline/stages.h"
-#include "calib/utils/planar_intrinsics_utils.h"
+#include "calib/pipeline/planar_intrinsics.h"
+#include "calib/datasets/planar.h"
 
 namespace {
 

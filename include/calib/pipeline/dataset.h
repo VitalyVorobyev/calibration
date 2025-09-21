@@ -6,7 +6,7 @@
 // third-party
 #include <nlohmann/json.hpp>
 
-#include "calib/utils/planar_intrinsics_utils.h"
+#include "calib/datasets/planar.h"
 
 namespace calib::pipeline {
 

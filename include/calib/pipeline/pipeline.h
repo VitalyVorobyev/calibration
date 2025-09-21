@@ -11,6 +11,7 @@
 #include <nlohmann/json.hpp>
 
 #include "calib/pipeline/dataset.h"
+#include "calib/pipeline/planar_intrinsics.h"
 
 namespace calib::pipeline {
 

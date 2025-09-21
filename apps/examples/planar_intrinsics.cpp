@@ -7,7 +7,8 @@
 #include <string>
 #include <vector>
 
-#include "calib/utils/planar_intrinsics_utils.h"
+#include "calib/pipeline/planar_intrinsics.h"
+#include "calib/datasets/planar.h"
 
 using namespace calib::planar;
 
@@ -55,7 +56,7 @@ int main(int argc, char** argv) {
 
             std::cerr << "[" << cam_cfg.camera_id << "] Loading detections from " << features_path
                       << '\n';
-            const auto detections = load_planar_observations(features_path);
+            const auto detections = load_planar_dataset(features_path);
             std::cerr << "[" << cam_cfg.camera_id << "] Found " << detections.images.size()
                       << " image detections" << '\n';
 

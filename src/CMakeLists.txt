@@ -2,16 +2,18 @@ add_subdirectory(core)
 add_subdirectory(models)
 add_subdirectory(io)
 add_subdirectory(estimation)
+add_subdirectory(datasets)
+add_subdirectory(reports)
 add_subdirectory(pipeline)
-add_subdirectory(utils)
 
 add_library(calib INTERFACE)
 target_link_libraries(calib INTERFACE
     calib_core
     calib_models
     calib_estimation
+    calib_datasets
+    calib_reports
     calib_pipeline
-    calib_utils
     calib_io)
 add_library(calib::calib ALIAS calib)
 add_library(calibration ALIAS calib)

@@ -8,7 +8,9 @@
 #include <string>
 #include <vector>
 
-#include "calib/utils/planar_intrinsics_utils.h"
+#include "calib/pipeline/planar_intrinsics.h"
+#include "calib/datasets/planar.h"
+#include "calib/reports/planar_intrinsics.h"
 #include "utils.h"
 
 using namespace calib;
@@ -117,7 +119,7 @@ TEST(PlanarIntrinsicsUtils, LoadPlanarObservationsParsesDetectorMetadata) {
     })";
     file.close();
 
-    const auto detections = load_planar_observations(json_path);
+    const auto detections = load_planar_dataset(json_path);
     EXPECT_EQ(detections.image_directory, "imgs");
     EXPECT_EQ(detections.feature_type, "planar");
     EXPECT_EQ(detections.algo_version, "v2");
@@ -160,7 +162,7 @@ TEST(PlanarIntrinsicsUtils, LoadPlanarObservationsRequiresFeatureType) {
     })";
     file.close();
 
-    EXPECT_THROW({ (void)load_planar_observations(json_path); }, std::runtime_error);
+    EXPECT_THROW({ (void)load_planar_dataset(json_path); }, std::runtime_error);
 }
 
 TEST(PlanarIntrinsicsUtils, PrintCalibrationSummaryIncludesKeyData) {
@@ -233,7 +235,7 @@ TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
     outputs.refine_result.view_errors = {0.5, 0.7};
 
     const auto json =
-        build_output_json(cfg, cam_cfg, detections, outputs, std::filesystem::path{"feat.json"});
+        build_planar_intrinsics_report(cfg, cam_cfg, detections, outputs, std::filesystem::path{"feat.json"});
 
     ASSERT_TRUE(json.contains("calibrations"));
     const auto& calibrations = json.at("calibrations");
