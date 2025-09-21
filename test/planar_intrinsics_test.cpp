@@ -3,6 +3,8 @@
 #include <Eigen/Dense>
 #include <array>
 #include <filesystem>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -73,6 +75,125 @@ TEST(PlanarIntrinsicsUtils, CollectPlanarViewsRespectsThresholdAndScaling) {
     EXPECT_DOUBLE_EQ(view[1].object_xy.y(), 0.0);
     EXPECT_DOUBLE_EQ(view[2].object_xy.x(), 0.0);
     EXPECT_DOUBLE_EQ(view[2].object_xy.y(), 4.0);
+}
+
+TEST(PlanarIntrinsicsUtils, BuildRansacOptionsMatchesConfig) {
+    HomographyRansacConfig cfg;
+    cfg.max_iters = 50;
+    cfg.thresh = 0.25;
+    cfg.min_inliers = 12;
+    cfg.confidence = 0.85;
+
+    const auto opts = build_ransac_options(cfg);
+    EXPECT_EQ(opts.max_iters, cfg.max_iters);
+    EXPECT_DOUBLE_EQ(opts.thresh, cfg.thresh);
+    EXPECT_EQ(opts.min_inliers, cfg.min_inliers);
+    EXPECT_DOUBLE_EQ(opts.confidence, cfg.confidence);
+    EXPECT_EQ(opts.seed, RansacOptions{}.seed);
+    EXPECT_TRUE(opts.refit_on_inliers);
+}
+
+TEST(PlanarIntrinsicsUtils, LoadPlanarObservationsParsesDetectorMetadata) {
+    const auto temp_dir = std::filesystem::path(testing::TempDir());
+    const auto json_path = temp_dir / "planar_observations.json";
+
+    std::ofstream file(json_path);
+    ASSERT_TRUE(file.is_open());
+    file << R"({
+        "image_directory": "imgs",
+        "feature_type": "planar",
+        "algo_version": "v2",
+        "params_hash": "hash123",
+        "images": [
+            {
+                "count": 2,
+                "file": "view0.png",
+                "points": [
+                    {"x": 10.0, "y": 20.0, "id": 5, "local_x": 1.0, "local_y": 2.0, "local_z": 0.1},
+                    {"x": 30.0, "y": 40.0, "id": 6, "local_x": 3.0, "local_y": 4.0, "local_z": 0.2}
+                ]
+            }
+        ]
+    })";
+    file.close();
+
+    const auto detections = load_planar_observations(json_path);
+    EXPECT_EQ(detections.image_directory, "imgs");
+    EXPECT_EQ(detections.feature_type, "planar");
+    EXPECT_EQ(detections.algo_version, "v2");
+    EXPECT_EQ(detections.params_hash, "hash123");
+    ASSERT_EQ(detections.images.size(), 1u);
+
+    const auto& image = detections.images.front();
+    EXPECT_EQ(image.file, "view0.png");
+    EXPECT_EQ(image.count, 2);
+    ASSERT_EQ(image.points.size(), 2u);
+
+    const auto& pt0 = image.points[0];
+    EXPECT_DOUBLE_EQ(pt0.x, 10.0);
+    EXPECT_DOUBLE_EQ(pt0.y, 20.0);
+    EXPECT_EQ(pt0.id, 5);
+    EXPECT_DOUBLE_EQ(pt0.local_x, 1.0);
+    EXPECT_DOUBLE_EQ(pt0.local_y, 2.0);
+    EXPECT_DOUBLE_EQ(pt0.local_z, 0.1);
+
+    const auto& pt1 = image.points[1];
+    EXPECT_DOUBLE_EQ(pt1.x, 30.0);
+    EXPECT_DOUBLE_EQ(pt1.y, 40.0);
+    EXPECT_EQ(pt1.id, 6);
+    EXPECT_DOUBLE_EQ(pt1.local_x, 3.0);
+    EXPECT_DOUBLE_EQ(pt1.local_y, 4.0);
+    EXPECT_DOUBLE_EQ(pt1.local_z, 0.2);
+}
+
+TEST(PlanarIntrinsicsUtils, LoadPlanarObservationsRequiresFeatureType) {
+    const auto temp_dir = std::filesystem::path(testing::TempDir());
+    const auto json_path = temp_dir / "planar_observations_missing_feature.json";
+
+    std::ofstream file(json_path);
+    ASSERT_TRUE(file.is_open());
+    file << R"({
+        "image_directory": "imgs",
+        "algo_version": "v2",
+        "params_hash": "hash123",
+        "images": []
+    })";
+    file.close();
+
+    EXPECT_THROW({ (void)load_planar_observations(json_path); }, std::runtime_error);
+}
+
+TEST(PlanarIntrinsicsUtils, PrintCalibrationSummaryIncludesKeyData) {
+    CameraConfig cam_cfg;
+    cam_cfg.camera_id = "cam_test";
+
+    CalibrationOutputs outputs;
+    outputs.point_scale = 2.0;
+    outputs.point_center = {1.5, -0.5};
+    outputs.invalid_k_warnings = 1;
+    outputs.pose_warnings = 2;
+    outputs.linear_kmtx = CameraMatrix{900.0, 910.0, 320.0, 240.0, 0.05};
+    outputs.total_input_views = 4;
+    outputs.accepted_views = 3;
+    outputs.refine_result.camera = PinholeCamera<BrownConradyd>(
+        CameraMatrix{905.0, 915.0, 321.0, 241.0, 0.02}, Eigen::VectorXd::LinSpaced(5, 0.0, 0.4));
+    outputs.refine_result.view_errors = {0.1, 0.2, 0.3};
+
+    std::ostringstream oss;
+    print_calibration_summary(oss, cam_cfg, outputs);
+    const auto summary = oss.str();
+    EXPECT_NE(summary.find("== Camera cam_test =="), std::string::npos);
+    EXPECT_NE(summary.find("Point scale applied to board coordinates: 2"), std::string::npos);
+    EXPECT_NE(summary.find("Point center removed before scaling: [1.5, -0.5]"),
+              std::string::npos);
+    EXPECT_NE(summary.find("Linear stage warnings: 1 invalid camera matrices, 2 homography"),
+              std::string::npos);
+    EXPECT_NE(summary.find("Initial fx/fy/cx/cy: 900"), std::string::npos);
+    EXPECT_NE(summary.find("Refined fx/fy/cx/cy: 905"), std::string::npos);
+    EXPECT_NE(summary.find("Distortion coeffs:"), std::string::npos);
+    EXPECT_NE(summary.find("0 0.1 0.2 0.3 0.4"), std::string::npos);
+    EXPECT_NE(summary.find("Views considered: 4, after threshold: 3"), std::string::npos);
+    EXPECT_NE(summary.find("Per-view RMS (px): 0.1 0.2 0.3"), std::string::npos);
 }
 
 TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
