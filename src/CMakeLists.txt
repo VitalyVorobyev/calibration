@@ -18,6 +18,9 @@ set(CALIB_ESTIMATION_SOURCES
 
 set(CALIB_PIPELINE_SOURCES
     pipeline/linescan.cpp
+    pipeline/pipeline.cpp
+    pipeline/stages.cpp
+    pipeline/loaders.cpp
 )
 
 set(CALIB_UTILS_SOURCES

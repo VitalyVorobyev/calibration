@@ -127,6 +127,17 @@ Tutorial executables reside in `apps/examples/`. The planar intrinsics walkthrou
   --output planar_intrinsics_result.json
 ```
 
+For multi-stage workflows the `calib_example_pipeline` executable wires intrinsics, stereo, and hand-eye stages together on top of the unified dataset loader:
+
+```bash
+./build/apps/examples/calib_example_pipeline \
+  --config apps/examples/planar_intrinsics_config.json \
+  --features cam0=path/to/cam0_dataset.json \
+  --features cam1=path/to/cam1_dataset.json
+```
+
+The example prints a JSON summary highlighting the outcome of each pipeline stage.
+
 The resulting report lists accepted views, linear initialisation, refined statistics, and persists the outputs under a `calibrations` array to support multi-camera expansion.
 
 ## Quality Gates
