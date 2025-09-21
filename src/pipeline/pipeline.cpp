@@ -57,4 +57,3 @@ void LoggingDecorator::after_stage(const CalibrationStage& stage, PipelineContex
 }
 
 }  // namespace calib::pipeline
-

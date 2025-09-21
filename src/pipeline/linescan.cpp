@@ -9,9 +9,9 @@
 // ceres
 #include <ceres/ceres.h>
 
-#include "calib/models/distortion.h"
 #include "calib/estimation/homography.h"
 #include "calib/estimation/planarpose.h"
+#include "calib/models/distortion.h"
 
 namespace calib {
 

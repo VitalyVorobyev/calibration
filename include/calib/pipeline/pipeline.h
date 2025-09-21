@@ -94,4 +94,3 @@ class LoggingDecorator final : public StageDecorator {
 };
 
 }  // namespace calib::pipeline
-

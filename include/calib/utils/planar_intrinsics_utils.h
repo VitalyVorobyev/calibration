@@ -21,8 +21,8 @@
 #include <nlohmann/json.hpp>
 
 #include "calib/estimation/intrinsics.h"
-#include "calib/models/pinhole.h"
 #include "calib/estimation/ransac.h"
+#include "calib/models/pinhole.h"
 
 namespace calib::planar {
 

@@ -9,8 +9,8 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-#include "calib/models/distortion.h"
 #include "calib/estimation/homography.h"
+#include "calib/models/distortion.h"
 #include "detail/ceresutils.h"
 #include "detail/observationutils.h"
 
@@ -139,8 +139,8 @@ static auto axisangle_to_pose(const Pose6& pose6) -> Eigen::Isometry3d {
 }
 
 auto optimize_planar_pose(const PlanarView& view, const CameraMatrix& intrinsics,
-                          const Eigen::Isometry3d& init_pose,
-                          const PlanarPoseOptions& opts) -> PlanarPoseResult {
+                          const Eigen::Isometry3d& init_pose, const PlanarPoseOptions& opts)
+    -> PlanarPoseResult {
     PlanarPoseResult result;
     PlanarPoseBlocks blocks;
     ceres::RotationMatrixToAngleAxis(reinterpret_cast<const double*>(init_pose.rotation().data()),

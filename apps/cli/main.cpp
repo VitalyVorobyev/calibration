@@ -1,5 +1,4 @@
 #include <CLI/CLI.hpp>
-
 #include <fstream>
 #include <iostream>
 
@@ -26,7 +25,8 @@ int main(int argc, char** argv) {
         std::cerr << "Failed to open config: " << config_path << std::endl;
         return 1;
     }
-    nlohmann::json cfg; cfg_stream >> cfg;
+    nlohmann::json cfg;
+    cfg_stream >> cfg;
     AppConfig app_config = cfg;
 
     if (!task_override.empty()) app_config.task = task_override;
@@ -43,7 +43,7 @@ int main(int argc, char** argv) {
     try {
         if (task == "intrinsics") {
             result = nlohmann::json{{"error", "intrinsics task not supported"}};
-        #if 0
+#if 0
         } else if (task == "extrinsics") {
             ExtrinsicsInput in = cfg.at("input").get<ExtrinsicsInput>();
             auto guess = estimate_extrinsic_dlt(in.views, in.cameras);
@@ -53,10 +53,11 @@ int main(int argc, char** argv) {
         //     HandEyeInput in = cfg.at("input").get<HandEyeInput>();
         //     auto r = refine_hand_eye_reprojection(in.base_se3_gripper, in.views, in.intrinsics, in.init_gripper_se3_ref, in.options);
         //     result = r;
-        #endif
+#endif
         } else if (task == "bundle") {
             BundleInput in = cfg.at("input").get<BundleInput>();
-            auto r = optimize_bundle(in.observations, in.initial_cameras, in.init_g_se3_c, in.init_b_se3_t, in.options);
+            auto r = optimize_bundle(in.observations, in.initial_cameras, in.init_g_se3_c,
+                                     in.init_b_se3_t, in.options);
             result = r;
         } else {
             std::cerr << "Unknown task: " << task << std::endl;

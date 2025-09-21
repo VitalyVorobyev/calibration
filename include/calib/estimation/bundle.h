@@ -6,10 +6,10 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calib/models/cameramodel.h"
 #include "calib/core/optimize.h"
-#include "calib/models/pinhole.h"
 #include "calib/estimation/planarpose.h"  // PlanarObservation
+#include "calib/models/cameramodel.h"
+#include "calib/models/pinhole.h"
 #include "calib/models/scheimpflug.h"
 
 namespace calib {
@@ -59,7 +59,7 @@ template <camera_model CameraT>
 auto optimize_bundle(const std::vector<BundleObservation>& observations,
                      const std::vector<CameraT>& initial_cameras,
                      const std::vector<Eigen::Isometry3d>& init_g_se3_c,
-                     const Eigen::Isometry3d& init_b_se3_t,
-                     const BundleOptions& opts = {}) -> BundleResult<CameraT>;
+                     const Eigen::Isometry3d& init_b_se3_t, const BundleOptions& opts = {})
+    -> BundleResult<CameraT>;
 
 }  // namespace calib

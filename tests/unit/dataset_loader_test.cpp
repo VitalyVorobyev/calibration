@@ -3,7 +3,6 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
-
 #include <nlohmann/json.hpp>
 
 #include "calib/utils/planar_intrinsics_utils.h"
@@ -25,10 +24,8 @@ TEST(PlanarDataset, ValidateAndLoadNewFormat) {
     dataset["schema_version"] = 1;
     dataset["feature_type"] = "planar_points";
     dataset["metadata"] = {{"image_directory", "./images"}};
-    dataset["metadata"]["detector"] = {{"type", "planar"},
-                                           {"name", "synthetic"},
-                                           {"version", "1.0"},
-                                           {"params_hash", "deadbeef"}};
+    dataset["metadata"]["detector"] = {
+        {"type", "planar"}, {"name", "synthetic"}, {"version", "1.0"}, {"params_hash", "deadbeef"}};
 
     nlohmann::json capture;
     capture["sensor_id"] = "cam0";
@@ -38,10 +35,9 @@ TEST(PlanarDataset, ValidateAndLoadNewFormat) {
     nlohmann::json observation;
     observation["target_id"] = "board";
     observation["type"] = "planar_points";
-    observation["points"] = nlohmann::json::array({
-        {{"id", 0}, {"pixel", {100.0, 200.0}}, {"target", {0.0, 0.0, 0.0}}},
-        {{"id", 1}, {"pixel", {150.0, 200.0}}, {"target", {0.025, 0.0, 0.0}}}
-    });
+    observation["points"] = nlohmann::json::array(
+        {{{"id", 0}, {"pixel", {100.0, 200.0}}, {"target", {0.0, 0.0, 0.0}}},
+         {{"id", 1}, {"pixel", {150.0, 200.0}}, {"target", {0.025, 0.0, 0.0}}}});
 
     capture["observations"] = nlohmann::json::array({observation});
     dataset["captures"] = nlohmann::json::array({capture});
@@ -76,10 +72,18 @@ TEST(PlanarDataset, ConvertLegacyFormat) {
     nlohmann::json legacy_image;
     legacy_image["file"] = "img_0001.png";
     legacy_image["count"] = 2;
-    legacy_image["points"] = nlohmann::json::array({
-        {{"id", 0}, {"x", 10.0}, {"y", 20.0}, {"local_x", 0.0}, {"local_y", 0.0}, {"local_z", 0.0}},
-        {{"id", 1}, {"x", 30.0}, {"y", 40.0}, {"local_x", 0.025}, {"local_y", 0.0}, {"local_z", 0.0}}
-    });
+    legacy_image["points"] = nlohmann::json::array({{{"id", 0},
+                                                     {"x", 10.0},
+                                                     {"y", 20.0},
+                                                     {"local_x", 0.0},
+                                                     {"local_y", 0.0},
+                                                     {"local_z", 0.0}},
+                                                    {{"id", 1},
+                                                     {"x", 30.0},
+                                                     {"y", 40.0},
+                                                     {"local_x", 0.025},
+                                                     {"local_y", 0.0},
+                                                     {"local_z", 0.0}}});
     legacy["images"] = nlohmann::json::array({legacy_image});
 
     auto converted = convert_legacy_planar_features(legacy, "cam_legacy");
@@ -112,4 +116,3 @@ TEST(PlanarDataset, ValidateRejectsEmptyCaptures) {
     EXPECT_FALSE(validate_planar_dataset(invalid, &error));
     EXPECT_FALSE(error.empty());
 }
-

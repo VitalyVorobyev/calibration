@@ -3,8 +3,8 @@
 #pragma once
 
 // ceres
-#include "calib/models/distortion.h"
 #include "calib/estimation/planarpose.h"
+#include "calib/models/distortion.h"
 #include "ceres/rotation.h"
 
 namespace calib {

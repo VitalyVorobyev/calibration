@@ -181,9 +181,8 @@ struct RNG final {
 };
 
 struct SimulatedHandEye final {
-    SimulatedHandEye(const Eigen::Isometry3d& g_se3_c,
-                      const Eigen::Isometry3d& b_se3_t,
-                      const PinholeCamera<BrownConradyd>& cam)
+    SimulatedHandEye(const Eigen::Isometry3d& g_se3_c, const Eigen::Isometry3d& b_se3_t,
+                     const PinholeCamera<BrownConradyd>& cam)
         : g_se3_c_gt(g_se3_c), b_se3_t_gt(b_se3_t), cam_gt(cam) {}
 
     Eigen::Isometry3d g_se3_c_gt;  // ^gT_c

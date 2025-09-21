@@ -25,7 +25,8 @@ auto JsonPlanarDatasetLoader::load() -> CalibrationDataset {
         nlohmann::json source_info{{"path", entry.path.string()},
                                    {"sensor_id", detections.sensor_id}};
         if (!detections.metadata.is_null()) {
-            source_info["detector"] = detections.metadata.value("detector", nlohmann::json::object());
+            source_info["detector"] =
+                detections.metadata.value("detector", nlohmann::json::object());
         }
         sources.push_back(source_info);
         dataset.planar_cameras.push_back(std::move(detections));
@@ -37,4 +38,3 @@ auto JsonPlanarDatasetLoader::load() -> CalibrationDataset {
 }
 
 }  // namespace calib::pipeline
-

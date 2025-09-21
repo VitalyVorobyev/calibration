@@ -21,12 +21,12 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include "calib/models/cameramodel.h"
-#include "calib/estimation/homography.h"  // For HomographyResult
 #include "calib/core/optimize.h"
-#include "calib/models/pinhole.h"
+#include "calib/estimation/homography.h"  // For HomographyResult
 #include "calib/estimation/planarpose.h"
 #include "calib/estimation/ransac.h"  // For RANSAC options
+#include "calib/models/cameramodel.h"
+#include "calib/models/pinhole.h"
 
 namespace calib {
 
@@ -115,10 +115,11 @@ auto estimate_intrinsics_linear(const std::vector<Observation<double>>& observat
  * radial distortion coefficients and the number of refinement iterations can be specified.
  */
 constexpr int k_default_max_iterations = 5;
-auto estimate_intrinsics_linear_iterative(
-    const std::vector<Observation<double>>& observations, int num_radial,
-    int max_iterations = k_default_max_iterations,
-    bool use_skew = false) -> std::optional<PinholeCamera<BrownConradyd>>;
+auto estimate_intrinsics_linear_iterative(const std::vector<Observation<double>>& observations,
+                                          int num_radial,
+                                          int max_iterations = k_default_max_iterations,
+                                          bool use_skew = false)
+    -> std::optional<PinholeCamera<BrownConradyd>>;
 
 struct IntrinsicsOptions final : public OptimOptions {
     int num_radial = 2;          ///< Number of radial distortion coefficients

@@ -23,4 +23,3 @@ class HandEyeCalibrationStage final : public CalibrationStage {
 };
 
 }  // namespace calib::pipeline
-

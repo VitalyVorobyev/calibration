@@ -3,8 +3,8 @@
 #include <limits>
 #include <optional>
 
-#include "calib/utils/detail/intrinsics_utils.h"
 #include "calib/estimation/intrinsics.h"
+#include "calib/utils/detail/intrinsics_utils.h"
 #include "utils.h"
 
 using namespace calib;

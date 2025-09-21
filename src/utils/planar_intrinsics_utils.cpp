@@ -110,8 +110,8 @@ auto determine_point_center(const PlanarDetections& detections,
 
 auto collect_planar_views(const PlanarDetections& detections,
                           const IntrinsicCalibrationOptions& opts,
-                          const std::array<double, 2>& point_center,
-                          std::vector<ActiveView>& views) -> std::vector<PlanarView> {
+                          const std::array<double, 2>& point_center, std::vector<ActiveView>& views)
+    -> std::vector<PlanarView> {
     std::vector<PlanarView> planar_views;
     views.clear();
     planar_views.reserve(detections.images.size());
@@ -267,10 +267,11 @@ auto build_output_json(const PlanarCalibrationConfig& cfg, const CameraConfig& c
                           {"calibrations", nlohmann::json::array({calibration_json})}};
 }
 
-auto PlanarIntrinsicCalibrationFacade::calibrate(
-    const PlanarCalibrationConfig& cfg, const CameraConfig& cam_cfg,
-    const PlanarDetections& detections,
-    const std::filesystem::path& features_path) const -> CalibrationRunResult {
+auto PlanarIntrinsicCalibrationFacade::calibrate(const PlanarCalibrationConfig& cfg,
+                                                 const CameraConfig& cam_cfg,
+                                                 const PlanarDetections& detections,
+                                                 const std::filesystem::path& features_path) const
+    -> CalibrationRunResult {
     CalibrationOutputs output;
     output.total_input_views = detections.images.size();
     output.min_corner_threshold = cfg.options.min_corners_per_view;
@@ -548,7 +549,8 @@ auto validate_planar_dataset(const nlohmann::json& dataset, std::string* error_m
             return set_error("capture.sensor_id must be a non-empty string.");
         }
         const auto frame_it = capture.find("frame");
-        if (frame_it == capture.end() || !frame_it->is_string() || frame_it->get<std::string>().empty()) {
+        if (frame_it == capture.end() || !frame_it->is_string() ||
+            frame_it->get<std::string>().empty()) {
             return set_error("capture.frame must be a non-empty string.");
         }
         const auto obs_it = capture.find("observations");
@@ -582,7 +584,8 @@ auto validate_planar_dataset(const nlohmann::json& dataset, std::string* error_m
                     return set_error("point.pixel values must be numeric.");
                 }
                 const auto tar_it = pt.find("target");
-                if (tar_it == pt.end() || !tar_it->is_array() || (tar_it->size() != 2 && tar_it->size() != 3)) {
+                if (tar_it == pt.end() || !tar_it->is_array() ||
+                    (tar_it->size() != 2 && tar_it->size() != 3)) {
                     return set_error("point.target must be [X, Y] or [X, Y, Z].");
                 }
                 if (!(*tar_it)[0].is_number() || !(*tar_it)[1].is_number()) {
@@ -598,8 +601,8 @@ auto validate_planar_dataset(const nlohmann::json& dataset, std::string* error_m
     return true;
 }
 
-auto convert_legacy_planar_features(const nlohmann::json& legacy,
-                                    const std::string& sensor_id_hint) -> nlohmann::json {
+auto convert_legacy_planar_features(const nlohmann::json& legacy, const std::string& sensor_id_hint)
+    -> nlohmann::json {
     nlohmann::json dataset;
     dataset["schema_version"] = 1;
     dataset["feature_type"] = "planar_points";
@@ -640,7 +643,7 @@ auto convert_legacy_planar_features(const nlohmann::json& legacy,
             }
             point["pixel"] = {pt.value("x", 0.0), pt.value("y", 0.0)};
             point["target"] = {pt.value("local_x", 0.0), pt.value("local_y", 0.0),
-                                pt.value("local_z", 0.0)};
+                               pt.value("local_z", 0.0)};
             planar_points.push_back(point);
         }
 

@@ -15,11 +15,7 @@ struct AppConfig final {
 };
 
 inline void to_json(nlohmann::json& j, const AppConfig& cfg) {
-    j = {
-        {"task", cfg.task},
-        {"output", cfg.output},
-        {"input_path", cfg.input_path}
-    };
+    j = {{"task", cfg.task}, {"output", cfg.output}, {"input_path", cfg.input_path}};
 }
 
 inline void from_json(const nlohmann::json& j, AppConfig& cfg) {

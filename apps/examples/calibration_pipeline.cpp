@@ -1,13 +1,11 @@
 #include <CLI/CLI.hpp>
-
 #include <filesystem>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "calib/pipeline/loaders.h"
 #include "calib/pipeline/stages.h"
@@ -89,4 +87,3 @@ int main(int argc, char** argv) {
         return 1;
     }
 }
-

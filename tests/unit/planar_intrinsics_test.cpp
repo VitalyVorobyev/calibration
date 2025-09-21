@@ -342,7 +342,8 @@ TEST(PlanarIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
 
 TEST(PlanarIntrinsicConfig, LoadConfigParsesOptions) {
     const auto tests_dir = std::filesystem::path(__FILE__).parent_path().parent_path();
-    const auto config_path = tests_dir.parent_path() / "apps" / "examples" / "planar_intrinsics_config.json";
+    const auto config_path =
+        tests_dir.parent_path() / "apps" / "examples" / "planar_intrinsics_config.json";
     auto cfg = load_calibration_config(config_path);
 
     EXPECT_EQ(cfg.session.id, "default_planar_session");

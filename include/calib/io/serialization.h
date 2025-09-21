@@ -4,14 +4,14 @@
 #include <nlohmann/json.hpp>
 #include <vector>
 
-#include "calib/estimation/bundle.h"
 #include "calib/core/cameramatrix.h"
-#include "calib/models/distortion.h"
+#include "calib/estimation/bundle.h"
 #include "calib/estimation/extrinsics.h"
 #include "calib/estimation/handeye.h"
 #include "calib/estimation/intrinsics.h"
-#include "calib/models/pinhole.h"
 #include "calib/estimation/planarpose.h"
+#include "calib/models/distortion.h"
+#include "calib/models/pinhole.h"
 
 namespace calib {
 

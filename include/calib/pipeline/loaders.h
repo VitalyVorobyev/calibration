@@ -19,7 +19,8 @@ class JsonPlanarDatasetLoader final : public DatasetLoader {
     JsonPlanarDatasetLoader() = default;
     explicit JsonPlanarDatasetLoader(std::vector<Entry> entries) : entries_(std::move(entries)) {}
 
-    void add_entry(const std::filesystem::path& path, std::optional<std::string> sensor_id = std::nullopt);
+    void add_entry(const std::filesystem::path& path,
+                   std::optional<std::string> sensor_id = std::nullopt);
 
     [[nodiscard]] auto load() -> CalibrationDataset override;
 
@@ -28,4 +29,3 @@ class JsonPlanarDatasetLoader final : public DatasetLoader {
 };
 
 }  // namespace calib::pipeline
-

@@ -8,8 +8,8 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calib/models/pinhole.h"
 #include "calib/estimation/planarpose.h"
+#include "calib/models/pinhole.h"
 
 namespace calib {
 

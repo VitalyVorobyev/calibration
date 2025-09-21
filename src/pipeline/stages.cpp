@@ -9,12 +9,10 @@ namespace calib::pipeline {
 namespace {
 
 [[nodiscard]] auto find_camera_config(const planar::PlanarCalibrationConfig& cfg,
-                                      const std::string& camera_id)
-    -> const planar::CameraConfig* {
-    const auto it = std::find_if(cfg.cameras.begin(), cfg.cameras.end(),
-                                 [&](const planar::CameraConfig& cam) {
-                                     return cam.camera_id == camera_id;
-                                 });
+                                      const std::string& camera_id) -> const planar::CameraConfig* {
+    const auto it =
+        std::find_if(cfg.cameras.begin(), cfg.cameras.end(),
+                     [&](const planar::CameraConfig& cam) { return cam.camera_id == camera_id; });
     return it == cfg.cameras.end() ? nullptr : &(*it);
 }
 
@@ -47,8 +45,8 @@ auto IntrinsicStage::run(PipelineContext& context) -> PipelineStageResult {
         const auto* cam_cfg = find_camera_config(cfg, sensor_id);
         if (cam_cfg == nullptr) {
             success = false;
-            cameras_summary.push_back({{"sensor_id", sensor_id},
-                                       {"status", "missing_camera_config"}});
+            cameras_summary.push_back(
+                {{"sensor_id", sensor_id}, {"status", "missing_camera_config"}});
             continue;
         }
 
@@ -66,9 +64,8 @@ auto IntrinsicStage::run(PipelineContext& context) -> PipelineStageResult {
             cameras_summary.push_back(std::move(camera_entry));
         } catch (const std::exception& ex) {
             success = false;
-            cameras_summary.push_back({{"sensor_id", sensor_id},
-                                       {"status", "calibration_failed"},
-                                       {"error", ex.what()}});
+            cameras_summary.push_back(
+                {{"sensor_id", sensor_id}, {"status", "calibration_failed"}, {"error", ex.what()}});
         }
     }
 
@@ -124,4 +121,3 @@ auto HandEyeCalibrationStage::run(PipelineContext& context) -> PipelineStageResu
 }
 
 }  // namespace calib::pipeline
-
