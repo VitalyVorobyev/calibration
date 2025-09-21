@@ -74,8 +74,8 @@ struct BundleBlocks final : public ProblemParamBlocks {
 
 template <camera_model CameraT>
 static auto build_problem(const std::vector<BundleObservation>& observations,
-                          const BundleOptions& opts, BundleBlocks<CameraT>& blocks)
-    -> ceres::Problem {
+                          const BundleOptions& opts,
+                          BundleBlocks<CameraT>& blocks) -> ceres::Problem {
     ceres::Problem problem;
     for (const auto& obs : observations) {
         const size_t cam_idx = obs.camera_index;

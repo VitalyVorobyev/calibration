@@ -2,14 +2,13 @@
 
 #include <array>
 #include <filesystem>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <ostream>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "calib/datasets/planar.h"
 #include "calib/estimation/intrinsics.h"
@@ -113,4 +112,3 @@ void print_calibration_summary(std::ostream& out, const CameraConfig& cam_cfg,
                                const CalibrationOutputs& outputs);
 
 }  // namespace calib::planar
-

@@ -115,11 +115,10 @@ auto estimate_intrinsics_linear(const std::vector<Observation<double>>& observat
  * radial distortion coefficients and the number of refinement iterations can be specified.
  */
 constexpr int k_default_max_iterations = 5;
-auto estimate_intrinsics_linear_iterative(const std::vector<Observation<double>>& observations,
-                                          int num_radial,
-                                          int max_iterations = k_default_max_iterations,
-                                          bool use_skew = false)
-    -> std::optional<PinholeCamera<BrownConradyd>>;
+auto estimate_intrinsics_linear_iterative(
+    const std::vector<Observation<double>>& observations, int num_radial,
+    int max_iterations = k_default_max_iterations,
+    bool use_skew = false) -> std::optional<PinholeCamera<BrownConradyd>>;
 
 struct IntrinsicsOptions final : public OptimOptions {
     int num_radial = 2;          ///< Number of radial distortion coefficients

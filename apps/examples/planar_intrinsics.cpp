@@ -1,3 +1,5 @@
+#include "calib/pipeline/planar_intrinsics.h"
+
 #include <CLI/CLI.hpp>
 #include <filesystem>
 #include <fstream>
@@ -7,7 +9,6 @@
 #include <string>
 #include <vector>
 
-#include "calib/pipeline/planar_intrinsics.h"
 #include "calib/datasets/planar.h"
 
 using namespace calib::planar;

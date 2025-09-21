@@ -157,8 +157,8 @@ inline bool is_better_model(bool has_current_best, size_t new_inlier_count, doub
 }  // namespace detail
 
 template <class Estimator>
-auto ransac(const std::vector<typename Estimator::Datum>& data, const RansacOptions& opts = {})
-    -> RansacResult<typename Estimator::Model> {
+auto ransac(const std::vector<typename Estimator::Datum>& data,
+            const RansacOptions& opts = {}) -> RansacResult<typename Estimator::Model> {
     using Model = typename Estimator::Model;
 
     RansacResult<Model> best;

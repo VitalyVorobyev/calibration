@@ -8,15 +8,16 @@
 #include <stdexcept>
 
 #include "calib/datasets/planar.h"
-#include "calib/io/stream_capture.h"
 #include "calib/estimation/planarpose.h"
+#include "calib/io/stream_capture.h"
 #include "calib/reports/planar_intrinsics.h"
 
 namespace calib::planar {
 
 namespace {
 
-[[nodiscard]] auto count_occurrences(std::string_view text, std::string_view needle) -> std::size_t {
+[[nodiscard]] auto count_occurrences(std::string_view text,
+                                     std::string_view needle) -> std::size_t {
     if (needle.empty()) {
         return 0;
     }
@@ -64,9 +65,10 @@ auto determine_point_center(const PlanarDetections& detections,
     return {0.5 * (min_x + max_x), 0.5 * (min_y + max_y)};
 }
 
-auto collect_planar_views(const PlanarDetections& detections, const IntrinsicCalibrationOptions& opts,
-                          const std::array<double, 2>& point_center, std::vector<ActiveView>& views)
-    -> std::vector<PlanarView> {
+auto collect_planar_views(const PlanarDetections& detections,
+                          const IntrinsicCalibrationOptions& opts,
+                          const std::array<double, 2>& point_center,
+                          std::vector<ActiveView>& views) -> std::vector<PlanarView> {
     std::vector<PlanarView> planar_views;
     views.clear();
     planar_views.reserve(detections.images.size());
@@ -98,11 +100,10 @@ auto build_ransac_options(const HomographyRansacConfig& cfg) -> RansacOptions {
     return opts;
 }
 
-auto PlanarIntrinsicCalibrationFacade::calibrate(const PlanarCalibrationConfig& cfg,
-                                                  const CameraConfig& cam_cfg,
-                                                  const PlanarDetections& detections,
-                                                  const std::filesystem::path& features_path) const
-    -> CalibrationRunResult {
+auto PlanarIntrinsicCalibrationFacade::calibrate(
+    const PlanarCalibrationConfig& cfg, const CameraConfig& cam_cfg,
+    const PlanarDetections& detections,
+    const std::filesystem::path& features_path) const -> CalibrationRunResult {
     CalibrationOutputs output;
     output.total_input_views = detections.images.size();
     output.min_corner_threshold = cfg.options.min_corners_per_view;
@@ -214,8 +215,8 @@ auto PlanarIntrinsicCalibrationFacade::calibrate(const PlanarCalibrationConfig& 
 
     CalibrationRunResult result;
     result.outputs = std::move(output);
-    result.report = build_planar_intrinsics_report(cfg, cam_cfg, detections, result.outputs,
-                                                   features_path);
+    result.report =
+        build_planar_intrinsics_report(cfg, cam_cfg, detections, result.outputs, features_path);
     return result;
 }
 
@@ -345,4 +346,3 @@ auto load_calibration_config(const std::filesystem::path& path) -> PlanarCalibra
 }
 
 }  // namespace calib::planar
-

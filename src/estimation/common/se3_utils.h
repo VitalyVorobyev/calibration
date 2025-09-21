@@ -98,4 +98,3 @@ inline Eigen::Isometry3d average_affines(const std::vector<Eigen::Isometry3d>& p
 }
 
 }  // namespace calib
-

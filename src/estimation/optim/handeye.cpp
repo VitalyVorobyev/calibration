@@ -59,8 +59,8 @@ static auto build_problem(const std::vector<MotionPair>& pairs, const HandeyeOpt
 
 auto optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
                       const std::vector<Eigen::Isometry3d>& camera_se3_target,
-                      const Eigen::Isometry3d& init_gripper_se3_ref, const HandeyeOptions& options)
-    -> HandeyeResult {
+                      const Eigen::Isometry3d& init_gripper_se3_ref,
+                      const HandeyeOptions& options) -> HandeyeResult {
     constexpr double k_min_angle_deg = 0.5;
     auto pairs = build_all_pairs(base_se3_gripper, camera_se3_target, k_min_angle_deg);
     auto blocks = HandeyeBlocks::create(init_gripper_se3_ref);
@@ -79,8 +79,8 @@ auto optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
 
 auto estimate_and_optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
                                    const std::vector<Eigen::Isometry3d>& camera_se3_target,
-                                   double min_angle_deg, const HandeyeOptions& options)
-    -> HandeyeResult {
+                                   double min_angle_deg,
+                                   const HandeyeOptions& options) -> HandeyeResult {
     Eigen::Isometry3d init_pose =
         estimate_handeye_dlt(base_se3_gripper, camera_se3_target, min_angle_deg);
     return optimize_handeye(base_se3_gripper, camera_se3_target, init_pose, options);

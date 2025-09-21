@@ -5,9 +5,6 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
-
-
-#include <algorithm>
 namespace calib::planar {
 
 namespace {
@@ -61,11 +58,10 @@ auto compute_global_rms(const CalibrationOutputs& out) -> double {
     return std::sqrt(sum_sq / static_cast<double>(total_measurements));
 }
 
-auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const CameraConfig& cam_cfg,
-                                    const PlanarDetections& detections,
-                                    const CalibrationOutputs& outputs,
-                                    const std::filesystem::path& /*features_path*/)
-    -> nlohmann::json {
+auto build_planar_intrinsics_report(
+    const PlanarCalibrationConfig& cfg, const CameraConfig& cam_cfg,
+    const PlanarDetections& detections, const CalibrationOutputs& outputs,
+    const std::filesystem::path& /*features_path*/) -> nlohmann::json {
     nlohmann::json session_json{{"id", cfg.session.id},
                                 {"description", cfg.session.description},
                                 {"timestamp_utc", iso_timestamp_utc()}};
@@ -92,9 +88,9 @@ auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const Ca
     if (cfg.options.homography_ransac.has_value()) {
         const auto& r = *cfg.options.homography_ransac;
         options_json["homography_ransac"] = {{"max_iters", r.max_iters},
-                                              {"thresh", r.thresh},
-                                              {"min_inliers", r.min_inliers},
-                                              {"confidence", r.confidence}};
+                                             {"thresh", r.thresh},
+                                             {"min_inliers", r.min_inliers},
+                                             {"confidence", r.confidence}};
     }
 
     nlohmann::json detector_json;
@@ -153,4 +149,3 @@ auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const Ca
 }
 
 }  // namespace calib::planar
-

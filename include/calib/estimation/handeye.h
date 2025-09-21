@@ -142,7 +142,7 @@ auto optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
  */
 auto estimate_and_optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
                                    const std::vector<Eigen::Isometry3d>& camera_se3_target,
-                                   double min_angle_deg = 1.0, const HandeyeOptions& options = {})
-    -> HandeyeResult;
+                                   double min_angle_deg = 1.0,
+                                   const HandeyeOptions& options = {}) -> HandeyeResult;
 
 }  // namespace calib

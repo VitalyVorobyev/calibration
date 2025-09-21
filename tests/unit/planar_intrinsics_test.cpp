@@ -1,3 +1,5 @@
+#include "calib/pipeline/planar_intrinsics.h"
+
 #include <gtest/gtest.h>
 
 #include <Eigen/Dense>
@@ -8,7 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "calib/pipeline/planar_intrinsics.h"
 #include "calib/datasets/planar.h"
 #include "calib/reports/planar_intrinsics.h"
 #include "utils.h"
@@ -234,8 +235,8 @@ TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
         CameraMatrix{805.0, 815.0, 322.0, 241.0, 0.4}, Eigen::VectorXd::Constant(5, 0.01));
     outputs.refine_result.view_errors = {0.5, 0.7};
 
-    const auto json =
-        build_planar_intrinsics_report(cfg, cam_cfg, detections, outputs, std::filesystem::path{"feat.json"});
+    const auto json = build_planar_intrinsics_report(cfg, cam_cfg, detections, outputs,
+                                                     std::filesystem::path{"feat.json"});
 
     ASSERT_TRUE(json.contains("calibrations"));
     const auto& calibrations = json.at("calibrations");

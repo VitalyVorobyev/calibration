@@ -7,10 +7,10 @@
 #include <utility>
 #include <vector>
 
-#include "calib/pipeline/loaders.h"
-#include "calib/pipeline/stages.h"
-#include "calib/pipeline/planar_intrinsics.h"
 #include "calib/datasets/planar.h"
+#include "calib/pipeline/loaders.h"
+#include "calib/pipeline/planar_intrinsics.h"
+#include "calib/pipeline/stages.h"
 
 namespace {
 
