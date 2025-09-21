@@ -40,7 +40,7 @@
  * ### Basic Camera Calibration
  * 
  * ```cpp
- * #include <calib/calib.h>
+ * #include <calib/estimation/intrinsics.h>
  * 
  * // Create observations from planar target
  * std::vector<calib::PlanarObservation> observations;
@@ -56,7 +56,7 @@
  * ### Hand-Eye Calibration
  * 
  * ```cpp
- * #include <calib/handeye.h>
+ * #include <calib/estimation/handeye.h>
  * 
  * // Prepare robot poses and camera observations
  * std::vector<calib::HandEyeObservation> observations;

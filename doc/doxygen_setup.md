@@ -44,26 +44,26 @@ This document summarizes the Doxygen documentation setup for the Calibration Lib
 
 Enhanced the following key header files with comprehensive Doxygen comments:
 
-- **`include/calib/distortion.h`**:
+- **`include/calib/models/distortion.h`**:
   - File-level documentation with @file and @ingroup
   - Detailed concept documentation for `distortion_model`
   - Function and struct documentation with @brief and @param
 
-- **`include/calib/pinhole.h`**:
+- **`include/calib/models/pinhole.h`**:
   - Complete camera model documentation
   - Template parameter descriptions
   - Method documentation with examples
 
-- **`include/calib/handeye.h`**:
+- **`include/calib/estimation/handeye.h`**:
   - Hand-eye calibration algorithm documentation
   - Motion pair structure descriptions
   - Parameter filtering explanations
 
-- **`include/calib/homography.h`**:
+- **`include/calib/estimation/homography.h`**:
   - Homography estimation documentation
   - Algorithm descriptions and usage notes
 
-- **`include/calib/intrinsics.h`**:
+- **`include/calib/estimation/intrinsics.h`**:
   - Intrinsic calibration method documentation
   - Linear and non-linear approach descriptions
 
