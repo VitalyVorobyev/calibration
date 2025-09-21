@@ -1,0 +1,34 @@
+set(SOURCES
+    extrinsicsdlt.cpp
+    handeyedlt.cpp
+    homographyestimator.cpp
+    intrinsicsdlt.cpp
+    planarpose_linear.cpp
+    posefromhomography.cpp
+    zhang.cpp
+)
+
+add_library(calib_estimation_linear STATIC ${SOURCES})
+
+set(ESTIMATION_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
+target_include_directories(calib_estimation_linear
+    PUBLIC
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+    PRIVATE
+        ${ESTIMATION_ROOT}
+        ${ESTIMATION_ROOT}/detail)
+
+target_link_libraries(calib_estimation_linear
+    PUBLIC
+        calib_core
+        calib_models)
+
+calib_set_default_warnings(calib_estimation_linear)
+add_library(calib::estimation_linear ALIAS calib_estimation_linear)
+
+install(TARGETS calib_estimation_linear
+    EXPORT calibTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})

@@ -10,7 +10,7 @@ Modern C++ utilities for camera calibration, geometric vision, and robot–senso
 
 ## Highlights
 
-- Modular targets exported as `calib::core`, `calib::models`, `calib::estimation`, `calib::pipeline`, `calib::utils`, and `calib::io`
+- Modular targets exported as `calib::core`, `calib::models`, `calib::estimation_linear`, `calib::estimation_optim`, `calib::pipeline`, `calib::utils`, and `calib::io`
 - Intrinsic & extrinsic planar calibration with covariance estimation
 - Homography and planar pose estimation (DLT, RANSAC, non-linear refinement)
 - Hand-eye calibration starting from DLT seeds and refined via bundle adjustment
@@ -20,12 +20,18 @@ Modern C++ utilities for camera calibration, geometric vision, and robot–senso
 ## Repository Layout
 
 ```
-include/calib/        Public headers organised by module
-src/                  Library implementation (estimation/, pipeline/, utils/, ...)
-apps/cli/             Command line front-ends (e.g. calib_cli)
-apps/examples/        Tutorial executables and sample JSON schemas
-tests/unit/           GoogleTest unit + integration suites
-cmake/                Shared CMake modules and package config templates
+include/calib/                Public headers organised by module
+src/core/                    Interface target for core math helpers
+src/models/                  Interface target for camera model concepts
+src/io/                      Interface target for JSON/serialization helpers
+src/estimation/linear/       Linear solvers (DLT, closed-form)
+src/estimation/optim/        Ceres-based refinement stages
+src/pipeline/                Pipeline orchestration and line-scan components
+src/utils/                   Shared utilities (JSON reports, facades)
+apps/cli/                    Command line front-ends (e.g. calib_cli)
+apps/examples/               Tutorial executables and sample JSON schemas
+tests/unit/                  GoogleTest unit + integration suites
+cmake/                       Shared CMake modules and package config templates
 ```
 
 Each module re-exports headers under `include/calib/` and can be consumed individually. A compatibility alias `calibration` points at the umbrella `calib::calib` interface target so downstream projects using the previous static library continue to link.

@@ -5,27 +5,82 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <numeric>
 #include <random>
+#include <span>
 #include <utility>
 
-// ceres
-#include <ceres/ceres.h>
-
 #include "calib/estimation/posefromhomography.h"  // for pose_from_homography
-#include "detail/zhang.h"                         // for zhang_intrinsics_from_hs
+#include "calib/estimation/ransac.h"
+#include "detail/homographyestimator.h"
+#include "detail/zhang.h"  // for zhang_intrinsics_from_hs
 
 namespace calib {
+
+static auto symmetric_rms_px(const Eigen::Matrix3d& hmtx, const PlanarView& view,
+                             std::span<const int> inliers) -> double {
+    if (inliers.empty()) {
+        return std::numeric_limits<double>::infinity();
+    }
+    const double sum_err = std::accumulate(inliers.begin(), inliers.end(), 0.0,
+                                           [&](double acc, int idx) {
+                                               return acc + HomographyEstimator::residual(hmtx, view[idx]);
+                                           });
+    return std::sqrt(sum_err / (2.0 * static_cast<double>(inliers.size())));
+}
 
 static auto compute_planar_homographies(const std::vector<PlanarView>& views,
                                         const std::optional<RansacOptions>& ransac_opts)
     -> std::vector<HomographyResult> {
-    std::vector<HomographyResult> homographies(views.size());
-    std::transform(views.begin(), views.end(), homographies.begin(),
-                   [&ransac_opts](const PlanarView& view) {
-                       auto hres = estimate_homography(view, ransac_opts);
-                       return hres;
-                   });
+    std::vector<HomographyResult> homographies;
+    homographies.reserve(views.size());
+
+    for (const auto& view : views) {
+        HomographyResult result;
+
+        if (view.size() < HomographyEstimator::k_min_samples) {
+            result.success = false;
+            homographies.push_back(std::move(result));
+            continue;
+        }
+
+        std::vector<int> indices(view.size());
+        std::iota(indices.begin(), indices.end(), 0);
+
+        if (ransac_opts.has_value()) {
+            auto ransac_res = ransac<HomographyEstimator>(view, ransac_opts.value());
+            if (!ransac_res.success) {
+                result.success = false;
+                homographies.push_back(std::move(result));
+                continue;
+            }
+            result.hmtx = ransac_res.model;
+            result.inliers = std::move(ransac_res.inliers);
+            if (std::abs(result.hmtx(2, 2)) > 1e-15) {
+                result.hmtx /= result.hmtx(2, 2);
+            }
+            result.symmetric_rms_px = symmetric_rms_px(result.hmtx, view, result.inliers);
+            result.success = true;
+        } else {
+            auto hopt = HomographyEstimator::fit(view, indices);
+            if (!hopt.has_value()) {
+                result.success = false;
+                homographies.push_back(std::move(result));
+                continue;
+            }
+            result.hmtx = hopt.value();
+            if (std::abs(result.hmtx(2, 2)) > 1e-15) {
+                result.hmtx /= result.hmtx(2, 2);
+            }
+            result.inliers = indices;
+            result.symmetric_rms_px = symmetric_rms_px(result.hmtx, view, result.inliers);
+            result.success = true;
+        }
+
+        homographies.push_back(std::move(result));
+    }
+
     return homographies;
 }
 
