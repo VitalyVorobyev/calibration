@@ -9,7 +9,7 @@ using namespace calib;
 
 // ---- Helpers ---------------------------------------------------------------
 constexpr double k_eps = 1e-12;
-constexpr double k_half = 0.5;              // square is [-0.5, 0.5]^2
+constexpr double k_half = 0.5;                // square is [-0.5, 0.5]^2
 constexpr double k_samples_per_unit = 400.0;  // along the target segment
 
 using Line3 = Eigen::ParametrizedLine<double, 3>;
