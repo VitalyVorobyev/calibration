@@ -30,7 +30,7 @@ jobs:
 
       - name: Run clang-tidy
         run: |
-          clang-tidy -p build src/*.cpp \
+          find src -name "*.cpp" -exec clang-tidy -p build {} + \
             --checks="-*,readability-*,performance-*,modernize-*,bugprone-*,clang-analyzer-*" \
             --header-filter=".*calib.*" \
             || (echo "::error::clang-tidy found issues" && exit 1)
@@ -57,6 +57,6 @@ jobs:
 
       - name: Check formatting
         run: |
-          find src include -name "*.cpp" -o -name "*.h" | \
+          find src include apps -name "*.cpp" -o -name "*.h" | \
           xargs clang-format --dry-run --Werror --style=file \
-          || (echo "::error::Code formatting issues found. Run 'clang-format -i src/*.cpp include/calib/*.h' to fix." && exit 1)
+          || (echo "::error::Code formatting issues found. Run 'find src include apps -name \"*.cpp\" -o -name \"*.h\" | xargs clang-format -i' to fix." && exit 1)
