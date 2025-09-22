@@ -30,9 +30,9 @@ jobs:
 
       - name: Run clang-tidy
         run: |
-          find src -name "*.cpp" -exec clang-tidy -p build {} + \
+          find src -name "*.cpp" -exec clang-tidy -p build {} \
             --checks="-*,readability-*,performance-*,modernize-*,bugprone-*,clang-analyzer-*" \
-            --header-filter=".*calib.*" \
+            --header-filter=".*calib.*" \; \
             || (echo "::error::clang-tidy found issues" && exit 1)
 
       - name: Run cppcheck
