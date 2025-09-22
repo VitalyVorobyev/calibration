@@ -45,7 +45,7 @@ struct CameraMatrixT final {
      * @return Eigen::Matrix<Scalar, 3, 3> The 3x3 camera intrinsic matrix
      */
     [[nodiscard]]
-    Eigen::Matrix<Scalar, 3, 3> matrix() const {
+    auto matrix() const -> Eigen::Matrix<Scalar, 3, 3> {
         Eigen::Matrix<Scalar, 3, 3> kmtx = Eigen::Matrix<Scalar, 3, 3>::Zero();
         kmtx(0, 0) = fx;
         kmtx(1, 1) = fy;

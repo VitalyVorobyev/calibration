@@ -36,21 +36,21 @@ auto create_synthetic_planar_data(const Eigen::Isometry3d& pose,
 
 TEST(PlanarPoseTest, HomographyDecomposition) {
     // Create a known homography matrix
-    Eigen::Matrix3d R = Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitX()).toRotationMatrix();
+    Eigen::Matrix3d r = Eigen::AngleAxisd(0.1, Eigen::Vector3d::UnitX()).toRotationMatrix();
     Eigen::Vector3d t(0.2, 0.3, 1.0);
 
     // H = [r1 r2 t]
-    Eigen::Matrix3d H;
-    H.col(0) = R.col(0);
-    H.col(1) = R.col(1);
-    H.col(2) = t;
+    Eigen::Matrix3d h;
+    h.col(0) = r.col(0);
+    h.col(1) = r.col(1);
+    h.col(2) = t;
 
     // Decompose the homography
-    Eigen::Isometry3d pose = pose_from_homography_normalized(H);
+    Eigen::Isometry3d pose = pose_from_homography_normalized(h);
 
     // Check the rotation part
-    Eigen::Matrix3d recovered_R = pose.linear();
-    EXPECT_TRUE(R.isApprox(recovered_R, 1e-9));
+    Eigen::Matrix3d recovered_r = pose.linear();
+    EXPECT_TRUE(r.isApprox(recovered_r, 1e-9));
 
     // Check the translation part
     Eigen::Vector3d recovered_t = pose.translation();

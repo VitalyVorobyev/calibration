@@ -26,7 +26,10 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     sim.render_pixels();
 
     std::vector<PlanarView> views;
-    for (const auto& ob : sim.observations) views.push_back(ob.view);
+    views.reserve(sim.observations.size());
+    for (const auto& ob : sim.observations) {
+        views.push_back(ob.view);
+    }
 
     // Create initial camera guess
     Camera<BrownConradyd> guess_cam = cam_gt;
@@ -49,13 +52,13 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     opts.optimize_skew = false;
     auto res = optimize_intrinsics(views, guess_cam, init_poses, opts);
 
-    const auto& Kf = res.camera.kmtx;
-    const auto& K_gt = cam_gt.kmtx;
-    EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-6);
-    EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-6);
-    EXPECT_NEAR(Kf.cx, K_gt.cx, 1e-6);
-    EXPECT_NEAR(Kf.cy, K_gt.cy, 1e-6);
-    EXPECT_NEAR(Kf.skew, K_gt.skew, 1e-9);
+    const auto& k_final = res.camera.kmtx;
+    const auto& k_gt = cam_gt.kmtx;
+    EXPECT_NEAR(k_final.fx, k_gt.fx, 1e-6);
+    EXPECT_NEAR(k_final.fy, k_gt.fy, 1e-6);
+    EXPECT_NEAR(k_final.cx, k_gt.cx, 1e-6);
+    EXPECT_NEAR(k_final.cy, k_gt.cy, 1e-6);
+    EXPECT_NEAR(k_final.skew, k_gt.skew, 1e-9);
     EXPECT_LT(res.final_cost, 1e-6);
 }
 
@@ -80,7 +83,10 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     sim.render_pixels();
 
     std::vector<PlanarView> views;
-    for (const auto& ob : sim.observations) views.push_back(ob.view);
+    views.reserve(sim.observations.size());
+    for (const auto& ob : sim.observations) {
+        views.push_back(ob.view);
+    }
 
     // Create initial camera guess
     Camera<BrownConradyd> guess_cam = cam_gt;
@@ -104,11 +110,11 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     opts.optimize_skew = true;
     auto res = optimize_intrinsics(views, guess_cam, init_poses, opts);
 
-    const auto& Kf = res.camera.kmtx;
-    const auto& K_gt = cam_gt.kmtx;
-    EXPECT_NEAR(Kf.fx, K_gt.fx, 1e-6);
-    EXPECT_NEAR(Kf.fy, K_gt.fy, 1e-6);
-    EXPECT_NEAR(Kf.cx, K_gt.cx, 1e-6);
-    EXPECT_NEAR(Kf.cy, K_gt.cy, 1e-6);
-    EXPECT_NEAR(Kf.skew, K_gt.skew, 1e-8);
+    const auto& k_final = res.camera.kmtx;
+    const auto& k_gt = cam_gt.kmtx;
+    EXPECT_NEAR(k_final.fx, k_gt.fx, 1e-6);
+    EXPECT_NEAR(k_final.fy, k_gt.fy, 1e-6);
+    EXPECT_NEAR(k_final.cx, k_gt.cx, 1e-6);
+    EXPECT_NEAR(k_final.cy, k_gt.cy, 1e-6);
+    EXPECT_NEAR(k_final.skew, k_gt.skew, 1e-8);
 }

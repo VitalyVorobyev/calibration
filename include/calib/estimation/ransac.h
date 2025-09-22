@@ -129,10 +129,10 @@ inline void find_inliers(const std::vector<typename Estimator::Datum>& data, con
 
 // Refit model on inliers if possible
 template <typename Estimator, typename Model>
-inline Model refit_model(const std::vector<typename Estimator::Datum>& data, const Model& model,
-                         const std::vector<int>& inliers, double threshold,
-                         std::vector<int>& updated_inliers,
-                         std::vector<double>& updated_residuals) {
+inline auto refit_model(const std::vector<typename Estimator::Datum>& data, const Model& model,
+                        const std::vector<int>& inliers, double threshold,
+                        std::vector<int>& updated_inliers,
+                        std::vector<double>& updated_residuals) -> Model {
     Model refined_model = model;
 
     if constexpr (HasRefit<Estimator>) {
@@ -148,8 +148,8 @@ inline Model refit_model(const std::vector<typename Estimator::Datum>& data, con
 }
 
 // Check if new model is better than current best
-inline bool is_better_model(bool has_current_best, size_t new_inlier_count, double new_inlier_rms,
-                            size_t best_inlier_count, double best_inlier_rms) {
+inline auto is_better_model(bool has_current_best, size_t new_inlier_count, double new_inlier_rms,
+                            size_t best_inlier_count, double best_inlier_rms) -> bool {
     return !has_current_best || (new_inlier_count > best_inlier_count) ||
            (new_inlier_count == best_inlier_count && new_inlier_rms < best_inlier_rms);
 }

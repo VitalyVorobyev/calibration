@@ -68,10 +68,10 @@ TEST(PlanarIntrinsicsUtils, CollectPlanarViewsRespectsThresholdAndScaling) {
     ASSERT_EQ(planar_views.size(), 1);
     ASSERT_EQ(views.size(), 1);
     EXPECT_EQ(views[0].source_image, "view0.png");
-    EXPECT_EQ(views[0].corner_count, 3u);
+    EXPECT_EQ(views[0].corner_count, 3U);
 
     const auto& view = planar_views[0];
-    ASSERT_EQ(view.size(), 3u);
+    ASSERT_EQ(view.size(), 3U);
     EXPECT_DOUBLE_EQ(view[0].object_xy.x(), 0.0);
     EXPECT_DOUBLE_EQ(view[0].object_xy.y(), 0.0);
     EXPECT_DOUBLE_EQ(view[1].object_xy.x(), 2.0);
@@ -125,12 +125,12 @@ TEST(PlanarIntrinsicsUtils, LoadPlanarObservationsParsesDetectorMetadata) {
     EXPECT_EQ(detections.feature_type, "planar");
     EXPECT_EQ(detections.algo_version, "v2");
     EXPECT_EQ(detections.params_hash, "hash123");
-    ASSERT_EQ(detections.images.size(), 1u);
+    ASSERT_EQ(detections.images.size(), 1U);
 
     const auto& image = detections.images.front();
     EXPECT_EQ(image.file, "view0.png");
     EXPECT_EQ(image.count, 2);
-    ASSERT_EQ(image.points.size(), 2u);
+    ASSERT_EQ(image.points.size(), 2U);
 
     const auto& pt0 = image.points[0];
     EXPECT_DOUBLE_EQ(pt0.x, 10.0);
@@ -353,5 +353,7 @@ TEST(PlanarIntrinsicConfig, LoadConfigParsesOptions) {
     EXPECT_FALSE(cfg.cameras.empty());
     EXPECT_EQ(cfg.cameras[0].camera_id, "cam0");
     EXPECT_TRUE(cfg.options.homography_ransac.has_value());
-    EXPECT_EQ(cfg.options.homography_ransac->min_inliers, 50);
+    if (cfg.options.homography_ransac.has_value()) {
+        EXPECT_EQ(cfg.options.homography_ransac->min_inliers, 50);
+    }
 }

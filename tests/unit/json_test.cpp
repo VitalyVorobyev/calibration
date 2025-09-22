@@ -44,5 +44,5 @@ TEST(JsonSerialization, IntrinsicsResultRoundTrip) {
     auto r2 = j.get<IntrinsicsOptimizationResult<Camera<BrownConradyd>>>();
     EXPECT_NEAR(r2.camera.kmtx.fx, 100, 1e-9);
     EXPECT_EQ(r2.report, "ok");
-    EXPECT_EQ(r2.view_errors.size(), 2u);
+    EXPECT_EQ(r2.view_errors.size(), 2U);
 }

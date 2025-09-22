@@ -8,9 +8,9 @@
 using namespace calib;
 
 // ---- Helpers ---------------------------------------------------------------
-constexpr double kEps = 1e-12;
-constexpr double kHalf = 0.5;              // square is [-0.5, 0.5]^2
-constexpr double kSamplesPerUnit = 400.0;  // along the target segment
+constexpr double k_eps = 1e-12;
+constexpr double k_half = 0.5;              // square is [-0.5, 0.5]^2
+constexpr double k_samples_per_unit = 400.0;  // along the target segment
 
 using Line3 = Eigen::ParametrizedLine<double, 3>;
 using Plane = Eigen::Hyperplane<double, 3>;
@@ -30,17 +30,19 @@ static auto plane_plane_intersection(const Plane& a, const Plane& b) -> std::opt
     const double db = b.offset();
 
     const Eigen::Vector3d dir = na.cross(nb);
-    if (dir.squaredNorm() < kEps) return std::nullopt;
+    if (dir.squaredNorm() < k_eps) {
+        return std::nullopt;
+    }
 
     // Solve for a point p on both planes with the extra constraint dir·p = 0
     // to make the 3x3 system well-posed:
-    Eigen::Matrix3d A;
-    A.row(0) = na.transpose();
-    A.row(1) = nb.transpose();
-    A.row(2) = dir.transpose();
+    Eigen::Matrix3d a_matrix;
+    a_matrix.row(0) = na.transpose();
+    a_matrix.row(1) = nb.transpose();
+    a_matrix.row(2) = dir.transpose();
     const Eigen::Vector3d rhs(-da, -db, 0.0);
 
-    const Eigen::Vector3d p = A.fullPivLu().solve(rhs);
+    const Eigen::Vector3d p = a_matrix.fullPivLu().solve(rhs);
     return Line3(p, dir.normalized());
 }
 
@@ -48,18 +50,20 @@ static auto to_target_frame(const Line3& line_c, const Eigen::Isometry3d& t_se3_
     return {t_se3_c * line_c.origin(), t_se3_c.linear() * line_c.direction()};
 }
 
-// Clip parametric line X(s) = p + s*d to the axis-aligned square [-kHalf,kHalf]^2 in XY.
+// Clip parametric line X(s) = p + s*d to the axis-aligned square [-k_half,k_half]^2 in XY.
 // Returns {smin,smax} or nullopt if it misses.
 static auto clip_to_square_xy(const Eigen::Vector3d& p, const Eigen::Vector3d& d)
     -> std::optional<std::pair<double, double>> {
     auto clip_1d = [&](double p0, double v, double lo, double hi, double& smin,
                        double& smax) -> bool {
-        if (std::abs(v) < kEps) {
+        if (std::abs(v) < k_eps) {
             return (p0 >= lo - 1e-14 && p0 <= hi + 1e-14);
         }
         double s0 = (lo - p0) / v;
         double s1 = (hi - p0) / v;
-        if (s0 > s1) std::swap(s0, s1);
+        if (s0 > s1) {
+            std::swap(s0, s1);
+        }
         smin = std::max(smin, s0);
         smax = std::min(smax, s1);
         return smin < smax;
@@ -67,9 +71,15 @@ static auto clip_to_square_xy(const Eigen::Vector3d& p, const Eigen::Vector3d& d
 
     double smin = -std::numeric_limits<double>::infinity();
     double smax = std::numeric_limits<double>::infinity();
-    if (!clip_1d(p.x(), d.x(), -kHalf, kHalf, smin, smax)) return std::nullopt;
-    if (!clip_1d(p.y(), d.y(), -kHalf, kHalf, smin, smax)) return std::nullopt;
-    if (!(smin < smax)) return std::nullopt;
+    if (!clip_1d(p.x(), d.x(), -k_half, k_half, smin, smax)) {
+        return std::nullopt;
+    }
+    if (!clip_1d(p.y(), d.y(), -k_half, k_half, smin, smax)) {
+        return std::nullopt;
+    }
+    if (!(smin < smax)) {
+        return std::nullopt;
+    }
     return std::make_pair(smin, smax);
 }
 
@@ -77,17 +87,17 @@ static auto sample_segment_xy_on_plane(const Eigen::Vector3d& p, const Eigen::Ve
                                        double smin, double smax) -> std::vector<Eigen::Vector3d> {
     const Eigen::Vector2d a = (p + smin * d).head<2>();
     const Eigen::Vector2d b = (p + smax * d).head<2>();
-    const double L = (b - a).norm();
-    const int N = std::max(2, static_cast<int>(std::ceil(L * kSamplesPerUnit)));
+    const double l = (b - a).norm();
+    const int n = std::max(2, static_cast<int>(std::ceil(l * k_samples_per_unit)));
 
     std::vector<Eigen::Vector3d> pts;
-    pts.reserve(static_cast<size_t>(N));
-    for (int i = 0; i < N; ++i) {
-        const double t = (N == 1) ? 0.0 : double(i) / double(N - 1);
+    pts.reserve(static_cast<size_t>(n));
+    for (int i = 0; i < n; ++i) {
+        const double t = (n == 1) ? 0.0 : double(i) / double(n - 1);
         const double s = smin + t * (smax - smin);
-        Eigen::Vector3d X = p + s * d;
-        X.z() = 0.0;  // enforce the target plane z=0
-        pts.emplace_back(X);
+        Eigen::Vector3d x = p + s * d;
+        x.z() = 0.0;  // enforce the target plane z=0
+        pts.emplace_back(x);
     }
     return pts;
 }
@@ -98,9 +108,9 @@ static auto project_points_target_to_pixels(const CameraT& cam, const Eigen::Iso
     -> std::vector<Eigen::Vector2d> {
     std::vector<Eigen::Vector2d> uv;
     uv.reserve(pts_t.size());
-    for (const auto& X_t : pts_t) {
-        const Eigen::Vector3d X_c = pose_t2c * X_t;
-        uv.emplace_back(cam.project(X_c));
+    for (const auto& x_t : pts_t) {
+        const Eigen::Vector3d x_c = pose_t2c * x_t;
+        uv.emplace_back(cam.project(x_c));
     }
     return uv;
 }
@@ -111,8 +121,8 @@ static void fill_target_view_from_xy(const Eigen::Isometry3d& pose_t2c, const Ca
     out_view.resize(xy.size());
     std::transform(xy.begin(), xy.end(), out_view.begin(),
                    [&](const Eigen::Vector2d& p) -> PlanarObservation {
-                       const Eigen::Vector3d X_c = pose_t2c * Eigen::Vector3d(p.x(), p.y(), 0.0);
-                       return {p, cam.project(X_c)};
+                       const Eigen::Vector3d x_c = pose_t2c * Eigen::Vector3d(p.x(), p.y(), 0.0);
+                       return {p, cam.project(x_c)};
                    });
 }
 

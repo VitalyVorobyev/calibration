@@ -47,13 +47,13 @@ auto CalibrationPipeline::execute(DatasetLoader& loader,
 }
 
 void LoggingDecorator::before_stage(const CalibrationStage& stage, PipelineContext&) {
-    out_ << "[pipeline] → Starting stage '" << stage.name() << "'" << std::endl;
+    out_ << "[pipeline] → Starting stage '" << stage.name() << "'" << '\n';
 }
 
 void LoggingDecorator::after_stage(const CalibrationStage& stage, PipelineContext&,
                                    const PipelineStageResult& result) {
     out_ << "[pipeline] ← Completed stage '" << stage.name() << "'"
-         << (result.success ? " (success)" : " (failed)") << std::endl;
+         << (result.success ? " (success)" : " (failed)") << '\n';
 }
 
 }  // namespace calib::pipeline
