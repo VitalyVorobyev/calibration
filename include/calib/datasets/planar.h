@@ -39,8 +39,9 @@ struct PlanarDetections {
 [[nodiscard]] auto validate_planar_dataset(const nlohmann::json& dataset,
                                            std::string* error_message = nullptr) -> bool;
 
-[[nodiscard]] auto convert_legacy_planar_features(
-    const nlohmann::json& legacy, const std::string& sensor_id_hint = "cam0") -> nlohmann::json;
+[[nodiscard]] auto convert_legacy_planar_features(const nlohmann::json& legacy,
+                                                  const std::string& sensor_id_hint = "cam0")
+    -> nlohmann::json;
 
 [[nodiscard]] auto load_planar_dataset(const std::filesystem::path& path,
                                        std::optional<std::string> sensor_filter = std::nullopt)

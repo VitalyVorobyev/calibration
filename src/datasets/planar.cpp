@@ -125,8 +125,8 @@ auto validate_planar_dataset(const nlohmann::json& dataset, std::string* error_m
     return true;
 }
 
-auto convert_legacy_planar_features(const nlohmann::json& legacy,
-                                    const std::string& sensor_id_hint) -> nlohmann::json {
+auto convert_legacy_planar_features(const nlohmann::json& legacy, const std::string& sensor_id_hint)
+    -> nlohmann::json {
     nlohmann::json dataset;
     dataset["schema_version"] = 1;
     dataset["feature_type"] = "planar_points";

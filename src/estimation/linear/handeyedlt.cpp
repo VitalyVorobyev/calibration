@@ -99,8 +99,9 @@ static auto estimate_rotation_allpairs_weighted(const std::vector<MotionPair>& p
 }
 
 // ---------- weighted Tsai–Lenz translation over all pairs ----------
-static auto estimate_translation_allpairs_weighted(
-    const std::vector<MotionPair>& pairs, const Eigen::Matrix3d& rot_x) -> Eigen::Vector3d {
+static auto estimate_translation_allpairs_weighted(const std::vector<MotionPair>& pairs,
+                                                   const Eigen::Matrix3d& rot_x)
+    -> Eigen::Vector3d {
     const int num_pairs = static_cast<int>(pairs.size());
     Eigen::MatrixXd mat_c(3 * num_pairs, 3);
     Eigen::VectorXd vec_w(3 * num_pairs);

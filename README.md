@@ -44,6 +44,34 @@ Each module re-exports headers under `include/calib/` and can be consumed indivi
 - [CLI11](https://github.com/CLIUtils/CLI11) – CLI argument parsing (used by apps/examples)
 - [GoogleTest](https://github.com/google/googletest) – unit testing (enabled when `CALIB_BUILD_TESTS=ON`)
 
+### Installing dependencies
+
+#### Ubuntu (22.04+ / 24.04 recommended)
+
+```bash
+sudo apt-get update
+sudo apt-get install -y \
+  build-essential cmake ninja-build \
+  libeigen3-dev libceres-dev nlohmann-json3-dev \
+  libgtest-dev libgmock-dev libboost-dev libcli11-dev \
+  clang clang-tidy cppcheck
+```
+
+#### macOS (Homebrew)
+
+```bash
+brew update
+brew install cmake ninja eigen ceres-solver nlohmann-json \
+  googletest boost cli11 llvm cppcheck
+
+# expose brew's LLVM toolchain (clang-tidy, etc.) for the current shell and future sessions
+export PATH="$(brew --prefix llvm)/bin:$PATH"
+echo 'export PATH="$(brew --prefix llvm)/bin:$PATH"' >> "$HOME/.zprofile"
+
+# optional: point CMake at brewed packages when configuring
+export CMAKE_PREFIX_PATH="$(brew --prefix googletest):$(brew --prefix cli11):$(brew --prefix ceres-solver)"
+```
+
 ## Building
 
 CMake options:

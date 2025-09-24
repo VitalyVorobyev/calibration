@@ -13,8 +13,8 @@
 using namespace calib;
 
 // Helper function to create a simple synthetic planar target
-auto create_synthetic_planar_data(const Eigen::Isometry3d& pose,
-                                  const CameraMatrix& intrinsics) -> PlanarView {
+auto create_synthetic_planar_data(const Eigen::Isometry3d& pose, const CameraMatrix& intrinsics)
+    -> PlanarView {
     // Create a grid of points on the plane Z=0
     PlanarView view;
     for (int i = -5; i <= 5; i += 2) {

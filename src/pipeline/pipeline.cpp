@@ -18,8 +18,8 @@ void CalibrationPipeline::add_decorator(std::shared_ptr<StageDecorator> decorato
     decorators_.push_back(std::move(decorator));
 }
 
-auto CalibrationPipeline::execute(DatasetLoader& loader,
-                                  PipelineContext& context) -> PipelineExecutionReport {
+auto CalibrationPipeline::execute(DatasetLoader& loader, PipelineContext& context)
+    -> PipelineExecutionReport {
     context.dataset = loader.load();
 
     PipelineExecutionReport report;

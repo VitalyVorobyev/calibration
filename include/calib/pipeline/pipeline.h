@@ -74,8 +74,8 @@ class CalibrationPipeline {
     void add_stage(std::unique_ptr<CalibrationStage> stage);
     void add_decorator(std::shared_ptr<StageDecorator> decorator);
 
-    [[nodiscard]] auto execute(DatasetLoader& loader,
-                               PipelineContext& context) -> PipelineExecutionReport;
+    [[nodiscard]] auto execute(DatasetLoader& loader, PipelineContext& context)
+        -> PipelineExecutionReport;
 
   private:
     std::vector<std::unique_ptr<CalibrationStage>> stages_;

@@ -25,13 +25,13 @@ std::vector<Observation<double>> generate_synthetic_data(const std::vector<doubl
     std::uniform_real_distribution<double> dist(-0.6, 0.6);  // Normalized coords
     std::normal_distribution<double> noise(0.0, noise_level);
 
-    const int numk = static_cast<int>(k_radial.size());
-    Eigen::VectorXd coeffs(numk + 2);
+    const size_t numk = k_radial.size();
+    Eigen::VectorXd coeffs(static_cast<int>(numk + 2));
     for (size_t i = 0; i < numk; ++i) {
-        coeffs[i] = k_radial[i];
+        coeffs[static_cast<int>(i)] = k_radial[i];
     }
-    coeffs[k_radial.size()] = p1;
-    coeffs[k_radial.size() + 1] = p2;
+    coeffs[static_cast<int>(k_radial.size())] = p1;
+    coeffs[static_cast<int>(k_radial.size()) + 1] = p2;
 
     std::vector<Observation<double>> observations(static_cast<size_t>(n_points));
     std::generate(observations.begin(), observations.end(), [&]() -> Observation<double> {

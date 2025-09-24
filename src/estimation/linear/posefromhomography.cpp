@@ -9,8 +9,8 @@
 
 namespace calib {
 
-auto pose_from_homography(const CameraMatrix& kmtx,
-                          const Eigen::Matrix3d& hmtx) -> PoseFromHResult {
+auto pose_from_homography(const CameraMatrix& kmtx, const Eigen::Matrix3d& hmtx)
+    -> PoseFromHResult {
     PoseFromHResult out;
 
     // Basic checks

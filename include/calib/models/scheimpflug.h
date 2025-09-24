@@ -219,7 +219,7 @@ struct ScheimpflugCamera final {
 
         // Remove principal-offset *linear* shift via traits
         Eigen::Matrix<T, 2, 1> base_shift =
-            CameraTraits<CameraT>::template apply_intrinsics_linear(camera, {mx0, my0});
+            CameraTraits<CameraT>::template apply_intrinsics_linear<T>(camera, {mx0, my0});
 
         // Invert base camera mapping for the delta (distortion + intrinsics)
         // Your base unproject returns the *canonical* [dx, dy] on z=1

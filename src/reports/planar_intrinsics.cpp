@@ -58,10 +58,11 @@ auto compute_global_rms(const CalibrationOutputs& out) -> double {
     return std::sqrt(sum_sq / static_cast<double>(total_measurements));
 }
 
-auto build_planar_intrinsics_report(
-    const PlanarCalibrationConfig& cfg, const CameraConfig& cam_cfg,
-    const PlanarDetections& detections, const CalibrationOutputs& outputs,
-    const std::filesystem::path& /*features_path*/) -> nlohmann::json {
+auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const CameraConfig& cam_cfg,
+                                    const PlanarDetections& detections,
+                                    const CalibrationOutputs& outputs,
+                                    const std::filesystem::path& /*features_path*/)
+    -> nlohmann::json {
     nlohmann::json session_json{{"id", cfg.session.id},
                                 {"description", cfg.session.description},
                                 {"timestamp_utc", iso_timestamp_utc()}};

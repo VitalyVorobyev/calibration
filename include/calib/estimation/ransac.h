@@ -131,8 +131,8 @@ inline void find_inliers(const std::vector<typename Estimator::Datum>& data, con
 template <typename Estimator, typename Model>
 inline auto refit_model(const std::vector<typename Estimator::Datum>& data, const Model& model,
                         const std::vector<int>& inliers, double threshold,
-                        std::vector<int>& updated_inliers,
-                        std::vector<double>& updated_residuals) -> Model {
+                        std::vector<int>& updated_inliers, std::vector<double>& updated_residuals)
+    -> Model {
     Model refined_model = model;
 
     if constexpr (HasRefit<Estimator>) {
@@ -157,8 +157,8 @@ inline auto is_better_model(bool has_current_best, size_t new_inlier_count, doub
 }  // namespace detail
 
 template <class Estimator>
-auto ransac(const std::vector<typename Estimator::Datum>& data,
-            const RansacOptions& opts = {}) -> RansacResult<typename Estimator::Model> {
+auto ransac(const std::vector<typename Estimator::Datum>& data, const RansacOptions& opts = {})
+    -> RansacResult<typename Estimator::Model> {
     using Model = typename Estimator::Model;
 
     RansacResult<Model> best;
