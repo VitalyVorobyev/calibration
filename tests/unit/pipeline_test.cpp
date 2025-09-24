@@ -1,10 +1,10 @@
+#include "calib/pipeline/pipeline.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
 #include <memory>
 #include <sstream>
-
-#include "calib/pipeline/pipeline.h"
 
 namespace calib::pipeline {
 namespace {
@@ -12,7 +12,7 @@ namespace {
 class MockStage : public CalibrationStage {
   public:
     MOCK_METHOD(std::string, name, (), (const, override));
-    MOCK_METHOD(PipelineStageResult, run, (PipelineContext& context), (override));
+    MOCK_METHOD(PipelineStageResult, run, (PipelineContext & context), (override));
 };
 
 class MockDecorator : public StageDecorator {
@@ -45,14 +45,13 @@ TEST(CalibrationPipelineTest, AddStageEnqueuesStageForExecution) {
     pipeline.add_stage(std::move(stage));
 
     EXPECT_CALL(*stage_ptr, name()).WillRepeatedly(::testing::Return("mock-stage"));
-    EXPECT_CALL(*stage_ptr, run(::testing::Ref(context)))
-        .WillOnce([](PipelineContext&) {
-            PipelineStageResult result;
-            result.name = "custom-stage";
-            result.success = true;
-            result.summary["status"] = "ran";
-            return result;
-        });
+    EXPECT_CALL(*stage_ptr, run(::testing::Ref(context))).WillOnce([](PipelineContext&) {
+        PipelineStageResult result;
+        result.name = "custom-stage";
+        result.success = true;
+        result.summary["status"] = "ran";
+        return result;
+    });
 
     const auto report = pipeline.execute(loader, context);
 
@@ -74,13 +73,12 @@ TEST(CalibrationPipelineTest, AddDecoratorInvokesHooksAroundStageExecution) {
     auto stage = std::make_unique<::testing::StrictMock<MockStage>>();
     auto* stage_ptr = stage.get();
     EXPECT_CALL(*stage_ptr, name()).WillRepeatedly(::testing::Return("decorated-stage"));
-    EXPECT_CALL(*stage_ptr, run(::testing::Ref(context)))
-        .WillOnce([](PipelineContext&) {
-            PipelineStageResult result;
-            result.name = "decorated-stage";
-            result.success = true;
-            return result;
-        });
+    EXPECT_CALL(*stage_ptr, run(::testing::Ref(context))).WillOnce([](PipelineContext&) {
+        PipelineStageResult result;
+        result.name = "decorated-stage";
+        result.success = true;
+        return result;
+    });
     pipeline.add_stage(std::move(stage));
 
     auto decorator = std::make_shared<::testing::StrictMock<MockDecorator>>();
@@ -94,7 +92,8 @@ TEST(CalibrationPipelineTest, AddDecoratorInvokesHooksAroundStageExecution) {
                 EXPECT_EQ(&stage, static_cast<const CalibrationStage*>(stage_ptr));
                 EXPECT_EQ(&ctx, &context);
             });
-        EXPECT_CALL(*decorator_ptr, after_stage(::testing::_, ::testing::Ref(context), ::testing::_))
+        EXPECT_CALL(*decorator_ptr,
+                    after_stage(::testing::_, ::testing::Ref(context), ::testing::_))
             .WillOnce([&](const CalibrationStage& stage, PipelineContext& ctx,
                           const PipelineStageResult& result) {
                 EXPECT_EQ(&stage, static_cast<const CalibrationStage*>(stage_ptr));
@@ -119,23 +118,21 @@ TEST(CalibrationPipelineTest, ExecuteAggregatesStageResultsAndStatus) {
 
     auto stage_success = std::make_unique<::testing::StrictMock<MockStage>>();
     EXPECT_CALL(*stage_success, name()).WillRepeatedly(::testing::Return("first"));
-    EXPECT_CALL(*stage_success, run(::testing::Ref(context)))
-        .WillOnce([](PipelineContext&) {
-            PipelineStageResult result;
-            result.name = "first";
-            result.success = true;
-            return result;
-        });
+    EXPECT_CALL(*stage_success, run(::testing::Ref(context))).WillOnce([](PipelineContext&) {
+        PipelineStageResult result;
+        result.name = "first";
+        result.success = true;
+        return result;
+    });
     pipeline.add_stage(std::move(stage_success));
 
     auto stage_failure = std::make_unique<::testing::StrictMock<MockStage>>();
     EXPECT_CALL(*stage_failure, name()).WillRepeatedly(::testing::Return("second"));
-    EXPECT_CALL(*stage_failure, run(::testing::Ref(context)))
-        .WillOnce([](PipelineContext&) {
-            PipelineStageResult result;
-            result.success = false;  // leave name empty to exercise fallback
-            return result;
-        });
+    EXPECT_CALL(*stage_failure, run(::testing::Ref(context))).WillOnce([](PipelineContext&) {
+        PipelineStageResult result;
+        result.success = false;  // leave name empty to exercise fallback
+        return result;
+    });
     pipeline.add_stage(std::move(stage_failure));
 
     const auto report = pipeline.execute(loader, context);
@@ -178,7 +175,8 @@ TEST(LoggingDecoratorTest, AfterStageWritesSuccessAndFailureMessages) {
     decorator.after_stage(stage, context, failure_result);
 
     EXPECT_EQ(stream.str(),
-              "[pipeline] ← Completed stage 'stage' (success)\n[pipeline] ← Completed stage 'stage' (failed)\n");
+              "[pipeline] ← Completed stage 'stage' (success)\n[pipeline] ← Completed stage "
+              "'stage' (failed)\n");
 }
 
 }  // namespace

@@ -52,10 +52,9 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
         std::vector<ParamBlock> blocks;
         blocks.reserve(intrinsics.size() + cam_quat_ref.size() + cam_tran_ref.size() +
                        ref_quat_tgt.size() + ref_tran_tgt.size());
-        std::transform(intrinsics.begin(), intrinsics.end(), std::back_inserter(blocks),
-                       [](const auto& intr) {
-                           return ParamBlock(intr.data(), intr.size(), intr_size);
-                       });
+        std::transform(
+            intrinsics.begin(), intrinsics.end(), std::back_inserter(blocks),
+            [](const auto& intr) { return ParamBlock(intr.data(), intr.size(), intr_size); });
         std::transform(cam_quat_ref.begin(), cam_quat_ref.end(), std::back_inserter(blocks),
                        [](const auto& quat) { return ParamBlock(quat.data(), quat.size(), 3); });
         std::transform(cam_tran_ref.begin(), cam_tran_ref.end(), std::back_inserter(blocks),
