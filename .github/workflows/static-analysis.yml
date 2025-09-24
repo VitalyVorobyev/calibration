@@ -33,9 +33,10 @@ jobs:
 
       - name: Run clang-tidy
         run: |
+          SDKROOT="$(xcrun --sdk macosx --show-sdk-path)"
           find src -name "*.cpp" -exec clang-tidy -p build {} \
             --checks="-*,readability-*,performance-*,modernize-*,bugprone-*,clang-analyzer-*" \
-            --header-filter=".*calib.*" \; \
+            --header-filter=".*calib.*" -- -isysroot "$SDKROOT" -stdlib=libc++ \; \
             || (echo "::error::clang-tidy found issues" && exit 1)
 
       - name: Run cppcheck
