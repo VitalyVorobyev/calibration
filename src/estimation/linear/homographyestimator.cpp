@@ -1,3 +1,4 @@
+// cppcheck-suppress normalCheckLevelMaxBranches
 #include "detail/homographyestimator.h"
 
 // std
@@ -95,6 +96,31 @@ static auto symmetric_transfer_error(const Eigen::Matrix3d& hmtx, const Eigen::V
 using Model = HomographyEstimator::Model;
 using Datum = HomographyEstimator::Datum;
 
+namespace {
+
+[[nodiscard]] auto has_near_collinear_triplet(const std::vector<Datum>& data,
+                                              std::span<const int> sample) -> bool {
+    const auto tri_area2 = [](const Eigen::Vector2d& a, const Eigen::Vector2d& b,
+                              const Eigen::Vector2d& c) {
+        return std::abs((b - a).x() * (c - a).y() - (b - a).y() * (c - a).x());
+    };
+    constexpr double eps = 1e-6;
+    for (size_t i = 0; i < sample.size(); ++i) {
+        for (size_t j = i + 1; j < sample.size(); ++j) {
+            for (size_t k = j + 1; k < sample.size(); ++k) {
+                const double area = tri_area2(data[sample[i]].object_xy, data[sample[j]].object_xy,
+                                              data[sample[k]].object_xy);
+                if (area < eps) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+}  // namespace
+
 auto HomographyEstimator::fit(const std::vector<Datum>& data, std::span<const int> sample)
     -> std::optional<Model> {
     if (sample.size() < k_min_samples) {
@@ -145,24 +171,7 @@ auto HomographyEstimator::refit(const std::vector<Datum>& data, std::span<const 
 // Optional: reject degenerate minimal sets (near-collinear points)
 auto HomographyEstimator::is_degenerate(const std::vector<Datum>& data, std::span<const int> sample)
     -> bool {
-    auto tri_area2 = [](const Eigen::Vector2d& a, const Eigen::Vector2d& b,
-                        const Eigen::Vector2d& c) {
-        return std::abs((b - a).x() * (c - a).y() - (b - a).y() * (c - a).x());
-    };
-    // Check unique triples on source side
-    const double eps = 1e-6;
-    for (size_t i = 0; i < sample.size(); ++i) {
-        for (size_t j = i + 1; j < sample.size(); ++j) {
-            for (size_t k = j + 1; k < sample.size(); ++k) {
-                double a2 = tri_area2(data[sample[i]].object_xy, data[sample[j]].object_xy,
-                                      data[sample[k]].object_xy);
-                if (a2 < eps) {
-                    return true;
-                }  // near-collinear
-            }
-        }
-    }
-    return false;
+    return has_near_collinear_triplet(data, sample);
 }
 
 }  // namespace calib

@@ -148,7 +148,6 @@ static void compute_plane_statistics(const std::vector<Vec3>& points, const Eige
     }
     int m = static_cast<int>(points.size());
     int dof = std::max(1, m - 3);
-    double sigma2 = ssr / dof;
     result.rms_error = std::sqrt(ssr / m);
 
     // Create problem for covariance computation
@@ -165,6 +164,7 @@ static void compute_plane_statistics(const std::vector<Vec3>& points, const Eige
     ceres::Covariance cov(copt);
     std::vector<std::pair<const double*, const double*>> blocks = {{params.data(), params.data()}};
     if (cov.Compute(blocks, &problem)) {
+        const double sigma2 = ssr / dof;
         std::array<double, 16> cov4{};
         cov.GetCovarianceBlock(params.data(), params.data(), cov4.data());
         Eigen::Map<Eigen::Matrix<double, 4, 4>> c(cov4.data());

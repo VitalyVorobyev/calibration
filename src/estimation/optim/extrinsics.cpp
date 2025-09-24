@@ -1,5 +1,9 @@
 #include "calib/estimation/extrinsics.h"
 
+// std
+#include <algorithm>
+#include <iterator>
+
 #include "calib/models/distortion.h"
 #include "calib/models/scheimpflug.h"
 #include "detail/ceresutils.h"
@@ -48,21 +52,18 @@ struct ExtrinsicBlocks final : public ProblemParamBlocks {
         std::vector<ParamBlock> blocks;
         blocks.reserve(intrinsics.size() + cam_quat_ref.size() + cam_tran_ref.size() +
                        ref_quat_tgt.size() + ref_tran_tgt.size());
-        for (const auto& intr : intrinsics) {
-            blocks.emplace_back(intr.data(), intr.size(), intr_size);
-        }
-        for (const auto& quat : cam_quat_ref) {
-            blocks.emplace_back(quat.data(), quat.size(), 3);
-        }
-        for (const auto& tran : cam_tran_ref) {
-            blocks.emplace_back(tran.data(), tran.size(), 3);
-        }
-        for (const auto& quat : ref_quat_tgt) {
-            blocks.emplace_back(quat.data(), quat.size(), 3);
-        }
-        for (const auto& tran : ref_tran_tgt) {
-            blocks.emplace_back(tran.data(), tran.size(), 3);
-        }
+        std::transform(intrinsics.begin(), intrinsics.end(), std::back_inserter(blocks),
+                       [](const auto& intr) {
+                           return ParamBlock(intr.data(), intr.size(), intr_size);
+                       });
+        std::transform(cam_quat_ref.begin(), cam_quat_ref.end(), std::back_inserter(blocks),
+                       [](const auto& quat) { return ParamBlock(quat.data(), quat.size(), 3); });
+        std::transform(cam_tran_ref.begin(), cam_tran_ref.end(), std::back_inserter(blocks),
+                       [](const auto& tran) { return ParamBlock(tran.data(), tran.size(), 3); });
+        std::transform(ref_quat_tgt.begin(), ref_quat_tgt.end(), std::back_inserter(blocks),
+                       [](const auto& quat) { return ParamBlock(quat.data(), quat.size(), 3); });
+        std::transform(ref_tran_tgt.begin(), ref_tran_tgt.end(), std::back_inserter(blocks),
+                       [](const auto& tran) { return ParamBlock(tran.data(), tran.size(), 3); });
         return blocks;
     }
 

@@ -2,6 +2,7 @@
 
 // std
 #include <algorithm>
+#include <iterator>
 #include <stdexcept>
 
 namespace calib::pipeline {
@@ -57,9 +58,8 @@ auto IntrinsicStage::run(PipelineContext& context) -> PipelineStageResult {
             nlohmann::json camera_entry = run_result.report;
             camera_entry["sensor_id"] = sensor_id;
             nlohmann::json tag_array = nlohmann::json::array();
-            for (const auto& tag : detections.tags) {
-                tag_array.push_back(tag);
-            }
+            std::copy(detections.tags.begin(), detections.tags.end(),
+                      std::back_inserter(tag_array));
             camera_entry["tags"] = std::move(tag_array);
             cameras_summary.push_back(std::move(camera_entry));
         } catch (const std::exception& ex) {

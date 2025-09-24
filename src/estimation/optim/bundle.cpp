@@ -1,7 +1,9 @@
 #include "calib/estimation/bundle.h"
 
 // std
+#include <algorithm>
 #include <array>
+#include <iterator>
 #include <numeric>
 
 #include "calib/estimation/planarpose.h"
@@ -43,17 +45,20 @@ struct BundleBlocks final : public ProblemParamBlocks {
     [[nodiscard]]
     auto get_param_blocks() const -> std::vector<ParamBlock> override {
         std::vector<ParamBlock> blocks;
-        blocks.reserve(intr.size() + g_quat_c.size() + g_tra_c.size());
-        for (const auto& intr_block : intr) {
-            blocks.emplace_back(intr_block.data(), intr_block.size(), k_intr_size);
-        }
-        for (const auto& quat_block : g_quat_c) {
-            blocks.emplace_back(quat_block.data(), quat_block.size(),
-                                3);  // 3 dof in unit quaternion
-        }
-        for (const auto& tran_block : g_tra_c) {
-            blocks.emplace_back(tran_block.data(), tran_block.size(), 3);
-        }
+        blocks.reserve(intr.size() + g_quat_c.size() + g_tra_c.size() + 2U);
+        std::transform(intr.begin(), intr.end(), std::back_inserter(blocks),
+                       [](const auto& intr_block) {
+                           return ParamBlock(intr_block.data(), intr_block.size(), k_intr_size);
+                       });
+        std::transform(g_quat_c.begin(), g_quat_c.end(), std::back_inserter(blocks),
+                       [](const auto& quat_block) {
+                           return ParamBlock(quat_block.data(), quat_block.size(),
+                                             3);  // 3 dof in unit quaternion
+                       });
+        std::transform(g_tra_c.begin(), g_tra_c.end(), std::back_inserter(blocks),
+                       [](const auto& tran_block) {
+                           return ParamBlock(tran_block.data(), tran_block.size(), 3);
+                       });
         blocks.emplace_back(b_quat_t.data(), b_quat_t.size(), 3);  // 3 dof in unit quaternion
         blocks.emplace_back(b_tra_t.data(), b_tra_t.size(), 3);
         return blocks;
