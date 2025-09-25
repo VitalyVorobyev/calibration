@@ -37,8 +37,18 @@ lint: build ## Run static analysis
 	    --header-filter="^$(shell pwd)/(include|src|apps)/.*"; fi
 	@echo "Running cppcheck..."
 	cppcheck --enable=all --std=c++20 --suppress=missingIncludeSystem --suppress=unusedFunction \
-		--suppress=unmatchedSuppression --suppress=unreadVariable \
-		-I include src apps tests
+		--suppress=unmatchedSuppression --suppress=unreadVariable --suppress=normalCheckLevelMaxBranches \
+		--library=googletest \
+		-I include -I src -I src/estimation -I apps -I tests \
+		src apps tests
+
+cppcheck: ## Run cppcheck static analysis
+	@echo "Running cppcheck..."
+	cppcheck --enable=all --std=c++20 --suppress=missingIncludeSystem --suppress=unusedFunction \
+		--suppress=unmatchedSuppression --suppress=unreadVariable --suppress=normalCheckLevelMaxBranches \
+		--library=googletest \
+		-I include -I src -I src/estimation -I apps -I tests \
+		src apps tests
 
 coverage: ## Generate test coverage report
 	cmake -S . -B $(BUILD_DIR) -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage -g -O0"

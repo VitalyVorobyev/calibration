@@ -1,4 +1,3 @@
-// cppcheck-suppress normalCheckLevelMaxBranches
 #include "detail/homographyestimator.h"
 
 // std

@@ -1,4 +1,3 @@
-// cppcheck-suppress normalCheckLevelMaxBranches
 #include "calib/pipeline/planar_intrinsics.h"
 
 #include <fstream>
@@ -101,7 +100,6 @@ auto build_ransac_options(const HomographyRansacConfig& cfg) -> RansacOptions {
     return opts;
 }
 
-// cppcheck-suppress normalCheckLevelMaxBranches
 auto PlanarIntrinsicCalibrationFacade::calibrate(const PlanarCalibrationConfig& cfg,
                                                  const CameraConfig& cam_cfg,
                                                  const PlanarDetections& detections,

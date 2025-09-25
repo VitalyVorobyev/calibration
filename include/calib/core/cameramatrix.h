@@ -31,7 +31,10 @@ namespace calib {
  */
 template <typename Scalar>
 struct CameraMatrixT final {
-    Scalar fx, fy, cx, cy;
+    Scalar fx = Scalar(0);
+    Scalar fy = Scalar(0);
+    Scalar cx = Scalar(0);
+    Scalar cy = Scalar(0);
     Scalar skew = Scalar(0);
 
     /**

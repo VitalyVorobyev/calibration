@@ -1,6 +1,5 @@
-// cppcheck-suppress normalCheckLevelMaxBranches
 #include "calib/estimation/intrinsics.h"
-#include "intrinsics_utils.h"
+#include "../estimation/common/intrinsics_utils.h"
 
 // std
 #include <algorithm>
@@ -30,7 +29,6 @@ static auto symmetric_rms_px(const Eigen::Matrix3d& hmtx, const PlanarView& view
     return std::sqrt(sum_err / (2.0 * static_cast<double>(inliers.size())));
 }
 
-// cppcheck-suppress normalCheckLevelMaxBranches
 static auto compute_planar_homographies(const std::vector<PlanarView>& views,
                                         const std::optional<RansacOptions>& ransac_opts)
     -> std::vector<HomographyResult> {

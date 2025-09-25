@@ -4,7 +4,7 @@
 #include <optional>
 
 #include "calib/estimation/intrinsics.h"
-#include "intrinsics_utils.h"
+#include "../src/estimation/common/intrinsics_utils.h"
 #include "utils.h"
 
 using namespace calib;
@@ -74,8 +74,9 @@ TEST(EstimateIntrinsics, FailsWithTooFewViews) {
     sim.make_target_grid(5, 7, 0.04);
     sim.render_pixels();
 
-    std::vector<PlanarView> views;
-    for (const auto& ob : sim.observations) views.push_back(ob.view);
+    std::vector<PlanarView> views(sim.observations.size());
+    std::transform(sim.observations.begin(), sim.observations.end(), views.begin(),
+               [](const auto& ob) { return ob.view; });
 
     auto res = estimate_intrinsics(views);
     EXPECT_FALSE(res.success);
