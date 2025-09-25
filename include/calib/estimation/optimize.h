@@ -9,12 +9,7 @@
 
 namespace calib {
 
-enum class OptimizerType : uint8_t {
-    DEFAULT,
-    SPARSE_SCHUR,
-    DENSE_SCHUR,
-    DENSE_QR
-};
+enum class OptimizerType : uint8_t { DEFAULT, SPARSE_SCHUR, DENSE_SCHUR, DENSE_QR };
 
 struct OptimOptions {
     OptimizerType optimizer = OptimizerType::DEFAULT;
@@ -35,4 +30,3 @@ struct OptimResult {
 };
 
 }  // namespace calib
-

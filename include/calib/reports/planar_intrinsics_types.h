@@ -1,11 +1,10 @@
 #pragma once
 
 #include <array>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "calib/config/planar_intrinsics.h"
 #include "calib/models/camera_matrix.h"

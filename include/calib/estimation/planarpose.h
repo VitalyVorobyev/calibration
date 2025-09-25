@@ -8,8 +8,8 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calib/models/camera_matrix.h"
 #include "calib/estimation/optimize.h"
+#include "calib/models/camera_matrix.h"
 
 namespace calib {
 

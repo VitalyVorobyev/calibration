@@ -61,9 +61,9 @@ void to_json(nlohmann::json& json, const PlanarIntrinsicsOptionsReport& report) 
     if (report.homography_ransac.has_value()) {
         const auto& r = report.homography_ransac.value();
         json["homography_ransac"] = {{"max_iters", r.max_iters},
-                                      {"thresh", r.thresh},
-                                      {"min_inliers", r.min_inliers},
-                                      {"confidence", r.confidence}};
+                                     {"thresh", r.thresh},
+                                     {"min_inliers", r.min_inliers},
+                                     {"confidence", r.confidence}};
     }
 }
 
@@ -79,17 +79,20 @@ void from_json(const nlohmann::json& json, PlanarIntrinsicsOptionsReport& report
     json.at("auto_center_points").get_to(report.auto_center_points);
     if (json.contains("point_center") && !json.at("point_center").is_null()) {
         const auto& arr = json.at("point_center");
-        report.point_center = std::array<double, 2>{arr.at(0).get<double>(), arr.at(1).get<double>()};
+        report.point_center =
+            std::array<double, 2>{arr.at(0).get<double>(), arr.at(1).get<double>()};
     } else {
         report.point_center.reset();
     }
     if (json.contains("fixed_distortion_indices")) {
-        report.fixed_distortion_indices = json.at("fixed_distortion_indices").get<std::vector<int>>();
+        report.fixed_distortion_indices =
+            json.at("fixed_distortion_indices").get<std::vector<int>>();
     } else {
         report.fixed_distortion_indices.clear();
     }
     if (json.contains("fixed_distortion_values")) {
-        report.fixed_distortion_values = json.at("fixed_distortion_values").get<std::vector<double>>();
+        report.fixed_distortion_values =
+            json.at("fixed_distortion_values").get<std::vector<double>>();
     } else {
         report.fixed_distortion_values.clear();
     }
@@ -107,15 +110,14 @@ void from_json(const nlohmann::json& json, PlanarIntrinsicsOptionsReport& report
 }
 
 void to_json(nlohmann::json& json, const InitialGuessWarningCounts& report) {
-    json = nlohmann::json{{"invalid_camera_matrix", report.invalid_camera_matrix},
-                          {"homography_decomposition_failures",
-                           report.homography_decomposition_failures}};
+    json = nlohmann::json{
+        {"invalid_camera_matrix", report.invalid_camera_matrix},
+        {"homography_decomposition_failures", report.homography_decomposition_failures}};
 }
 
 void from_json(const nlohmann::json& json, InitialGuessWarningCounts& report) {
     json.at("invalid_camera_matrix").get_to(report.invalid_camera_matrix);
-    json.at("homography_decomposition_failures")
-        .get_to(report.homography_decomposition_failures);
+    json.at("homography_decomposition_failures").get_to(report.homography_decomposition_failures);
 }
 
 void to_json(nlohmann::json& json, const InitialGuessReport& report) {
@@ -145,13 +147,12 @@ void from_json(const nlohmann::json& json, PlanarViewReport& report) {
 }
 
 void to_json(nlohmann::json& json, const IntrinsicsResultReport& report) {
-    json = nlohmann::json{{"intrinsics", camera_matrix_to_json_impl(report.intrinsics)},
-                          {"distortion",
-                           {{"model", report.distortion_model},
-                            {"coefficients", report.distortion_coefficients}}},
-                          {"statistics",
-                           {{"reprojection_rms_px", report.reprojection_rms_px},
-                            {"per_view", report.per_view}}}};
+    json = nlohmann::json{
+        {"intrinsics", camera_matrix_to_json_impl(report.intrinsics)},
+        {"distortion",
+         {{"model", report.distortion_model}, {"coefficients", report.distortion_coefficients}}},
+        {"statistics",
+         {{"reprojection_rms_px", report.reprojection_rms_px}, {"per_view", report.per_view}}}};
 }
 
 void from_json(const nlohmann::json& json, IntrinsicsResultReport& report) {

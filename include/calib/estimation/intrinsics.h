@@ -22,9 +22,9 @@
 #include <Eigen/Dense>
 
 #include "calib/estimation/homography.h"  // For HomographyResult
+#include "calib/estimation/optimize.h"
 #include "calib/estimation/planarpose.h"
 #include "calib/estimation/ransac.h"  // For RANSAC options
-#include "calib/estimation/optimize.h"
 #include "calib/models/cameramodel.h"
 #include "calib/models/pinhole.h"
 

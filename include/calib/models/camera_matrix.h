@@ -26,14 +26,16 @@ struct CameraMatrixT final {
     }
 
     template <typename T>
-    [[nodiscard]] auto normalize(const Eigen::Matrix<T, 2, 1>& pixel) const -> Eigen::Matrix<T, 2, 1> {
+    [[nodiscard]] auto normalize(const Eigen::Matrix<T, 2, 1>& pixel) const
+        -> Eigen::Matrix<T, 2, 1> {
         T y_coord = (pixel.y() - T(cy)) / T(fy);
         T x_coord = (pixel.x() - T(cx) - T(skew) * y_coord) / T(fx);
         return {x_coord, y_coord};
     }
 
     template <typename T>
-    [[nodiscard]] auto denormalize(const Eigen::Matrix<T, 2, 1>& norm_xy) const -> Eigen::Matrix<T, 2, 1> {
+    [[nodiscard]] auto denormalize(const Eigen::Matrix<T, 2, 1>& norm_xy) const
+        -> Eigen::Matrix<T, 2, 1> {
         return {T(fx) * norm_xy.x() + T(skew) * norm_xy.y() + T(cx), T(fy) * norm_xy.y() + T(cy)};
     }
 };
