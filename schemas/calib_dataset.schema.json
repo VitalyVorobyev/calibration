@@ -1,204 +1,99 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.local/calib-dataset.schema.json",
-  "title": "Calibration Feature Dataset",
-  "description": "Unified feature dataset used by the calibration pipeline stages.",
+  "$id": "https://schemas.local/calib-planar-dataset.schema.json",
+  "title": "Planar Detection Dataset",
+  "description": "Minimal planar correspondences consumed by the calibration pipeline.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "feature_type", "captures"],
+  "required": ["sensor_id", "images"],
   "properties": {
-    "schema_version": {
-      "type": "integer",
-      "const": 1,
-      "description": "Dataset schema revision. Increment when breaking changes are introduced."
+    "image_directory": {
+      "type": "string",
+      "description": "Location of image assets associated with this dataset."
     },
     "feature_type": {
       "type": "string",
-      "enum": ["planar_points"],
-      "description": "Feature modality contained in this dataset. Future revisions may add more types."
+      "description": "Detector family identifier (e.g. planar, aprilgrid)."
+    },
+    "algo_version": {
+      "type": "string",
+      "description": "Detector or feature extraction version string."
+    },
+    "params_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{8,64}$",
+      "description": "Hash over detector parameters for reproducibility."
+    },
+    "sensor_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifier of the camera or sensor that produced the detections."
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true,
+      "description": "Optional labels describing the dataset (e.g. synthetic, recorded)."
     },
     "metadata": {
       "type": "object",
       "additionalProperties": true,
-      "description": "Optional dataset-level metadata (detector info, capture environment, etc.).",
-      "properties": {
-        "image_directory": {
-          "type": "string",
-          "description": "Location of the source images. Absolute or relative to the dataset file."
-        },
-        "detector": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Description of the detector that generated the features.",
-          "properties": {
-            "type": {
-              "type": "string",
-              "description": "Detector family identifier (e.g. planar, aprilgrid)."
-            },
-            "name": {
-              "type": "string",
-              "description": "Human friendly detector name."
-            },
-            "version": {
-              "type": "string",
-              "description": "Detector library or binary version string."
-            },
-            "params_hash": {
-              "type": "string",
-              "pattern": "^[0-9a-fA-F]{8,64}$",
-              "description": "Hash over detector parameters for reproducibility."
-            }
-          }
-        }
-      }
+      "description": "Detector-specific metadata."
     },
-    "targets": {
-      "type": "array",
-      "description": "Optional target catalogue used during calibration.",
-      "items": {
-        "$ref": "#/$defs/planarTarget"
-      }
-    },
-    "captures": {
+    "images": {
       "type": "array",
       "minItems": 1,
-      "description": "Per-frame feature observations grouped by sensor.",
-      "items": {
-        "$ref": "#/$defs/capture"
-      }
+      "items": { "$ref": "#/$defs/image" },
+      "description": "Per-image planar detections."
     }
   },
   "$defs": {
-    "capture": {
+    "image": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sensor_id", "frame", "observations"],
+      "required": ["file", "points"],
       "properties": {
-        "sensor_id": {
+        "file": {
           "type": "string",
           "minLength": 1,
-          "description": "Identifier of the sensing element that produced this capture."
-        },
-        "frame": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Frame identifier (usually an image filename)."
-        },
-        "timestamp": {
-          "description": "Acquisition timestamp. Either numeric (seconds) or ISO-8601 string.",
-          "oneOf": [
-            { "type": "number" },
-            { "type": "string" }
-          ]
-        },
-        "tags": {
-          "type": "array",
-          "description": "Arbitrary labels describing the capture (e.g. synthetic, recorded).",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          }
-        },
-        "metadata": {
-          "type": "object",
-          "additionalProperties": true,
-          "description": "Optional capture-specific metadata."
-        },
-        "observations": {
-          "type": "array",
-          "minItems": 1,
-          "description": "Feature observations detected in this frame.",
-          "items": {
-            "$ref": "#/$defs/observation"
-          }
-        }
-      }
-    },
-    "observation": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["target_id", "type", "points"],
-      "properties": {
-        "target_id": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Identifier of the calibration target being observed."
-        },
-        "type": {
-          "type": "string",
-          "enum": ["planar_points"],
-          "description": "Observation encoding type."
+          "description": "Image filename or identifier."
         },
         "points": {
           "type": "array",
           "minItems": 1,
-          "description": "Planar feature correspondences from this frame.",
-          "items": {
-            "$ref": "#/$defs/planarPoint"
-          }
+          "items": { "$ref": "#/$defs/point" },
+          "description": "Planar correspondences detected in the image."
         }
       }
     },
-    "planarPoint": {
+    "point": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["pixel", "target"],
+      "required": ["x", "y", "local_x", "local_y"],
       "properties": {
         "id": {
           "type": "integer",
-          "description": "Optional identifier assigned by the target layout."
+          "description": "Optional target identifier."
         },
-        "pixel": {
-          "type": "array",
-          "items": { "type": "number" },
-          "minItems": 2,
-          "maxItems": 2,
-          "description": "Image coordinates in pixels [u, v]."
-        },
-        "target": {
-          "type": "array",
-          "items": { "type": "number" },
-          "minItems": 2,
-          "maxItems": 3,
-          "description": "Planar target coordinates [X, Y] or [X, Y, Z]."
-        },
-        "confidence": {
+        "x": {
           "type": "number",
-          "minimum": 0.0,
-          "maximum": 1.0,
-          "description": "Optional measurement confidence in [0, 1]."
-        }
-      }
-    },
-    "planarTarget": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "type"],
-      "properties": {
-        "id": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Target identifier referenced by observations."
+          "description": "Image coordinate along X (pixels)."
         },
-        "type": {
-          "type": "string",
-          "const": "planar",
-          "description": "Target family for planar observations."
-        },
-        "rows": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Number of rows in the calibration pattern (if applicable)."
-        },
-        "cols": {
-          "type": "integer",
-          "minimum": 1,
-          "description": "Number of columns in the calibration pattern (if applicable)."
-        },
-        "spacing": {
+        "y": {
           "type": "number",
-          "exclusiveMinimum": 0,
-          "description": "Physical spacing between adjacent target features."
+          "description": "Image coordinate along Y (pixels)."
+        },
+        "local_x": {
+          "type": "number",
+          "description": "Target coordinate along X (metres or arbitrary units)."
+        },
+        "local_y": {
+          "type": "number",
+          "description": "Target coordinate along Y."
+        },
+        "local_z": {
+          "type": "number",
+          "description": "Target coordinate along Z (defaults to 0 for planar boards)."
         }
       }
     }

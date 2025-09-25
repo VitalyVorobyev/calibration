@@ -11,7 +11,6 @@ target_include_directories(calib_datasets
 
 target_link_libraries(calib_datasets
     PUBLIC
-        calib_core
         calib_io
         nlohmann_json::nlohmann_json)
 

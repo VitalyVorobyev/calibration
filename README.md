@@ -10,7 +10,8 @@ Modern C++ utilities for camera calibration, geometric vision, and robot–senso
 
 ## Highlights
 
-- Modular targets exported as `calib::core`, `calib::models`, `calib::estimation_linear`, `calib::estimation_optim`, `calib::pipeline`, `calib::utils`, and `calib::io`
+- Modular targets exported as `calib::models`, `calib::estimation_linear`,
+  `calib::estimation_optim`, `calib::datasets`, `calib::pipeline`, `calib::reports`, and `calib::io`
 - Intrinsic & extrinsic planar calibration with covariance estimation
 - Homography and planar pose estimation (DLT, RANSAC, non-linear refinement)
 - Hand-eye calibration starting from DLT seeds and refined via bundle adjustment
@@ -21,13 +22,14 @@ Modern C++ utilities for camera calibration, geometric vision, and robot–senso
 
 ```
 include/calib/                Public headers organised by module
-src/core/                    Interface target for core math helpers
-src/models/                  Interface target for camera model concepts
-src/io/                      Interface target for JSON/serialization helpers
+src/math/                    Header-only math helpers (camera matrices, optimisation options)
+src/models/                  Camera model concepts and distortion primitives
+src/io/                      JSON/serialization helpers and glue
 src/estimation/linear/       Linear solvers (DLT, closed-form)
 src/estimation/optim/        Ceres-based refinement stages
-src/pipeline/                Pipeline orchestration and line-scan components
-src/utils/                   Shared utilities (JSON reports, facades)
+src/datasets/                Dataset adapters and JSON bindings
+src/pipeline/                Pipeline orchestration components
+src/reports/                 Report builders and formatting utilities
 apps/cli/                    Command line front-ends (e.g. calib_cli)
 apps/examples/               Tutorial executables and sample JSON schemas
 tests/unit/                  GoogleTest unit + integration suites
@@ -173,6 +175,17 @@ For multi-stage workflows the `calib_example_pipeline` executable wires intrinsi
 The example prints a JSON summary highlighting the outcome of each pipeline stage.
 
 The resulting report lists accepted views, linear initialisation, refined statistics, and persists the outputs under a `calibrations` array to support multi-camera expansion.
+
+`PlanarIntrinsicCalibrationFacade` now returns a strongly typed `PlanarIntrinsicsReport`, so you can
+inspect the structured data directly or round-trip through JSON when you need a serialised payload:
+
+```cpp
+PlanarIntrinsicCalibrationFacade facade;
+auto run = facade.calibrate(cfg, cam_cfg, detections, features_path);
+const auto& report = run.report;      // structured view
+nlohmann::json json = report;         // serialise
+auto restored = json.get<PlanarIntrinsicsReport>();
+```
 
 ## Quality Gates
 

@@ -1,7 +1,11 @@
 #include "calib/pipeline/loaders.h"
 
 // std
+#include <fstream>
 #include <stdexcept>
+
+// third-party
+#include <nlohmann/json.hpp>
 
 namespace calib::pipeline {
 
@@ -21,7 +25,23 @@ auto JsonPlanarDatasetLoader::load() -> CalibrationDataset {
 
     nlohmann::json sources = nlohmann::json::array();
     for (const auto& entry : entries_) {
-        auto detections = planar::load_planar_dataset(entry.path, entry.sensor_id);
+        std::ifstream stream(entry.path);
+        if (!stream) {
+            throw std::runtime_error("JsonPlanarDatasetLoader: failed to open " +
+                                     entry.path.string());
+        }
+
+        nlohmann::json json_data;
+        stream >> json_data;
+
+        auto detections = json_data.get<planar::PlanarDetections>();
+        detections.source_file = entry.path;
+
+        if (entry.sensor_id.has_value() && detections.sensor_id != *entry.sensor_id) {
+            throw std::runtime_error("Requested sensor_id '" + *entry.sensor_id +
+                                     "' not found in dataset.");
+        }
+
         nlohmann::json source_info{{"path", entry.path.string()},
                                    {"sensor_id", detections.sensor_id}};
         if (!detections.metadata.is_null()) {

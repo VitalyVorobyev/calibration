@@ -19,7 +19,6 @@ target_include_directories(calib_pipeline
 
 target_link_libraries(calib_pipeline
     PUBLIC
-        calib_core
         calib_models
         calib_estimation_optim
         calib_datasets

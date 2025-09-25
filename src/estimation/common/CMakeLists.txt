@@ -6,7 +6,6 @@ target_include_directories(calib_estimation_common INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../residuals>)
 
 target_link_libraries(calib_estimation_common INTERFACE
-    calib_core
     calib_models
     Ceres::ceres)
 

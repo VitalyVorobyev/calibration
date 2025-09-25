@@ -23,7 +23,6 @@ target_include_directories(calib_estimation_linear
 
 target_link_libraries(calib_estimation_linear
     PUBLIC
-        calib_core
         calib_models)
 
 calib_set_default_warnings(calib_estimation_linear)

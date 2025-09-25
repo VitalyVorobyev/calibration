@@ -18,8 +18,8 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calib/core/optimize.h"
 #include "calib/estimation/planarpose.h"
+#include "calib/estimation/optimize.h"
 
 namespace calib {
 

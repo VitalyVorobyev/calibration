@@ -5,6 +5,7 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
+#include <vector>
 namespace calib::planar {
 
 namespace {
@@ -25,19 +26,7 @@ namespace {
 
 }  // namespace
 
-auto distortion_to_json(const Eigen::VectorXd& coeffs) -> nlohmann::json {
-    nlohmann::json arr = nlohmann::json::array();
-    for (int i = 0; i < coeffs.size(); ++i) {
-        arr.push_back(coeffs[i]);
-    }
-    return arr;
-}
-
-auto camera_matrix_to_json(const CameraMatrix& k) -> nlohmann::json {
-    return nlohmann::json{{"fx", k.fx}, {"fy", k.fy}, {"cx", k.cx}, {"cy", k.cy}, {"skew", k.skew}};
-}
-
-auto compute_global_rms(const CalibrationOutputs& out) -> double {
+[[nodiscard]] auto compute_global_rms(const CalibrationOutputs& out) -> double {
     const auto& refine = out.refine_result;
     if (refine.view_errors.empty()) {
         return 0.0;
@@ -62,60 +51,50 @@ auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const Ca
                                     const PlanarDetections& detections,
                                     const CalibrationOutputs& outputs,
                                     const std::filesystem::path& /*features_path*/)
-    -> nlohmann::json {
-    nlohmann::json session_json{{"id", cfg.session.id},
-                                {"description", cfg.session.description},
-                                {"timestamp_utc", iso_timestamp_utc()}};
+    -> PlanarIntrinsicsReport {
+    PlanarIntrinsicsReport report;
+    report.session = SessionReport{.id = cfg.session.id,
+                                   .description = cfg.session.description,
+                                   .timestamp_utc = iso_timestamp_utc()};
 
-    nlohmann::json options_json{{"min_corners_per_view", cfg.options.min_corners_per_view},
-                                {"refine", cfg.options.refine},
-                                {"optimize_skew", cfg.options.optimize_skew},
-                                {"num_radial", cfg.options.num_radial},
-                                {"huber_delta", cfg.options.huber_delta},
-                                {"max_iterations", cfg.options.max_iterations},
-                                {"epsilon", cfg.options.epsilon},
-                                {"point_scale", cfg.options.point_scale},
-                                {"auto_center_points", cfg.options.auto_center}};
+    PlanarIntrinsicsOptionsReport options;
+    options.min_corners_per_view = cfg.options.min_corners_per_view;
+    options.refine = cfg.options.refine;
+    options.optimize_skew = cfg.options.optimize_skew;
+    options.num_radial = cfg.options.num_radial;
+    options.huber_delta = cfg.options.huber_delta;
+    options.max_iterations = cfg.options.max_iterations;
+    options.epsilon = cfg.options.epsilon;
+    options.point_scale = cfg.options.point_scale;
+    options.auto_center_points = cfg.options.auto_center;
+    options.fixed_distortion_indices = cfg.options.fixed_distortion_indices;
+    options.fixed_distortion_values = cfg.options.fixed_distortion_values;
     if (cfg.options.point_center_override.has_value()) {
-        const auto& center = cfg.options.point_center_override.value();
-        options_json["point_center"] = {center[0], center[1]};
+        options.point_center = cfg.options.point_center_override.value();
     }
-    if (!cfg.options.fixed_distortion_indices.empty()) {
-        options_json["fixed_distortion_indices"] = cfg.options.fixed_distortion_indices;
-    }
-    if (!cfg.options.fixed_distortion_values.empty()) {
-        options_json["fixed_distortion_values"] = cfg.options.fixed_distortion_values;
-    }
-    if (cfg.options.homography_ransac.has_value()) {
-        const auto& r = *cfg.options.homography_ransac;
-        options_json["homography_ransac"] = {{"max_iters", r.max_iters},
-                                             {"thresh", r.thresh},
-                                             {"min_inliers", r.min_inliers},
-                                             {"confidence", r.confidence}};
-    }
+    options.homography_ransac = cfg.options.homography_ransac;
 
-    nlohmann::json detector_json;
-    if (!detections.metadata.is_null() && detections.metadata.contains("detector")) {
-        detector_json = detections.metadata.at("detector");
-    } else {
-        detector_json = nlohmann::json::object();
-    }
+    CameraReport camera;
+    camera.camera_id = cam_cfg.camera_id;
+    camera.model = cam_cfg.model;
+    camera.image_size = cam_cfg.image_size;
 
-    nlohmann::json camera_json;
-    camera_json["camera_id"] = cam_cfg.camera_id;
-    camera_json["model"] = cam_cfg.model;
-    if (cam_cfg.image_size.has_value()) {
-        camera_json["image_size"] = {*cam_cfg.image_size};
-    }
-    camera_json["initial_guess"] = {
-        {"intrinsics", camera_matrix_to_json(outputs.linear_kmtx)},
-        {"used_view_indices", outputs.linear_view_indices},
-        {"warning_counts",
-         {{"invalid_camera_matrix", outputs.invalid_k_warnings},
-          {"homography_decomposition_failures", outputs.pose_warnings}}}};
+    InitialGuessReport initial_guess;
+    initial_guess.intrinsics = outputs.linear_kmtx;
+    initial_guess.used_view_indices = outputs.linear_view_indices;
+    initial_guess.warning_counts =
+        InitialGuessWarningCounts{outputs.invalid_k_warnings, outputs.pose_warnings};
+    camera.initial_guess = std::move(initial_guess);
 
-    const auto global_rms = compute_global_rms(outputs);
-    nlohmann::json per_view = nlohmann::json::array();
+    IntrinsicsResultReport result;
+    result.intrinsics = outputs.refine_result.camera.kmtx;
+    result.distortion_model = cam_cfg.model;
+    result.distortion_coefficients =
+        std::vector<double>(outputs.refine_result.camera.distortion.coeffs.data(),
+                            outputs.refine_result.camera.distortion.coeffs.data() +
+                                outputs.refine_result.camera.distortion.coeffs.size());
+    result.reprojection_rms_px = compute_global_rms(outputs);
+
     for (std::size_t i = 0; i < outputs.active_views.size(); ++i) {
         const auto& view = outputs.active_views[i];
         const double view_rms = i < outputs.refine_result.view_errors.size()
@@ -124,29 +103,26 @@ auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const Ca
         const bool used_in_linear =
             std::find(outputs.linear_view_indices.begin(), outputs.linear_view_indices.end(), i) !=
             outputs.linear_view_indices.end();
-        per_view.push_back({{"source_image", view.source_image},
-                            {"corner_count", view.corner_count},
-                            {"rms_px", view_rms},
-                            {"used_in_linear_stage", used_in_linear}});
+        result.per_view.push_back(
+            PlanarViewReport{view.source_image, view.corner_count, view_rms, used_in_linear});
     }
 
-    nlohmann::json result_json;
-    result_json["intrinsics"] = camera_matrix_to_json(outputs.refine_result.camera.kmtx);
-    result_json["distortion"] = {
-        {"model", cam_cfg.model},
-        {"coefficients", distortion_to_json(outputs.refine_result.camera.distortion.coeffs)}};
-    result_json["statistics"] = {{"reprojection_rms_px", global_rms}, {"per_view", per_view}};
+    camera.result = std::move(result);
 
-    camera_json["result"] = result_json;
+    CalibrationReport calibration;
+    calibration.type = "intrinsics";
+    calibration.algorithm = cfg.algorithm;
+    calibration.options = std::move(options);
+    if (!detections.metadata.is_null() && detections.metadata.contains("detector")) {
+        calibration.detector = detections.metadata.at("detector");
+    } else {
+        calibration.detector = nlohmann::json::object();
+    }
+    calibration.cameras.push_back(std::move(camera));
 
-    nlohmann::json calibration_json{{"type", "intrinsics"},
-                                    {"algorithm", cfg.algorithm},
-                                    {"options", options_json},
-                                    {"detector", detector_json},
-                                    {"cameras", nlohmann::json::array({camera_json})}};
+    report.calibrations.push_back(std::move(calibration));
 
-    return nlohmann::json{{"session", session_json},
-                          {"calibrations", nlohmann::json::array({calibration_json})}};
+    return report;
 }
 
 }  // namespace calib::planar

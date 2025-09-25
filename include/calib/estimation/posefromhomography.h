@@ -9,7 +9,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calib/core/cameramatrix.h"
+#include "calib/models/camera_matrix.h"
 
 namespace calib {
 
