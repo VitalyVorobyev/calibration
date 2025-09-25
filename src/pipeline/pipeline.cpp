@@ -10,6 +10,11 @@ void PipelineContext::set_intrinsics_config(planar::PlanarCalibrationConfig cfg)
     has_intrinsics_config_ = true;
 }
 
+void PipelineContext::set_stereo_config(StereoCalibrationConfig cfg) {
+    stereo_config_ = std::move(cfg);
+    has_stereo_config_ = true;
+}
+
 void CalibrationPipeline::add_stage(std::unique_ptr<CalibrationStage> stage) {
     stages_.push_back(std::move(stage));
 }

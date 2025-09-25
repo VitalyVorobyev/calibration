@@ -1,0 +1,42 @@
+{
+  "planar_intrinsics_config": "planar_intrinsics_config.json",
+  "planar_detections": [
+    {
+      "sensor_id": "cam0",
+      "path": "path/to/cam0_features.json"
+    },
+    {
+      "sensor_id": "cam1",
+      "path": "path/to/cam1_features.json"
+    }
+  ],
+  "stereo": {
+    "pairs": [
+      {
+        "pair_id": "rig",
+        "reference_sensor": "cam0",
+        "target_sensor": "cam1",
+        "views": [
+          {
+            "reference_image": "ref_view0.json",
+            "target_image": "tgt_view0.json"
+          },
+          {
+            "reference_image": "ref_view1.json",
+            "target_image": "tgt_view1.json"
+          }
+        ],
+        "options": {
+          "optimize_intrinsics": false,
+          "optimize_skew": false,
+          "optimize_extrinsics": true,
+          "huber_delta": 1.0,
+          "max_iterations": 100,
+          "compute_covariance": true,
+          "verbose": false
+        }
+      }
+    ]
+  }
+}
+

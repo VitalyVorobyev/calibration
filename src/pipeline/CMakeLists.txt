@@ -3,6 +3,7 @@ set(SOURCES
     stages.cpp
     loaders.cpp
     planar_intrinsics.cpp
+    extrinsics.cpp
 )
 
 add_library(calib_pipeline STATIC ${SOURCES})

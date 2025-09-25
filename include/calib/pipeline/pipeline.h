@@ -11,6 +11,8 @@
 #include <nlohmann/json.hpp>
 
 #include "calib/pipeline/dataset.h"
+#include "calib/estimation/extrinsics.h"
+#include "calib/pipeline/extrinsics.h"
 #include "calib/pipeline/planar_intrinsics.h"
 
 namespace calib::pipeline {
@@ -34,18 +36,28 @@ class PipelineContext {
   public:
     CalibrationDataset dataset;
     std::unordered_map<std::string, planar::CalibrationRunResult> intrinsic_results;
+    std::unordered_map<std::string, ExtrinsicOptimizationResult<PinholeCamera<BrownConradyd>>>
+        stereo_results;
     nlohmann::json artifacts;
 
     void set_intrinsics_config(planar::PlanarCalibrationConfig cfg);
+    void set_stereo_config(StereoCalibrationConfig cfg);
     [[nodiscard]] auto has_intrinsics_config() const -> bool { return has_intrinsics_config_; }
     [[nodiscard]] auto intrinsics_config() const -> const planar::PlanarCalibrationConfig& {
         return intrinsics_config_;
     }
     auto intrinsics_config() -> planar::PlanarCalibrationConfig& { return intrinsics_config_; }
+    [[nodiscard]] auto has_stereo_config() const -> bool { return has_stereo_config_; }
+    [[nodiscard]] auto stereo_config() const -> const StereoCalibrationConfig& {
+        return stereo_config_;
+    }
+    auto stereo_config() -> StereoCalibrationConfig& { return stereo_config_; }
 
   private:
     planar::PlanarCalibrationConfig intrinsics_config_;
     bool has_intrinsics_config_{false};
+    StereoCalibrationConfig stereo_config_;
+    bool has_stereo_config_{false};
 };
 
 class CalibrationStage {

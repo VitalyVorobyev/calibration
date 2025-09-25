@@ -174,6 +174,17 @@ For multi-stage workflows the `calib_example_pipeline` executable wires intrinsi
 
 The example prints a JSON summary highlighting the outcome of each pipeline stage.
 
+For workflows that supply both planar intrinsics data and stereo pairing
+metadata in a single JSON file, `calib_example_intrinsic_extrinsic` consumes the
+combined format described in [`doc/pipeline_input.md`](doc/pipeline_input.md)
+and writes the full artifact bundle to disk:
+
+```bash
+./build/apps/examples/calib_example_intrinsic_extrinsic \
+  --input apps/examples/intrinsic_extrinsic_input.json \
+  --output calibration_artifacts.json
+```
+
 The resulting report lists accepted views, linear initialisation, refined statistics, and persists the outputs under a `calibrations` array to support multi-camera expansion.
 
 `PlanarIntrinsicCalibrationFacade` now returns a strongly typed `PlanarIntrinsicsReport`, so you can
