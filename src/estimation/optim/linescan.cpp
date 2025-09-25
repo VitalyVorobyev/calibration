@@ -1,4 +1,4 @@
-#include "calib/pipeline/linescan.h"
+#include "calib/estimation/linescan.h"
 
 // std
 #include <algorithm>

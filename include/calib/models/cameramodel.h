@@ -3,7 +3,7 @@
 #include <Eigen/Core>
 #include <concepts>
 
-#include "calib/core/cameramatrix.h"
+#include "calib/models/camera_matrix.h"
 
 namespace calib {
 

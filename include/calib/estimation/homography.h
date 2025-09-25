@@ -19,7 +19,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include "calib/core/optimize.h"
+#include "calib/estimation/optimize.h"
 #include "calib/estimation/planarpose.h"  // for PlanarView
 #include "calib/estimation/ransac.h"      // for RansacOptions
 

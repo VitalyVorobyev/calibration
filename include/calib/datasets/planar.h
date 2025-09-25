@@ -1,15 +1,18 @@
 #pragma once
 
+// std
 #include <filesystem>
-#include <nlohmann/json.hpp>
 #include <optional>
 #include <set>
 #include <string>
 #include <vector>
 
+// nlohmann
+#include <nlohmann/json.hpp>
+
 namespace calib::planar {
 
-struct PlanarTargetPoint {
+struct PlanarTargetPoint final {
     double x = 0.0;
     double y = 0.0;
     int id = -1;
@@ -18,13 +21,12 @@ struct PlanarTargetPoint {
     double local_z = 0.0;
 };
 
-struct PlanarImageDetections {
+struct PlanarImageDetections final {
     std::string file;
-    int count = 0;
     std::vector<PlanarTargetPoint> points;
 };
 
-struct PlanarDetections {
+struct PlanarDetections final {
     std::string image_directory;
     std::string feature_type;
     std::string algo_version;
@@ -36,15 +38,13 @@ struct PlanarDetections {
     std::vector<PlanarImageDetections> images;
 };
 
-[[nodiscard]] auto validate_planar_dataset(const nlohmann::json& dataset,
-                                           std::string* error_message = nullptr) -> bool;
+void to_json(nlohmann::json& json, const PlanarTargetPoint& point);
+void from_json(const nlohmann::json& json, PlanarTargetPoint& point);
 
-[[nodiscard]] auto convert_legacy_planar_features(const nlohmann::json& legacy,
-                                                  const std::string& sensor_id_hint = "cam0")
-    -> nlohmann::json;
+void to_json(nlohmann::json& json, const PlanarImageDetections& detections);
+void from_json(const nlohmann::json& json, PlanarImageDetections& detections);
 
-[[nodiscard]] auto load_planar_dataset(const std::filesystem::path& path,
-                                       std::optional<std::string> sensor_filter = std::nullopt)
-    -> PlanarDetections;
+void to_json(nlohmann::json& json, const PlanarDetections& detections);
+void from_json(const nlohmann::json& json, PlanarDetections& detections);
 
 }  // namespace calib::planar

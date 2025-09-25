@@ -4,7 +4,7 @@
 #include <optional>
 #include <utility>
 
-#include "calib/core/cameramatrix.h"
+#include "calib/models/camera_matrix.h"
 
 namespace calib::detail {
 

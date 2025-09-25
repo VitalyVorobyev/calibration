@@ -13,7 +13,7 @@
 #include <Eigen/Core>
 #include <array>
 
-#include "calib/core/cameramatrix.h"
+#include "calib/models/camera_matrix.h"
 #include "calib/models/cameramodel.h"
 #include "calib/models/distortion.h"
 

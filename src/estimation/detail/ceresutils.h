@@ -12,7 +12,7 @@
 #include <Eigen/Core>
 
 // ceres
-#include "calib/core/optimize.h"
+#include "calib/estimation/optimize.h"
 #include "ceres/covariance.h"
 #include "ceres/solver.h"
 

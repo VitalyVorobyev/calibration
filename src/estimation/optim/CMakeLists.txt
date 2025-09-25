@@ -6,6 +6,7 @@ set(SOURCES
     intrinsics.cpp
     intrinsicssemidlt.cpp
     planarpose.cpp
+    linescan.cpp
 )
 
 add_library(calib_estimation_optim STATIC ${SOURCES})
@@ -22,7 +23,6 @@ target_include_directories(calib_estimation_optim
 
 target_link_libraries(calib_estimation_optim
     PUBLIC
-        calib_core
         calib_models
         calib_estimation_linear
         Ceres::ceres

@@ -6,7 +6,7 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calib/core/optimize.h"
+#include "calib/estimation/optimize.h"
 #include "calib/estimation/planarpose.h"  // PlanarObservation
 #include "calib/models/cameramodel.h"
 #include "calib/models/pinhole.h"
