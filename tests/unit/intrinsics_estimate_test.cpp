@@ -3,8 +3,8 @@
 #include <limits>
 #include <optional>
 
-#include "calib/estimation/intrinsics.h"
 #include "../src/estimation/common/intrinsics_utils.h"
+#include "calib/estimation/intrinsics.h"
 #include "utils.h"
 
 using namespace calib;
@@ -76,7 +76,7 @@ TEST(EstimateIntrinsics, FailsWithTooFewViews) {
 
     std::vector<PlanarView> views(sim.observations.size());
     std::transform(sim.observations.begin(), sim.observations.end(), views.begin(),
-               [](const auto& ob) { return ob.view; });
+                   [](const auto& ob) { return ob.view; });
 
     auto res = estimate_intrinsics(views);
     EXPECT_FALSE(res.success);

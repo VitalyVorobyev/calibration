@@ -1,5 +1,5 @@
-#include "calib/estimation/intrinsics.h"
 #include "../estimation/common/intrinsics_utils.h"
+#include "calib/estimation/intrinsics.h"
 
 // std
 #include <algorithm>
