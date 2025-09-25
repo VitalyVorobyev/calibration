@@ -1,4 +1,4 @@
-#include "calib/pipeline/linescan.h"
+#include "calib/estimation/linescan.h"
 
 #include <gtest/gtest.h>
 

@@ -1,5 +1,4 @@
 set(SOURCES
-    linescan.cpp
     pipeline.cpp
     stages.cpp
     loaders.cpp
