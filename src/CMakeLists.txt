@@ -1,34 +1,51 @@
+add_subdirectory(core)
+add_subdirectory(models)
+add_subdirectory(io)
+add_subdirectory(estimation)
+add_subdirectory(datasets)
+add_subdirectory(reports)
+add_subdirectory(pipeline)
 
-file(GLOB SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
-file(GLOB HEADERS ${PROJECT_SOURCE_DIR}/include/calibration/*.h)
+add_library(calib INTERFACE)
+target_link_libraries(calib INTERFACE
+    calib_core
+    calib_models
+    calib_estimation
+    calib_datasets
+    calib_reports
+    calib_pipeline
+    calib_io)
+add_library(calib::calib ALIAS calib)
+add_library(calibration ALIAS calib)
 
-set(TARGET calibration)
-add_library(${TARGET} STATIC ${SOURCES} ${HEADERS})
-set_target_properties(${TARGET} PROPERTIES PUBLIC_HEADER "${HEADERS}")
+include(CMakePackageConfigHelpers)
 
-target_include_directories(${TARGET} PUBLIC
-    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
+install(TARGETS
+    calib
+    EXPORT calibTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-target_link_libraries(${TARGET} PUBLIC Eigen3::Eigen)
-target_link_libraries(${TARGET} PUBLIC Ceres::ceres)
-target_link_libraries(${TARGET} PUBLIC nlohmann_json::nlohmann_json)
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-# set max warning level if unix, warnings as errors
-if(UNIX)
-    target_compile_options(${TARGET} PRIVATE -Wall -Wextra -Wpedantic -Werror)
-endif()
+configure_package_config_file(
+    ${PROJECT_SOURCE_DIR}/cmake/calibConfig.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/calibConfig.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/calib)
 
-if (MSVC)
-    # Only for cl.exe:
-    target_compile_options(${TARGET} PUBLIC /Zc:__cplusplus /bigobj)
-endif()
+write_basic_package_version_file(
+    ${CMAKE_CURRENT_BINARY_DIR}/calibConfigVersion.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion)
 
-# install
-install(TARGETS ${TARGET}
-        EXPORT vitavision-targets
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        RUNTIME DESTINATION bin
-        PUBLIC_HEADER DESTINATION include)
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/calibConfig.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/calibConfigVersion.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/calib)
+
+install(EXPORT calibTargets
+    FILE calibTargets.cmake
+    NAMESPACE calib::
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/calib)

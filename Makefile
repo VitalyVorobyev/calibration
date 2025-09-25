@@ -1,9 +1,11 @@
 # Makefile for calibration library development
 
-.PHONY: build test clean format lint coverage help
+.PHONY: build test clean format format-check lint coverage help
 
 BUILD_DIR := build
 BUILD_TYPE := Release
+SOURCES := $(shell git ls-files '*.cpp' '*.cc' '*.cxx')
+HEADERS := $(shell git ls-files '*.h' '*.hpp')
 
 help: ## Show this help message
 	@echo "Available targets:"
@@ -20,25 +22,40 @@ clean: ## Clean build directory
 	rm -rf $(BUILD_DIR)
 
 format: ## Format source code with clang-format
-	find src include examples test -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+	@if [ -z "$(SOURCES)$(HEADERS)" ]; then echo "No source files found"; else \
+	  printf '%s\n' $(SOURCES) $(HEADERS) | xargs clang-format -i; fi
 
 format-check: ## Check code formatting
-	find src include examples -name "*.cpp" -o -name "*.h" | xargs clang-format --dry-run --Werror
+	@if [ -z "$(SOURCES)$(HEADERS)" ]; then echo "No source files found"; else \
+	  printf '%s\n' $(SOURCES) $(HEADERS) | xargs clang-format --dry-run --Werror; fi
 
 lint: build ## Run static analysis
 	@echo "Running clang-tidy..."
-	clang-tidy -p $(BUILD_DIR) src/*.cpp --config-file=.clang-tidy --header-filter="^$(shell pwd)/(include|src)/.*"
+	@if [ -z "$(SOURCES)" ]; then echo "No C++ translation units found."; else \
+	  clang-tidy --config-file=.clang-tidy \
+	    -p $(BUILD_DIR) $(SOURCES) \
+	    --header-filter="^$(shell pwd)/(include|src|apps)/.*"; fi
 	@echo "Running cppcheck..."
 	cppcheck --enable=all --std=c++20 --suppress=missingIncludeSystem --suppress=unusedFunction \
-		--suppress=unmatchedSuppression --suppress=unreadVariable \
-		-I include src/ include/calib/
+		--suppress=unmatchedSuppression --suppress=unreadVariable --suppress=normalCheckLevelMaxBranches \
+		--library=googletest \
+		-I include -I src -I src/estimation -I apps -I tests \
+		src apps tests
+
+cppcheck: ## Run cppcheck static analysis
+	@echo "Running cppcheck..."
+	cppcheck --enable=all --std=c++20 --suppress=missingIncludeSystem --suppress=unusedFunction \
+		--suppress=unmatchedSuppression --suppress=unreadVariable --suppress=normalCheckLevelMaxBranches \
+		--library=googletest \
+		-I include -I src -I src/estimation -I apps -I tests \
+		src apps tests
 
 coverage: ## Generate test coverage report
 	cmake -S . -B $(BUILD_DIR) -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_FLAGS="--coverage -g -O0"
 	cmake --build $(BUILD_DIR) -j4
 	cd $(BUILD_DIR) && ctest --output-on-failure
 	lcov --capture --directory $(BUILD_DIR) --output-file coverage.info
-	lcov --remove coverage.info '/usr/*' '*/test/*' '*/build/_deps/*' --output-file coverage.info
+	lcov --remove coverage.info '/usr/*' '*/tests/*' '*/build/_deps/*' --output-file coverage.info
 	lcov --list coverage.info
 	genhtml coverage.info --output-directory coverage_report
 	@echo "Coverage report generated in coverage_report/index.html"

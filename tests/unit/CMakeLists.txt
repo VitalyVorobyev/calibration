@@ -1,0 +1,31 @@
+include(GoogleTest)
+
+function(calib_add_unit_test target)
+    add_executable(${target} ${ARGN})
+    target_link_libraries(${target} PRIVATE calib::calib GTest::gtest_main GTest::gmock_main)
+    target_include_directories(${target} PRIVATE
+        ${PROJECT_SOURCE_DIR}/src/estimation/common
+        ${PROJECT_SOURCE_DIR}/src/estimation/detail
+        ${PROJECT_SOURCE_DIR}/src/estimation/residuals)
+    calib_set_default_warnings(${target})
+    gtest_discover_tests(${target})
+endfunction()
+
+calib_add_unit_test(bundle_test bundle_test.cpp)
+calib_add_unit_test(distortion_test distortion_test.cpp)
+calib_add_unit_test(extrinsics_test extrinsics_test.cpp)
+calib_add_unit_test(handeye_test handeye_test.cpp)
+calib_add_unit_test(homography_test homography_test.cpp)
+calib_add_unit_test(intrinsics_estimate_test intrinsics_estimate_test.cpp)
+calib_add_unit_test(intrinsics_optimize_test intrinsics_optimize_test.cpp)
+calib_add_unit_test(json_test json_test.cpp)
+calib_add_unit_test(linescan_test linescan_test.cpp)
+calib_add_unit_test(planar_intrinsics_test planar_intrinsics_test.cpp)
+calib_add_unit_test(planarpose_test planarpose_test.cpp)
+calib_add_unit_test(posefromhomography_test posefromhomography_test.cpp)
+calib_add_unit_test(scheimpflug_bundle_test scheimpflug_bundle_test.cpp)
+calib_add_unit_test(scheimpflug_test scheimpflug_test.cpp)
+calib_add_unit_test(stream_capture_test stream_capture_test.cpp)
+calib_add_unit_test(dataset_loader_test dataset_loader_test.cpp)
+calib_add_unit_test(pipeline_stages_test pipeline_stages_test.cpp)
+calib_add_unit_test(pipeline_test pipeline_test.cpp)

@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.local/planar_features_legacy.json",
+  "title": "Legacy planar feature schema (deprecated)",
+  "$comment": "This file is kept for backwards compatibility. Use schemas/calib_dataset.schema.json instead.",
+  "$ref": "../../schemas/calib_dataset.schema.json"
+}
