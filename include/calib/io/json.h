@@ -1,8 +1,15 @@
 #pragma once
 
 #include <array>
-#include <boost/pfr.hpp>
+#include <boost/pfr/core.hpp>
+
+#if defined(__has_include)
+#if __has_include(<boost/pfr/core_name.hpp>)
 #include <boost/pfr/core_name.hpp>
+#endif
+#else
+#include <boost/pfr/core_name.hpp>
+#endif
 #include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>

@@ -24,6 +24,7 @@ target_link_libraries(calib_pipeline
         calib_estimation_optim
         calib_datasets
         calib_reports
+        calib_io
         Ceres::ceres)
 
 calib_set_default_warnings(calib_pipeline)

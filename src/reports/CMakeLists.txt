@@ -13,7 +13,8 @@ target_include_directories(calib_reports
 target_link_libraries(calib_reports
     PUBLIC
         calib_models
-        calib_estimation)
+        calib_estimation
+        calib_io)
 
 calib_set_default_warnings(calib_reports)
 add_library(calib::reports ALIAS calib_reports)
