@@ -32,8 +32,13 @@ class CalibrationStage;
 class StageDecorator;
 class DatasetLoader;
 
-class PipelineContext {
-  public:
+class PipelineContext final {
+    planar::PlanarCalibrationConfig intrinsics_config_;
+    bool has_intrinsics_config_{false};
+    StereoCalibrationConfig stereo_config_;
+    bool has_stereo_config_{false};
+
+public:
     CalibrationDataset dataset;
     std::unordered_map<std::string, planar::CalibrationRunResult> intrinsic_results;
     std::unordered_map<std::string, ExtrinsicOptimizationResult<PinholeCamera<BrownConradyd>>>
@@ -52,12 +57,6 @@ class PipelineContext {
         return stereo_config_;
     }
     auto stereo_config() -> StereoCalibrationConfig& { return stereo_config_; }
-
-  private:
-    planar::PlanarCalibrationConfig intrinsics_config_;
-    bool has_intrinsics_config_{false};
-    StereoCalibrationConfig stereo_config_;
-    bool has_stereo_config_{false};
 };
 
 class CalibrationStage {
@@ -81,7 +80,7 @@ class DatasetLoader {
     [[nodiscard]] virtual auto load() -> CalibrationDataset = 0;
 };
 
-class CalibrationPipeline {
+class CalibrationPipeline final {
   public:
     void add_stage(std::unique_ptr<CalibrationStage> stage);
     void add_decorator(std::shared_ptr<StageDecorator> decorator);

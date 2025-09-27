@@ -129,20 +129,12 @@ void to_json(nlohmann::json& j, const StereoCalibrationViewSummary& summary) {
          {"status", summary.status}};
 }
 
-auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
-                                        const planar::PlanarDetections& reference_detections,
-                                        const planar::PlanarDetections& target_detections,
-                                        const planar::CalibrationRunResult& reference_intrinsics,
-                                        const planar::CalibrationRunResult& target_intrinsics) const
-    -> StereoCalibrationRunResult {
-    StereoCalibrationRunResult result;
-    result.requested_views = cfg.views.size();
-
-    if (reference_intrinsics.outputs.refine_result.camera.distortion.coeffs.size() == 0 ||
-        target_intrinsics.outputs.refine_result.camera.distortion.coeffs.size() == 0) {
-        throw std::runtime_error("StereoCalibrationFacade: camera intrinsics are not available.");
-    }
-
+[[nodiscard]] auto compute_views(const StereoPairConfig& cfg,
+                                 const planar::PlanarDetections& reference_detections,
+                                 const planar::PlanarDetections& target_detections,
+                                 const planar::CalibrationRunResult& reference_intrinsics,
+                                 const planar::CalibrationRunResult& target_intrinsics,
+                                 StereoCalibrationRunResult& result) -> std::vector<MulticamPlanarView> {
     const auto reference_lookup = build_point_lookup(reference_detections);
     const auto target_lookup = build_point_lookup(target_detections);
 
@@ -186,6 +178,26 @@ auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
         summary.status = "ok";
         result.view_summaries.push_back(std::move(summary));
     }
+
+    return views;
+}
+
+auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
+                                        const planar::PlanarDetections& reference_detections,
+                                        const planar::PlanarDetections& target_detections,
+                                        const planar::CalibrationRunResult& reference_intrinsics,
+                                        const planar::CalibrationRunResult& target_intrinsics) const
+    -> StereoCalibrationRunResult {
+    StereoCalibrationRunResult result;
+    result.requested_views = cfg.views.size();
+
+    if (reference_intrinsics.outputs.refine_result.camera.distortion.coeffs.size() == 0 ||
+        target_intrinsics.outputs.refine_result.camera.distortion.coeffs.size() == 0) {
+        throw std::runtime_error("StereoCalibrationFacade: camera intrinsics are not available.");
+    }
+
+    const auto views = compute_views(cfg, reference_detections, target_detections,
+                                     reference_intrinsics, target_intrinsics, result);
 
     result.used_views = views.size();
     if (views.empty()) {

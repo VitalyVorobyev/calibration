@@ -13,8 +13,8 @@
 
 namespace {
 
-[[nodiscard]] auto resolve_path(const std::filesystem::path& base, const std::string& candidate)
-    -> std::filesystem::path {
+[[nodiscard]] auto resolve_path(const std::filesystem::path& base,
+                                const std::string& candidate) -> std::filesystem::path {
     const std::filesystem::path path(candidate);
     if (path.is_absolute()) {
         return path;
