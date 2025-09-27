@@ -6,7 +6,7 @@
 #include "calib/io/json.h"
 #include <vector>
 
-#include "calib/estimation/bundle.h"
+#include "calib/estimation/optim/bundle.h"
 #include "calib/estimation/extrinsics.h"
 #include "calib/estimation/handeye.h"
 #include "calib/estimation/intrinsics.h"
@@ -146,28 +146,10 @@ struct IntrinsicsInput final {
     int num_radial = 2;
 };
 
-inline void to_json(nlohmann::json& j, const IntrinsicsInput& in) {
-    j = {{"observations", in.observations}, {"num_radial", in.num_radial}};
-}
-
-inline void from_json(const nlohmann::json& j, IntrinsicsInput& in) {
-    j.at("observations").get_to(in.observations);
-    in.num_radial = j.value("num_radial", 2);
-}
-
 struct ExtrinsicsInput final {
     std::vector<PinholeCamera<DualDistortion>> cameras;
     std::vector<MulticamPlanarView> views;
 };
-
-inline void to_json(nlohmann::json& j, const ExtrinsicsInput& in) {
-    j = {{"cameras", in.cameras}, {"views", in.views}};
-}
-
-inline void from_json(const nlohmann::json& j, ExtrinsicsInput& in) {
-    j.at("cameras").get_to(in.cameras);
-    j.at("views").get_to(in.views);
-}
 
 struct BundleInput final {
     std::vector<BundleObservation> observations;
@@ -176,24 +158,6 @@ struct BundleInput final {
     Eigen::Isometry3d init_b_se3_t = Eigen::Isometry3d::Identity();
     BundleOptions options;
 };
-
-inline void to_json(nlohmann::json& j, const BundleInput& in) {
-    j = {{"observations", in.observations},
-         {"initial_cameras", in.initial_cameras},
-         {"init_g_se3_c", in.init_g_se3_c},
-         {"init_b_se3_t", in.init_b_se3_t},
-         {"options", in.options}};
-}
-
-inline void from_json(const nlohmann::json& j, BundleInput& in) {
-    j.at("observations").get_to(in.observations);
-    j.at("initial_cameras").get_to(in.initial_cameras);
-    in.init_g_se3_c.clear();
-    if (j.contains("init_g_se3_c"))
-        for (const auto& jt : j.at("init_g_se3_c")) in.init_g_se3_c.push_back(jt.get<Eigen::Isometry3d>());
-    if (j.contains("init_b_se3_t")) in.init_b_se3_t = j.at("init_b_se3_t").get<Eigen::Isometry3d>();
-    if (j.contains("options")) j.at("options").get_to(in.options);
-}
 
 // ----- Result serialization -----
 

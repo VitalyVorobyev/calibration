@@ -4,7 +4,7 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 
-#include "calib/estimation/linescan.h"
+#include "calib/estimation/linear/linescan.h"
 #include "calib/io/serialization.h"
 #include "calib/pipeline/linescan.h"
 

@@ -3,7 +3,7 @@
 #include <limits>
 #include <optional>
 
-#include "../src/estimation/common/intrinsics_utils.h"
+#include <calib/estimation/common/intrinsics_utils.h>
 #include "calib/estimation/intrinsics.h"
 #include "utils.h"
 

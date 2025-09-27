@@ -2,7 +2,7 @@
 
 #include <Eigen/Geometry>
 
-#include "calib/estimation/linescan.h"
+#include "calib/estimation/linear/linescan.h"
 #include "calib/pipeline/linescan.h"
 
 using namespace calib;
