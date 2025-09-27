@@ -2,16 +2,14 @@
 
 #include <Eigen/Geometry>
 #include <nlohmann/json.hpp>
-
-#include "calib/io/json.h"
 #include <vector>
 
+#include "calib/estimation/linear/planarpose.h"
 #include "calib/estimation/optim/bundle.h"
-#include "calib/estimation/extrinsics.h"
-#include "calib/estimation/handeye.h"
-#include "calib/estimation/intrinsics.h"
-#include "calib/estimation/planarpose.h"
-#include "calib/models/camera_matrix.h"
+#include "calib/estimation/optim/extrinsics.h"
+#include "calib/estimation/optim/intrinsics.h"
+#include "calib/io/json.h"
+#include "calib/models/cameramodel.h"
 #include "calib/models/distortion.h"
 #include "calib/models/pinhole.h"
 
@@ -64,7 +62,8 @@ struct adl_serializer<Eigen::Transform<Scalar, Dim, Mode, Options>> {
         j = M;
     }
     static void from_json(const json& j, Eigen::Transform<Scalar, Dim, Mode, Options>& T) {
-        Eigen::Matrix<Scalar, Dim + 1, Dim + 1> M = j.get<Eigen::Matrix<Scalar, Dim + 1, Dim + 1>>();
+        Eigen::Matrix<Scalar, Dim + 1, Dim + 1> M =
+            j.get<Eigen::Matrix<Scalar, Dim + 1, Dim + 1>>();
         T.matrix() = M;
     }
 };
@@ -129,6 +128,28 @@ inline void from_json(const nlohmann::json& j, BundleOptions& o) {
     o.verbose = j.value("verbose", false);
 }
 
+inline void to_json(nlohmann::json& j, const ExtrinsicOptions& o) {
+    j = {{"optimize_intrinsics", o.optimize_intrinsics},
+         {"optimize_skew", o.optimize_skew},
+         {"optimize_extrinsics", o.optimize_extrinsics},
+         {"huber_delta", o.huber_delta},
+         {"epsilon", o.epsilon},
+         {"max_iterations", o.max_iterations},
+         {"compute_covariance", o.compute_covariance},
+         {"verbose", o.verbose}};
+}
+
+inline void from_json(const nlohmann::json& j, ExtrinsicOptions& o) {
+    o.optimize_intrinsics = j.value("optimize_intrinsics", o.optimize_intrinsics);
+    o.optimize_skew = j.value("optimize_skew", o.optimize_skew);
+    o.optimize_extrinsics = j.value("optimize_extrinsics", o.optimize_extrinsics);
+    o.huber_delta = j.value("huber_delta", o.huber_delta);
+    o.epsilon = j.value("epsilon", o.epsilon);
+    o.max_iterations = j.value("max_iterations", o.max_iterations);
+    o.compute_covariance = j.value("compute_covariance", o.compute_covariance);
+    o.verbose = j.value("verbose", o.verbose);
+}
+
 inline void to_json(nlohmann::json& j, const BundleObservation& bo) {
     j = {{"view", bo.view}, {"b_se3_g", bo.b_se3_g}, {"camera_index", bo.camera_index}};
 }
@@ -163,12 +184,8 @@ struct BundleInput final {
 
 template <camera_model CameraT>
 inline void to_json(nlohmann::json& j, const IntrinsicsOptimizationResult<CameraT>& r) {
-    j = {{"camera", r.camera},
-         {"poses", r.c_se3_t},
-         {"covariance", r.covariance},
-         {"view_errors", r.view_errors},
-         {"final_cost", r.final_cost},
-         {"report", r.report}};
+    j = {{"camera", r.camera},           {"poses", r.c_se3_t},         {"covariance", r.covariance},
+         {"view_errors", r.view_errors}, {"final_cost", r.final_cost}, {"report", r.report}};
 }
 
 template <camera_model CameraT>
@@ -183,12 +200,8 @@ inline void from_json(const nlohmann::json& j, IntrinsicsOptimizationResult<Came
 
 template <camera_model CameraT>
 inline void to_json(nlohmann::json& j, const ExtrinsicOptimizationResult<CameraT>& r) {
-    j = {{"cameras", r.cameras},
-         {"c_se3_r", r.c_se3_r},
-         {"r_se3_t", r.r_se3_t},
-         {"covariance", r.covariance},
-         {"final_cost", r.final_cost},
-         {"report", r.report}};
+    j = {{"cameras", r.cameras},       {"c_se3_r", r.c_se3_r},       {"r_se3_t", r.r_se3_t},
+         {"covariance", r.covariance}, {"final_cost", r.final_cost}, {"report", r.report}};
 }
 
 template <camera_model CameraT>
@@ -202,12 +215,8 @@ inline void from_json(const nlohmann::json& j, ExtrinsicOptimizationResult<Camer
 }
 
 inline void to_json(nlohmann::json& j, const BundleResult<PinholeCamera<BrownConradyd>>& r) {
-    j = {{"cameras", r.cameras},
-         {"g_se3_c", r.g_se3_c},
-         {"b_se3_t", r.b_se3_t},
-         {"final_cost", r.final_cost},
-         {"covariance", r.covariance},
-         {"report", r.report}};
+    j = {{"cameras", r.cameras},       {"g_se3_c", r.g_se3_c},       {"b_se3_t", r.b_se3_t},
+         {"final_cost", r.final_cost}, {"covariance", r.covariance}, {"report", r.report}};
 }
 
 inline void from_json(const nlohmann::json& j, BundleResult<PinholeCamera<BrownConradyd>>& r) {

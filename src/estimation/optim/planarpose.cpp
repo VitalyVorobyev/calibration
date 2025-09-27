@@ -1,4 +1,4 @@
-#include "calib/estimation/planarpose.h"
+#include "calib/estimation/optim/planarpose.h"
 
 // std
 #include <algorithm>
@@ -9,7 +9,7 @@
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
 
-#include "calib/estimation/homography.h"
+#include "calib/estimation/linear/homography.h"
 #include "calib/models/distortion.h"
 #include "detail/ceresutils.h"
 #include "detail/observationutils.h"

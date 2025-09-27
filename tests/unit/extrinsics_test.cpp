@@ -1,4 +1,4 @@
-#include "calib/estimation/extrinsics.h"
+#include "calib/estimation/optim/extrinsics.h"
 
 #include <gtest/gtest.h>
 

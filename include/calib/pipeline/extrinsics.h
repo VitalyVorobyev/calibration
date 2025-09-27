@@ -9,7 +9,8 @@
 #include <nlohmann/json.hpp>
 
 #include "calib/datasets/planar.h"
-#include "calib/estimation/extrinsics.h"
+#include "calib/estimation/optim/extrinsics.h"
+#include "calib/io/serialization.h"
 #include "calib/pipeline/planar_intrinsics.h"
 
 namespace calib::pipeline {
@@ -18,9 +19,6 @@ struct StereoViewSelection final {
     std::string reference_image;
     std::string target_image;
 };
-
-void to_json(nlohmann::json& j, const StereoViewSelection& view);
-void from_json(const nlohmann::json& j, StereoViewSelection& view);
 
 struct StereoPairConfig final {
     std::string pair_id;
@@ -32,15 +30,9 @@ struct StereoPairConfig final {
     StereoPairConfig();
 };
 
-void to_json(nlohmann::json& j, const StereoPairConfig& cfg);
-void from_json(const nlohmann::json& j, StereoPairConfig& cfg);
-
 struct StereoCalibrationConfig final {
     std::vector<StereoPairConfig> pairs;
 };
-
-void to_json(nlohmann::json& j, const StereoCalibrationConfig& cfg);
-void from_json(const nlohmann::json& j, StereoCalibrationConfig& cfg);
 
 struct StereoCalibrationViewSummary final {
     std::string reference_image;
@@ -49,8 +41,6 @@ struct StereoCalibrationViewSummary final {
     std::size_t target_points = 0;
     std::string status;
 };
-
-void to_json(nlohmann::json& j, const StereoCalibrationViewSummary& summary);
 
 struct StereoCalibrationRunResult final {
     bool success = false;
@@ -78,9 +68,6 @@ struct MultiCameraViewSelection final {
     std::unordered_map<std::string, std::string> images;
 };
 
-void to_json(nlohmann::json& j, const MultiCameraViewSelection& view);
-void from_json(const nlohmann::json& j, MultiCameraViewSelection& view);
-
 struct MultiCameraRigConfig final {
     std::string rig_id;
     std::vector<std::string> sensors;  // order defines camera index mapping
@@ -88,8 +75,73 @@ struct MultiCameraRigConfig final {
     ExtrinsicOptions options;
 };
 
-void to_json(nlohmann::json& j, const MultiCameraRigConfig& cfg);
-void from_json(const nlohmann::json& j, MultiCameraRigConfig& cfg);
+inline void to_json(nlohmann::json& j, const MultiCameraViewSelection& view) { j = view.images; }
+
+inline void from_json(const nlohmann::json& j, MultiCameraViewSelection& view) {
+    view.images = j.get<std::unordered_map<std::string, std::string>>();
+}
+
+inline void to_json(nlohmann::json& j, const MultiCameraRigConfig& cfg) {
+    nlohmann::json options_json;
+    to_json(options_json, cfg.options);
+    j = {{"rig_id", cfg.rig_id},
+         {"sensors", cfg.sensors},
+         {"views", cfg.views},
+         {"options", options_json}};
+}
+
+inline void from_json(const nlohmann::json& j, MultiCameraRigConfig& cfg) {
+    cfg.rig_id = j.value("rig_id", std::string{});
+    j.at("sensors").get_to(cfg.sensors);
+    if (cfg.rig_id.empty() && !cfg.sensors.empty()) cfg.rig_id = cfg.sensors.front();
+    cfg.views.clear();
+    if (j.contains("views")) j.at("views").get_to(cfg.views);
+    if (j.contains("options")) j.at("options").get_to(cfg.options);
+}
+
+inline void to_json(nlohmann::json& j, const StereoViewSelection& view) {
+    j = {{"reference_image", view.reference_image}, {"target_image", view.target_image}};
+}
+
+inline void from_json(const nlohmann::json& j, StereoViewSelection& view) {
+    j.at("reference_image").get_to(view.reference_image);
+    j.at("target_image").get_to(view.target_image);
+}
+
+inline void to_json(nlohmann::json& j, const StereoPairConfig& cfg) {
+    j = {{"pair_id", cfg.pair_id},
+         {"reference_sensor", cfg.reference_sensor},
+         {"target_sensor", cfg.target_sensor},
+         {"views", cfg.views},
+         {"options", cfg.options}};
+}
+
+inline void from_json(const nlohmann::json& j, StereoPairConfig& cfg) {
+    cfg.pair_id = j.value("pair_id", std::string{});
+    j.at("reference_sensor").get_to(cfg.reference_sensor);
+    j.at("target_sensor").get_to(cfg.target_sensor);
+    cfg.views.clear();
+    if (j.contains("views")) j.at("views").get_to(cfg.views);
+    if (j.contains("options")) j.at("options").get_to(cfg.options);
+    if (cfg.pair_id.empty()) cfg.pair_id = cfg.reference_sensor + "_" + cfg.target_sensor;
+}
+
+inline void to_json(nlohmann::json& j, const StereoCalibrationConfig& cfg) {
+    j = {{"pairs", cfg.pairs}};
+}
+
+inline void from_json(const nlohmann::json& j, StereoCalibrationConfig& cfg) {
+    cfg.pairs.clear();
+    if (j.contains("pairs")) j.at("pairs").get_to(cfg.pairs);
+}
+
+inline void to_json(nlohmann::json& j, const StereoCalibrationViewSummary& summary) {
+    j = {{"reference_image", summary.reference_image},
+         {"target_image", summary.target_image},
+         {"reference_points", summary.reference_points},
+         {"target_points", summary.target_points},
+         {"status", summary.status}};
+}
 
 struct MultiCameraCalibrationRunResult final {
     bool success = false;

@@ -2,7 +2,10 @@
 
 #pragma once
 
-#include "calib/estimation/homography.h"
+#include <optional>
+#include <vector>
+
+#include "calib/estimation/linear/homography.h"
 #include "calib/models/camera_matrix.h"
 
 namespace calib {

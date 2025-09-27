@@ -10,7 +10,7 @@
 // third-party
 #include <nlohmann/json.hpp>
 
-#include "calib/estimation/extrinsics.h"
+#include "calib/estimation/optim/extrinsics.h"
 #include "calib/pipeline/dataset.h"
 #include "calib/pipeline/extrinsics.h"
 #include "calib/pipeline/planar_intrinsics.h"

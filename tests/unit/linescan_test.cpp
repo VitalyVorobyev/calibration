@@ -5,6 +5,8 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
+#include "calib/models/pinhole.h"
+
 using namespace calib;
 
 // ---- Helpers ---------------------------------------------------------------

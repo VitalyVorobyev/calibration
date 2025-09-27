@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <concepts>
 #include <cstddef>
 #include <iostream>
 #include <limits>
@@ -186,8 +187,8 @@ auto ransac(const std::vector<typename Estimator::Datum>& data, const RansacOpti
             best.iters = it + 1;
         }
 
-        const double inlier_ratio = static_cast<double>(final_inliers.size()) /
-                                    static_cast<double>(data.size());
+        const double inlier_ratio =
+            static_cast<double>(final_inliers.size()) / static_cast<double>(data.size());
         dynamic_max_iters = detail::calculate_iterations(opts.confidence, inlier_ratio,
                                                          static_cast<int>(Estimator::k_min_samples),
                                                          it + 1, opts.max_iters);

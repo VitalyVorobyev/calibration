@@ -41,7 +41,8 @@ void from_json(const nlohmann::json& j, T& value) {
 #if defined(BOOST_PFR_CORE_NAME_ENABLED)
     constexpr auto names = boost::pfr::names_as_array<T>();
     boost::pfr::for_each_field(value, [&j, &names, idx = 0](auto& field) mutable {
-        const std::string name_key = std::string(names[idx].empty() ? std::string_view{} : names[idx]);
+        const std::string name_key =
+            std::string(names[idx].empty() ? std::string_view{} : names[idx]);
         const std::string idx_key = "field_" + std::to_string(idx);
         // Try by name first (new format), then fallback to legacy indexed keys
         if (!name_key.empty() && j.contains(name_key)) {

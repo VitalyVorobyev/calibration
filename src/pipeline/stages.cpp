@@ -191,8 +191,7 @@ auto StereoCalibrationStage::run(PipelineContext& context) -> PipelineStageResul
 
             nlohmann::json views_json = nlohmann::json::array();
             for (const auto& view : pair_result.view_summaries) {
-                nlohmann::json view_json;
-                to_json(view_json, view);
+                nlohmann::json view_json = view;
                 views_json.push_back(std::move(view_json));
             }
 

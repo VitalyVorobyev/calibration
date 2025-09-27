@@ -9,7 +9,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#include "calib/estimation/planarpose.h"  // for PlanarObservation
+#include "calib/estimation/linear/planarpose.h"  // for PlanarObservation
 
 namespace calib {
 

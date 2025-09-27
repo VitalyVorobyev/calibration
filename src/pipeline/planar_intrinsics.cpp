@@ -8,7 +8,7 @@
 #include <stdexcept>
 
 #include "calib/datasets/planar.h"
-#include "calib/estimation/planarpose.h"
+#include "calib/estimation/optim/planarpose.h"
 #include "calib/io/stream_capture.h"
 #include "calib/reports/planar_intrinsics.h"
 

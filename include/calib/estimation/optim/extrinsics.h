@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "calib/estimation/linear/extrinsics.h"  // MulticamPlanarView
-#include "calib/estimation/optimize.h"
+#include "calib/estimation/optim/optimize.h"
 #include "calib/models/cameramodel.h"
 
 namespace calib {

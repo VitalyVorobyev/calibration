@@ -3,8 +3,7 @@
 #include <limits>
 #include <optional>
 
-#include <calib/estimation/common/intrinsics_utils.h>
-#include "calib/estimation/intrinsics.h"
+#include "calib/estimation/linear/intrinsics.h"
 #include "utils.h"
 
 using namespace calib;
@@ -97,7 +96,7 @@ TEST(SanitizeIntrinsics, ClampsValuesWithinBounds) {
     bounds.skew_max = 1.0;
 
     auto [adjusted, modified] =
-        calib::detail::sanitize_intrinsics(original, std::optional<CalibrationBounds>(bounds));
+        calib::sanitize_intrinsics(original, std::optional<CalibrationBounds>(bounds));
 
     EXPECT_TRUE(modified);
     EXPECT_DOUBLE_EQ(adjusted.fx, bounds.fx_min);

@@ -1,9 +1,9 @@
+#include "calib/estimation/common/se3_utils.h"
+
 #include <gtest/gtest.h>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
-
-#include "calib/estimation/common/se3_utils.h"
 
 using namespace calib;
 

@@ -1,4 +1,4 @@
-#include "calib/estimation/intrinsics.h"
+#include "calib/estimation/optim/intrinsics.h"
 
 #include <algorithm>
 

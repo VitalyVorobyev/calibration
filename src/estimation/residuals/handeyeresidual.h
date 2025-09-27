@@ -10,7 +10,7 @@
 #include <Eigen/Geometry>
 
 #include "../detail/observationutils.h"
-#include "calib/estimation/handeye.h"  // MotionPair
+#include "calib/estimation/linear/handeye.h"  // MotionPair
 
 namespace calib {
 

@@ -1,5 +1,4 @@
-#include <calib/estimation/common/intrinsics_utils.h>
-#include "calib/estimation/intrinsics.h"
+#include "calib/estimation/linear/intrinsics.h"
 
 // std
 #include <algorithm>
@@ -11,10 +10,10 @@
 #include <span>
 #include <utility>
 
-#include "calib/estimation/posefromhomography.h"  // for pose_from_homography
-#include "calib/estimation/ransac.h"
+#include "calib/estimation/common/ransac.h"
+#include "calib/estimation/linear/posefromhomography.h"  // for pose_from_homography
+#include "calib/estimation/linear/zhang.h"               // for zhang_intrinsics_from_hs
 #include "detail/homographyestimator.h"
-#include "detail/zhang.h"  // for zhang_intrinsics_from_hs
 
 namespace calib {
 
@@ -171,8 +170,7 @@ auto estimate_intrinsics(const std::vector<PlanarView>& views,
     }
 
     // Set the estimated camera matrix
-    auto [sanitized_kmtx, modified] =
-        detail::sanitize_intrinsics(zhang_kmtx_opt.value(), opts.bounds);
+    auto [sanitized_kmtx, modified] = sanitize_intrinsics(zhang_kmtx_opt.value(), opts.bounds);
     result.kmtx = sanitized_kmtx;
     result.success = true;
 

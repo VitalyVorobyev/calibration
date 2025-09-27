@@ -1,4 +1,4 @@
-#include "calib/estimation/posefromhomography.h"
+#include "calib/estimation/linear/posefromhomography.h"
 
 #include <gtest/gtest.h>
 

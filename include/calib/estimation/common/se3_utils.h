@@ -1,10 +1,9 @@
 #pragma once
 
-#include <array>
-#include <vector>
-
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <array>
+#include <vector>
 
 namespace calib {
 
@@ -96,4 +95,3 @@ inline Eigen::Isometry3d average_affines(const std::vector<Eigen::Isometry3d>& p
 }
 
 }  // namespace calib
-

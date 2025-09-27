@@ -8,7 +8,7 @@
 #include <span>
 #include <vector>
 
-#include "calib/estimation/homography.h"  // for estimate_homography
+#include "calib/estimation/linear/homography.h"  // for estimate_homography
 
 namespace calib {
 
