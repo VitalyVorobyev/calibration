@@ -12,6 +12,9 @@
 
 namespace calib::planar {
 
+using calib::from_json;
+using calib::to_json;
+
 struct SessionReport {
     std::string id;
     std::string description;
