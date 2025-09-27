@@ -5,6 +5,7 @@ set(SOURCES
     intrinsicsdlt.cpp
     planarpose_linear.cpp
     posefromhomography.cpp
+    linescan.cpp
     zhang.cpp
 )
 

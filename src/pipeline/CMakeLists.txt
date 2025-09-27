@@ -4,6 +4,7 @@ set(SOURCES
     loaders.cpp
     planar_intrinsics.cpp
     extrinsics.cpp
+    linescan.cpp
 )
 
 add_library(calib_pipeline STATIC ${SOURCES})

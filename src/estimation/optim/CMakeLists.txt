@@ -6,7 +6,6 @@ set(SOURCES
     intrinsics.cpp
     intrinsicssemidlt.cpp
     planarpose.cpp
-    linescan.cpp
 )
 
 add_library(calib_estimation_optim STATIC ${SOURCES})
