@@ -214,8 +214,7 @@ auto StereoCalibrationStage::run(PipelineContext& context) -> PipelineStageResul
                       pair_result.initial_guess.c_se3_r.end(), std::back_inserter(cams_json));
             nlohmann::json targets_json = nlohmann::json::array();
             std::copy(pair_result.initial_guess.r_se3_t.begin(),
-                      pair_result.initial_guess.r_se3_t.end(),
-                      std::back_inserter(targets_json));
+                      pair_result.initial_guess.r_se3_t.end(), std::back_inserter(targets_json));
             initial_guess_json["c_se3_r"] = std::move(cams_json);
             initial_guess_json["r_se3_t"] = std::move(targets_json);
 
