@@ -5,7 +5,7 @@
 #include <iostream>
 #include <limits>
 
-#include "../common/se3_utils.h"  // for project_to_so3
+#include <calib/estimation/common/se3_utils.h>
 
 namespace calib {
 

@@ -15,6 +15,15 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(cmake/Dependencies.cmake)
 include(cmake/Warnings.cmake)
 
+# Header-only Boost.PFR via FetchContent (no system Boost dependency)
+include(FetchContent)
+FetchContent_Declare(
+    boost_pfr
+    GIT_REPOSITORY https://github.com/boostorg/pfr.git
+    GIT_TAG 2.2.0
+)
+FetchContent_MakeAvailable(boost_pfr)
+
 find_package(Doxygen QUIET)
 if (CALIB_ENABLE_COVERAGE AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(--coverage -O0 -g)

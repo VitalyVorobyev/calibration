@@ -37,6 +37,16 @@ struct PoseFromHResult final {
     std::string message;
 };
 
+/**
+ * @brief Estimates the camera pose from a homography matrix.
+ *
+ * Given the camera intrinsic matrix and a homography matrix, this function computes
+ * the rotation and translation (pose) of the camera relative to a planar scene.
+ *
+ * @param kmtx The camera intrinsic matrix (CameraMatrix).
+ * @param hmtx The 3x3 homography matrix (Eigen::Matrix3d) relating the world and image plane.
+ * @return PoseFromHResult Structure containing the estimated rotation and translation.
+ */
 auto pose_from_homography(const CameraMatrix& kmtx, const Eigen::Matrix3d& hmtx) -> PoseFromHResult;
 
 /**

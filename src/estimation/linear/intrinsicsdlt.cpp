@@ -1,4 +1,4 @@
-#include "../estimation/common/intrinsics_utils.h"
+#include <calib/estimation/common/intrinsics_utils.h>
 #include "calib/estimation/intrinsics.h"
 
 // std

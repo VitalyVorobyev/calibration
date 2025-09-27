@@ -12,7 +12,7 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calib/estimation/bundle.h"
+#include "calib/estimation/optim/bundle.h"
 #include "calib/models/pinhole.h"
 #include "calib/models/scheimpflug.h"
 

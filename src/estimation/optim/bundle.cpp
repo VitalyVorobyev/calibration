@@ -1,4 +1,4 @@
-#include "calib/estimation/bundle.h"
+#include "calib/estimation/optim/bundle.h"
 
 // std
 #include <algorithm>
