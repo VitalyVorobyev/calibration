@@ -71,4 +71,3 @@ class StereoCalibrationFacade {
 };
 
 }  // namespace calib::pipeline
-

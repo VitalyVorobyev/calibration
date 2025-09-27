@@ -27,8 +27,7 @@ struct SyntheticStereoData {
 
 void append_view(planar::PlanarDetections& detections, const std::string& file_name,
                  const std::vector<Eigen::Vector2d>& object_points,
-                 const Eigen::Isometry3d& cam_pose,
-                 const PinholeCamera<BrownConradyd>& camera) {
+                 const Eigen::Isometry3d& cam_pose, const PinholeCamera<BrownConradyd>& camera) {
     planar::PlanarImageDetections image;
     image.file = file_name;
     int point_id = 0;
@@ -57,16 +56,18 @@ void append_view(planar::PlanarDetections& detections, const std::string& file_n
     data.target_detections.sensor_id = "cam1";
 
     data.camera_poses.push_back(Eigen::Isometry3d::Identity());
-    data.camera_poses.push_back(Eigen::Translation3d(0.5, 0.0, 0.0) * Eigen::Isometry3d::Identity());
+    data.camera_poses.push_back(Eigen::Translation3d(0.5, 0.0, 0.0) *
+                                Eigen::Isometry3d::Identity());
 
-    data.target_poses.push_back(Eigen::Translation3d(0.0, 0.0, 4.0) * Eigen::Isometry3d::Identity());
+    data.target_poses.push_back(Eigen::Translation3d(0.0, 0.0, 4.0) *
+                                Eigen::Isometry3d::Identity());
     data.target_poses.push_back(Eigen::Translation3d(0.2, -0.1, 3.5) *
                                 Eigen::AngleAxisd(0.15, Eigen::Vector3d::UnitY()));
     data.target_poses.push_back(Eigen::Translation3d(-0.1, 0.2, 4.5) *
                                 Eigen::AngleAxisd(-0.2, Eigen::Vector3d::UnitX()));
 
-    const std::vector<Eigen::Vector2d> object_points = {
-        {0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}, {0.5, 0.5}, {1.5, 0.5}};
+    const std::vector<Eigen::Vector2d> object_points = {{0.0, 0.0}, {1.0, 0.0}, {1.0, 1.0},
+                                                        {0.0, 1.0}, {0.5, 0.5}, {1.5, 0.5}};
 
     for (std::size_t view_idx = 0; view_idx < data.target_poses.size(); ++view_idx) {
         const auto reference_pose = data.camera_poses[0] * data.target_poses[view_idx];
@@ -75,7 +76,8 @@ void append_view(planar::PlanarDetections& detections, const std::string& file_n
         const std::string ref_file = "ref_view" + std::to_string(view_idx) + ".json";
         const std::string tgt_file = "tgt_view" + std::to_string(view_idx) + ".json";
 
-        append_view(data.reference_detections, ref_file, object_points, reference_pose, camera_model);
+        append_view(data.reference_detections, ref_file, object_points, reference_pose,
+                    camera_model);
         append_view(data.target_detections, tgt_file, object_points, target_pose, camera_model);
 
         StereoViewSelection view_cfg;
@@ -106,22 +108,22 @@ TEST(StereoCalibrationFacadeTest, CalibratesSyntheticData) {
     auto data = make_synthetic_stereo_data();
 
     StereoCalibrationFacade facade;
-    auto run_result = facade.calibrate(data.pair_config, data.reference_detections,
-                                       data.target_detections, data.reference_intrinsics,
-                                       data.target_intrinsics);
+    auto run_result =
+        facade.calibrate(data.pair_config, data.reference_detections, data.target_detections,
+                         data.reference_intrinsics, data.target_intrinsics);
 
     EXPECT_TRUE(run_result.success);
     EXPECT_EQ(run_result.used_views, data.pair_config.views.size());
     ASSERT_EQ(run_result.optimization.c_se3_r.size(), 2);
     ASSERT_EQ(run_result.optimization.r_se3_t.size(), data.target_poses.size());
 
-    const Eigen::Vector3d expected_translation =
-        data.camera_poses[1].translation();
-    EXPECT_TRUE(run_result.optimization.c_se3_r[1].translation().isApprox(expected_translation, 1e-2));
+    const Eigen::Vector3d expected_translation = data.camera_poses[1].translation();
+    EXPECT_TRUE(
+        run_result.optimization.c_se3_r[1].translation().isApprox(expected_translation, 1e-2));
 
     for (std::size_t idx = 0; idx < data.target_poses.size(); ++idx) {
-        EXPECT_TRUE(run_result.optimization.r_se3_t[idx].translation()
-                        .isApprox(data.target_poses[idx].translation(), 1e-2));
+        EXPECT_TRUE(run_result.optimization.r_se3_t[idx].translation().isApprox(
+            data.target_poses[idx].translation(), 1e-2));
     }
 }
 
@@ -147,8 +149,7 @@ TEST(StereoCalibrationStageTest, ProducesArtifactsAndResults) {
     ASSERT_TRUE(context.stereo_results.contains(data.pair_config.pair_id));
 
     const auto& opt_result = context.stereo_results.at(data.pair_config.pair_id);
-    const Eigen::Vector3d expected_translation =
-        data.camera_poses[1].translation();
+    const Eigen::Vector3d expected_translation = data.camera_poses[1].translation();
     EXPECT_TRUE(opt_result.c_se3_r[1].translation().isApprox(expected_translation, 1e-2));
 
     ASSERT_TRUE(context.artifacts.contains("stereo"));
@@ -161,4 +162,3 @@ TEST(StereoCalibrationStageTest, ProducesArtifactsAndResults) {
 
 }  // namespace
 }  // namespace calib::pipeline
-

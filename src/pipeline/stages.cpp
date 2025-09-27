@@ -169,8 +169,7 @@ auto StereoCalibrationStage::run(PipelineContext& context) -> PipelineStageResul
 
         const auto ref_det_it = detections_by_sensor.find(pair_cfg.reference_sensor);
         const auto tgt_det_it = detections_by_sensor.find(pair_cfg.target_sensor);
-        if (ref_det_it == detections_by_sensor.end() ||
-            tgt_det_it == detections_by_sensor.end()) {
+        if (ref_det_it == detections_by_sensor.end() || tgt_det_it == detections_by_sensor.end()) {
             pair_json["status"] = "missing_detections";
             nlohmann::json missing = nlohmann::json::array();
             if (ref_det_it == detections_by_sensor.end()) {

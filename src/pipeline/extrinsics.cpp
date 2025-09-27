@@ -1,12 +1,11 @@
 #include "calib/pipeline/extrinsics.h"
 
 // std
+#include <Eigen/Geometry>
 #include <algorithm>
 #include <iterator>
 #include <stdexcept>
 #include <unordered_map>
-
-#include <Eigen/Geometry>
 
 #include "calib/io/serialization.h"
 #include "calib/models/distortion.h"
@@ -30,8 +29,9 @@ namespace {
     view.reserve(detections.points.size());
     for (const auto& point : detections.points) {
         PlanarObservation obs;
-        obs.object_xy = Eigen::Vector2d((point.local_x - outputs.point_center[0]) * outputs.point_scale,
-                                        (point.local_y - outputs.point_center[1]) * outputs.point_scale);
+        obs.object_xy =
+            Eigen::Vector2d((point.local_x - outputs.point_center[0]) * outputs.point_scale,
+                            (point.local_y - outputs.point_center[1]) * outputs.point_scale);
         obs.image_uv = Eigen::Vector2d(point.x, point.y);
         view.push_back(std::move(obs));
     }
@@ -112,9 +112,7 @@ void from_json(const nlohmann::json& j, StereoPairConfig& cfg) {
     }
 }
 
-void to_json(nlohmann::json& j, const StereoCalibrationConfig& cfg) {
-    j = {{"pairs", cfg.pairs}};
-}
+void to_json(nlohmann::json& j, const StereoCalibrationConfig& cfg) { j = {{"pairs", cfg.pairs}}; }
 
 void from_json(const nlohmann::json& j, StereoCalibrationConfig& cfg) {
     cfg.pairs.clear();
@@ -170,8 +168,7 @@ auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
             continue;
         }
 
-        auto reference_view =
-            make_planar_view(*ref_it->second, reference_intrinsics.outputs);
+        auto reference_view = make_planar_view(*ref_it->second, reference_intrinsics.outputs);
         auto target_view = make_planar_view(*tgt_it->second, target_intrinsics.outputs);
         summary.reference_points = reference_view.size();
         summary.target_points = target_view.size();
@@ -218,4 +215,3 @@ auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
 }
 
 }  // namespace calib::pipeline
-
