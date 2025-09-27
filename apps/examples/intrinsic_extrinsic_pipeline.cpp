@@ -127,11 +127,11 @@ int main(int argc, char** argv) {
                 nlohmann::json init_json;
                 nlohmann::json cams_json = nlohmann::json::array();
                 for (const auto& pose : run.initial_guess.c_se3_r) {
-                    cams_json.push_back(calib::affine_to_json(pose));
+                cams_json.push_back(pose);
                 }
                 nlohmann::json targets_json = nlohmann::json::array();
                 for (const auto& pose : run.initial_guess.r_se3_t) {
-                    targets_json.push_back(calib::affine_to_json(pose));
+                targets_json.push_back(pose);
                 }
                 init_json["c_se3_r"] = std::move(cams_json);
                 init_json["r_se3_t"] = std::move(targets_json);

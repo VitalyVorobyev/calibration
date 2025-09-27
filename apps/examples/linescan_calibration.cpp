@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
         out["plane"] = {{"n", {run.result.plane[0], run.result.plane[1], run.result.plane[2]}},
                         {"d", run.result.plane[3]}};
         out["rms_error"] = run.result.rms_error;
-        out["homography"] = calib::eigen_matrix_to_json(run.result.homography);
+        out["homography"] = run.result.homography;
 
         std::ofstream out_stream(output_path);
         if (!out_stream) throw std::runtime_error("Cannot open output file");
