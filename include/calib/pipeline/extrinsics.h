@@ -3,6 +3,7 @@
 // std
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 // third-party
 #include <nlohmann/json.hpp>
@@ -68,6 +69,44 @@ class StereoCalibrationFacade {
                                  const planar::CalibrationRunResult& reference_intrinsics,
                                  const planar::CalibrationRunResult& target_intrinsics) const
         -> StereoCalibrationRunResult;
+};
+
+// ---- Multicam generalization ----
+
+struct MultiCameraViewSelection final {
+    // Map sensor_id -> image filename for this view
+    std::unordered_map<std::string, std::string> images;
+};
+
+void to_json(nlohmann::json& j, const MultiCameraViewSelection& view);
+void from_json(const nlohmann::json& j, MultiCameraViewSelection& view);
+
+struct MultiCameraRigConfig final {
+    std::string rig_id;
+    std::vector<std::string> sensors;  // order defines camera index mapping
+    std::vector<MultiCameraViewSelection> views;
+    ExtrinsicOptions options;
+};
+
+void to_json(nlohmann::json& j, const MultiCameraRigConfig& cfg);
+void from_json(const nlohmann::json& j, MultiCameraRigConfig& cfg);
+
+struct MultiCameraCalibrationRunResult final {
+    bool success = false;
+    std::size_t requested_views = 0;
+    std::size_t used_views = 0;
+    std::vector<std::string> sensors;  // same order as used in estimation
+    ExtrinsicPoses initial_guess;
+    ExtrinsicOptimizationResult<PinholeCamera<BrownConradyd>> optimization;
+};
+
+class MultiCameraCalibrationFacade {
+  public:
+    [[nodiscard]] auto calibrate(
+        const MultiCameraRigConfig& cfg,
+        const std::unordered_map<std::string, planar::PlanarDetections>& detections_by_sensor,
+        const std::unordered_map<std::string, planar::CalibrationRunResult>& intrinsics_by_sensor)
+        const -> MultiCameraCalibrationRunResult;
 };
 
 }  // namespace calib::pipeline

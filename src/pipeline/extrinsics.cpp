@@ -226,4 +226,129 @@ auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
     return result;
 }
 
+// ---- Multicam generalization implementations ----
+
+void to_json(nlohmann::json& j, const MultiCameraViewSelection& view) { j = view.images; }
+
+void from_json(const nlohmann::json& j, MultiCameraViewSelection& view) {
+    view.images.clear();
+    for (auto it = j.begin(); it != j.end(); ++it) {
+        view.images.emplace(it.key(), it.value().get<std::string>());
+    }
+}
+
+void to_json(nlohmann::json& j, const MultiCameraRigConfig& cfg) {
+    nlohmann::json options_json;
+    extrinsic_options_to_json(options_json, cfg.options);
+    j = {{"rig_id", cfg.rig_id}, {"sensors", cfg.sensors}, {"views", cfg.views}, {"options", options_json}};
+}
+
+void from_json(const nlohmann::json& j, MultiCameraRigConfig& cfg) {
+    if (j.contains("rig_id")) j.at("rig_id").get_to(cfg.rig_id);
+    j.at("sensors").get_to(cfg.sensors);
+    if (j.contains("views")) j.at("views").get_to(cfg.views);
+    if (j.contains("options")) extrinsic_options_from_json(j.at("options"), cfg.options);
+    if (cfg.rig_id.empty()) {
+        cfg.rig_id = cfg.sensors.empty() ? std::string{"rig"} : cfg.sensors.front();
+    }
+}
+
+static auto compute_views(const MultiCameraRigConfig& cfg,
+                          const std::unordered_map<std::string, planar::PlanarDetections>& dets,
+                          const std::unordered_map<std::string, planar::CalibrationRunResult>& intr,
+                          MultiCameraCalibrationRunResult& /*result*/)
+    -> std::vector<MulticamPlanarView> {
+    // Build lookup tables for each sensor
+    std::unordered_map<std::string, std::unordered_map<std::string, const planar::PlanarImageDetections*>>
+        lookup;
+    for (const auto& [sid, d] : dets) {
+        std::unordered_map<std::string, const planar::PlanarImageDetections*> map;
+        for (const auto& img : d.images) map.emplace(img.file, &img);
+        lookup.emplace(sid, std::move(map));
+    }
+
+    std::vector<MulticamPlanarView> views;
+    views.reserve(cfg.views.size());
+    for (const auto& view_sel : cfg.views) {
+        MulticamPlanarView multi;
+        multi.resize(cfg.sensors.size());
+        bool ok = true;
+        for (std::size_t i = 0; i < cfg.sensors.size(); ++i) {
+            const auto& sid = cfg.sensors[i];
+            auto img_it = view_sel.images.find(sid);
+            if (img_it == view_sel.images.end()) {
+                ok = false;
+                break;
+            }
+            auto det_cam_it = dets.find(sid);
+            if (det_cam_it == dets.end()) {
+                ok = false;
+                break;
+            }
+            const auto& img_lookup = lookup.at(sid);
+            auto img_det_it = img_lookup.find(img_it->second);
+            if (img_det_it == img_lookup.end()) {
+                ok = false;
+                break;
+            }
+            auto view = make_planar_view(*img_det_it->second, intr.at(sid).outputs);
+            if (view.size() < 4U) {
+                ok = false;
+                break;
+            }
+            multi[i] = std::move(view);
+        }
+        if (ok) {
+            views.push_back(std::move(multi));
+        }
+    }
+    return views;
+}
+
+auto MultiCameraCalibrationFacade::calibrate(
+    const MultiCameraRigConfig& cfg,
+    const std::unordered_map<std::string, planar::PlanarDetections>& detections_by_sensor,
+    const std::unordered_map<std::string, planar::CalibrationRunResult>& intrinsics_by_sensor) const
+    -> MultiCameraCalibrationRunResult {
+    MultiCameraCalibrationRunResult result;
+    result.requested_views = cfg.views.size();
+    result.sensors = cfg.sensors;
+
+    // Validate intrinsics availability
+    for (const auto& sid : cfg.sensors) {
+        auto it = intrinsics_by_sensor.find(sid);
+        if (it == intrinsics_by_sensor.end() ||
+            it->second.outputs.refine_result.camera.distortion.coeffs.size() == 0) {
+            throw std::runtime_error("MultiCameraCalibrationFacade: intrinsics not available for sensor: " + sid);
+        }
+    }
+
+    const auto views = compute_views(cfg, detections_by_sensor, intrinsics_by_sensor, result);
+    result.used_views = views.size();
+    if (views.empty()) {
+        result.success = false;
+        result.optimization.success = false;
+        return result;
+    }
+
+    std::vector<PinholeCamera<BrownConradyd>> init_cameras;
+    init_cameras.reserve(cfg.sensors.size());
+    for (const auto& sid : cfg.sensors) {
+        init_cameras.push_back(intrinsics_by_sensor.at(sid).outputs.refine_result.camera);
+    }
+
+    std::vector<PinholeCamera<DualDistortion>> dlt_cameras;
+    dlt_cameras.reserve(init_cameras.size());
+    std::transform(init_cameras.begin(), init_cameras.end(), std::back_inserter(dlt_cameras),
+                   [](const auto& cam) { return to_dual_camera(cam); });
+
+    result.initial_guess = estimate_extrinsic_dlt(views, dlt_cameras);
+
+    ExtrinsicOptions options = cfg.options;
+    result.optimization = optimize_extrinsics(views, init_cameras, result.initial_guess.c_se3_r,
+                                              result.initial_guess.r_se3_t, options);
+    result.success = result.optimization.success;
+    return result;
+}
+
 }  // namespace calib::pipeline

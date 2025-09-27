@@ -1,0 +1,26 @@
+{
+  "planar_intrinsics_config": "planar_intrinsics_config.json",
+  "planar_detections": [
+    { "sensor_id": "cam0", "path": "path/to/cam0_features.json" },
+    { "sensor_id": "cam1", "path": "path/to/cam1_features.json" },
+    { "sensor_id": "cam2", "path": "path/to/cam2_features.json" }
+  ],
+  "multicam": {
+    "rig_id": "rig0",
+    "sensors": ["cam0", "cam1", "cam2"],
+    "views": [
+      { "cam0": "cam0_view0.json", "cam1": "cam1_view0.json", "cam2": "cam2_view0.json" },
+      { "cam0": "cam0_view1.json", "cam1": "cam1_view1.json", "cam2": "cam2_view1.json" }
+    ],
+    "options": {
+      "optimize_intrinsics": false,
+      "optimize_skew": false,
+      "optimize_extrinsics": true,
+      "huber_delta": 1.0,
+      "max_iterations": 100,
+      "compute_covariance": true,
+      "verbose": false
+    }
+  }
+}
+

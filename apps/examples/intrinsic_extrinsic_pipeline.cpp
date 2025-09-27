@@ -7,6 +7,7 @@
 #include <string>
 
 #include "calib/pipeline/extrinsics.h"
+#include "calib/io/serialization.h"
 #include "calib/pipeline/loaders.h"
 #include "calib/pipeline/pipeline.h"
 #include "calib/pipeline/stages.h"
@@ -25,7 +26,7 @@ namespace {
 }  // namespace
 
 int main(int argc, char** argv) {
-    CLI::App app{"Planar intrinsics and stereo extrinsics calibration example"};
+    CLI::App app{"Planar intrinsics and extrinsics calibration example (stereo or multicam)"};
 
     std::string input_path;
     std::string output_path = "artifacts.json";
@@ -64,18 +65,20 @@ int main(int argc, char** argv) {
         calib::pipeline::PipelineContext context;
         context.set_intrinsics_config(planar_cfg);
 
-        if (!config_json.contains("stereo")) {
-            throw std::runtime_error("Input configuration must provide a 'stereo' section.");
+        if (config_json.contains("stereo")) {
+            auto stereo_cfg =
+                config_json.at("stereo").get<calib::pipeline::StereoCalibrationConfig>();
+            context.set_stereo_config(std::move(stereo_cfg));
         }
-        auto stereo_cfg = config_json.at("stereo").get<calib::pipeline::StereoCalibrationConfig>();
-        context.set_stereo_config(std::move(stereo_cfg));
 
         calib::pipeline::CalibrationPipeline pipeline;
         if (verbose) {
             pipeline.add_decorator(std::make_shared<calib::pipeline::LoggingDecorator>(std::cerr));
         }
         pipeline.add_stage(std::make_unique<calib::pipeline::IntrinsicStage>());
-        pipeline.add_stage(std::make_unique<calib::pipeline::StereoCalibrationStage>());
+        if (config_json.contains("stereo")) {
+            pipeline.add_stage(std::make_unique<calib::pipeline::StereoCalibrationStage>());
+        }
 
         const auto report = pipeline.execute(loader, context);
 
@@ -91,6 +94,54 @@ int main(int argc, char** argv) {
         summary_json["stages"] = std::move(stages_json);
 
         context.artifacts["pipeline_summary"] = summary_json;
+
+        // Optional: multi-camera extrinsics calibration using intrinsics result
+        if (config_json.contains("multicam")) {
+            std::vector<calib::pipeline::MultiCameraRigConfig> rigs;
+            const auto& mc = config_json.at("multicam");
+            if (mc.is_array()) {
+                rigs = mc.get<std::vector<calib::pipeline::MultiCameraRigConfig>>();
+            } else if (mc.is_object()) {
+                rigs.push_back(mc.get<calib::pipeline::MultiCameraRigConfig>());
+            }
+
+            // Build detections and intrinsics lookup by sensor id from context
+            std::unordered_map<std::string, calib::planar::PlanarDetections> det_by_sensor;
+            for (const auto& det : context.dataset.planar_cameras) {
+                if (!det.sensor_id.empty()) det_by_sensor.emplace(det.sensor_id, det);
+            }
+            std::unordered_map<std::string, calib::planar::CalibrationRunResult> intr_by_sensor(
+                context.intrinsic_results.begin(), context.intrinsic_results.end());
+
+            calib::pipeline::MultiCameraCalibrationFacade mc_facade;
+            nlohmann::json multicam_artifacts;
+            for (const auto& rig : rigs) {
+                auto run = mc_facade.calibrate(rig, det_by_sensor, intr_by_sensor);
+
+                nlohmann::json rig_json;
+                rig_json["success"] = run.success;
+                rig_json["requested_views"] = run.requested_views;
+                rig_json["used_views"] = run.used_views;
+                rig_json["sensors"] = run.sensors;
+
+                nlohmann::json init_json;
+                nlohmann::json cams_json = nlohmann::json::array();
+                for (const auto& pose : run.initial_guess.c_se3_r) {
+                    cams_json.push_back(calib::affine_to_json(pose));
+                }
+                nlohmann::json targets_json = nlohmann::json::array();
+                for (const auto& pose : run.initial_guess.r_se3_t) {
+                    targets_json.push_back(calib::affine_to_json(pose));
+                }
+                init_json["c_se3_r"] = std::move(cams_json);
+                init_json["r_se3_t"] = std::move(targets_json);
+                rig_json["initial_guess"] = std::move(init_json);
+                rig_json["optimization"] = run.optimization;
+
+                multicam_artifacts[rig.rig_id] = std::move(rig_json);
+            }
+            context.artifacts["multicam"] = std::move(multicam_artifacts);
+        }
 
         std::ofstream output_stream(output_path);
         if (!output_stream) {
