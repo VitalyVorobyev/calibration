@@ -19,4 +19,3 @@ auto optimize_homography(const PlanarView& data, const Eigen::Matrix3d& init_h,
                          const HomographyOptions& options = {}) -> OptimizeHomographyResult;
 
 }  // namespace calib
-

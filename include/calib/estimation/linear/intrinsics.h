@@ -6,8 +6,8 @@
 #include <optional>
 #include <vector>
 
-#include "calib/estimation/planarpose.h"  // PlanarObservation/View
 #include "calib/estimation/homography.h"  // HomographyResult
+#include "calib/estimation/planarpose.h"  // PlanarObservation/View
 #include "calib/estimation/ransac.h"      // RansacOptions
 #include "calib/models/cameramodel.h"
 #include "calib/models/distortion.h"
@@ -23,9 +23,9 @@ namespace calib {
  * initial camera matrix from a collection of @ref PlanarView observations.
  */
 struct IntrinsicsEstimateOptions final {
-    std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Optional parameter bounds
+    std::optional<CalibrationBounds> bounds = std::nullopt;         ///< Optional parameter bounds
     std::optional<RansacOptions> homography_ransac = std::nullopt;  ///< Optional RANSAC opts
-    bool use_skew = false;  ///< Estimate skew parameter
+    bool use_skew = false;                                          ///< Estimate skew parameter
 };
 
 struct ViewEstimateData final {

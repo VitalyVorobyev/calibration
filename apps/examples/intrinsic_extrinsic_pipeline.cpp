@@ -6,16 +6,16 @@
 #include <stdexcept>
 #include <string>
 
-#include "calib/pipeline/extrinsics.h"
 #include "calib/io/serialization.h"
+#include "calib/pipeline/extrinsics.h"
 #include "calib/pipeline/loaders.h"
 #include "calib/pipeline/pipeline.h"
 #include "calib/pipeline/stages.h"
 
 namespace {
 
-[[nodiscard]] auto resolve_path(const std::filesystem::path& base,
-                                const std::string& candidate) -> std::filesystem::path {
+[[nodiscard]] auto resolve_path(const std::filesystem::path& base, const std::string& candidate)
+    -> std::filesystem::path {
     const std::filesystem::path path(candidate);
     if (path.is_absolute()) {
         return path;

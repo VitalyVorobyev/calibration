@@ -38,7 +38,7 @@ class PipelineContext final {
     StereoCalibrationConfig stereo_config_;
     bool has_stereo_config_{false};
 
-public:
+  public:
     CalibrationDataset dataset;
     std::unordered_map<std::string, planar::CalibrationRunResult> intrinsic_results;
     std::unordered_map<std::string, ExtrinsicOptimizationResult<PinholeCamera<BrownConradyd>>>

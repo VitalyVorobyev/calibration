@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include <optional>
-#include <vector>
-
 #include <Eigen/Core>
 #include <Eigen/Dense>
+#include <optional>
+#include <vector>
 
 #include "calib/estimation/linear/planarpose.h"  // PlanarView
 #include "calib/estimation/ransac.h"             // RansacOptions
@@ -20,8 +19,8 @@ struct HomographyResult final {
     double symmetric_rms_px{0.0};  // symmetric transfer RMS in pixels
 };
 
-auto estimate_homography(const PlanarView& data, std::optional<RansacOptions> ransac_opts = std::nullopt)
+auto estimate_homography(const PlanarView& data,
+                         std::optional<RansacOptions> ransac_opts = std::nullopt)
     -> HomographyResult;
 
 }  // namespace calib
-

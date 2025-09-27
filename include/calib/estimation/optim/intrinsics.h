@@ -36,4 +36,3 @@ auto optimize_intrinsics(const std::vector<PlanarView>& views, const CameraT& in
     -> IntrinsicsOptimizationResult<CameraT>;
 
 }  // namespace calib
-

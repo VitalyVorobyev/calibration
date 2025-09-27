@@ -134,7 +134,8 @@ void to_json(nlohmann::json& j, const StereoCalibrationViewSummary& summary) {
                                  const planar::PlanarDetections& target_detections,
                                  const planar::CalibrationRunResult& reference_intrinsics,
                                  const planar::CalibrationRunResult& target_intrinsics,
-                                 StereoCalibrationRunResult& result) -> std::vector<MulticamPlanarView> {
+                                 StereoCalibrationRunResult& result)
+    -> std::vector<MulticamPlanarView> {
     const auto reference_lookup = build_point_lookup(reference_detections);
     const auto target_lookup = build_point_lookup(target_detections);
 
@@ -240,7 +241,10 @@ void from_json(const nlohmann::json& j, MultiCameraViewSelection& view) {
 void to_json(nlohmann::json& j, const MultiCameraRigConfig& cfg) {
     nlohmann::json options_json;
     extrinsic_options_to_json(options_json, cfg.options);
-    j = {{"rig_id", cfg.rig_id}, {"sensors", cfg.sensors}, {"views", cfg.views}, {"options", options_json}};
+    j = {{"rig_id", cfg.rig_id},
+         {"sensors", cfg.sensors},
+         {"views", cfg.views},
+         {"options", options_json}};
 }
 
 void from_json(const nlohmann::json& j, MultiCameraRigConfig& cfg) {
@@ -259,7 +263,8 @@ static auto compute_views(const MultiCameraRigConfig& cfg,
                           MultiCameraCalibrationRunResult& /*result*/)
     -> std::vector<MulticamPlanarView> {
     // Build lookup tables for each sensor
-    std::unordered_map<std::string, std::unordered_map<std::string, const planar::PlanarImageDetections*>>
+    std::unordered_map<std::string,
+                       std::unordered_map<std::string, const planar::PlanarImageDetections*>>
         lookup;
     for (const auto& [sid, d] : dets) {
         std::unordered_map<std::string, const planar::PlanarImageDetections*> map;
@@ -319,7 +324,8 @@ auto MultiCameraCalibrationFacade::calibrate(
         auto it = intrinsics_by_sensor.find(sid);
         if (it == intrinsics_by_sensor.end() ||
             it->second.outputs.refine_result.camera.distortion.coeffs.size() == 0) {
-            throw std::runtime_error("MultiCameraCalibrationFacade: intrinsics not available for sensor: " + sid);
+            throw std::runtime_error(
+                "MultiCameraCalibrationFacade: intrinsics not available for sensor: " + sid);
         }
     }
 

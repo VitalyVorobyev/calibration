@@ -106,4 +106,3 @@ auto estimate_planar_pose(PlanarView view, const CameraT& camera) -> Eigen::Isom
 }
 
 }  // namespace calib
-

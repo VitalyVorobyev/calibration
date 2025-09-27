@@ -96,4 +96,3 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
 }
 
 }  // namespace calib
-

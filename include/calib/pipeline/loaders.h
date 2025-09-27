@@ -10,16 +10,16 @@
 namespace calib::pipeline {
 
 class JsonPlanarDatasetLoader final : public DatasetLoader {
-public:
+  public:
     struct Entry final {
         std::filesystem::path path;
         std::optional<std::string> sensor_id;
     };
 
-private:
+  private:
     std::vector<Entry> entries_;
 
-public:
+  public:
     JsonPlanarDatasetLoader() = default;
     explicit JsonPlanarDatasetLoader(std::vector<Entry> entries) : entries_(std::move(entries)) {}
 

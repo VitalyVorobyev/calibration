@@ -24,4 +24,3 @@ auto optimize_planar_pose(const PlanarView& view, const CameraMatrix& intrinsics
     -> PlanarPoseResult;
 
 }  // namespace calib
-
