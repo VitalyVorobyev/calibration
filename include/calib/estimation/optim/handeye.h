@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "calib/estimation/optim/optimize.h"
 #include "calib/estimation/linear/handeye.h"
+#include "calib/estimation/optim/optimize.h"
 
 namespace calib {
 

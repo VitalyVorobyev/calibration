@@ -1,9 +1,8 @@
 #pragma once
 
-#include <vector>
-
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <vector>
 
 #include "calib/models/cameramodel.h"
 
