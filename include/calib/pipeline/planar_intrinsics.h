@@ -19,7 +19,7 @@
 
 namespace calib::planar {
 
-struct ActiveView {
+struct ActiveView final {
     std::string source_image;
     std::size_t corner_count = 0;
 };

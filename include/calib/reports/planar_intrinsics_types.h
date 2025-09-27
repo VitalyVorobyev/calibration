@@ -67,7 +67,7 @@ struct CameraReport {
     IntrinsicsResultReport result;
 };
 
-struct CalibrationReport {
+struct CalibrationReport final {
     std::string type;
     std::string algorithm;
     PlanarIntrinsicsOptionsReport options;
@@ -75,7 +75,7 @@ struct CalibrationReport {
     std::vector<CameraReport> cameras;
 };
 
-struct PlanarIntrinsicsReport {
+struct PlanarIntrinsicsReport final {
     SessionReport session;
     std::vector<CalibrationReport> calibrations;
 };
