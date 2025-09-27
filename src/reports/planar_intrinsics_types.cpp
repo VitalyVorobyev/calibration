@@ -26,18 +26,6 @@ namespace {
 
 }  // namespace
 
-void to_json(nlohmann::json& json, const SessionReport& report) {
-    json = nlohmann::json{{"id", report.id},
-                          {"description", report.description},
-                          {"timestamp_utc", report.timestamp_utc}};
-}
-
-void from_json(const nlohmann::json& json, SessionReport& report) {
-    json.at("id").get_to(report.id);
-    json.at("description").get_to(report.description);
-    json.at("timestamp_utc").get_to(report.timestamp_utc);
-}
-
 void to_json(nlohmann::json& json, const PlanarIntrinsicsOptionsReport& report) {
     json = nlohmann::json{{"min_corners_per_view", report.min_corners_per_view},
                           {"refine", report.refine},
@@ -109,17 +97,6 @@ void from_json(const nlohmann::json& json, PlanarIntrinsicsOptionsReport& report
     }
 }
 
-void to_json(nlohmann::json& json, const InitialGuessWarningCounts& report) {
-    json = nlohmann::json{
-        {"invalid_camera_matrix", report.invalid_camera_matrix},
-        {"homography_decomposition_failures", report.homography_decomposition_failures}};
-}
-
-void from_json(const nlohmann::json& json, InitialGuessWarningCounts& report) {
-    json.at("invalid_camera_matrix").get_to(report.invalid_camera_matrix);
-    json.at("homography_decomposition_failures").get_to(report.homography_decomposition_failures);
-}
-
 void to_json(nlohmann::json& json, const InitialGuessReport& report) {
     json = nlohmann::json{{"intrinsics", camera_matrix_to_json_impl(report.intrinsics)},
                           {"used_view_indices", report.used_view_indices},
@@ -130,20 +107,6 @@ void from_json(const nlohmann::json& json, InitialGuessReport& report) {
     report.intrinsics = camera_matrix_from_json_impl(json.at("intrinsics"));
     report.used_view_indices = json.at("used_view_indices").get<std::vector<std::size_t>>();
     report.warning_counts = json.at("warning_counts").get<InitialGuessWarningCounts>();
-}
-
-void to_json(nlohmann::json& json, const PlanarViewReport& report) {
-    json = nlohmann::json{{"source_image", report.source_image},
-                          {"corner_count", report.corner_count},
-                          {"rms_px", report.rms_px},
-                          {"used_in_linear_stage", report.used_in_linear_stage}};
-}
-
-void from_json(const nlohmann::json& json, PlanarViewReport& report) {
-    json.at("source_image").get_to(report.source_image);
-    json.at("corner_count").get_to(report.corner_count);
-    json.at("rms_px").get_to(report.rms_px);
-    json.at("used_in_linear_stage").get_to(report.used_in_linear_stage);
 }
 
 void to_json(nlohmann::json& json, const IntrinsicsResultReport& report) {
@@ -206,15 +169,6 @@ void from_json(const nlohmann::json& json, CalibrationReport& report) {
         report.detector = nlohmann::json::object();
     }
     report.cameras = json.at("cameras").get<std::vector<CameraReport>>();
-}
-
-void to_json(nlohmann::json& json, const PlanarIntrinsicsReport& report) {
-    json = nlohmann::json{{"session", report.session}, {"calibrations", report.calibrations}};
-}
-
-void from_json(const nlohmann::json& json, PlanarIntrinsicsReport& report) {
-    report.session = json.at("session").get<SessionReport>();
-    report.calibrations = json.at("calibrations").get<std::vector<CalibrationReport>>();
 }
 
 }  // namespace calib::planar
