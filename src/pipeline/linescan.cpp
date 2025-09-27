@@ -24,4 +24,3 @@ auto LinescanCalibrationFacade::calibrate(const PinholeCamera<BrownConradyd>& ca
 }
 
 }  // namespace calib::pipeline
-

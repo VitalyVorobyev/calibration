@@ -18,9 +18,9 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calib/estimation/planarpose.h"     // PlanarView/Observation
-#include "calib/estimation/homography.h"     // estimate_homography
-#include "calib/models/pinhole.h"            // PinholeCamera
+#include "calib/estimation/homography.h"  // estimate_homography
+#include "calib/estimation/planarpose.h"  // PlanarView/Observation
+#include "calib/models/pinhole.h"         // PinholeCamera
 
 namespace calib {
 
@@ -32,7 +32,7 @@ namespace calib {
  * laser points in the same image.
  */
 struct LineScanView final {
-    PlanarView target_view;               ///< Target correspondences
+    PlanarView target_view;                 ///< Target correspondences
     std::vector<Eigen::Vector2d> laser_uv;  ///< Laser points in pixels
 };
 

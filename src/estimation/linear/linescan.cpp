@@ -22,12 +22,12 @@ static void validate_observations(const std::vector<LineScanView>& views) {
 }
 
 static Eigen::Vector4d fit_plane_svd(const std::vector<Vec3>& pts) {
-    Vec3 centroid =
-        std::accumulate(pts.cbegin(), pts.cend(), Vec3{Vec3::Zero()},
-                        [](const Vec3& a, const Vec3& b) { return a + b; });
+    Vec3 centroid = std::accumulate(pts.cbegin(), pts.cend(), Vec3{Vec3::Zero()},
+                                    [](const Vec3& a, const Vec3& b) { return a + b; });
     centroid /= static_cast<double>(pts.size());
     Eigen::MatrixXd A(static_cast<Eigen::Index>(pts.size()), 3);
-    for (size_t i = 0; i < pts.size(); ++i) A.row(static_cast<Eigen::Index>(i)) = (pts[i] - centroid).transpose();
+    for (size_t i = 0; i < pts.size(); ++i)
+        A.row(static_cast<Eigen::Index>(i)) = (pts[i] - centroid).transpose();
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(A, Eigen::ComputeFullV);
     Vec3 n = svd.matrixV().col(2);
     double d = -n.dot(centroid);
@@ -35,9 +35,11 @@ static Eigen::Vector4d fit_plane_svd(const std::vector<Vec3>& pts) {
     return {n.x() / nrm, n.y() / nrm, n.z() / nrm, d / nrm};
 }
 
-static std::vector<Vec3> process_view(LineScanView view, const PinholeCamera<DualDistortion>& camera) {
-    std::for_each(view.target_view.begin(), view.target_view.end(),
-                  [&camera](PlanarObservation& item) { item.image_uv = camera.unproject(item.image_uv); });
+static std::vector<Vec3> process_view(LineScanView view,
+                                      const PinholeCamera<DualDistortion>& camera) {
+    std::for_each(
+        view.target_view.begin(), view.target_view.end(),
+        [&camera](PlanarObservation& item) { item.image_uv = camera.unproject(item.image_uv); });
 
     auto hres = estimate_homography(view.target_view);
     if (!hres.success) return {};
@@ -106,4 +108,3 @@ auto calibrate_laser_plane(const std::vector<LineScanView>& views,
 }
 
 }  // namespace calib
-

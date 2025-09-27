@@ -40,4 +40,3 @@ class LinescanCalibrationFacade final {
 };
 
 }  // namespace calib::pipeline
-

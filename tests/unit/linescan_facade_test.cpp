@@ -117,7 +117,8 @@ static auto create_view(const Eigen::Isometry3d& c_se3_t, const Plane& laser_pla
     const Line3 line_t = to_target_frame(*line_c_opt, t_se3_c);
     const auto interval = clip_to_square_xy(line_t.origin(), line_t.direction());
     if (!interval) return view;
-    const auto pts_t = sample_segment_xy_on_plane(line_t.origin(), line_t.direction(), interval->first, interval->second);
+    const auto pts_t = sample_segment_xy_on_plane(line_t.origin(), line_t.direction(),
+                                                  interval->first, interval->second);
     view.laser_uv = project_points_target_to_pixels(camera, c_se3_t, pts_t);
     return view;
 }

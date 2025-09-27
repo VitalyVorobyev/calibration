@@ -12,7 +12,9 @@ int main(int argc, char** argv) {
     CLI::App app{"Line-scan laser plane calibration (linear)"};
     std::string input_path;
     std::string output_path = "linescan_artifacts.json";
-    app.add_option("--input", input_path, "Input JSON (camera, views)")->required()->check(CLI::ExistingFile);
+    app.add_option("--input", input_path, "Input JSON (camera, views)")
+        ->required()
+        ->check(CLI::ExistingFile);
     app.add_option("--output", output_path, "Output JSON path");
     CLI11_PARSE(app, argc, argv);
 
@@ -46,7 +48,7 @@ int main(int argc, char** argv) {
         out["success"] = run.success;
         out["used_views"] = run.used_views;
         out["plane"] = {{"n", {run.result.plane[0], run.result.plane[1], run.result.plane[2]}},
-                         {"d", run.result.plane[3]}};
+                        {"d", run.result.plane[3]}};
         out["rms_error"] = run.result.rms_error;
         out["homography"] = calib::eigen_matrix_to_json(run.result.homography);
 
