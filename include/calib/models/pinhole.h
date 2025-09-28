@@ -164,4 +164,16 @@ struct CameraTraits<PinholeCamera<DistortionT>> {
 template <distortion_model DistortionT>
 using Camera = PinholeCamera<DistortionT>;
 
+template <distortion_model DistortionT>
+inline void to_json(nlohmann::json& j, const PinholeCamera<DistortionT>& cam) {
+    j = {{"kmtx", cam.kmtx}, {"distortion", cam.distortion}};
+}
+
+template <distortion_model DistortionT>
+inline void from_json(const nlohmann::json& j, PinholeCamera<DistortionT>& cam) {
+    j.at("kmtx").get_to(cam.kmtx);
+    if (j.contains("distortion")) j.at("distortion").get_to(cam.distortion);
+}
+
+
 }  // namespace calib

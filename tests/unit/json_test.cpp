@@ -4,8 +4,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "calib/estimation/linear/intrinsics.h"
-#include "calib/io/serialization.h"
+#include "calib/estimation/optim/intrinsics.h"
 
 using namespace calib;
 

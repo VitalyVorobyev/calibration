@@ -67,4 +67,45 @@ auto estimate_and_optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se
                                    double min_angle_deg = 1.0, const HandeyeOptions& options = {})
     -> HandeyeResult;
 
+
+inline void to_json(nlohmann::json& j, const HandeyeOptions& o) {
+    j = {{"optimizer", optimizer_type_to_string(o.optimizer)},
+         {"huber_delta", o.huber_delta},
+         {"epsilon", o.epsilon},
+         {"max_iterations", o.max_iterations},
+         {"compute_covariance", o.compute_covariance},
+         {"verbose", o.verbose}};
+}
+
+inline void from_json(const nlohmann::json& j, HandeyeOptions& o) {
+    if (j.contains("optimizer")) {
+        const auto& opt = j.at("optimizer");
+        if (opt.is_string()) {
+            o.optimizer = optimizer_type_from_string(opt.get<std::string>());
+        } else {
+            switch (opt.get<int>()) {
+                case 0:
+                    o.optimizer = OptimizerType::DEFAULT;
+                    break;
+                case 1:
+                    o.optimizer = OptimizerType::SPARSE_SCHUR;
+                    break;
+                case 2:
+                    o.optimizer = OptimizerType::DENSE_SCHUR;
+                    break;
+                case 3:
+                    o.optimizer = OptimizerType::DENSE_QR;
+                    break;
+                default:
+                    throw std::runtime_error("Unknown optimizer index");
+            }
+        }
+    }
+    o.huber_delta = j.value("huber_delta", o.huber_delta);
+    o.epsilon = j.value("epsilon", o.epsilon);
+    o.max_iterations = j.value("max_iterations", o.max_iterations);
+    o.compute_covariance = j.value("compute_covariance", o.compute_covariance);
+    o.verbose = j.value("verbose", o.verbose);
+}
+
 }  // namespace calib

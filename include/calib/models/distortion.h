@@ -24,6 +24,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
+#include "calib/io/serialization.h"
 #include "calib/models/camera_matrix.h"
 
 namespace calib {
@@ -401,6 +402,21 @@ inline auto fit_distortion_dual(const std::vector<Observation<double>>& observat
     out.distortion.inverse = inverse->distortion;
     out.residuals = forward->residuals;
     return out;
+}
+
+inline void to_json(nlohmann::json& j, const DualDistortion& d) {
+    j = {{"forward", d.forward}, {"inverse", d.inverse}};
+}
+
+inline void from_json(const nlohmann::json& j, DualDistortion& d) {
+    if (j.contains("forward")) d.forward = j.at("forward").get<Eigen::VectorXd>();
+    if (j.contains("inverse")) d.inverse = j.at("inverse").get<Eigen::VectorXd>();
+}
+
+inline void to_json(nlohmann::json& j, const BrownConradyd& d) { j = {{"coeffs", d.coeffs}}; }
+
+inline void from_json(const nlohmann::json& j, BrownConradyd& d) {
+    if (j.contains("coeffs")) d.coeffs = j.at("coeffs").get<Eigen::VectorXd>();
 }
 
 }  // namespace calib

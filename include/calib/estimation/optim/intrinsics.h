@@ -35,4 +35,21 @@ auto optimize_intrinsics(const std::vector<PlanarView>& views, const CameraT& in
                          const IntrinsicsOptions& opts = {})
     -> IntrinsicsOptimizationResult<CameraT>;
 
+
+template <camera_model CameraT>
+inline void to_json(nlohmann::json& j, const IntrinsicsOptimizationResult<CameraT>& r) {
+    j = {{"camera", r.camera},           {"poses", r.c_se3_t},         {"covariance", r.covariance},
+         {"view_errors", r.view_errors}, {"final_cost", r.final_cost}, {"report", r.report}};
+}
+
+template <camera_model CameraT>
+inline void from_json(const nlohmann::json& j, IntrinsicsOptimizationResult<CameraT>& r) {
+    j.at("camera").get_to(r.camera);
+    r.c_se3_t = j.value("poses", std::vector<Eigen::Isometry3d>{});
+    r.covariance = j.at("covariance").get<Eigen::MatrixXd>();
+    r.view_errors = j.value("view_errors", std::vector<double>{});
+    r.final_cost = j.value("final_cost", 0.0);
+    r.report = j.value("report", std::string{});
+}
+
 }  // namespace calib

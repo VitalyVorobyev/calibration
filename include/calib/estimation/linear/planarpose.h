@@ -12,6 +12,7 @@
 // eigen
 #include <Eigen/Geometry>
 
+#include "calib/io/serialization.h"
 #include "calib/models/camera_matrix.h"
 #include "calib/models/cameramodel.h"
 

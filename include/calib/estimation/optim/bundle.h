@@ -62,4 +62,45 @@ auto optimize_bundle(const std::vector<BundleObservation>& observations,
                      const Eigen::Isometry3d& init_b_se3_t, const BundleOptions& opts = {})
     -> BundleResult<CameraT>;
 
+
+inline void to_json(nlohmann::json& j, const BundleOptions& o) {
+    j = {{"optimize_intrinsics", o.optimize_intrinsics},
+         {"optimize_skew", o.optimize_skew},
+         {"optimize_target_pose", o.optimize_target_pose},
+         {"optimize_hand_eye", o.optimize_hand_eye},
+         {"verbose", o.verbose}};
+}
+
+inline void from_json(const nlohmann::json& j, BundleOptions& o) {
+    o.optimize_intrinsics = j.value("optimize_intrinsics", false);
+    o.optimize_skew = j.value("optimize_skew", false);
+    o.optimize_target_pose = j.value("optimize_target_pose", true);
+    o.optimize_hand_eye = j.value("optimize_hand_eye", true);
+    o.verbose = j.value("verbose", false);
+}
+
+inline void to_json(nlohmann::json& j, const BundleObservation& bo) {
+    j = {{"view", bo.view}, {"b_se3_g", bo.b_se3_g}, {"camera_index", bo.camera_index}};
+}
+
+inline void from_json(const nlohmann::json& j, BundleObservation& bo) {
+    j.at("view").get_to(bo.view);
+    bo.b_se3_g = j.at("b_se3_g").get<Eigen::Isometry3d>();
+    bo.camera_index = j.value("camera_index", 0);
+}
+
+inline void to_json(nlohmann::json& j, const BundleResult<PinholeCamera<BrownConradyd>>& r) {
+    j = {{"cameras", r.cameras},       {"g_se3_c", r.g_se3_c},       {"b_se3_t", r.b_se3_t},
+         {"final_cost", r.final_cost}, {"covariance", r.covariance}, {"report", r.report}};
+}
+
+inline void from_json(const nlohmann::json& j, BundleResult<PinholeCamera<BrownConradyd>>& r) {
+    r.cameras = j.value("cameras", std::vector<PinholeCamera<BrownConradyd>>{});
+    r.g_se3_c = j.value("g_se3_c", std::vector<Eigen::Isometry3d>{});
+    r.b_se3_t = j.at("b_se3_t").get<Eigen::Isometry3d>();
+    r.final_cost = j.value("final_cost", 0.0);
+    r.covariance = j.at("covariance").get<Eigen::MatrixXd>();
+    r.report = j.value("report", std::string{});
+}
+
 }  // namespace calib
