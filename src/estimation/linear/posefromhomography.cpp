@@ -46,7 +46,7 @@ auto pose_from_homography(const CameraMatrix& kmtx, const Eigen::Matrix3d& hmtx)
     rotation.col(0) = scale * hnorm.col(0);
     rotation.col(1) = scale * hnorm.col(1);
     rotation.col(2) = rotation.col(0).cross(rotation.col(1));
-    project_to_so3(rotation);
+    rotation = project_to_so3(rotation);
 
     Eigen::Vector3d translation = scale * hnorm.col(2);
 

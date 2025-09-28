@@ -34,7 +34,7 @@ TEST(Se3Utils, AverageAffinesComputesMean) {
         T.translation() = Eigen::Vector3d(static_cast<double>(i), 0.0, 0.0);
         poses.push_back(T);
     }
-    Eigen::Isometry3d avg = average_affines(poses);
+    Eigen::Isometry3d avg = average_isometries(poses);
     EXPECT_NEAR(avg.translation().x(), 2.0, 1e-12);
     EXPECT_TRUE(avg.linear().isApprox(Eigen::Matrix3d::Identity()));
 }

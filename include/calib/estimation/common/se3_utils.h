@@ -72,7 +72,7 @@ inline std::array<double, 6> pose_to_array(const Eigen::Isometry3d& pose) {
             pose.translation().z()};
 }
 
-inline Eigen::Isometry3d average_affines(const std::vector<Eigen::Isometry3d>& poses) {
+inline Eigen::Isometry3d average_isometries(const std::vector<Eigen::Isometry3d>& poses) {
     if (poses.empty()) {
         return Eigen::Isometry3d::Identity();
     }

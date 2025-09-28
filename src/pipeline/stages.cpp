@@ -1,5 +1,6 @@
 #include "calib/pipeline/stages.h"
 
+#include "calib/estimation/common/se3_utils.h"
 #include "calib/estimation/linear/handeye.h"
 #include "calib/io/serialization.h"
 #include "calib/pipeline/extrinsics.h"
@@ -65,29 +66,6 @@ struct SensorDetectionsIndex final {
         index.emplace(det.sensor_id, std::move(entry));
     }
     return index;
-}
-
-[[nodiscard]] auto average_isometries(const std::vector<Eigen::Isometry3d>& poses)
-    -> Eigen::Isometry3d {
-    if (poses.empty()) {
-        return Eigen::Isometry3d::Identity();
-    }
-    Eigen::Vector3d translation = Eigen::Vector3d::Zero();
-    Eigen::Quaterniond quat_sum(0.0, 0.0, 0.0, 0.0);
-    for (const auto& pose : poses) {
-        translation += pose.translation();
-        Eigen::Quaterniond q(pose.linear());
-        if (quat_sum.coeffs().dot(q.coeffs()) < 0.0) {
-            q.coeffs() *= -1.0;
-        }
-        quat_sum.coeffs() += q.coeffs();
-    }
-    translation /= static_cast<double>(poses.size());
-    quat_sum.normalize();
-    Eigen::Isometry3d avg = Eigen::Isometry3d::Identity();
-    avg.linear() = quat_sum.toRotationMatrix();
-    avg.translation() = translation;
-    return avg;
 }
 
 [[nodiscard]] auto find_handeye_rig(const HandEyePipelineConfig& cfg, const std::string& rig_id)

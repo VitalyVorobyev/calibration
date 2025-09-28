@@ -34,7 +34,8 @@ namespace {
     return json_data;
 }
 
-[[nodiscard]] auto as_handeye_config(const nlohmann::json& node) -> calib::pipeline::HandEyePipelineConfig {
+[[nodiscard]] auto as_handeye_config(const nlohmann::json& node)
+    -> calib::pipeline::HandEyePipelineConfig {
     calib::pipeline::HandEyePipelineConfig cfg;
     if (node.is_null()) {
         return cfg;
@@ -49,7 +50,8 @@ namespace {
     return cfg;
 }
 
-[[nodiscard]] auto as_bundle_config(const nlohmann::json& node) -> calib::pipeline::BundlePipelineConfig {
+[[nodiscard]] auto as_bundle_config(const nlohmann::json& node)
+    -> calib::pipeline::BundlePipelineConfig {
     calib::pipeline::BundlePipelineConfig cfg;
     if (node.is_null()) {
         return cfg;
@@ -85,8 +87,8 @@ int main(int argc, char** argv) {
         const auto config_json = load_json_file(input_path);
         const auto base_dir = std::filesystem::absolute(input_path).parent_path();
 
-        const auto intrinsics_cfg_path = resolve_path(
-            base_dir, config_json.at("planar_intrinsics_config").get<std::string>());
+        const auto intrinsics_cfg_path =
+            resolve_path(base_dir, config_json.at("planar_intrinsics_config").get<std::string>());
         const auto planar_cfg = calib::planar::load_calibration_config(intrinsics_cfg_path);
 
         calib::pipeline::JsonPlanarDatasetLoader loader;
@@ -100,7 +102,8 @@ int main(int argc, char** argv) {
         context.set_intrinsics_config(planar_cfg);
 
         if (config_json.contains("stereo")) {
-            auto stereo_cfg = config_json.at("stereo").get<calib::pipeline::StereoCalibrationConfig>();
+            auto stereo_cfg =
+                config_json.at("stereo").get<calib::pipeline::StereoCalibrationConfig>();
             context.set_stereo_config(std::move(stereo_cfg));
         }
 
@@ -162,4 +165,3 @@ int main(int argc, char** argv) {
         return 1;
     }
 }
-
