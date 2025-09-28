@@ -7,6 +7,7 @@ set(SOURCES
     posefromhomography.cpp
     linescan.cpp
     zhang.cpp
+    planefit.cpp
 )
 
 add_library(calib_estimation_linear STATIC ${SOURCES})

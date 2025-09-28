@@ -15,6 +15,16 @@ void PipelineContext::set_stereo_config(StereoCalibrationConfig cfg) {
     has_stereo_config_ = true;
 }
 
+void PipelineContext::set_handeye_config(HandEyePipelineConfig cfg) {
+    handeye_config_ = std::move(cfg);
+    has_handeye_config_ = true;
+}
+
+void PipelineContext::set_bundle_config(BundlePipelineConfig cfg) {
+    bundle_config_ = std::move(cfg);
+    has_bundle_config_ = true;
+}
+
 void CalibrationPipeline::add_stage(std::unique_ptr<CalibrationStage> stage) {
     stages_.push_back(std::move(stage));
 }

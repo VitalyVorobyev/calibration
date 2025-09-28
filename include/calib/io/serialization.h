@@ -1,12 +1,17 @@
 #pragma once
 
 #include <Eigen/Geometry>
+#include <algorithm>
+#include <cctype>
 #include <nlohmann/json.hpp>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "calib/estimation/linear/planarpose.h"
 #include "calib/estimation/optim/bundle.h"
 #include "calib/estimation/optim/extrinsics.h"
+#include "calib/estimation/optim/handeye.h"
 #include "calib/estimation/optim/intrinsics.h"
 #include "calib/io/json.h"
 #include "calib/models/cameramodel.h"
@@ -72,6 +77,30 @@ struct adl_serializer<Eigen::Transform<Scalar, Dim, Mode, Options>> {
 
 namespace calib {
 
+inline auto optimizer_type_to_string(OptimizerType type) -> std::string {
+    switch (type) {
+        case OptimizerType::DEFAULT:
+            return "default";
+        case OptimizerType::SPARSE_SCHUR:
+            return "sparse_schur";
+        case OptimizerType::DENSE_SCHUR:
+            return "dense_schur";
+        case OptimizerType::DENSE_QR:
+            return "dense_qr";
+    }
+    return "default";
+}
+
+inline auto optimizer_type_from_string(std::string value) -> OptimizerType {
+    std::transform(value.begin(), value.end(), value.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    if (value == "default") return OptimizerType::DEFAULT;
+    if (value == "sparse_schur") return OptimizerType::SPARSE_SCHUR;
+    if (value == "dense_schur") return OptimizerType::DENSE_SCHUR;
+    if (value == "dense_qr") return OptimizerType::DENSE_QR;
+    throw std::runtime_error("Unknown optimizer type: " + value);
+}
+
 // ----- Basic structures -----
 
 inline void to_json(nlohmann::json& j, const DualDistortion& d) {
@@ -126,6 +155,46 @@ inline void from_json(const nlohmann::json& j, BundleOptions& o) {
     o.optimize_target_pose = j.value("optimize_target_pose", true);
     o.optimize_hand_eye = j.value("optimize_hand_eye", true);
     o.verbose = j.value("verbose", false);
+}
+
+inline void to_json(nlohmann::json& j, const HandeyeOptions& o) {
+    j = {{"optimizer", optimizer_type_to_string(o.optimizer)},
+         {"huber_delta", o.huber_delta},
+         {"epsilon", o.epsilon},
+         {"max_iterations", o.max_iterations},
+         {"compute_covariance", o.compute_covariance},
+         {"verbose", o.verbose}};
+}
+
+inline void from_json(const nlohmann::json& j, HandeyeOptions& o) {
+    if (j.contains("optimizer")) {
+        const auto& opt = j.at("optimizer");
+        if (opt.is_string()) {
+            o.optimizer = optimizer_type_from_string(opt.get<std::string>());
+        } else {
+            switch (opt.get<int>()) {
+                case 0:
+                    o.optimizer = OptimizerType::DEFAULT;
+                    break;
+                case 1:
+                    o.optimizer = OptimizerType::SPARSE_SCHUR;
+                    break;
+                case 2:
+                    o.optimizer = OptimizerType::DENSE_SCHUR;
+                    break;
+                case 3:
+                    o.optimizer = OptimizerType::DENSE_QR;
+                    break;
+                default:
+                    throw std::runtime_error("Unknown optimizer index");
+            }
+        }
+    }
+    o.huber_delta = j.value("huber_delta", o.huber_delta);
+    o.epsilon = j.value("epsilon", o.epsilon);
+    o.max_iterations = j.value("max_iterations", o.max_iterations);
+    o.compute_covariance = j.value("compute_covariance", o.compute_covariance);
+    o.verbose = j.value("verbose", o.verbose);
 }
 
 inline void to_json(nlohmann::json& j, const ExtrinsicOptions& o) {

@@ -1,0 +1,73 @@
+{
+  "planar_intrinsics_config": "planar_intrinsics_config.json",
+  "planar_detections": [
+    { "sensor_id": "cam0", "path": "path/to/cam0_features.json" },
+    { "sensor_id": "cam1", "path": "path/to/cam1_features.json" }
+  ],
+  "hand_eye": {
+    "rig_id": "arm_camera",
+    "sensors": ["cam0", "cam1"],
+    "min_angle_deg": 2.0,
+    "options": {
+      "max_iterations": 100,
+      "huber_delta": 1.0,
+      "epsilon": 1e-9,
+      "compute_covariance": true,
+      "verbose": false
+    },
+    "observations": [
+      {
+        "id": "pose0",
+        "base_se3_gripper": [
+          [1.0, 0.0, 0.0, 0.0],
+          [0.0, 1.0, 0.0, 0.0],
+          [0.0, 0.0, 1.0, 0.5],
+          [0.0, 0.0, 0.0, 1.0]
+        ],
+        "images": {
+          "cam0": "cam0_pose0.json",
+          "cam1": "cam1_pose0.json"
+        }
+      },
+      {
+        "id": "pose1",
+        "base_se3_gripper": [
+          [0.9961946981, -0.0871557427, 0.0, 0.05],
+          [0.0871557427, 0.9961946981, 0.0, -0.02],
+          [0.0, 0.0, 1.0, 0.55],
+          [0.0, 0.0, 0.0, 1.0]
+        ],
+        "images": {
+          "cam0": "cam0_pose1.json",
+          "cam1": "cam1_pose1.json"
+        }
+      },
+      {
+        "id": "pose2",
+        "base_se3_gripper": [
+          [0.9848077530, 0.0, 0.1736481777, -0.04],
+          [0.0, 1.0, 0.0, 0.03],
+          [-0.1736481777, 0.0, 0.9848077530, 0.48],
+          [0.0, 0.0, 0.0, 1.0]
+        ],
+        "images": {
+          "cam0": "cam0_pose2.json",
+          "cam1": "cam1_pose2.json"
+        }
+      }
+    ]
+  },
+  "bundle": {
+    "rig_id": "arm_camera",
+    "sensors": ["cam0", "cam1"],
+    "min_angle_deg": 2.0,
+    "options": {
+      "optimize_intrinsics": false,
+      "optimize_skew": false,
+      "optimize_target_pose": true,
+      "optimize_hand_eye": true,
+      "max_iterations": 80,
+      "verbose": false
+    }
+  }
+}

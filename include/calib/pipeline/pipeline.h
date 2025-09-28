@@ -10,9 +10,12 @@
 // third-party
 #include <nlohmann/json.hpp>
 
+#include "calib/estimation/optim/bundle.h"
 #include "calib/estimation/optim/extrinsics.h"
+#include "calib/estimation/optim/handeye.h"
 #include "calib/pipeline/dataset.h"
 #include "calib/pipeline/extrinsics.h"
+#include "calib/pipeline/handeye.h"
 #include "calib/pipeline/planar_intrinsics.h"
 
 namespace calib::pipeline {
@@ -37,16 +40,24 @@ class PipelineContext final {
     bool has_intrinsics_config_{false};
     StereoCalibrationConfig stereo_config_;
     bool has_stereo_config_{false};
+    HandEyePipelineConfig handeye_config_;
+    bool has_handeye_config_{false};
+    BundlePipelineConfig bundle_config_;
+    bool has_bundle_config_{false};
 
   public:
     CalibrationDataset dataset;
     std::unordered_map<std::string, planar::CalibrationRunResult> intrinsic_results;
     std::unordered_map<std::string, ExtrinsicOptimizationResult<PinholeCamera<BrownConradyd>>>
         stereo_results;
+    std::unordered_map<std::string, std::unordered_map<std::string, HandeyeResult>> handeye_results;
+    std::unordered_map<std::string, BundleResult<PinholeCamera<BrownConradyd>>> bundle_results;
     nlohmann::json artifacts;
 
     void set_intrinsics_config(planar::PlanarCalibrationConfig cfg);
     void set_stereo_config(StereoCalibrationConfig cfg);
+    void set_handeye_config(HandEyePipelineConfig cfg);
+    void set_bundle_config(BundlePipelineConfig cfg);
     [[nodiscard]] auto has_intrinsics_config() const -> bool { return has_intrinsics_config_; }
     [[nodiscard]] auto intrinsics_config() const -> const planar::PlanarCalibrationConfig& {
         return intrinsics_config_;
@@ -57,6 +68,16 @@ class PipelineContext final {
         return stereo_config_;
     }
     auto stereo_config() -> StereoCalibrationConfig& { return stereo_config_; }
+    [[nodiscard]] auto has_handeye_config() const -> bool { return has_handeye_config_; }
+    [[nodiscard]] auto handeye_config() const -> const HandEyePipelineConfig& {
+        return handeye_config_;
+    }
+    auto handeye_config() -> HandEyePipelineConfig& { return handeye_config_; }
+    [[nodiscard]] auto has_bundle_config() const -> bool { return has_bundle_config_; }
+    [[nodiscard]] auto bundle_config() const -> const BundlePipelineConfig& {
+        return bundle_config_;
+    }
+    auto bundle_config() -> BundlePipelineConfig& { return bundle_config_; }
 };
 
 class CalibrationStage {

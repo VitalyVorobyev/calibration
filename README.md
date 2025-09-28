@@ -15,6 +15,7 @@ Modern C++ utilities for camera calibration, geometric vision, and robot–senso
 - Intrinsic & extrinsic planar calibration with covariance estimation
 - Homography and planar pose estimation (DLT, RANSAC, non-linear refinement)
 - Hand-eye calibration starting from DLT seeds and refined via bundle adjustment
+- Configurable pipeline stages (intrinsics, stereo, hand-eye, bundle) driven entirely by JSON
 - Line-scan / laser plane calibration pipeline components
 - JSON configuration I/O helpers for reproducible calibration sessions
 
@@ -186,6 +187,21 @@ and writes the full artifact bundle to disk:
 ```
 
 The resulting report lists accepted views, linear initialisation, refined statistics, and persists the outputs under a `calibrations` array to support multi-camera expansion.
+
+End-to-end hand-eye plus bundle adjustment calibration is demonstrated by
+`calib_example_bundle`, which ingests intrinsics, robot poses, and stage
+configuration from a single JSON file (see
+`apps/examples/bundle_pipeline_input.json`):
+
+```bash
+./build/apps/examples/calib_example_bundle \
+  --input apps/examples/bundle_pipeline_input.json \
+  --output bundle_artifacts.json --verbose
+```
+
+The example records the pipeline summary alongside detailed artefacts from the
+hand-eye and bundle stages, including initial guesses, refined poses, and
+covariances for downstream analysis.
 
 `PlanarIntrinsicCalibrationFacade` now returns a strongly typed `PlanarIntrinsicsReport`, so you can
 inspect the structured data directly or round-trip through JSON when you need a serialised payload:
