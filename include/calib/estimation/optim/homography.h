@@ -4,7 +4,7 @@
 
 #include <Eigen/Core>
 
-#include "calib/estimation/linear/homography.h"  // HomographyResult, PlanarView
+#include "calib/estimation/linear/homography.h"  // PlanarView
 #include "calib/estimation/optim/optimize.h"
 
 namespace calib {

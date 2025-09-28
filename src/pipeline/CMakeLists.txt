@@ -1,11 +1,15 @@
 set(SOURCES
     pipeline.cpp
-    stages.cpp
     loaders.cpp
     planar_intrinsics.cpp
     extrinsics.cpp
     linescan.cpp
     handeye.cpp
+    stages/intrinsic_stage.cpp
+    stages/stereo_stage.cpp
+    stages/handeye_stage.cpp
+    stages/bundle_stage.cpp
+    stages/detail/planar_utils.cpp
 )
 
 add_library(calib_pipeline STATIC ${SOURCES})

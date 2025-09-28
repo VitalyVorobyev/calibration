@@ -25,7 +25,8 @@ target_include_directories(calib_estimation_linear
 
 target_link_libraries(calib_estimation_linear
     PUBLIC
-        calib_models)
+        calib_models
+        calib_io)
 
 calib_set_default_warnings(calib_estimation_linear)
 add_library(calib::estimation_linear ALIAS calib_estimation_linear)
