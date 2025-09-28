@@ -2,8 +2,10 @@
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <stdexcept>
 #include <string>
 
+#include "calib/estimation/common/ransac.h"
 #include "calib/estimation/linear/homography.h"
 #include "calib/estimation/linear/planarpose.h"  // PlanarView
 #include "calib/estimation/linear/planefit.h"
@@ -22,6 +24,12 @@ struct LineScanCalibrationResult final {
     Eigen::Matrix3d homography;
     double rms_error = 0.0;
     std::string summary;
+    std::size_t inlier_count = 0;
+};
+
+struct LineScanPlaneFitOptions final {
+    bool use_ransac = false;
+    RansacOptions ransac_options{};
 };
 
 inline void validate_observations(const std::vector<LineScanView>& views) {
@@ -89,7 +97,8 @@ inline double plane_rms(const std::vector<Eigen::Vector3d>& pts, const Eigen::Ve
 
 template <camera_model CameraT>
 LineScanCalibrationResult calibrate_laser_plane(const std::vector<LineScanView>& views,
-                                                const CameraT& camera) {
+                                                const CameraT& camera,
+                                                const LineScanPlaneFitOptions& opts = {}) {
     validate_observations(views);
 
     LineScanCalibrationResult result;
@@ -102,11 +111,33 @@ LineScanCalibrationResult calibrate_laser_plane(const std::vector<LineScanView>&
         throw std::invalid_argument("Not enough laser points to fit a plane");
     }
 
-    result.plane = fit_plane_svd(all_points);
-    result.rms_error = plane_rms(all_points, result.plane);
+    if (opts.use_ransac) {
+        auto ransac_result = fit_plane_ransac(all_points, opts.ransac_options);
+        if (!ransac_result.success) {
+            throw std::runtime_error("RANSAC plane fitting failed");
+        }
+        result.plane = ransac_result.plane;
+        result.summary = "ransac";
+        result.inlier_count = ransac_result.inliers.size();
+        if (!ransac_result.inliers.empty()) {
+            std::vector<Eigen::Vector3d> inlier_points;
+            inlier_points.reserve(ransac_result.inliers.size());
+            for (int idx : ransac_result.inliers) {
+                inlier_points.push_back(all_points[static_cast<std::size_t>(idx)]);
+            }
+            result.rms_error = plane_rms(inlier_points, result.plane);
+        } else {
+            result.rms_error = plane_rms(all_points, result.plane);
+        }
+    } else {
+        result.plane = fit_plane_svd(all_points);
+        result.summary = "linear_svd";
+        result.inlier_count = all_points.size();
+        result.rms_error = plane_rms(all_points, result.plane);
+    }
+
     result.homography = build_plane_homography(result.plane);
     result.covariance.setZero();
-    result.summary = "linear_svd";
     return result;
 }
 

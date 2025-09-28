@@ -16,7 +16,7 @@ Modern C++ utilities for camera calibration, geometric vision, and robot–senso
 - Homography and planar pose estimation (DLT, RANSAC, non-linear refinement)
 - Hand-eye calibration starting from DLT seeds and refined via bundle adjustment
 - Configurable pipeline stages (intrinsics, stereo, hand-eye, bundle) driven entirely by JSON
-- Line-scan / laser plane calibration pipeline components
+- Line-scan / laser plane calibration pipeline components with optional RANSAC plane fitting
 - JSON configuration I/O helpers for reproducible calibration sessions
 
 ## Repository Layout

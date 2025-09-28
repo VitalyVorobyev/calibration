@@ -10,12 +10,13 @@ static PinholeCamera<DualDistortion> to_dual(const PinholeCamera<BrownConradyd>&
 }
 
 auto LinescanCalibrationFacade::calibrate(const PinholeCamera<BrownConradyd>& camera,
-                                          const std::vector<LineScanView>& views) const
+                                          const std::vector<LineScanView>& views,
+                                          const LinescanCalibrationOptions& opts) const
     -> LinescanCalibrationRunResult {
     LinescanCalibrationRunResult out;
     out.used_views = views.size();
     try {
-        out.result = calibrate_laser_plane(views, to_dual(camera));
+        out.result = calibrate_laser_plane(views, to_dual(camera), opts.plane_fit);
         out.success = true;
     } catch (...) {
         out.success = false;

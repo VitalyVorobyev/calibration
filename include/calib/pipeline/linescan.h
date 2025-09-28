@@ -25,6 +25,10 @@ struct LinescanCalibrationRunResult final {
     LineScanCalibrationResult result;  ///< Fitted plane and stats
 };
 
+struct LinescanCalibrationOptions final {
+    LineScanPlaneFitOptions plane_fit;
+};
+
 /**
  * @brief Facade wrapping linear laser plane calibration for a single camera.
  *
@@ -35,7 +39,8 @@ struct LinescanCalibrationRunResult final {
 class LinescanCalibrationFacade final {
   public:
     [[nodiscard]] auto calibrate(const PinholeCamera<BrownConradyd>& camera,
-                                 const std::vector<LineScanView>& views) const
+                                 const std::vector<LineScanView>& views,
+                                 const LinescanCalibrationOptions& opts = {}) const
         -> LinescanCalibrationRunResult;
 };
 
