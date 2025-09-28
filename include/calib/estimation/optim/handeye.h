@@ -8,10 +8,6 @@
 
 #pragma once
 
-#include <algorithm>
-#include <cctype>
-#include <stdexcept>
-
 #include "calib/estimation/linear/handeye.h"
 #include "calib/estimation/optim/optimize.h"
 
@@ -71,54 +67,12 @@ auto estimate_and_optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se
                                    double min_angle_deg = 1.0, const HandeyeOptions& options = {})
     -> HandeyeResult;
 
-
 inline void to_json(nlohmann::json& j, const HandeyeOptions& o) {
-    j = {{"optimizer", o.optimizer},
-         {"huber_delta", o.huber_delta},
-         {"epsilon", o.epsilon},
-         {"max_iterations", o.max_iterations},
-         {"compute_covariance", o.compute_covariance},
-         {"verbose", o.verbose}};
+    to_json(j, static_cast<const OptimOptions&>(o));
 }
 
 inline void from_json(const nlohmann::json& j, HandeyeOptions& o) {
-    if (j.contains("optimizer")) {
-        const auto& opt = j.at("optimizer");
-        if (opt.is_string()) {
-            const auto original = opt.get<std::string>();
-            std::string normalized = original;
-            std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            const auto parsed = nlohmann::json(normalized).get<OptimizerType>();
-            const auto canonical = nlohmann::json(parsed).get<std::string>();
-            if (canonical != normalized) throw std::runtime_error("Unknown optimizer type: " + original);
-            o.optimizer = parsed;
-        } else if (opt.is_number_integer()) {
-            switch (opt.get<int>()) {
-                case 0:
-                    o.optimizer = OptimizerType::DEFAULT;
-                    break;
-                case 1:
-                    o.optimizer = OptimizerType::SPARSE_SCHUR;
-                    break;
-                case 2:
-                    o.optimizer = OptimizerType::DENSE_SCHUR;
-                    break;
-                case 3:
-                    o.optimizer = OptimizerType::DENSE_QR;
-                    break;
-                default:
-                    throw std::runtime_error("Unknown optimizer index");
-            }
-        } else {
-            throw std::runtime_error("Unsupported optimizer representation");
-        }
-    }
-    o.huber_delta = j.value("huber_delta", o.huber_delta);
-    o.epsilon = j.value("epsilon", o.epsilon);
-    o.max_iterations = j.value("max_iterations", o.max_iterations);
-    o.compute_covariance = j.value("compute_covariance", o.compute_covariance);
-    o.verbose = j.value("verbose", o.verbose);
+    from_json(j, static_cast<OptimOptions&>(o));
 }
 
 }  // namespace calib

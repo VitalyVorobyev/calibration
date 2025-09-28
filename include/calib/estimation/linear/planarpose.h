@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <stdexcept>
 #include <vector>
 
 // eigen
@@ -15,6 +16,8 @@
 #include "calib/io/serialization.h"
 #include "calib/models/camera_matrix.h"
 #include "calib/models/cameramodel.h"
+
+#include "calib/io/serialization.h"
 
 namespace calib {
 

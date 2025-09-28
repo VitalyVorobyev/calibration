@@ -1,14 +1,16 @@
 #pragma once
 
 // std
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 
 // Eigen
 #include <Eigen/Core>
 
-// nlohmann
-#include <nlohmann/json.hpp>
+#include "calib/io/serialization.h"  // to_json/from_json
 
 namespace calib {
 

@@ -3,8 +3,6 @@
 #include "calib/estimation/optim/homography.h"
 
 #include <CLI/CLI.hpp>
-#include <algorithm>
-#include <cctype>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -17,150 +15,12 @@
 
 using namespace calib;
 
-namespace {
-
-auto matrix_to_json(const Eigen::Matrix3d& mat) -> nlohmann::json {
-    nlohmann::json out = nlohmann::json::array();
-    for (int r = 0; r < mat.rows(); ++r) {
-        nlohmann::json row = nlohmann::json::array();
-        for (int c = 0; c < mat.cols(); ++c) {
-            row.push_back(mat(r, c));
-        }
-        out.push_back(std::move(row));
-    }
-    return out;
-}
-
-auto covariance_to_json(const Eigen::MatrixXd& cov) -> nlohmann::json {
-    if (cov.size() == 0) {
-        return nlohmann::json();
-    }
-    nlohmann::json out = nlohmann::json::array();
-    for (Eigen::Index r = 0; r < cov.rows(); ++r) {
-        nlohmann::json row = nlohmann::json::array();
-        for (Eigen::Index c = 0; c < cov.cols(); ++c) {
-            row.push_back(cov(r, c));
-        }
-        out.push_back(std::move(row));
-    }
-    return out;
-}
-
-auto parse_correspondences(const nlohmann::json& node) -> PlanarView {
-    if (!node.is_array() || node.size() < 4) {
-        throw std::runtime_error("'correspondences' must be an array with at least 4 entries");
-    }
-
-    PlanarView view;
-    view.reserve(node.size());
-    for (const auto& entry : node) {
-        PlanarObservation obs;
-
-        if (entry.contains("object") && entry.contains("image")) {
-            const auto& obj = entry.at("object");
-            const auto& img = entry.at("image");
-            if (!obj.is_array() || obj.size() != 2 || !img.is_array() || img.size() != 2) {
-                throw std::runtime_error("object/image must be 2-element arrays");
-            }
-            obs.object_xy = Eigen::Vector2d(obj[0].get<double>(), obj[1].get<double>());
-            obs.image_uv = Eigen::Vector2d(img[0].get<double>(), img[1].get<double>());
-        } else if (entry.is_array() && entry.size() == 4) {
-            obs.object_xy = Eigen::Vector2d(entry[0].get<double>(), entry[1].get<double>());
-            obs.image_uv = Eigen::Vector2d(entry[2].get<double>(), entry[3].get<double>());
-        } else {
-            throw std::runtime_error(
-                "Each correspondence must be object/image arrays or [x,y,u,v] tuple");
-        }
-
-        view.push_back(std::move(obs));
-    }
-    return view;
-}
-
-auto parse_ransac(const nlohmann::json& node) -> std::optional<RansacOptions> {
-    if (!node.is_object()) {
-        return std::nullopt;
-    }
-
-    RansacOptions opts;
-    if (node.contains("max_iters")) {
-        opts.max_iters = node.at("max_iters").get<int>();
-    }
-    if (node.contains("thresh")) {
-        opts.thresh = node.at("thresh").get<double>();
-    }
-    if (node.contains("min_inliers")) {
-        opts.min_inliers = node.at("min_inliers").get<int>();
-    }
-    if (node.contains("confidence")) {
-        opts.confidence = node.at("confidence").get<double>();
-    }
-    if (node.contains("seed")) {
-        opts.seed = node.at("seed").get<uint64_t>();
-    }
-    if (node.contains("refit_on_inliers")) {
-        opts.refit_on_inliers = node.at("refit_on_inliers").get<bool>();
-    } else if (node.contains("refit")) {
-        opts.refit_on_inliers = node.at("refit").get<bool>();
-    }
-    return opts;
-}
-
-void parse_homography_options(const nlohmann::json& node, HomographyOptions& opts) {
-    if (!node.is_object()) {
-        return;
-    }
-    if (node.contains("optimizer")) {
-        const auto& opt = node.at("optimizer");
-        if (opt.is_string()) {
-            const auto original = opt.get<std::string>();
-            std::string normalized = original;
-            std::transform(normalized.begin(), normalized.end(), normalized.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-            const auto parsed = nlohmann::json(normalized).get<OptimizerType>();
-            const auto canonical = nlohmann::json(parsed).get<std::string>();
-            if (canonical != normalized)
-                throw std::runtime_error("Unknown optimizer type: " + original);
-            opts.optimizer = parsed;
-        } else if (opt.is_number_integer()) {
-            switch (opt.get<int>()) {
-                case 0:
-                    opts.optimizer = OptimizerType::DEFAULT;
-                    break;
-                case 1:
-                    opts.optimizer = OptimizerType::SPARSE_SCHUR;
-                    break;
-                case 2:
-                    opts.optimizer = OptimizerType::DENSE_SCHUR;
-                    break;
-                case 3:
-                    opts.optimizer = OptimizerType::DENSE_QR;
-                    break;
-                default:
-                    throw std::runtime_error("Unknown optimizer index");
-            }
-        } else {
-            throw std::runtime_error("Unsupported optimizer representation");
-        }
-    }
-    if (node.contains("huber_delta")) {
-        opts.huber_delta = node.at("huber_delta").get<double>();
-    }
-    if (node.contains("epsilon")) {
-        opts.epsilon = node.at("epsilon").get<double>();
-    }
-    if (node.contains("max_iterations")) {
-        opts.max_iterations = node.at("max_iterations").get<int>();
-    }
-    if (node.contains("compute_covariance")) {
-        opts.compute_covariance = node.at("compute_covariance").get<bool>();
-    }
-    if (node.contains("verbose")) {
-        opts.verbose = node.at("verbose").get<bool>();
-    }
-}
-
-}  // namespace
+struct InputData final {
+    PlanarView correspondences;
+    std::optional<RansacOptions> ransac;
+    bool optimize{true};
+    HomographyOptions options;
+};
 
 int main(int argc, char** argv) {
     CLI::App app{"Homography estimation and refinement example"};
@@ -189,21 +49,19 @@ int main(int argc, char** argv) {
         input_stream >> input_json;
     }
 
-    PlanarView view = parse_correspondences(input_json.at("correspondences"));
+    PlanarView view = input_json.at("correspondences").get<PlanarView>();
 
     std::optional<RansacOptions> ransac_opts;
     if (input_json.contains("ransac")) {
-        ransac_opts = parse_ransac(input_json.at("ransac"));
+        ransac_opts = input_json.at("ransac").get<RansacOptions>();
     }
 
     bool run_refine = !disable_refine;
-    if (input_json.contains("optimize")) {
-        run_refine = input_json.at("optimize").get<bool>() && !disable_refine;
-    }
+    run_refine = input_json.value("optimize", run_refine) && !disable_refine;
 
     HomographyOptions optim_opts;
     if (input_json.contains("options")) {
-        parse_homography_options(input_json.at("options"), optim_opts);
+        optim_opts = input_json.at("options").get<HomographyOptions>();
     }
 
     auto initial = estimate_homography(view, ransac_opts);
@@ -217,7 +75,7 @@ int main(int argc, char** argv) {
     output["correspondence_count"] = view.size();
 
     nlohmann::json initial_json;
-    initial_json["homography"] = matrix_to_json(initial.hmtx);
+    initial_json["homography"] = initial.hmtx;
     initial_json["symmetric_rms_px"] = initial.symmetric_rms_px;
     if (!initial.inliers.empty()) {
         initial_json["inliers"] = initial.inliers;
@@ -229,12 +87,11 @@ int main(int argc, char** argv) {
         auto refined = optimize_homography(view, initial.hmtx, optim_opts);
         nlohmann::json refined_json;
         refined_json["success"] = refined.success;
-        refined_json["homography"] = matrix_to_json(refined.homography);
+        refined_json["homography"] = refined.homography;
         refined_json["final_cost"] = refined.final_cost;
         refined_json["report"] = refined.report;
-        nlohmann::json cov_json = covariance_to_json(refined.covariance);
-        if (!cov_json.is_null() && !cov_json.empty()) {
-            refined_json["covariance"] = std::move(cov_json);
+        if (refined.covariance.size() != 0) {
+            refined_json["covariance"] = refined.covariance;
         }
         output["optimized"] = std::move(refined_json);
     } else {

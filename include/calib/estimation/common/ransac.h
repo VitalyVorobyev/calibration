@@ -10,9 +10,12 @@
 #include <optional>
 #include <random>
 #include <span>
+#include <stdexcept>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
+
+#include "calib/io/serialization.h"  // to_json/from_json
 
 namespace calib {
 

@@ -18,4 +18,12 @@ struct OptimizeHomographyResult final : OptimResult {
 auto optimize_homography(const PlanarView& data, const Eigen::Matrix3d& init_h,
                          const HomographyOptions& options = {}) -> OptimizeHomographyResult;
 
+inline void to_json(nlohmann::json& j, const HomographyOptions& o) {
+    to_json(j, static_cast<const OptimOptions&>(o));
+}
+
+inline void from_json(const nlohmann::json& j, HomographyOptions& o) {
+    from_json(j, static_cast<OptimOptions&>(o));
+}
+
 }  // namespace calib
