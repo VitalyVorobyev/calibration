@@ -19,8 +19,8 @@ struct SensorDetectionsIndex final {
 const planar::CameraConfig* find_camera_config(const planar::PlanarCalibrationConfig& cfg,
                                                const std::string& camera_id);
 
-std::unordered_map<std::string, SensorDetectionsIndex>
-build_sensor_index(const std::vector<planar::PlanarDetections>& detections);
+std::unordered_map<std::string, SensorDetectionsIndex> build_sensor_index(
+    const std::vector<planar::PlanarDetections>& detections);
 
 PlanarView make_planar_view(const planar::PlanarImageDetections& detections,
                             const planar::CalibrationOutputs& outputs);
@@ -31,4 +31,3 @@ const HandEyeRigConfig* find_handeye_rig(const HandEyePipelineConfig& cfg,
                                          const std::string& rig_id);
 
 }  // namespace calib::pipeline::detail
-

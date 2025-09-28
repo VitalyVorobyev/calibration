@@ -35,7 +35,6 @@ auto optimize_intrinsics(const std::vector<PlanarView>& views, const CameraT& in
                          const IntrinsicsOptions& opts = {})
     -> IntrinsicsOptimizationResult<CameraT>;
 
-
 template <camera_model CameraT>
 inline void to_json(nlohmann::json& j, const IntrinsicsOptimizationResult<CameraT>& r) {
     j = {{"camera", r.camera},           {"poses", r.c_se3_t},         {"covariance", r.covariance},

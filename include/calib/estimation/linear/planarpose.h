@@ -17,8 +17,6 @@
 #include "calib/models/camera_matrix.h"
 #include "calib/models/cameramodel.h"
 
-#include "calib/io/serialization.h"
-
 namespace calib {
 
 struct PlanarObservation {

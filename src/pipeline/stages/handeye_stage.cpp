@@ -1,10 +1,9 @@
-#include "calib/pipeline/stages.h"
+#include <nlohmann/json.hpp>
 
 #include "calib/estimation/linear/handeye.h"
 #include "calib/pipeline/handeye.h"
+#include "calib/pipeline/stages.h"
 #include "stages/detail/planar_utils.h"
-
-#include <nlohmann/json.hpp>
 
 namespace calib::pipeline {
 
@@ -18,8 +17,8 @@ struct SensorAccumulators {
     std::vector<Eigen::Isometry3d> cam;
 };
 
-void ensure_artifact_slot(nlohmann::json& artifacts, const std::string& rig_id,
-                          double min_angle, const HandeyeOptions& opts) {
+void ensure_artifact_slot(nlohmann::json& artifacts, const std::string& rig_id, double min_angle,
+                          const HandeyeOptions& opts) {
     auto& rig_artifact = artifacts[rig_id];
     if (!rig_artifact.is_object()) {
         rig_artifact = nlohmann::json::object();
@@ -136,7 +135,7 @@ auto HandEyeCalibrationStage::run(PipelineContext& context) -> PipelineStageResu
                     continue;
                 }
 
-            const auto* image_det = det_it->second;
+                const auto* image_det = det_it->second;
                 auto planar_view = make_planar_view(*image_det, intrinsics.outputs);
                 view_json["points"] = planar_view.size();
 
@@ -157,7 +156,8 @@ auto HandEyeCalibrationStage::run(PipelineContext& context) -> PipelineStageResu
             sensor_json["views"] = view_reports;
 
             if (accum.cam.size() < 2U) {
-                sensor_json["status"] = accum.cam.empty() ? "no_observations" : "insufficient_observations";
+                sensor_json["status"] =
+                    accum.cam.empty() ? "no_observations" : "insufficient_observations";
                 rig_success = false;
                 sensors_json.push_back(sensor_json);
                 sensors_artifact[sensor_id] = sensor_json;
@@ -165,8 +165,8 @@ auto HandEyeCalibrationStage::run(PipelineContext& context) -> PipelineStageResu
             }
 
             try {
-                auto he_result = estimate_and_optimize_handeye(accum.base, accum.cam, rig.min_angle_deg,
-                                                               rig.options);
+                auto he_result = estimate_and_optimize_handeye(accum.base, accum.cam,
+                                                               rig.min_angle_deg, rig.options);
                 sensor_json["status"] = he_result.success ? "ok" : "optimization_failed";
                 sensor_json["success"] = he_result.success;
                 sensor_json["final_cost"] = he_result.final_cost;

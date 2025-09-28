@@ -13,6 +13,9 @@
 
 #include "calib/io/serialization.h"
 
+using calib::from_json;
+using calib::to_json;
+
 using namespace calib;
 
 struct InputData final {
@@ -20,6 +23,13 @@ struct InputData final {
     std::optional<RansacOptions> ransac;
     bool optimize{true};
     HomographyOptions options;
+};
+
+struct OutputData final {
+    bool success{false};
+    int correspondence_count{0};
+    HomographyResult estimated;
+    std::optional<OptimizeHomographyResult> optimized;
 };
 
 int main(int argc, char** argv) {
@@ -48,74 +58,35 @@ int main(int argc, char** argv) {
         }
         input_stream >> input_json;
     }
+    const InputData input_data = input_json;
+    const bool run_refine = !disable_refine && input_data.optimize;
 
-    PlanarView view = input_json.at("correspondences").get<PlanarView>();
-
-    std::optional<RansacOptions> ransac_opts;
-    if (input_json.contains("ransac")) {
-        ransac_opts = input_json.at("ransac").get<RansacOptions>();
-    }
-
-    bool run_refine = !disable_refine;
-    run_refine = input_json.value("optimize", run_refine) && !disable_refine;
-
-    HomographyOptions optim_opts;
-    if (input_json.contains("options")) {
-        optim_opts = input_json.at("options").get<HomographyOptions>();
-    }
-
-    auto initial = estimate_homography(view, ransac_opts);
+    auto initial = estimate_homography(input_data.correspondences, input_data.ransac);
     if (!initial.success) {
         std::cerr << "Failed to estimate homography";
         return 1;
     }
 
-    nlohmann::json output;
-    output["success"] = true;
-    output["correspondence_count"] = view.size();
-
-    nlohmann::json initial_json;
-    initial_json["homography"] = initial.hmtx;
-    initial_json["symmetric_rms_px"] = initial.symmetric_rms_px;
-    if (!initial.inliers.empty()) {
-        initial_json["inliers"] = initial.inliers;
-        initial_json["inlier_count"] = initial.inliers.size();
-    }
-    output["initial"] = std::move(initial_json);
+    OutputData output_data;
+    output_data.success = true;
+    output_data.correspondence_count = input_data.correspondences.size();
+    output_data.estimated = std::move(initial);
 
     if (run_refine) {
-        auto refined = optimize_homography(view, initial.hmtx, optim_opts);
-        nlohmann::json refined_json;
-        refined_json["success"] = refined.success;
-        refined_json["homography"] = refined.homography;
-        refined_json["final_cost"] = refined.final_cost;
-        refined_json["report"] = refined.report;
-        if (refined.covariance.size() != 0) {
-            refined_json["covariance"] = refined.covariance;
-        }
-        output["optimized"] = std::move(refined_json);
-    } else {
-        output["optimized"] = nullptr;
+        auto refined =
+            optimize_homography(input_data.correspondences, initial.hmtx, input_data.options);
+        output_data.optimized = std::move(refined);
     }
 
-    auto dump_json = [&](std::ostream& os) {
-        if (pretty) {
-            os << output.dump(2) << '\n';
-        } else {
-            os << output.dump() << '\n';
-        }
-    };
-
+    nlohmann::json output_json = output_data;
     if (!output_path.empty()) {
         std::ofstream out_stream(output_path);
         if (!out_stream) {
             std::cerr << "Failed to open output file: " << output_path << "\n";
             return 1;
         }
-        dump_json(out_stream);
+        out_stream << output_json.dump(pretty ? 2 : -1) << '\n';
     } else {
-        dump_json(std::cout);
+        std::cout << output_json.dump(pretty ? 2 : -1) << '\n';
     }
-
-    return 0;
 }

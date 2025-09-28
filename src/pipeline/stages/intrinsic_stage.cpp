@@ -1,9 +1,8 @@
-#include "calib/pipeline/stages.h"
+#include <nlohmann/json.hpp>
 
 #include "calib/pipeline/planar_intrinsics.h"
+#include "calib/pipeline/stages.h"
 #include "stages/detail/planar_utils.h"
-
-#include <nlohmann/json.hpp>
 
 namespace calib::pipeline {
 
@@ -44,8 +43,8 @@ SensorCalibrationResult calibrate_sensor(const planar::PlanarIntrinsicCalibratio
         result.success = true;
         result.summary = std::move(entry);
     } catch (const std::exception& ex) {
-        result.summary =
-            nlohmann::json{{"sensor_id", sensor_id}, {"status", "calibration_failed"}, {"error", ex.what()}};
+        result.summary = nlohmann::json{
+            {"sensor_id", sensor_id}, {"status", "calibration_failed"}, {"error", ex.what()}};
     }
     return result;
 }

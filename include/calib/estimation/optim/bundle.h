@@ -62,7 +62,6 @@ auto optimize_bundle(const std::vector<BundleObservation>& observations,
                      const Eigen::Isometry3d& init_b_se3_t, const BundleOptions& opts = {})
     -> BundleResult<CameraT>;
 
-
 inline void to_json(nlohmann::json& j, const BundleOptions& o) {
     j = {{"optimize_intrinsics", o.optimize_intrinsics},
          {"optimize_skew", o.optimize_skew},

@@ -1,10 +1,9 @@
-#include "calib/pipeline/stages.h"
+#include <nlohmann/json.hpp>
 
 #include "calib/estimation/linear/handeye.h"
 #include "calib/pipeline/handeye.h"
+#include "calib/pipeline/stages.h"
 #include "stages/detail/planar_utils.h"
-
-#include <nlohmann/json.hpp>
 
 namespace calib::pipeline {
 
@@ -160,7 +159,8 @@ auto BundleAdjustmentStage::run(PipelineContext& context) -> PipelineStageResult
                     continue;
                 }
 
-                const auto image_lookup_it = det_index_it->second.image_lookup.find(image_it->second);
+                const auto image_lookup_it =
+                    det_index_it->second.image_lookup.find(image_it->second);
                 if (image_lookup_it == det_index_it->second.image_lookup.end()) {
                     sensor_entry["status"] = "image_not_in_dataset";
                     sensor_entry["image"] = image_it->second;
@@ -214,7 +214,8 @@ auto BundleAdjustmentStage::run(PipelineContext& context) -> PipelineStageResult
             continue;
         }
 
-        std::vector<Eigen::Isometry3d> init_g_se3_c(rig.sensors.size(), Eigen::Isometry3d::Identity());
+        std::vector<Eigen::Isometry3d> init_g_se3_c(rig.sensors.size(),
+                                                    Eigen::Isometry3d::Identity());
         nlohmann::json handeye_init = nlohmann::json::array();
         const auto rig_handeye_it = context.handeye_results.find(rig.rig_id);
         bool init_failure = false;
@@ -239,8 +240,8 @@ auto BundleAdjustmentStage::run(PipelineContext& context) -> PipelineStageResult
 
             if (accumulators[idx].cam.size() >= 2U) {
                 try {
-                    init_g_se3_c[idx] =
-                        estimate_handeye_dlt(accumulators[idx].base, accumulators[idx].cam, rig.min_angle_deg);
+                    init_g_se3_c[idx] = estimate_handeye_dlt(
+                        accumulators[idx].base, accumulators[idx].cam, rig.min_angle_deg);
                     init_entry["source"] = "dlt";
                     init_entry["success"] = true;
                 } catch (const std::exception& ex) {

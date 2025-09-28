@@ -8,17 +8,16 @@ namespace calib::pipeline::detail {
 
 const planar::CameraConfig* find_camera_config(const planar::PlanarCalibrationConfig& cfg,
                                                const std::string& camera_id) {
-    const auto it = std::find_if(cfg.cameras.begin(), cfg.cameras.end(),
-                                 [&](const planar::CameraConfig& cam) {
-                                     return cam.camera_id == camera_id;
-                                 });
+    const auto it =
+        std::find_if(cfg.cameras.begin(), cfg.cameras.end(),
+                     [&](const planar::CameraConfig& cam) { return cam.camera_id == camera_id; });
     return it == cfg.cameras.end() ? nullptr : &(*it);
 }
 
 namespace {
 
-std::unordered_map<std::string, const planar::PlanarImageDetections*>
-build_point_lookup(const planar::PlanarDetections& detections) {
+std::unordered_map<std::string, const planar::PlanarImageDetections*> build_point_lookup(
+    const planar::PlanarDetections& detections) {
     std::unordered_map<std::string, const planar::PlanarImageDetections*> lookup;
     for (const auto& image : detections.images) {
         lookup.emplace(image.file, &image);
@@ -28,8 +27,8 @@ build_point_lookup(const planar::PlanarDetections& detections) {
 
 }  // namespace
 
-std::unordered_map<std::string, SensorDetectionsIndex>
-build_sensor_index(const std::vector<planar::PlanarDetections>& detections) {
+std::unordered_map<std::string, SensorDetectionsIndex> build_sensor_index(
+    const std::vector<planar::PlanarDetections>& detections) {
     std::unordered_map<std::string, SensorDetectionsIndex> index;
     for (const auto& det : detections) {
         if (det.sensor_id.empty()) {
@@ -49,8 +48,9 @@ PlanarView make_planar_view(const planar::PlanarImageDetections& detections,
     view.reserve(detections.points.size());
     for (const auto& point : detections.points) {
         PlanarObservation obs;
-        obs.object_xy = Eigen::Vector2d((point.local_x - outputs.point_center[0]) * outputs.point_scale,
-                                        (point.local_y - outputs.point_center[1]) * outputs.point_scale);
+        obs.object_xy =
+            Eigen::Vector2d((point.local_x - outputs.point_center[0]) * outputs.point_scale,
+                            (point.local_y - outputs.point_center[1]) * outputs.point_scale);
         obs.image_uv = Eigen::Vector2d(point.x, point.y);
         view.push_back(std::move(obs));
     }

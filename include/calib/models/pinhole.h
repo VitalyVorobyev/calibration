@@ -175,5 +175,4 @@ inline void from_json(const nlohmann::json& j, PinholeCamera<DistortionT>& cam) 
     if (j.contains("distortion")) j.at("distortion").get_to(cam.distortion);
 }
 
-
 }  // namespace calib

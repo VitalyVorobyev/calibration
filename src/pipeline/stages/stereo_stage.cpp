@@ -1,9 +1,8 @@
-#include "calib/pipeline/stages.h"
+#include <nlohmann/json.hpp>
 
 #include "calib/pipeline/extrinsics.h"
+#include "calib/pipeline/stages.h"
 #include "stages/detail/planar_utils.h"
-
-#include <nlohmann/json.hpp>
 
 namespace calib::pipeline {
 
@@ -11,8 +10,8 @@ namespace {
 
 using detail::build_sensor_index;
 
-std::unordered_map<std::string, const planar::PlanarDetections*>
-build_detection_lookup(const std::vector<planar::PlanarDetections>& detections) {
+std::unordered_map<std::string, const planar::PlanarDetections*> build_detection_lookup(
+    const std::vector<planar::PlanarDetections>& detections) {
     std::unordered_map<std::string, const planar::PlanarDetections*> lookup;
     for (const auto& det : detections) {
         if (!det.sensor_id.empty()) {
@@ -88,8 +87,10 @@ auto StereoCalibrationStage::run(PipelineContext& context) -> PipelineStageResul
         if (ref_intr_it == context.intrinsic_results.end() ||
             tgt_intr_it == context.intrinsic_results.end()) {
             std::vector<std::string> missing;
-            if (ref_intr_it == context.intrinsic_results.end()) missing.push_back(pair_cfg.reference_sensor);
-            if (tgt_intr_it == context.intrinsic_results.end()) missing.push_back(pair_cfg.target_sensor);
+            if (ref_intr_it == context.intrinsic_results.end())
+                missing.push_back(pair_cfg.reference_sensor);
+            if (tgt_intr_it == context.intrinsic_results.end())
+                missing.push_back(pair_cfg.target_sensor);
             pair_json["status"] = "missing_intrinsics";
             pair_json["missing"] = build_missing_list(missing);
             pair_json["success"] = false;
@@ -102,7 +103,8 @@ auto StereoCalibrationStage::run(PipelineContext& context) -> PipelineStageResul
         const auto tgt_det_it = detections_by_sensor.find(pair_cfg.target_sensor);
         if (ref_det_it == detections_by_sensor.end() || tgt_det_it == detections_by_sensor.end()) {
             std::vector<std::string> missing;
-            if (ref_det_it == detections_by_sensor.end()) missing.push_back(pair_cfg.reference_sensor);
+            if (ref_det_it == detections_by_sensor.end())
+                missing.push_back(pair_cfg.reference_sensor);
             if (tgt_det_it == detections_by_sensor.end()) missing.push_back(pair_cfg.target_sensor);
             pair_json["status"] = "missing_detections";
             pair_json["missing"] = build_missing_list(missing);

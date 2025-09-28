@@ -31,7 +31,6 @@ auto optimize_extrinsics(const std::vector<MulticamPlanarView>& views,
                          const std::vector<Eigen::Isometry3d>& init_r_se3_t,
                          const ExtrinsicOptions& opts = {}) -> ExtrinsicOptimizationResult<CameraT>;
 
-
 inline void to_json(nlohmann::json& j, const ExtrinsicOptions& o) {
     j = {{"optimize_intrinsics", o.optimize_intrinsics},
          {"optimize_skew", o.optimize_skew},

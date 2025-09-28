@@ -14,13 +14,12 @@
 
 namespace calib {
 
-enum class OptimizerType : uint8_t { DEFAULT, SPARSE_SCHUR, DENSE_SCHUR, DENSE_QR };
+enum class OptimizerType { DEFAULT, SPARSE_SCHUR, DENSE_SCHUR, DENSE_QR };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(OptimizerType,
-                             {{OptimizerType::DEFAULT, "default"},
-                              {OptimizerType::SPARSE_SCHUR, "sparse_schur"},
-                              {OptimizerType::DENSE_SCHUR, "dense_schur"},
-                              {OptimizerType::DENSE_QR, "dense_qr"}})
+NLOHMANN_JSON_SERIALIZE_ENUM(OptimizerType, {{OptimizerType::DEFAULT, "default"},
+                                             {OptimizerType::SPARSE_SCHUR, "sparse_schur"},
+                                             {OptimizerType::DENSE_SCHUR, "dense_schur"},
+                                             {OptimizerType::DENSE_QR, "dense_qr"}})
 
 struct OptimOptions {
     OptimizerType optimizer = OptimizerType::DEFAULT;
