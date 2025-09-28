@@ -113,8 +113,26 @@ TEST(IntrinsicStageTest, CapturesCalibrationFailure) {
     EXPECT_TRUE(context.intrinsic_results.empty());
 }
 
+TEST(StereoCalibrationStageTest, MissingConfigFails) {
+    PipelineContext context;
+    context.intrinsic_results.emplace("cam0", planar::CalibrationRunResult{});
+
+    StereoCalibrationStage stage;
+    const auto result = stage.run(context);
+
+    EXPECT_FALSE(result.success);
+    EXPECT_EQ(result.summary.at("status"), "missing_config");
+}
+
 TEST(StereoCalibrationStageTest, WaitsForMultipleIntrinsicResults) {
     PipelineContext context;
+    StereoCalibrationConfig cfg;
+    StereoPairConfig pair;
+    pair.reference_sensor = "cam0";
+    pair.target_sensor = "cam1";
+    pair.views.push_back({"ref.json", "tgt.json"});
+    cfg.pairs.push_back(pair);
+    context.set_stereo_config(cfg);
     context.intrinsic_results.emplace("cam0", planar::CalibrationRunResult{});
 
     StereoCalibrationStage stage;
@@ -125,18 +143,6 @@ TEST(StereoCalibrationStageTest, WaitsForMultipleIntrinsicResults) {
     EXPECT_EQ(result.summary.at("input_cameras").get<std::size_t>(), 1U);
     EXPECT_EQ(result.summary.at("status").get<std::string>(),
               "waiting_for_multiple_intrinsic_results");
-}
-
-TEST(StereoCalibrationStageTest, ReturnsPlaceholderWhenReady) {
-    PipelineContext context;
-    context.intrinsic_results.emplace("cam0", planar::CalibrationRunResult{});
-    context.intrinsic_results.emplace("cam1", planar::CalibrationRunResult{});
-
-    StereoCalibrationStage stage;
-    const auto result = stage.run(context);
-
-    EXPECT_TRUE(result.success);
-    EXPECT_EQ(result.summary.at("status").get<std::string>(), "not_implemented");
 }
 
 TEST(HandEyeCalibrationStageTest, WaitsForIntrinsicResults) {

@@ -7,8 +7,8 @@
 // eigen
 #include <Eigen/Geometry>
 
-#include "calib/estimation/intrinsics.h"
-#include "calib/estimation/planarpose.h"
+#include "calib/estimation/optim/intrinsics.h"
+#include "calib/estimation/optim/planarpose.h"
 
 using namespace calib;
 

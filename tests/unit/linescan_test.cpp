@@ -1,9 +1,11 @@
-#include "calib/estimation/linescan.h"
+#include "calib/estimation/linear/linescan.h"
 
 #include <gtest/gtest.h>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+
+#include "calib/models/pinhole.h"
 
 using namespace calib;
 

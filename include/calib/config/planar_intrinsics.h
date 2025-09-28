@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-#include "calib/estimation/optimize.h"
+#include "calib/estimation/optim/optimize.h"
 
 namespace calib::planar {
 

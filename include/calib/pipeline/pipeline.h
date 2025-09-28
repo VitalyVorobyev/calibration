@@ -10,7 +10,9 @@
 // third-party
 #include <nlohmann/json.hpp>
 
+#include "calib/estimation/optim/extrinsics.h"
 #include "calib/pipeline/dataset.h"
+#include "calib/pipeline/extrinsics.h"
 #include "calib/pipeline/planar_intrinsics.h"
 
 namespace calib::pipeline {
@@ -30,22 +32,31 @@ class CalibrationStage;
 class StageDecorator;
 class DatasetLoader;
 
-class PipelineContext {
+class PipelineContext final {
+    planar::PlanarCalibrationConfig intrinsics_config_;
+    bool has_intrinsics_config_{false};
+    StereoCalibrationConfig stereo_config_;
+    bool has_stereo_config_{false};
+
   public:
     CalibrationDataset dataset;
     std::unordered_map<std::string, planar::CalibrationRunResult> intrinsic_results;
+    std::unordered_map<std::string, ExtrinsicOptimizationResult<PinholeCamera<BrownConradyd>>>
+        stereo_results;
     nlohmann::json artifacts;
 
     void set_intrinsics_config(planar::PlanarCalibrationConfig cfg);
+    void set_stereo_config(StereoCalibrationConfig cfg);
     [[nodiscard]] auto has_intrinsics_config() const -> bool { return has_intrinsics_config_; }
     [[nodiscard]] auto intrinsics_config() const -> const planar::PlanarCalibrationConfig& {
         return intrinsics_config_;
     }
     auto intrinsics_config() -> planar::PlanarCalibrationConfig& { return intrinsics_config_; }
-
-  private:
-    planar::PlanarCalibrationConfig intrinsics_config_;
-    bool has_intrinsics_config_{false};
+    [[nodiscard]] auto has_stereo_config() const -> bool { return has_stereo_config_; }
+    [[nodiscard]] auto stereo_config() const -> const StereoCalibrationConfig& {
+        return stereo_config_;
+    }
+    auto stereo_config() -> StereoCalibrationConfig& { return stereo_config_; }
 };
 
 class CalibrationStage {
@@ -69,7 +80,7 @@ class DatasetLoader {
     [[nodiscard]] virtual auto load() -> CalibrationDataset = 0;
 };
 
-class CalibrationPipeline {
+class CalibrationPipeline final {
   public:
     void add_stage(std::unique_ptr<CalibrationStage> stage);
     void add_decorator(std::shared_ptr<StageDecorator> decorator);
