@@ -3,6 +3,8 @@
 #include "calib/estimation/optim/homography.h"
 
 #include <CLI/CLI.hpp>
+#include <algorithm>
+#include <cctype>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
@@ -111,9 +113,34 @@ void parse_homography_options(const nlohmann::json& node, HomographyOptions& opt
     if (node.contains("optimizer")) {
         const auto& opt = node.at("optimizer");
         if (opt.is_string()) {
-            opts.optimizer = optimizer_type_from_string(opt.get<std::string>());
+            const auto original = opt.get<std::string>();
+            std::string normalized = original;
+            std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            const auto parsed = nlohmann::json(normalized).get<OptimizerType>();
+            const auto canonical = nlohmann::json(parsed).get<std::string>();
+            if (canonical != normalized)
+                throw std::runtime_error("Unknown optimizer type: " + original);
+            opts.optimizer = parsed;
         } else if (opt.is_number_integer()) {
-            opts.optimizer = static_cast<OptimizerType>(opt.get<int>());
+            switch (opt.get<int>()) {
+                case 0:
+                    opts.optimizer = OptimizerType::DEFAULT;
+                    break;
+                case 1:
+                    opts.optimizer = OptimizerType::SPARSE_SCHUR;
+                    break;
+                case 2:
+                    opts.optimizer = OptimizerType::DENSE_SCHUR;
+                    break;
+                case 3:
+                    opts.optimizer = OptimizerType::DENSE_QR;
+                    break;
+                default:
+                    throw std::runtime_error("Unknown optimizer index");
+            }
+        } else {
+            throw std::runtime_error("Unsupported optimizer representation");
         }
     }
     if (node.contains("huber_delta")) {

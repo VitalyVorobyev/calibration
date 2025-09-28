@@ -7,34 +7,18 @@
 // Eigen
 #include <Eigen/Core>
 
+// nlohmann
+#include <nlohmann/json.hpp>
+
 namespace calib {
 
 enum class OptimizerType : uint8_t { DEFAULT, SPARSE_SCHUR, DENSE_SCHUR, DENSE_QR };
 
-// TODO: use nlohmann macros for enum serialization
-inline auto optimizer_type_to_string(OptimizerType type) -> std::string {
-    switch (type) {
-        case OptimizerType::DEFAULT:
-            return "default";
-        case OptimizerType::SPARSE_SCHUR:
-            return "sparse_schur";
-        case OptimizerType::DENSE_SCHUR:
-            return "dense_schur";
-        case OptimizerType::DENSE_QR:
-            return "dense_qr";
-    }
-    return "default";
-}
-
-inline auto optimizer_type_from_string(std::string value) -> OptimizerType {
-    std::transform(value.begin(), value.end(), value.begin(),
-                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    if (value == "default") return OptimizerType::DEFAULT;
-    if (value == "sparse_schur") return OptimizerType::SPARSE_SCHUR;
-    if (value == "dense_schur") return OptimizerType::DENSE_SCHUR;
-    if (value == "dense_qr") return OptimizerType::DENSE_QR;
-    throw std::runtime_error("Unknown optimizer type: " + value);
-}
+NLOHMANN_JSON_SERIALIZE_ENUM(OptimizerType,
+                             {{OptimizerType::DEFAULT, "default"},
+                              {OptimizerType::SPARSE_SCHUR, "sparse_schur"},
+                              {OptimizerType::DENSE_SCHUR, "dense_schur"},
+                              {OptimizerType::DENSE_QR, "dense_qr"}})
 
 struct OptimOptions {
     OptimizerType optimizer = OptimizerType::DEFAULT;

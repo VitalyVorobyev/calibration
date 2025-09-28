@@ -8,6 +8,10 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cctype>
+#include <stdexcept>
+
 #include "calib/estimation/linear/handeye.h"
 #include "calib/estimation/optim/optimize.h"
 
@@ -69,7 +73,7 @@ auto estimate_and_optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se
 
 
 inline void to_json(nlohmann::json& j, const HandeyeOptions& o) {
-    j = {{"optimizer", optimizer_type_to_string(o.optimizer)},
+    j = {{"optimizer", o.optimizer},
          {"huber_delta", o.huber_delta},
          {"epsilon", o.epsilon},
          {"max_iterations", o.max_iterations},
@@ -81,8 +85,15 @@ inline void from_json(const nlohmann::json& j, HandeyeOptions& o) {
     if (j.contains("optimizer")) {
         const auto& opt = j.at("optimizer");
         if (opt.is_string()) {
-            o.optimizer = optimizer_type_from_string(opt.get<std::string>());
-        } else {
+            const auto original = opt.get<std::string>();
+            std::string normalized = original;
+            std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            const auto parsed = nlohmann::json(normalized).get<OptimizerType>();
+            const auto canonical = nlohmann::json(parsed).get<std::string>();
+            if (canonical != normalized) throw std::runtime_error("Unknown optimizer type: " + original);
+            o.optimizer = parsed;
+        } else if (opt.is_number_integer()) {
             switch (opt.get<int>()) {
                 case 0:
                     o.optimizer = OptimizerType::DEFAULT;
@@ -99,6 +110,8 @@ inline void from_json(const nlohmann::json& j, HandeyeOptions& o) {
                 default:
                     throw std::runtime_error("Unknown optimizer index");
             }
+        } else {
+            throw std::runtime_error("Unsupported optimizer representation");
         }
     }
     o.huber_delta = j.value("huber_delta", o.huber_delta);
