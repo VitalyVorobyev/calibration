@@ -52,8 +52,10 @@ int main(int argc, char** argv) {
                     auto& opts = options.plane_fit.ransac_options;
                     if (ro.contains("max_iters")) opts.max_iters = ro.at("max_iters").get<int>();
                     if (ro.contains("thresh")) opts.thresh = ro.at("thresh").get<double>();
-                    if (ro.contains("min_inliers")) opts.min_inliers = ro.at("min_inliers").get<int>();
-                    if (ro.contains("confidence")) opts.confidence = ro.at("confidence").get<double>();
+                    if (ro.contains("min_inliers"))
+                        opts.min_inliers = ro.at("min_inliers").get<int>();
+                    if (ro.contains("confidence"))
+                        opts.confidence = ro.at("confidence").get<double>();
                     if (ro.contains("seed")) opts.seed = ro.at("seed").get<uint64_t>();
                     if (ro.contains("refit_on_inliers")) {
                         opts.refit_on_inliers = ro.at("refit_on_inliers").get<bool>();

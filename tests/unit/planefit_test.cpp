@@ -1,8 +1,8 @@
+#include "calib/estimation/linear/planefit.h"
+
 #include <gtest/gtest.h>
 
 #include <random>
-
-#include "calib/estimation/linear/planefit.h"
 
 using namespace calib;
 

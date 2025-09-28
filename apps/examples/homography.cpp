@@ -1,16 +1,16 @@
 // Homography estimation & refinement example with JSON I/O
 
+#include "calib/estimation/optim/homography.h"
+
 #include <CLI/CLI.hpp>
 #include <cstdint>
 #include <fstream>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <stdexcept>
 #include <utility>
 
-#include <nlohmann/json.hpp>
-
-#include "calib/estimation/optim/homography.h"
 #include "calib/io/serialization.h"
 
 using namespace calib;

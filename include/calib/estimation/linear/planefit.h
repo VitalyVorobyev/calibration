@@ -18,7 +18,7 @@ struct PlaneRansacResult final {
     double inlier_rms{std::numeric_limits<double>::infinity()};
 };
 
-auto fit_plane_ransac(const std::vector<Eigen::Vector3d>& pts,
-                      const RansacOptions& opts = {}) -> PlaneRansacResult;
+auto fit_plane_ransac(const std::vector<Eigen::Vector3d>& pts, const RansacOptions& opts = {})
+    -> PlaneRansacResult;
 
 }  // namespace calib

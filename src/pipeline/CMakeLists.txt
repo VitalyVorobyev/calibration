@@ -5,6 +5,7 @@ set(SOURCES
     planar_intrinsics.cpp
     extrinsics.cpp
     linescan.cpp
+    handeye.cpp
 )
 
 add_library(calib_pipeline STATIC ${SOURCES})
