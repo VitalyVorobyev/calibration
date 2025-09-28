@@ -5,7 +5,7 @@
 // std
 #include <iostream>
 
-#include "calib/estimation/homography.h"
+#include "calib/estimation/optim/homography.h"
 
 using Vec2 = Eigen::Vector2d;
 using Mat3 = Eigen::Matrix3d;

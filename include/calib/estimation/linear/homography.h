@@ -7,8 +7,8 @@
 #include <optional>
 #include <vector>
 
+#include "calib/estimation/common/ransac.h"      // RansacOptions
 #include "calib/estimation/linear/planarpose.h"  // PlanarView
-#include "calib/estimation/ransac.h"             // RansacOptions
 
 namespace calib {
 

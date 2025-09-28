@@ -5,7 +5,7 @@
 #include <Eigen/Geometry>
 
 #include "calib/estimation/linear/planarpose.h"  // PlanarView and pose helpers
-#include "calib/estimation/optimize.h"
+#include "calib/estimation/optim/optimize.h"
 
 namespace calib {
 

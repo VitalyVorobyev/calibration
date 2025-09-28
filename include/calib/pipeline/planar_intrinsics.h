@@ -9,11 +9,10 @@
 #include <utility>
 #include <vector>
 
-#include "calib/config/planar_intrinsics.h"
 #include "calib/datasets/planar.h"
-#include "calib/estimation/intrinsics.h"
-#include "calib/estimation/planarpose.h"
-#include "calib/estimation/ransac.h"
+#include "calib/estimation/common/ransac.h"
+#include "calib/estimation/linear/planarpose.h"
+#include "calib/estimation/optim/intrinsics.h"
 #include "calib/models/pinhole.h"
 #include "calib/reports/planar_intrinsics_types.h"
 

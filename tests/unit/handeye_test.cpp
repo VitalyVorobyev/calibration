@@ -4,7 +4,7 @@
 // std
 #include <iostream>
 
-#include "calib/estimation/handeye.h"
+#include "calib/estimation/optim/handeye.h"
 #include "utils.h"
 
 using namespace calib;

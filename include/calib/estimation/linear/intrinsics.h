@@ -6,9 +6,10 @@
 #include <optional>
 #include <vector>
 
-#include "calib/estimation/homography.h"  // HomographyResult
-#include "calib/estimation/planarpose.h"  // PlanarObservation/View
-#include "calib/estimation/ransac.h"      // RansacOptions
+#include "calib/estimation/common/intrinsics_utils.h"
+#include "calib/estimation/common/ransac.h"      // RansacOptions
+#include "calib/estimation/linear/homography.h"  // HomographyResult
+#include "calib/estimation/linear/planarpose.h"  // PlanarObservation/View
 #include "calib/models/cameramodel.h"
 #include "calib/models/distortion.h"
 #include "calib/models/pinhole.h"

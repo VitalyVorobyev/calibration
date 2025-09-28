@@ -7,9 +7,13 @@
 #include <vector>
 
 #include "calib/config/planar_intrinsics.h"
+#include "calib/io/json.h"
 #include "calib/models/camera_matrix.h"
 
 namespace calib::planar {
+
+using calib::from_json;
+using calib::to_json;
 
 struct SessionReport {
     std::string id;
@@ -80,20 +84,11 @@ struct PlanarIntrinsicsReport final {
     std::vector<CalibrationReport> calibrations;
 };
 
-void to_json(nlohmann::json& json, const SessionReport& report);
-void from_json(const nlohmann::json& json, SessionReport& report);
-
 void to_json(nlohmann::json& json, const PlanarIntrinsicsOptionsReport& report);
 void from_json(const nlohmann::json& json, PlanarIntrinsicsOptionsReport& report);
 
-void to_json(nlohmann::json& json, const InitialGuessWarningCounts& report);
-void from_json(const nlohmann::json& json, InitialGuessWarningCounts& report);
-
 void to_json(nlohmann::json& json, const InitialGuessReport& report);
 void from_json(const nlohmann::json& json, InitialGuessReport& report);
-
-void to_json(nlohmann::json& json, const PlanarViewReport& report);
-void from_json(const nlohmann::json& json, PlanarViewReport& report);
 
 void to_json(nlohmann::json& json, const IntrinsicsResultReport& report);
 void from_json(const nlohmann::json& json, IntrinsicsResultReport& report);
@@ -103,8 +98,5 @@ void from_json(const nlohmann::json& json, CameraReport& report);
 
 void to_json(nlohmann::json& json, const CalibrationReport& report);
 void from_json(const nlohmann::json& json, CalibrationReport& report);
-
-void to_json(nlohmann::json& json, const PlanarIntrinsicsReport& report);
-void from_json(const nlohmann::json& json, PlanarIntrinsicsReport& report);
 
 }  // namespace calib::planar

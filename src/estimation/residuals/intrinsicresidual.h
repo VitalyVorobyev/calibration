@@ -6,7 +6,7 @@
 #include <ceres/ceres.h>
 
 #include "../detail/observationutils.h"
-#include "calib/estimation/planarpose.h"
+#include "calib/estimation/linear/planarpose.h"
 #include "calib/models/cameramodel.h"
 
 namespace calib {

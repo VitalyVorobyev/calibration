@@ -10,7 +10,7 @@
 #include <ceres/ceres.h>
 
 #include "../detail/observationutils.h"
-#include "calib/estimation/planarpose.h"
+#include "calib/estimation/linear/planarpose.h"
 #include "calib/models/distortion.h"
 
 namespace calib {

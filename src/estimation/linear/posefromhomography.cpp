@@ -1,11 +1,11 @@
-#include "calib/estimation/posefromhomography.h"
+#include "calib/estimation/linear/posefromhomography.h"
 
 // std
+#include <calib/estimation/common/se3_utils.h>
+
 #include <cmath>
 #include <iostream>
 #include <limits>
-
-#include "../common/se3_utils.h"  // for project_to_so3
 
 namespace calib {
 

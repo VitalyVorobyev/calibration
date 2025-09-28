@@ -1,7 +1,8 @@
 add_library(calib_estimation_common INTERFACE)
 
 target_include_directories(calib_estimation_common INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../detail>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../residuals>)
 
