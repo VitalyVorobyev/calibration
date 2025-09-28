@@ -32,10 +32,6 @@ endif()
 
 add_subdirectory(src)
 
-if (CALIB_BUILD_APPS)
-    add_subdirectory(apps/cli)
-endif()
-
 if (CALIB_BUILD_EXAMPLES)
     add_subdirectory(apps/examples)
 endif()

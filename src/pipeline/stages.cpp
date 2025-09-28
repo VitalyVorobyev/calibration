@@ -771,7 +771,7 @@ auto BundleAdjustmentStage::run(PipelineContext& context) -> PipelineStageResult
                 for (std::size_t obs_idx = 0; obs_idx < acc.base.size(); ++obs_idx) {
                     const auto& base_pose = acc.base[obs_idx];
                     const auto& cam_pose = acc.cam[obs_idx];
-                    target_candidates.push_back(base_pose * g_pose * cam_pose.inverse());
+                    target_candidates.push_back(base_pose * g_pose * cam_pose);
                 }
             }
             if (!target_candidates.empty()) {

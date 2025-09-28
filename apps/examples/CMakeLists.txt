@@ -1,5 +1,5 @@
-add_executable(calib_example_homography main.cpp)
-target_link_libraries(calib_example_homography PRIVATE calib::calib)
+add_executable(calib_example_homography homography.cpp)
+target_link_libraries(calib_example_homography PRIVATE calib::calib CLI11::CLI11)
 calib_set_default_warnings(calib_example_homography)
 
 add_executable(calib_example_planar_intrinsics planar_intrinsics.cpp)
@@ -38,5 +38,6 @@ install(FILES
     ${PROJECT_SOURCE_DIR}/apps/examples/intrinsic_extrinsic_multicam_input.json
     ${PROJECT_SOURCE_DIR}/apps/examples/bundle_pipeline_input.json
     ${PROJECT_SOURCE_DIR}/apps/examples/linescan_input.json
+    ${PROJECT_SOURCE_DIR}/apps/examples/homography_input.json
     ${PROJECT_SOURCE_DIR}/schemas/calib_dataset.schema.json
     DESTINATION ${CMAKE_INSTALL_DATADIR}/calib/examples)

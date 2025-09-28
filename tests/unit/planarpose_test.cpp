@@ -93,7 +93,6 @@ TEST(PlanarPoseTest, DLTEstimation) {
     EXPECT_GT(std::abs(cosine_similarity), 0.9);  // Vectors should point in similar directions
 }
 
-// Temporarily disable this test while we investigate segmentation fault
 TEST(PlanarPoseTest, OptimizePlanarPose) {
     // Create synthetic camera intrinsics
     CameraMatrix intrinsics;

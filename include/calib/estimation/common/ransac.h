@@ -11,6 +11,7 @@
 #include <random>
 #include <span>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 namespace calib {
@@ -63,10 +64,29 @@ inline void sample_k_unique(size_t k, size_t size, RNG& rng, std::vector<int>& o
         std::cerr << "Warning: sample_k_unique called with k > size\n";
         k = size;
     }
-    out.resize(size);
-    std::iota(out.begin(), out.end(), 0);
-    std::shuffle(out.begin(), out.end(), rng);
-    out.resize(k);
+
+    out.clear();
+    out.reserve(k);
+    if (k == 0 || size == 0) {
+        return;
+    }
+
+    std::unordered_map<std::size_t, std::size_t> remap;
+    remap.reserve(k);
+
+    for (std::size_t i = size - k; i < size; ++i) {
+        std::uniform_int_distribution<std::size_t> dist(0, i);
+        const std::size_t r = dist(rng);
+
+        const auto it_pick = remap.find(r);
+        const std::size_t picked = (it_pick != remap.end()) ? it_pick->second : r;
+
+        const auto it_i = remap.find(i);
+        const std::size_t mapped_i = (it_i != remap.end()) ? it_i->second : i;
+        remap[r] = mapped_i;
+
+        out.push_back(static_cast<int>(picked));
+    }
 }
 
 inline int calculate_iterations(double confidence, double inlier_ratio, int min_samples,

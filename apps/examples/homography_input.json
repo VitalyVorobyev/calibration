@@ -1,0 +1,23 @@
+{
+  "correspondences": [
+    { "object": [0.0, 0.0], "image": [12.4, 19.6] },
+    { "object": [1.0, 0.0], "image": [112.1, 18.9] },
+    { "object": [1.0, 1.0], "image": [121.7, 71.3] },
+    { "object": [0.0, 1.0], "image": [9.8, 73.5] },
+    { "object": [0.5, 0.2], "image": [62.5, 28.7] },
+    { "object": [0.2, 0.7], "image": [32.9, 56.8] }
+  ],
+  "ransac": {
+    "thresh": 1.5,
+    "max_iters": 2000,
+    "confidence": 0.995,
+    "refit_on_inliers": true
+  },
+  "options": {
+    "huber_delta": 1.0,
+    "max_iterations": 100,
+    "compute_covariance": true,
+    "verbose": false
+  },
+  "optimize": true
+}
