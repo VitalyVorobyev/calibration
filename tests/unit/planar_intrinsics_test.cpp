@@ -12,6 +12,7 @@
 
 #include "calib/datasets/planar.h"
 #include "calib/reports/planar_intrinsics.h"
+#include "calib/reports/planar_intrinsics_types.h"
 #include "utils.h"
 
 using namespace calib;
@@ -107,9 +108,10 @@ TEST(PlanarIntrinsicsUtils, LoadPlanarObservationsParsesDetectorMetadata) {
         "feature_type": "planar",
         "algo_version": "v2",
         "params_hash": "hash123",
+        "sensor_id": "cam0",
+        "tags": ["recorded"],
         "images": [
             {
-                "count": 2,
                 "file": "view0.png",
                 "points": [
                     {"x": 10.0, "y": 20.0, "id": 5, "local_x": 1.0, "local_y": 2.0, "local_z": 0.1},
@@ -120,7 +122,11 @@ TEST(PlanarIntrinsicsUtils, LoadPlanarObservationsParsesDetectorMetadata) {
     })";
     file.close();
 
-    const auto detections = load_planar_dataset(json_path);
+    std::ifstream input(json_path);
+    ASSERT_TRUE(input.is_open());
+    nlohmann::json json_data;
+    input >> json_data;
+    auto detections = json_data.get<PlanarDetections>();
     EXPECT_EQ(detections.image_directory, "imgs");
     EXPECT_EQ(detections.feature_type, "planar");
     EXPECT_EQ(detections.algo_version, "v2");
@@ -129,7 +135,6 @@ TEST(PlanarIntrinsicsUtils, LoadPlanarObservationsParsesDetectorMetadata) {
 
     const auto& image = detections.images.front();
     EXPECT_EQ(image.file, "view0.png");
-    EXPECT_EQ(image.count, 2);
     ASSERT_EQ(image.points.size(), 2U);
 
     const auto& pt0 = image.points[0];
@@ -163,7 +168,12 @@ TEST(PlanarIntrinsicsUtils, LoadPlanarObservationsRequiresFeatureType) {
     })";
     file.close();
 
-    EXPECT_THROW({ (void)load_planar_dataset(json_path); }, std::runtime_error);
+    std::ifstream input(json_path);
+    ASSERT_TRUE(input.is_open());
+    nlohmann::json json_data;
+    input >> json_data;
+
+    EXPECT_THROW({ (void)json_data.get<PlanarDetections>(); }, nlohmann::json::exception);
 }
 
 TEST(PlanarIntrinsicsUtils, PrintCalibrationSummaryIncludesKeyData) {
@@ -235,8 +245,9 @@ TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
         CameraMatrix{805.0, 815.0, 322.0, 241.0, 0.4}, Eigen::VectorXd::Constant(5, 0.01));
     outputs.refine_result.view_errors = {0.5, 0.7};
 
-    const auto json = build_planar_intrinsics_report(cfg, cam_cfg, detections, outputs,
-                                                     std::filesystem::path{"feat.json"});
+    const auto report = build_planar_intrinsics_report(cfg, cam_cfg, detections, outputs,
+                                                       std::filesystem::path{"feat.json"});
+    const nlohmann::json json = report;
 
     ASSERT_TRUE(json.contains("calibrations"));
     const auto& calibrations = json.at("calibrations");
@@ -262,6 +273,84 @@ TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
     const auto& result = camera_json.at("result");
     ASSERT_TRUE(result.contains("distortion"));
     EXPECT_EQ(result.at("distortion").at("coefficients").size(), 5);
+}
+
+TEST(PlanarIntrinsicsReport, JsonRoundTripPreservesData) {
+    PlanarIntrinsicsReport report;
+    report.session = SessionReport{
+        .id = "session", .description = "desc", .timestamp_utc = "2024-01-02T03:04:05Z"};
+
+    PlanarIntrinsicsOptionsReport options;
+    options.min_corners_per_view = 10;
+    options.refine = true;
+    options.optimize_skew = true;
+    options.num_radial = 3;
+    options.huber_delta = 1.5;
+    options.max_iterations = 50;
+    options.epsilon = 1e-6;
+    options.point_scale = 2.0;
+    options.auto_center_points = false;
+    options.point_center = std::array<double, 2>{0.1, -0.2};
+    options.fixed_distortion_indices = {0, 2};
+    options.fixed_distortion_values = {0.01, -0.02};
+    options.homography_ransac = HomographyRansacConfig{
+        .max_iters = 500, .thresh = 0.5, .min_inliers = 20, .confidence = 0.85};
+
+    InitialGuessReport guess;
+    guess.intrinsics.fx = 800.0;
+    guess.intrinsics.fy = 790.0;
+    guess.intrinsics.cx = 320.0;
+    guess.intrinsics.cy = 240.0;
+    guess.intrinsics.skew = 0.1;
+    guess.used_view_indices = {0, 2};
+    guess.warning_counts = InitialGuessWarningCounts{.invalid_camera_matrix = 1,
+                                                     .homography_decomposition_failures = 2};
+
+    IntrinsicsResultReport result;
+    result.intrinsics.fx = 810.0;
+    result.intrinsics.fy = 805.0;
+    result.intrinsics.cx = 321.0;
+    result.intrinsics.cy = 239.0;
+    result.distortion_model = "pinhole_brown_conrady";
+    result.distortion_coefficients = {0.01, -0.02, 0.003};
+    result.reprojection_rms_px = 0.25;
+    result.per_view.push_back(PlanarViewReport{.source_image = "view0.png",
+                                               .corner_count = 50,
+                                               .rms_px = 0.2,
+                                               .used_in_linear_stage = true});
+
+    CameraReport camera;
+    camera.camera_id = "cam0";
+    camera.model = "pinhole_brown_conrady";
+    camera.image_size = std::array<int, 2>{640, 480};
+    camera.initial_guess = guess;
+    camera.result = result;
+
+    CalibrationReport calibration;
+    calibration.type = "intrinsics";
+    calibration.algorithm = "planar";
+    calibration.options = options;
+    calibration.detector = nlohmann::json{{"type", "synthetic"}};
+    calibration.cameras = {camera};
+
+    report.calibrations = {calibration};
+
+    const nlohmann::json json_report = report;
+    const auto restored = json_report.get<PlanarIntrinsicsReport>();
+
+    EXPECT_EQ(restored.session.id, report.session.id);
+    ASSERT_EQ(restored.calibrations.size(), 1U);
+    const auto& restored_cal = restored.calibrations.front();
+    EXPECT_EQ(restored_cal.algorithm, "planar");
+    ASSERT_EQ(restored_cal.cameras.size(), 1U);
+    const auto& restored_cam = restored_cal.cameras.front();
+    EXPECT_EQ(restored_cam.camera_id, "cam0");
+    EXPECT_TRUE(restored_cam.image_size.has_value());
+    EXPECT_EQ((*restored_cam.image_size)[0], 640);
+    EXPECT_EQ((*restored_cam.image_size)[1], 480);
+    EXPECT_NEAR(restored_cam.result.reprojection_rms_px, 0.25, 1e-9);
+    ASSERT_EQ(restored_cam.result.per_view.size(), 1U);
+    EXPECT_TRUE(restored_cam.result.per_view.front().used_in_linear_stage);
 }
 
 TEST(PlanarIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
@@ -295,7 +384,6 @@ TEST(PlanarIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
         PlanarImageDetections image;
         image.file = "view" + std::to_string(idx) + ".png";
         image.points.reserve(observation.view.size());
-        image.count = static_cast<int>(observation.view.size());
         for (std::size_t j = 0; j < observation.view.size(); ++j) {
             const auto& ob = observation.view[j];
             PlanarTargetPoint pt;
@@ -336,9 +424,10 @@ TEST(PlanarIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
     EXPECT_NEAR(estimated.cx, cam_gt.kmtx.cx, 5.0);
     EXPECT_NEAR(estimated.cy, cam_gt.kmtx.cy, 5.0);
 
-    ASSERT_TRUE(result.report.contains("calibrations"));
+    const nlohmann::json report_json = result.report;
+    ASSERT_TRUE(report_json.contains("calibrations"));
     const auto& cameras_json =
-        result.report.at("calibrations")[0].at("cameras")[0].at("initial_guess");
+        report_json.at("calibrations")[0].at("cameras")[0].at("initial_guess");
     EXPECT_EQ(cameras_json.at("used_view_indices").size(),
               result.outputs.linear_view_indices.size());
 }

@@ -3,8 +3,9 @@
 #pragma once
 
 // ceres
-#include "../common/se3_utils.h"
-#include "calib/estimation/planarpose.h"
+#include <calib/estimation/common/se3_utils.h>
+
+#include "calib/estimation/linear/planarpose.h"
 #include "calib/models/distortion.h"
 #include "ceres/rotation.h"
 

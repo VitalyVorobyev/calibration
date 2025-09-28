@@ -1,5 +1,6 @@
 set(SOURCES
     planar_intrinsics.cpp
+    planar_intrinsics_types.cpp
 )
 
 add_library(calib_reports STATIC ${SOURCES})
@@ -11,9 +12,9 @@ target_include_directories(calib_reports
 
 target_link_libraries(calib_reports
     PUBLIC
-        calib_core
         calib_models
-        calib_estimation)
+        calib_estimation
+        calib_io)
 
 calib_set_default_warnings(calib_reports)
 add_library(calib::reports ALIAS calib_reports)

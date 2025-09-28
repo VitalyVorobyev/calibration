@@ -1,47 +1,42 @@
+/**
+ * @file linescan.h
+ * @brief Simple facade for line-scan laser plane calibration
+ */
+
 #pragma once
 
 // std
-#include <string>
 #include <vector>
 
 // eigen
-#include <Eigen/Core>
 #include <Eigen/Geometry>
 
-#include "calib/estimation/planarpose.h"
+#include "calib/estimation/linear/linescan.h"
 #include "calib/models/pinhole.h"
 
-namespace calib {
+namespace calib::pipeline {
 
-/** @brief Observation for line-scan calibration.
- * Contains planar target correspondences and laser line pixel features
+/**
+ * @brief Result of a line-scan calibration run.
  */
-struct LineScanView final {
-    PlanarView target_view;
-    std::vector<Eigen::Vector2d> laser_uv;  // Pixel measurements of laser line points
-};
-
-struct LineScanCalibrationResult final {
-    Eigen::Vector4d plane;       // Normalized plane coefficients [nx, ny, nz, d]
-    Eigen::Matrix4d covariance;  // Covariance of plane coefficients
-    Eigen::Matrix3d homography;  // Homography (norm pix -> plane frame)
-    double rms_error;            // RMS distance of used points to fitted plane
-    std::string summary;         // Optimizer report
+struct LinescanCalibrationRunResult final {
+    bool success = false;              ///< True if calibration completed
+    std::size_t used_views = 0;        ///< Number of views used
+    LineScanCalibrationResult result;  ///< Fitted plane and stats
 };
 
 /**
- * @brief Calibrate a laser plane in camera frame using planar target views.
+ * @brief Facade wrapping linear laser plane calibration for a single camera.
  *
- * For each observation, target feature correspondences are used to convert
- * laser pixels into 3D points in the camera frame. All points from all
- * observations are used to fit a single plane using non-linear least squares
- * with automatic differentiation. A local 2D reference frame is introduced on
- * the fitted plane and the homography mapping undistorted pixel coordinates to
- * this frame is returned. The plane coefficients are normalised so that
- * ||n|| = 1.
+ * Converts a Brown-Conrady camera to a dual-distortion camera, invokes the
+ * linear calibrate_laser_plane routine and packages the result for pipelines
+ * or examples.
  */
-auto calibrate_laser_plane(const std::vector<LineScanView>& views,
-                           const PinholeCamera<DualDistortion>& camera)
-    -> LineScanCalibrationResult;
+class LinescanCalibrationFacade final {
+  public:
+    [[nodiscard]] auto calibrate(const PinholeCamera<BrownConradyd>& camera,
+                                 const std::vector<LineScanView>& views) const
+        -> LinescanCalibrationRunResult;
+};
 
-}  // namespace calib
+}  // namespace calib::pipeline

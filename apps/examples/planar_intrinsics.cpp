@@ -6,6 +6,7 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -44,7 +45,7 @@ int main(int argc, char** argv) {
         }
 
         const std::size_t camera_count = cfg.cameras.size();
-        std::vector<nlohmann::json> camera_results;
+        std::vector<PlanarIntrinsicsReport> camera_results;
         camera_results.reserve(camera_count);
 
         PlanarIntrinsicCalibrationFacade facade;
@@ -57,7 +58,16 @@ int main(int argc, char** argv) {
 
             std::cerr << "[" << cam_cfg.camera_id << "] Loading detections from " << features_path
                       << '\n';
-            const auto detections = load_planar_dataset(features_path);
+            std::ifstream feature_stream(features_path);
+            if (!feature_stream) {
+                throw std::runtime_error("Failed to open features JSON: " + features_path.string());
+            }
+
+            nlohmann::json feature_json;
+            feature_stream >> feature_json;
+
+            auto detections = feature_json.get<PlanarDetections>();
+            detections.source_file = features_path;
             std::cerr << "[" << cam_cfg.camera_id << "] Found " << detections.images.size()
                       << " image detections" << '\n';
 
@@ -71,26 +81,31 @@ int main(int argc, char** argv) {
             }
         }
 
-        nlohmann::json final_json;
+        nlohmann::json final_json = nlohmann::json::object();
         if (!camera_results.empty()) {
-            final_json = camera_results.front();
-            if (camera_results.size() > 1) {
-                auto& calib_array = final_json["calibrations"][0]["cameras"];
-                calib_array = nlohmann::json::array();
-                for (const auto& cam_json : camera_results) {
-                    const auto& cameras = cam_json.at("calibrations")[0].at("cameras");
-                    calib_array.push_back(cameras[0]);
+            auto combined = camera_results.front();
+            if (combined.calibrations.empty()) {
+                final_json = combined;
+            } else if (camera_results.size() == 1) {
+                final_json = combined;
+            } else {
+                auto& base_calibration = combined.calibrations.front();
+                base_calibration.cameras.clear();
+                for (const auto& report : camera_results) {
+                    if (report.calibrations.empty() ||
+                        report.calibrations.front().cameras.empty()) {
+                        continue;
+                    }
+                    base_calibration.cameras.push_back(report.calibrations.front().cameras.front());
                 }
+                final_json = combined;
             }
         }
 
         if (!output_path.empty()) {
             std::ofstream out(output_path);
-            if (!out) {
-                throw std::runtime_error("Failed to open output file: " + output_path);
-            }
             out << final_json.dump(2) << '\n';
-            std::cerr << "Saved calibration report to " << output_path << '\n';
+            std::cout << "Saved calibration report to " << output_path << '\n';
         } else {
             std::cout << final_json.dump(2) << '\n';
         }

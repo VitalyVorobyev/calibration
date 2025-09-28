@@ -1,4 +1,4 @@
-#include "calib/estimation/bundle.h"
+#include "calib/estimation/optim/bundle.h"
 
 // std
 #include <algorithm>
@@ -6,7 +6,7 @@
 #include <iterator>
 #include <numeric>
 
-#include "calib/estimation/planarpose.h"
+#include "calib/estimation/linear/planarpose.h"
 #include "detail/ceresutils.h"
 #include "detail/observationutils.h"
 #include "residuals/bundleresidual.h"

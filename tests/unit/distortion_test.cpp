@@ -9,7 +9,7 @@
 #include <span>
 #include <stdexcept>
 
-#include "calib/core/cameramatrix.h"
+#include "calib/models/camera_matrix.h"
 #include "calib/models/distortion.h"
 
 using namespace calib;

@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 
-#include "calib/estimation/intrinsics.h"
+#include "calib/estimation/optim/intrinsics.h"
 #include "utils.h"
 
 using namespace calib;

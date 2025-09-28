@@ -1,4 +1,4 @@
-#include "detail/zhang.h"
+#include "calib/estimation/linear/zhang.h"
 
 // std
 #include <iostream>

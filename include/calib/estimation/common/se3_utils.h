@@ -1,12 +1,9 @@
 #pragma once
 
-// std
-#include <array>
-#include <vector>
-
-// Eigen
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <array>
+#include <vector>
 
 namespace calib {
 
@@ -58,7 +55,7 @@ inline Eigen::VectorXd solve_llsq(const Eigen::MatrixXd& amtx, const Eigen::Vect
 }
 
 template <class Mat, class Vec>
-Eigen::VectorXd ridge_llsq(const Mat& amtx, const Vec& bvec, double lambda = 1e-10) {
+inline Eigen::VectorXd ridge_llsq(const Mat& amtx, const Vec& bvec, double lambda = 1e-10) {
     const int ncols = static_cast<int>(amtx.cols());
     return (amtx.transpose() * amtx + lambda * Eigen::MatrixXd::Identity(ncols, ncols))
         .ldlt()
