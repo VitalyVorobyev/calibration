@@ -9,6 +9,7 @@ set(SOURCES
     stages/stereo_stage.cpp
     stages/handeye_stage.cpp
     stages/bundle_stage.cpp
+    stages/detail/bundle_utils.cpp
     stages/detail/planar_utils.cpp
 )
 
