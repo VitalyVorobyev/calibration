@@ -25,11 +25,9 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     sim.make_target_grid(8, 11, 0.02);
     sim.render_pixels();
 
-    std::vector<PlanarView> views;
-    views.reserve(sim.observations.size());
-    for (const auto& ob : sim.observations) {
-        views.push_back(ob.view);
-    }
+    std::vector<PlanarView> views(sim.observations.size());
+    std::transform(sim.observations.begin(), sim.observations.end(), views.begin(),
+                   [](const auto& ob) { return ob.view; });
 
     // Create initial camera guess
     Camera<BrownConradyd> guess_cam = cam_gt;
@@ -82,11 +80,9 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     sim.make_target_grid(8, 11, 0.02);
     sim.render_pixels();
 
-    std::vector<PlanarView> views;
-    views.reserve(sim.observations.size());
-    for (const auto& ob : sim.observations) {
-        views.push_back(ob.view);
-    }
+    std::vector<PlanarView> views(sim.observations.size());
+    std::transform(sim.observations.begin(), sim.observations.end(), views.begin(),
+                   [](const auto& ob) { return ob.view; });
 
     // Create initial camera guess
     Camera<BrownConradyd> guess_cam = cam_gt;

@@ -42,11 +42,9 @@ struct PlaneRansacEstimator final {
         if (inliers.size() < static_cast<std::ptrdiff_t>(k_min_samples)) {
             return std::nullopt;
         }
-        std::vector<Eigen::Vector3d> pts;
-        pts.reserve(inliers.size());
-        for (int idx : inliers) {
-            pts.push_back(data[static_cast<std::size_t>(idx)]);
-        }
+        std::vector<Eigen::Vector3d> pts(inliers.size());
+        std::transform(inliers.begin(), inliers.end(), pts.begin(),
+                       [&data](int idx) { return data[static_cast<std::size_t>(idx)]; });
         return calib::fit_plane_svd(pts);
     }
 
@@ -71,9 +69,10 @@ auto fit_plane_svd(const std::vector<Eigen::Vector3d>& pts) -> Eigen::Vector4d {
     if (pts.size() < 3) {
         throw std::invalid_argument("Not enough points to fit a plane");
     }
-    Eigen::Vector3d centroid = Eigen::Vector3d::Zero();
-    for (const auto& p : pts) centroid += p;
-    centroid /= static_cast<double>(pts.size());
+
+    const Eigen::Vector3d centroid =
+        std::accumulate(pts.begin(), pts.end(), Eigen::Vector3d(Eigen::Vector3d::Zero())) /
+        static_cast<double>(pts.size());
     Eigen::MatrixXd A(static_cast<Eigen::Index>(pts.size()), 3);
     for (size_t i = 0; i < pts.size(); ++i) {
         A.row(static_cast<Eigen::Index>(i)) = (pts[i] - centroid).transpose();

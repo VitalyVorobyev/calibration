@@ -20,8 +20,7 @@ struct LoadedPlanarSource final {
 auto load_planar_source(const JsonPlanarDatasetLoader::Entry& entry) -> LoadedPlanarSource {
     std::ifstream stream(entry.path);
     if (!stream) {
-        throw std::runtime_error("JsonPlanarDatasetLoader: failed to open " +
-                                 entry.path.string());
+        throw std::runtime_error("JsonPlanarDatasetLoader: failed to open " + entry.path.string());
     }
 
     nlohmann::json json_data;
@@ -35,11 +34,9 @@ auto load_planar_source(const JsonPlanarDatasetLoader::Entry& entry) -> LoadedPl
                                  "' not found in dataset.");
     }
 
-    nlohmann::json source_info{{"path", entry.path.string()},
-                               {"sensor_id", detections.sensor_id}};
+    nlohmann::json source_info{{"path", entry.path.string()}, {"sensor_id", detections.sensor_id}};
     if (!detections.metadata.is_null()) {
-        source_info["detector"] =
-            detections.metadata.value("detector", nlohmann::json::object());
+        source_info["detector"] = detections.metadata.value("detector", nlohmann::json::object());
     }
 
     return LoadedPlanarSource{

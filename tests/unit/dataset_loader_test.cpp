@@ -17,8 +17,7 @@ auto make_temp_json_path(std::string_view stem) -> std::filesystem::path {
     return std::filesystem::temp_directory_path() / filename;
 }
 
-auto make_planar_dataset_json(std::string sensor_id, std::string detector_name)
-    -> nlohmann::json {
+auto make_planar_dataset_json(std::string sensor_id, std::string detector_name) -> nlohmann::json {
     return nlohmann::json{
         {"image_directory", "./images"},
         {"source_file", "./dataset.json"},
@@ -27,17 +26,15 @@ auto make_planar_dataset_json(std::string sensor_id, std::string detector_name)
         {"params_hash", "deadbeef"},
         {"sensor_id", std::move(sensor_id)},
         {"tags", nlohmann::json::array({"synthetic"})},
-        {"metadata",
-         {{"detector",
-           {{"name", std::move(detector_name)}, {"version", "0.1"}}}}},
-        {"images", nlohmann::json::array({{{"file", "img_0001.png"},
-                                            {"points",
-                                             nlohmann::json::array({{{"x", 100.0},
-                                                                     {"y", 200.0},
-                                                                     {"id", 0},
-                                                                     {"local_x", 0.0},
-                                                                     {"local_y", 0.0},
-                                                                     {"local_z", 0.0}}})}}})}};
+        {"metadata", {{"detector", {{"name", std::move(detector_name)}, {"version", "0.1"}}}}},
+        {"images",
+         nlohmann::json::array({{{"file", "img_0001.png"},
+                                 {"points", nlohmann::json::array({{{"x", 100.0},
+                                                                    {"y", 200.0},
+                                                                    {"id", 0},
+                                                                    {"local_x", 0.0},
+                                                                    {"local_y", 0.0},
+                                                                    {"local_z", 0.0}}})}}})}};
 }
 
 }  // namespace
@@ -208,7 +205,7 @@ TEST(JsonPlanarDatasetLoader, ThrowsWhenSensorIdMismatch) {
     calib::pipeline::JsonPlanarDatasetLoader loader;
     loader.add_entry(path, "cam0");
 
-    EXPECT_THROW(loader.load(), std::runtime_error);
+    EXPECT_THROW([[maybe_unused]] auto result = loader.load(), std::runtime_error);
 
     std::filesystem::remove(path);
 }

@@ -194,9 +194,9 @@ struct SimulatedHandEye final {
     std::vector<BundleObservation> observations;  // per frame {view, b_se3_g, cam_idx}
 
     std::vector<Eigen::Isometry3d> b_se3_g() const {
-        std::vector<Eigen::Isometry3d> out;
-        out.reserve(observations.size());
-        for (const auto& obs : observations) out.push_back(obs.b_se3_g);
+        std::vector<Eigen::Isometry3d> out(observations.size());
+        std::transform(observations.begin(), observations.end(), out.begin(),
+                       [](const auto& o) { return o.b_se3_g; });
         return out;
     }
 
