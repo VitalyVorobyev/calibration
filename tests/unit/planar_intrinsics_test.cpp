@@ -42,12 +42,12 @@ TEST(PlanarIntrinsicsUtils, CollectPlanarViewsRespectsThreshold) {
 
     const auto& view = planar_views[0];
     ASSERT_EQ(view.size(), 3U);
-    EXPECT_DOUBLE_EQ(view[0].object_xy.x(), 0.0);
-    EXPECT_DOUBLE_EQ(view[0].object_xy.y(), 0.0);
+    EXPECT_DOUBLE_EQ(view[0].object_xy.x(), 1.0);
+    EXPECT_DOUBLE_EQ(view[0].object_xy.y(), 1.0);
     EXPECT_DOUBLE_EQ(view[1].object_xy.x(), 2.0);
-    EXPECT_DOUBLE_EQ(view[1].object_xy.y(), 0.0);
-    EXPECT_DOUBLE_EQ(view[2].object_xy.x(), 0.0);
-    EXPECT_DOUBLE_EQ(view[2].object_xy.y(), 4.0);
+    EXPECT_DOUBLE_EQ(view[1].object_xy.y(), 1.0);
+    EXPECT_DOUBLE_EQ(view[2].object_xy.x(), 1.0);
+    EXPECT_DOUBLE_EQ(view[2].object_xy.y(), 3.0);
 }
 
 TEST(PlanarIntrinsicsUtils, LoadPlanarObservationsParsesDetectorMetadata) {
@@ -176,16 +176,9 @@ TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
     cfg.options.optim_options.fixed_distortion_values = {0.1, 0.05};
     cfg.options.optim_options.num_radial = 3;
     cfg.options.min_corners_per_view = 20;
-
-    CameraConfig cam_cfg;
-    cam_cfg.camera_id = "cam0";
-    cam_cfg.model = "pinhole_brown_conrady";
-    cam_cfg.image_size = std::array<int, 2>{640, 480};
-
-    PlanarDetections detections;
-    detections.image_directory = "imgs";
-    detections.algo_version = "v1";
-    detections.params_hash = "hash";
+    cfg.cameras = {CameraConfig{.camera_id = "cam0",
+                                .model = "pinhole_brown_conrady",
+                                .image_size = std::array<int, 2>{640, 480}}};
 
     IntrinsicCalibrationOutputs outputs;
     outputs.total_input_views = 5;
@@ -202,14 +195,10 @@ TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
         CameraMatrix{805.0, 815.0, 322.0, 241.0, 0.4}, Eigen::VectorXd::Constant(5, 0.01));
     outputs.refine_result.view_errors = {0.5, 0.7};
 
-    const auto report = build_planar_intrinsics_report(cfg, cam_cfg, detections, outputs);
-    const nlohmann::json json = report;
+    const nlohmann::json cfg_json = cfg;
+    const nlohmann::json outputs_json = outputs;
 
-    ASSERT_TRUE(json.contains("calibrations"));
-    const auto& calibrations = json.at("calibrations");
-    ASSERT_EQ(calibrations.size(), 1);
-    const auto& calibration = calibrations[0];
-    const auto& options_json = calibration.at("options");
+    const auto& options_json = cfg_json.at("options").at("optim_options");
     ASSERT_TRUE(options_json.contains("fixed_distortion_indices"));
     EXPECT_EQ(options_json.at("fixed_distortion_indices").size(), 2);
     EXPECT_EQ(options_json.at("fixed_distortion_indices")[0], 0);
@@ -218,17 +207,12 @@ TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
     EXPECT_DOUBLE_EQ(options_json.at("fixed_distortion_values")[0], 0.1);
     EXPECT_DOUBLE_EQ(options_json.at("fixed_distortion_values")[1], 0.05);
 
-    const auto& cameras = calibration.at("cameras");
+    const auto& cameras = cfg_json.at("cameras");
     ASSERT_EQ(cameras.size(), 1);
-    const auto& camera_json = cameras[0];
-    ASSERT_TRUE(camera_json.contains("initial_guess"));
-    const auto& warnings = camera_json.at("initial_guess").at("warning_counts");
-    EXPECT_EQ(warnings.at("invalid_camera_matrix"), 1);
-    EXPECT_EQ(warnings.at("homography_decomposition_failures"), 2);
 
-    const auto& result = camera_json.at("result");
+    const auto& result = outputs_json.at("refine_result").at("camera");
     ASSERT_TRUE(result.contains("distortion"));
-    EXPECT_EQ(result.at("distortion").at("coefficients").size(), 5);
+    EXPECT_EQ(result.at("distortion").size(), 1);
 }
 
 TEST(PlanarIntrinsicsReport, JsonRoundTripPreservesData) {

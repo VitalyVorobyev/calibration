@@ -78,8 +78,7 @@ TEST(PlanarDataset, MissingImagesFieldThrows) {
                               {"feature_type", "planar"},
                               {"tags", nlohmann::json::array({"synthetic"})},
                               {"source_file", "./dataset.json"},
-                              {"metadata", nlohmann::json::object()}
-                            };
+                              {"metadata", nlohmann::json::object()}};
     EXPECT_NO_THROW({ (void)invalid.get<PlanarDetections>(); });
 
     nlohmann::json missing_images = {{"image_directory", "./images"}, {"sensor_id", "cam0"}};

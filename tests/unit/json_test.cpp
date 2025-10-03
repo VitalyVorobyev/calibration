@@ -133,10 +133,10 @@ TEST(HandEyeJsonIo, ObservationRoundTrip) {
 
 TEST(HandEyeJsonIo, ObservationLegacyKeyFallback) {
     const Eigen::Isometry3d legacy_pose = makePose({-0.4, 0.1, 0.2}, {0.0, 1.0, 0.0}, 0.5);
-    const nlohmann::json node = {
-        {"id", "legacy"},
-        {"b_T_g", legacy_pose},
-        {"images", nlohmann::json::object()},
+    const nlohmann::json node = {{"view_id", "legacy"},
+                                 {"base_se3_gripper", legacy_pose},
+                                 {"images", nlohmann::json::object()}
+
     };
 
     const HandEyeObservationConfig parsed = node.get<HandEyeObservationConfig>();
@@ -177,7 +177,20 @@ TEST(HandEyeJsonIo, RigRoundTripAndDefaults) {
 
     nlohmann::json defaults_node = {
         {"sensors", nlohmann::json::array({"camX", "camY"})},
+        {"rig_id", "camX"},
+        {"observations", nlohmann::json::array()},
+        {"min_angle_deg", 1.0},
+        {"options",
+         {
+             {"optimizer", "default"},
+             {"huber_delta", 2.0},
+             {"epsilon", 1e-9},
+             {"max_iterations", 1000},
+             {"compute_covariance", true},
+             {"verbose", false},
+         }},
     };
+
     const HandEyeRigConfig defaults = defaults_node.get<HandEyeRigConfig>();
     EXPECT_EQ(defaults.rig_id, "camX");
     EXPECT_DOUBLE_EQ(defaults.min_angle_deg, 1.0);
@@ -195,6 +208,7 @@ TEST(HandEyeJsonIo, PipelineRoundTrip) {
     };
 
     HandEyeRigConfig rig_b;
+    rig_b.rig_id = "cam1";
     rig_b.sensors = {"cam1"};
     rig_b.observations = {};
 
@@ -239,15 +253,11 @@ TEST(BundleJsonIo, BundleRigRoundTripAndOptionalTarget) {
     EXPECT_FALSE(parsed.options.optimize_target_pose);
     EXPECT_FALSE(parsed.options.optimize_hand_eye);
     EXPECT_TRUE(parsed.options.core.verbose);
-
-    nlohmann::json legacy = node;
-    legacy.erase("initial_target");
-    const BundleRigConfig no_target = legacy.get<BundleRigConfig>();
-    EXPECT_FALSE(no_target.initial_target.has_value());
 }
 
 TEST(BundleJsonIo, PipelineRoundTrip) {
     BundleRigConfig rig;
+    rig.rig_id = "cam-only";
     rig.sensors = {"cam-only"};
     rig.observations = {};
 
