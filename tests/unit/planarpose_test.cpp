@@ -141,7 +141,7 @@ TEST(PlanarPoseTest, OptimizePlanarPose) {
     EXPECT_LT((true_t - scaled_opt_t).norm(), 0.1);
 
     // Check if covariance matrix is positive definite
-    Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eig(result.covariance);
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6>> eig(result.core.covariance);
     EXPECT_GT(eig.eigenvalues().minCoeff(), 0);
 }
 

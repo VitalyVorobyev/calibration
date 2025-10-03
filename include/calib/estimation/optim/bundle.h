@@ -9,8 +9,6 @@
 #include "calib/estimation/linear/planarpose.h"  // PlanarObservation
 #include "calib/estimation/optim/optimize.h"
 #include "calib/models/cameramodel.h"
-#include "calib/models/pinhole.h"
-#include "calib/models/scheimpflug.h"
 
 namespace calib {
 
@@ -29,7 +27,8 @@ struct BundleObservation final {
 
 /** Options controlling the hand-eye calibration optimisation. */
 // TODO: add optimize_distortion
-struct BundleOptions final : public OptimOptions {
+struct BundleOptions final {
+    OptimOptions core;                 ///< Non-linear optimization options
     bool optimize_intrinsics = false;  ///< Solve for camera intrinsics
     bool optimize_skew = false;        ///< Solve for skew parameter
     bool optimize_target_pose = true;  ///< Solve for base->target pose
@@ -38,7 +37,8 @@ struct BundleOptions final : public OptimOptions {
 
 /** Result returned by hand-eye calibration. */
 template <camera_model CameraT>
-struct BundleResult final : public OptimResult {
+struct BundleResult final {
+    OptimResult core;                        ///< Optimization result details
     std::vector<CameraT> cameras;            ///< Estimated camera parameters per camera
     std::vector<Eigen::Isometry3d> g_se3_c;  ///< Estimated camera->gripper extrinsics
     Eigen::Isometry3d b_se3_t;               ///< Pose of target in base frame
@@ -62,44 +62,7 @@ auto optimize_bundle(const std::vector<BundleObservation>& observations,
                      const Eigen::Isometry3d& init_b_se3_t, const BundleOptions& opts = {})
     -> BundleResult<CameraT>;
 
-inline void to_json(nlohmann::json& j, const BundleOptions& o) {
-    j = {{"optimize_intrinsics", o.optimize_intrinsics},
-         {"optimize_skew", o.optimize_skew},
-         {"optimize_target_pose", o.optimize_target_pose},
-         {"optimize_hand_eye", o.optimize_hand_eye},
-         {"verbose", o.verbose}};
-}
-
-inline void from_json(const nlohmann::json& j, BundleOptions& o) {
-    o.optimize_intrinsics = j.value("optimize_intrinsics", false);
-    o.optimize_skew = j.value("optimize_skew", false);
-    o.optimize_target_pose = j.value("optimize_target_pose", true);
-    o.optimize_hand_eye = j.value("optimize_hand_eye", true);
-    o.verbose = j.value("verbose", false);
-}
-
-inline void to_json(nlohmann::json& j, const BundleObservation& bo) {
-    j = {{"view", bo.view}, {"b_se3_g", bo.b_se3_g}, {"camera_index", bo.camera_index}};
-}
-
-inline void from_json(const nlohmann::json& j, BundleObservation& bo) {
-    j.at("view").get_to(bo.view);
-    bo.b_se3_g = j.at("b_se3_g").get<Eigen::Isometry3d>();
-    bo.camera_index = j.value("camera_index", 0);
-}
-
-inline void to_json(nlohmann::json& j, const BundleResult<PinholeCamera<BrownConradyd>>& r) {
-    j = {{"cameras", r.cameras},       {"g_se3_c", r.g_se3_c},       {"b_se3_t", r.b_se3_t},
-         {"final_cost", r.final_cost}, {"covariance", r.covariance}, {"report", r.report}};
-}
-
-inline void from_json(const nlohmann::json& j, BundleResult<PinholeCamera<BrownConradyd>>& r) {
-    r.cameras = j.value("cameras", std::vector<PinholeCamera<BrownConradyd>>{});
-    r.g_se3_c = j.value("g_se3_c", std::vector<Eigen::Isometry3d>{});
-    r.b_se3_t = j.at("b_se3_t").get<Eigen::Isometry3d>();
-    r.final_cost = j.value("final_cost", 0.0);
-    r.covariance = j.at("covariance").get<Eigen::MatrixXd>();
-    r.report = j.value("report", std::string{});
-}
+static_assert(serializable_aggregate<BundleOptions>);
+static_assert(serializable_aggregate<BundleObservation>);
 
 }  // namespace calib

@@ -42,7 +42,7 @@ struct HandeyeBlocks final : public ProblemParamBlocks {
     }
 };
 
-static auto build_problem(const std::vector<MotionPair>& pairs, const HandeyeOptions& opts,
+static auto build_problem(const std::vector<MotionPair>& pairs, const OptimOptions& opts,
                           HandeyeBlocks& blocks) -> ceres::Problem {
     ceres::Problem problem;
     for (const auto& motion_pair : pairs) {
@@ -59,19 +59,19 @@ static auto build_problem(const std::vector<MotionPair>& pairs, const HandeyeOpt
 
 auto optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
                       const std::vector<Eigen::Isometry3d>& camera_se3_target,
-                      const Eigen::Isometry3d& init_gripper_se3_ref, const HandeyeOptions& options)
+                      const Eigen::Isometry3d& init_gripper_se3_ref, const OptimOptions& options)
     -> HandeyeResult {
     constexpr double k_min_angle_deg = 0.5;
     auto pairs = build_all_pairs(base_se3_gripper, camera_se3_target, k_min_angle_deg);
     auto blocks = HandeyeBlocks::create(init_gripper_se3_ref);
     ceres::Problem problem = build_problem(pairs, options, blocks);
     HandeyeResult result;
-    solve_problem(problem, options, &result);
+    solve_problem(problem, options, &result.core);
     blocks.populate_result(result);
     if (options.compute_covariance) {
         auto optcov = compute_covariance(blocks, problem);
         if (optcov.has_value()) {
-            result.covariance = std::move(optcov.value());
+            result.core.covariance = std::move(optcov.value());
         }
     }
     return result;
@@ -79,7 +79,7 @@ auto optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
 
 auto estimate_and_optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
                                    const std::vector<Eigen::Isometry3d>& camera_se3_target,
-                                   double min_angle_deg, const HandeyeOptions& options)
+                                   double min_angle_deg, const OptimOptions& options)
     -> HandeyeResult {
     Eigen::Isometry3d init_pose =
         estimate_handeye_dlt(base_se3_gripper, camera_se3_target, min_angle_deg);

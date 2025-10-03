@@ -131,7 +131,7 @@ TEST(CeresAXXBRefine, ImprovesOverInitializer) {
     double err0_rot = rad2deg(rotation_angle(X0.linear().transpose() * X_gt.linear()));
     double err0_tr = (X0.translation() - X_gt.translation()).norm();
 
-    HandeyeOptions ro;
+    OptimOptions ro;
     ro.optimizer = OptimizerType::DENSE_QR;
     ro.max_iterations = 60;
     ro.huber_delta = 1.0;

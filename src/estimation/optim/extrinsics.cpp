@@ -95,7 +95,7 @@ static void set_residual_blocks(ceres::Problem& problem,
                 continue;
             }
             auto* loss =
-                options.huber_delta > 0 ? new ceres::HuberLoss(options.huber_delta) : nullptr;
+                options.core.huber_delta > 0 ? new ceres::HuberLoss(options.core.huber_delta) : nullptr;
             problem.AddResidualBlock(
                 ExtrinsicResidual<CameraT>::create(multicam_view[cam_index]), loss,
                 blocks.cam_quat_ref[cam_index].data(), blocks.cam_tran_ref[cam_index].data(),
@@ -181,13 +181,13 @@ ExtrinsicOptimizationResult<CameraT> optimize_extrinsics(
     ceres::Problem problem = build_problem(views, init_cameras, opts, blocks);
 
     ExtrinsicOptimizationResult<CameraT> result;
-    solve_problem(problem, opts, &result);
+    solve_problem(problem, opts.core, &result.core);
 
     blocks.populate_result(result);
-    if (opts.compute_covariance) {
+    if (opts.core.compute_covariance) {
         auto optcov = compute_covariance(blocks, problem);
         if (optcov.has_value()) {
-            result.covariance = std::move(optcov.value());
+            result.core.covariance = std::move(optcov.value());
         }
     }
 

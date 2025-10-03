@@ -1,7 +1,7 @@
-#include "calib/pipeline/stages.h"
 #include "calib/estimation/linear/handeye.h"
 #include "calib/pipeline/detail/planar_utils.h"
 #include "calib/pipeline/facades/handeye.h"
+#include "calib/pipeline/stages.h"
 
 namespace calib::pipeline {
 
@@ -16,7 +16,7 @@ struct SensorAccumulators {
 };
 
 void ensure_artifact_slot(nlohmann::json& artifacts, const std::string& rig_id, double min_angle,
-                          const HandeyeOptions& opts) {
+                          const OptimOptions& opts) {
     auto& rig_artifact = artifacts[rig_id];
     if (!rig_artifact.is_object()) {
         rig_artifact = nlohmann::json::object();
@@ -165,18 +165,18 @@ auto HandEyeCalibrationStage::run(PipelineContext& context) -> PipelineStageResu
             try {
                 auto he_result = estimate_and_optimize_handeye(accum.base, accum.cam,
                                                                rig.min_angle_deg, rig.options);
-                sensor_json["status"] = he_result.success ? "ok" : "optimization_failed";
-                sensor_json["success"] = he_result.success;
-                sensor_json["final_cost"] = he_result.final_cost;
-                sensor_json["report"] = he_result.report;
+                sensor_json["status"] = he_result.core.success ? "ok" : "optimization_failed";
+                sensor_json["success"] = he_result.core.success;
+                sensor_json["final_cost"] = he_result.core.final_cost;
+                sensor_json["report"] = he_result.core.report;
                 sensor_json["g_se3_c"] = he_result.g_se3_c;
-                if (he_result.covariance.size() > 0) {
-                    sensor_json["covariance"] = he_result.covariance;
+                if (he_result.core.covariance.size() > 0) {
+                    sensor_json["covariance"] = he_result.core.covariance;
                 }
 
                 sensors_artifact[sensor_id] = sensor_json;
 
-                if (he_result.success) {
+                if (he_result.core.success) {
                     rig_any_sensor = true;
                     context.handeye_results[rig.rig_id][sensor_id] = he_result;
                 } else {

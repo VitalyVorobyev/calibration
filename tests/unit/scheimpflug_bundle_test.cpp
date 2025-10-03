@@ -39,13 +39,13 @@ TEST(ScheimpflugBundle, IntrinsicsWithFixedHandeye) {
     opts.optimize_intrinsics = true;
     opts.optimize_target_pose = false;
     opts.optimize_hand_eye = false;
-    opts.optimizer = OptimizerType::DENSE_QR;
-    opts.verbose = false;
+    opts.core.optimizer = OptimizerType::DENSE_QR;
+    opts.core.verbose = false;
 
     auto res =
         optimize_bundle(obs, std::vector<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>{sc},
                         {init_g_se3_c}, b_se3_t, opts);
-    std::cout << res.report << '\n';
+    std::cout << res.core.report << '\n';
 
     EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c.translation()).norm(), 1e-6);
     Eigen::AngleAxisd diff(res.g_se3_c[0].linear() * g_se3_c.linear().transpose());
@@ -81,7 +81,7 @@ TEST(ScheimpflugBundle, HandeyeWithFixedIntrinsics) {
     opts.optimize_intrinsics = false;
     opts.optimize_target_pose = false;
     opts.optimize_hand_eye = true;
-    opts.verbose = false;
+    opts.core.verbose = false;
 
     auto res = optimize_bundle(observations,
                                std::vector<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>{sc},

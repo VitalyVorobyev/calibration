@@ -5,8 +5,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "calib/io/serialization.h"
 #include "calib/estimation/optim/extrinsics.h"
+#include "calib/io/serialization.h"
 #include "calib/pipeline/facades/intrinsics.h"
 
 namespace calib::pipeline {

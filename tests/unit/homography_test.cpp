@@ -65,7 +65,7 @@ TEST(HomographyTest, ExactHomography) {
     const auto hres = estimate_homography(view);
     ASSERT_TRUE(hres.success);
     auto result = optimize_homography(view, hres.hmtx);
-    ASSERT_TRUE(result.success);
+    ASSERT_TRUE(result.core.success);
 
     // The estimated homography should be very close to the true one
     ASSERT_TRUE(result.homography.isApprox(H_true, 1e-6));
@@ -85,7 +85,7 @@ TEST(HomographyTest, NoisyHomography) {
     EXPECT_LT(hres.symmetric_rms_px, 0.25);  // Should be close to the noise level
 
     auto result = optimize_homography(view, hres.hmtx);
-    ASSERT_TRUE(result.success);
+    ASSERT_TRUE(result.core.success);
 
     // Verify that the estimated homography is close to the ground truth
     // with some tolerance for noise
@@ -128,7 +128,7 @@ TEST(HomographyTest, RansacRecoversHomographyWithOutliers) {
     EXPECT_LT(hres.symmetric_rms_px, 1e-3);
 
     auto result = optimize_homography(view, hres.hmtx);
-    ASSERT_TRUE(result.success);
+    ASSERT_TRUE(result.core.success);
     constexpr double tolerance = 1e-2;
     EXPECT_TRUE(result.homography.isApprox(H_true, tolerance));
 }

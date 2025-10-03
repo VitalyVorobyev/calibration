@@ -275,7 +275,7 @@ TEST(HandEyeCalibrationStageTest, CalibratesSyntheticHandEye) {
     context.dataset.planar_cameras.push_back(make_planar_detections(sensor_id, data.observations));
 
     IntrinsicCalibrationOutputs intrinsics_result;
-    intrinsics_result.refine_result.success = true;
+    intrinsics_result.refine_result.core.success = true;
     intrinsics_result.refine_result.camera = data.camera;
     context.intrinsic_results.emplace(sensor_id, intrinsics_result);
 
@@ -306,7 +306,7 @@ TEST(HandEyeCalibrationStageTest, CalibratesSyntheticHandEye) {
     const auto& sensor_results = context.handeye_results.at("arm");
     ASSERT_TRUE(sensor_results.contains(sensor_id));
     const auto& he_result = sensor_results.at(sensor_id);
-    EXPECT_TRUE(he_result.success);
+    EXPECT_TRUE(he_result.core.success);
     EXPECT_LT((he_result.g_se3_c.translation() - data.g_se3_c.translation()).norm(), 5e-3);
     EXPECT_LT((he_result.g_se3_c.linear() - data.g_se3_c.linear()).norm(), 5e-2);
 }
@@ -320,7 +320,7 @@ TEST(BundleAdjustmentStageTest, CalibratesSyntheticBundle) {
     context.dataset.planar_cameras.push_back(make_planar_detections(sensor_id, data.observations));
 
     IntrinsicCalibrationOutputs intrinsics_result;
-    intrinsics_result.refine_result.success = true;
+    intrinsics_result.refine_result.core.success = true;
     intrinsics_result.refine_result.camera = data.camera;
     context.intrinsic_results.emplace(sensor_id, intrinsics_result);
 
@@ -353,7 +353,7 @@ TEST(BundleAdjustmentStageTest, CalibratesSyntheticBundle) {
     bundle_rig.options.optimize_skew = false;
     bundle_rig.options.optimize_target_pose = true;
     bundle_rig.options.optimize_hand_eye = true;
-    bundle_rig.options.max_iterations = 60;
+    bundle_rig.options.core.max_iterations = 60;
 
     BundlePipelineConfig bundle_cfg;
     bundle_cfg.rigs.push_back(bundle_rig);
@@ -366,7 +366,7 @@ TEST(BundleAdjustmentStageTest, CalibratesSyntheticBundle) {
     EXPECT_EQ(bundle_report.summary.at("status").get<std::string>(), "ok");
     ASSERT_TRUE(context.bundle_results.contains("arm"));
     const auto& bundle_result = context.bundle_results.at("arm");
-    EXPECT_TRUE(bundle_result.success);
+    EXPECT_TRUE(bundle_result.core.success);
     EXPECT_LT((bundle_result.b_se3_t.translation() - data.b_se3_t.translation()).norm(), 1e-2);
     ASSERT_EQ(bundle_result.g_se3_c.size(), 1U);
     EXPECT_LT((bundle_result.g_se3_c.front().translation() - data.g_se3_c.translation()).norm(),

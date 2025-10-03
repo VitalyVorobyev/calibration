@@ -70,4 +70,8 @@ auto estimate_intrinsics_linear_iterative(const std::vector<Observation<double>>
                                           bool use_skew = false)
     -> std::optional<PinholeCamera<BrownConradyd>>;
 
+static_assert(serializable_aggregate<IntrinsicsEstimateResult>);
+static_assert(serializable_aggregate<IntrinsicsEstimOptions>);
+static_assert(serializable_aggregate<ViewEstimateData>);
+
 }  // namespace calib

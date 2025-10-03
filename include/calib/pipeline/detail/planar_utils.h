@@ -16,15 +16,16 @@ struct SensorDetectionsIndex final {
     std::unordered_map<std::string, const PlanarImageDetections*> image_lookup;
 };
 
-auto find_camera_config(const IntrinsicCalibrationConfig& cfg,
-                        const std::string& camera_id) -> const CameraConfig*;
+auto find_camera_config(const IntrinsicCalibrationConfig& cfg, const std::string& camera_id)
+    -> const CameraConfig*;
 
-[[nodiscard]] auto build_sensor_index(
-    const std::vector<PlanarDetections>& detections) -> std::unordered_map<std::string, SensorDetectionsIndex>;
+[[nodiscard]] auto build_sensor_index(const std::vector<PlanarDetections>& detections)
+    -> std::unordered_map<std::string, SensorDetectionsIndex>;
 
 [[nodiscard]] auto make_planar_view(const PlanarImageDetections& detections) -> PlanarView;
 
-[[nodiscard]] auto average_isometries(const std::vector<Eigen::Isometry3d>& poses) -> Eigen::Isometry3d;
+[[nodiscard]] auto average_isometries(const std::vector<Eigen::Isometry3d>& poses)
+    -> Eigen::Isometry3d;
 
 const HandEyeRigConfig* find_handeye_rig(const HandEyePipelineConfig& cfg,
                                          const std::string& rig_id);

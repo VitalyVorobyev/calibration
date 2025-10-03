@@ -11,7 +11,7 @@
 namespace calib {
 
 struct IntrinsicsOptimOptions final {
-    OptimOptions core;       ///< Non-linear optimization options
+    OptimOptions core;           ///< Non-linear optimization options
     int num_radial = 2;          ///< Number of radial distortion coefficients
     bool optimize_skew = false;  ///< Estimate skew parameter
     std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Parameter bounds
@@ -19,11 +19,9 @@ struct IntrinsicsOptimOptions final {
     std::vector<double> fixed_distortion_values;             ///< Assigned fixed values
 };
 
-static_assert(serializable_aggregate<IntrinsicsOptimOptions>);
-
 template <camera_model CameraT>
 struct IntrinsicsOptimizationResult final {
-    OptimResult core;        ///< Optimization result details
+    OptimResult core;                        ///< Optimization result details
     CameraT camera;                          ///< Estimated camera parameters
     std::vector<Eigen::Isometry3d> c_se3_t;  ///< Estimated pose of each view
     std::vector<double> view_errors;         ///< Per-view reprojection errors
@@ -40,22 +38,6 @@ auto optimize_intrinsics(const std::vector<PlanarView>& views, const CameraT& in
                          const IntrinsicsOptimOptions& opts = {})
     -> IntrinsicsOptimizationResult<CameraT>;
 
-#if 0
-template <camera_model CameraT>
-inline void to_json(nlohmann::json& j, const IntrinsicsOptimizationResult<CameraT>& r) {
-    j = {{"camera", r.camera},           {"poses", r.c_se3_t},         {"covariance", r.covariance},
-         {"view_errors", r.view_errors}, {"final_cost", r.final_cost}, {"report", r.report}};
-}
-
-template <camera_model CameraT>
-inline void from_json(const nlohmann::json& j, IntrinsicsOptimizationResult<CameraT>& r) {
-    j.at("camera").get_to(r.camera);
-    r.c_se3_t = j.value("poses", std::vector<Eigen::Isometry3d>{});
-    r.covariance = j.at("covariance").get<Eigen::MatrixXd>();
-    r.view_errors = j.value("view_errors", std::vector<double>{});
-    r.final_cost = j.value("final_cost", 0.0);
-    r.report = j.value("report", std::string{});
-}
-#endif
+static_assert(serializable_aggregate<IntrinsicsOptimOptions>);
 
 }  // namespace calib

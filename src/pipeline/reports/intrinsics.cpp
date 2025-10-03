@@ -48,8 +48,8 @@ namespace {
     return std::sqrt(sum_sq / static_cast<double>(total_measurements));
 }
 
-auto build_planar_intrinsics_report(const IntrinsicCalibrationConfig& cfg, const CameraConfig& cam_cfg,
-                                    const PlanarDetections& detections,
+auto build_planar_intrinsics_report(const IntrinsicCalibrationConfig& cfg,
+                                    const CameraConfig& cam_cfg, const PlanarDetections& detections,
                                     const IntrinsicCalibrationOutputs& outputs)
     -> CalibrationReport {
     CameraReport camera;

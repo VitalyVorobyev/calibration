@@ -98,8 +98,8 @@ static auto process_planar_view(const CameraMatrix& kmtx, const HomographyResult
     return ved;
 }
 
-auto estimate_intrinsics(const std::vector<PlanarView>& views,
-                         const IntrinsicsEstimOptions& opts) -> IntrinsicsEstimateResult {
+auto estimate_intrinsics(const std::vector<PlanarView>& views, const IntrinsicsEstimOptions& opts)
+    -> IntrinsicsEstimateResult {
     IntrinsicsEstimateResult result;
     if (views.empty()) {
         return result;

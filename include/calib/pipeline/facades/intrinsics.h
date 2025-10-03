@@ -9,12 +9,12 @@
 #include <utility>
 #include <vector>
 
-#include "calib/io/serialization.h"
-#include "calib/pipeline/dataset.h"
 #include "calib/estimation/common/ransac.h"
 #include "calib/estimation/linear/planarpose.h"
 #include "calib/estimation/optim/intrinsics.h"
+#include "calib/io/serialization.h"
 #include "calib/models/pinhole.h"
+#include "calib/pipeline/dataset.h"
 
 namespace calib::pipeline {
 
@@ -79,7 +79,6 @@ class PlanarIntrinsicCalibrationFacade {
 
 void print_calibration_summary(std::ostream& out, const CameraConfig& cam_cfg,
                                const IntrinsicCalibrationOutputs& outputs);
-
 
 static_assert(serializable_aggregate<IntrinsicCalibrationOptions>);
 static_assert(serializable_aggregate<CameraConfig>);

@@ -175,4 +175,6 @@ inline void from_json(const nlohmann::json& j, PinholeCamera<DistortionT>& cam) 
     if (j.contains("distortion")) j.at("distortion").get_to(cam.distortion);
 }
 
+static_assert(camera_model<PinholeCamera<BrownConrady<double>>>);
+
 }  // namespace calib

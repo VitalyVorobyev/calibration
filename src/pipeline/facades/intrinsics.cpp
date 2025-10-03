@@ -7,9 +7,9 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "calib/pipeline/dataset.h"
 #include "calib/estimation/optim/planarpose.h"
 #include "calib/io/stream_capture.h"
+#include "calib/pipeline/dataset.h"
 
 namespace calib::pipeline {
 
@@ -36,8 +36,7 @@ namespace {
 }  // namespace
 
 auto collect_planar_views(const PlanarDetections& detections,
-                          const IntrinsicCalibrationOptions& opts,
-                          std::vector<ActiveView>& views)
+                          const IntrinsicCalibrationOptions& opts, std::vector<ActiveView>& views)
     -> std::vector<PlanarView> {
     std::vector<PlanarView> planar_views;
     views.clear();
@@ -59,8 +58,7 @@ auto collect_planar_views(const PlanarDetections& detections,
     return planar_views;
 }
 
-auto bounds_from_image_size(const std::array<int, 2>& image_size)
-    -> CalibrationBounds {
+auto bounds_from_image_size(const std::array<int, 2>& image_size) -> CalibrationBounds {
     const double width = static_cast<double>(image_size[0]);
     const double height = static_cast<double>(image_size[1]);
     const double short_side = std::min(width, height);
@@ -127,12 +125,12 @@ auto PlanarIntrinsicCalibrationFacade::calibrate(const IntrinsicCalibrationConfi
     if (cfg.options.refine) {
         // Estimate initial poses for each view
         std::vector<Eigen::Isometry3d> init_c_se3_t(planar_views.size());
-        std::transform(planar_views.begin(), planar_views.end(), init_c_se3_t.begin(), [&](const auto& view) {
-            return estimate_planar_pose(view, linear.kmtx);
-        });
+        std::transform(planar_views.begin(), planar_views.end(), init_c_se3_t.begin(),
+                       [&](const auto& view) { return estimate_planar_pose(view, linear.kmtx); });
 
         PinholeCamera<BrownConradyd> init_camera(linear.kmtx, Eigen::VectorXd::Zero(5));
-        refine = optimize_intrinsics(planar_views, init_camera, init_c_se3_t, cfg.options.optim_options);
+        refine =
+            optimize_intrinsics(planar_views, init_camera, init_c_se3_t, cfg.options.optim_options);
         if (!refine.core.success) {
             std::cerr << "Warning: Non-linear refinement did not converge. Using linear result."
                       << '\n';
@@ -192,7 +190,8 @@ auto load_calibration_config_impl(const std::filesystem::path& path) -> Intrinsi
     return cfg;
 }
 
-auto load_calibration_config(const std::filesystem::path& path) -> std::optional<IntrinsicCalibrationConfig> {
+auto load_calibration_config(const std::filesystem::path& path)
+    -> std::optional<IntrinsicCalibrationConfig> {
     try {
         return load_calibration_config_impl(path);
     } catch (const std::exception& e) {

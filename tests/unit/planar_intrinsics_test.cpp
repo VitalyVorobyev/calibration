@@ -1,5 +1,3 @@
-#include "calib/pipeline/facades/intrinsics.h"
-
 #include <gtest/gtest.h>
 
 #include <Eigen/Dense>
@@ -11,6 +9,7 @@
 #include <vector>
 
 #include "calib/pipeline/dataset.h"
+#include "calib/pipeline/facades/intrinsics.h"
 #include "calib/pipeline/reports/intrinsics.h"
 #include "utils.h"
 
@@ -228,13 +227,13 @@ TEST(PlanarIntrinsicsReport, JsonRoundTripPreservesData) {
     options.refine = true;
     options.optim_options.optimize_skew = true;
     options.optim_options.num_radial = 3;
-    options.optim_options.huber_delta = 1.5;
-    options.optim_options.max_iterations = 50;
-    options.optim_options.epsilon = 1e-6;
+    options.optim_options.core.huber_delta = 1.5;
+    options.optim_options.core.max_iterations = 50;
+    options.optim_options.core.epsilon = 1e-6;
     options.optim_options.fixed_distortion_indices = {0, 2};
     options.optim_options.fixed_distortion_values = {0.01, -0.02};
-    options.estim_options.homography_ransac = RansacOptions{
-        .max_iters = 500, .thresh = 0.5, .min_inliers = 20, .confidence = 0.85};
+    options.estim_options.homography_ransac =
+        RansacOptions{.max_iters = 500, .thresh = 0.5, .min_inliers = 20, .confidence = 0.85};
 
     InitialGuessReport guess;
     guess.intrinsics.fx = 800.0;
@@ -345,10 +344,9 @@ TEST(PlanarIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
     cfg.cameras = {cam_cfg};
 
     PlanarIntrinsicCalibrationFacade facade;
-    auto result =
-        facade.calibrate(cfg, cam_cfg, detections, std::filesystem::path{"synthetic.json"});
+    auto result = facade.calibrate(cfg, cam_cfg, detections);
 
-    EXPECT_TRUE(result.refine_result.success);
+    EXPECT_TRUE(result.refine_result.core.success);
     const auto& estimated = result.refine_result.camera.kmtx;
     EXPECT_NEAR(estimated.fx, cam_gt.kmtx.fx, 5.0);
     EXPECT_NEAR(estimated.fy, cam_gt.kmtx.fy, 5.0);

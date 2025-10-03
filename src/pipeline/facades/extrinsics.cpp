@@ -107,13 +107,12 @@ auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
     result.used_views = views.size();
     if (views.empty()) {
         result.success = false;
-        result.optimization.success = false;
+        result.optimization.core.success = false;
         return result;
     }
 
     std::vector<PinholeCamera<BrownConradyd>> init_cameras = {
-        reference_intrinsics.refine_result.camera,
-        target_intrinsics.refine_result.camera};
+        reference_intrinsics.refine_result.camera, target_intrinsics.refine_result.camera};
 
     std::vector<PinholeCamera<DualDistortion>> dlt_cameras;
     dlt_cameras.reserve(init_cameras.size());
@@ -127,7 +126,7 @@ auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
 
     result.optimization = optimize_extrinsics(views, init_cameras, result.initial_guess.c_se3_r,
                                               result.initial_guess.r_se3_t, options);
-    result.success = result.optimization.success;
+    result.success = result.optimization.core.success;
     return result;
 }
 
@@ -137,8 +136,7 @@ static auto compute_views(const MultiCameraRigConfig& cfg,
                           const std::unordered_map<std::string, IntrinsicCalibrationOutputs>& intr)
     -> std::vector<MulticamPlanarView> {
     // Build lookup tables for each sensor
-    std::unordered_map<std::string,
-                       std::unordered_map<std::string, const PlanarImageDetections*>>
+    std::unordered_map<std::string, std::unordered_map<std::string, const PlanarImageDetections*>>
         lookup;
     for (const auto& [sid, d] : dets) {
         std::unordered_map<std::string, const PlanarImageDetections*> map;
@@ -207,7 +205,7 @@ auto MultiCameraCalibrationFacade::calibrate(
     result.used_views = views.size();
     if (views.empty()) {
         result.success = false;
-        result.optimization.success = false;
+        result.optimization.core.success = false;
         return result;
     }
 
@@ -227,7 +225,7 @@ auto MultiCameraCalibrationFacade::calibrate(
     ExtrinsicOptions options = cfg.options;
     result.optimization = optimize_extrinsics(views, init_cameras, result.initial_guess.c_se3_r,
                                               result.initial_guess.r_se3_t, options);
-    result.success = result.optimization.success;
+    result.success = result.optimization.core.success;
     return result;
 }
 

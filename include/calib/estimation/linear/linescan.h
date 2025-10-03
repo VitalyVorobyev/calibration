@@ -32,6 +32,10 @@ struct LineScanPlaneFitOptions final {
     RansacOptions ransac_options{};
 };
 
+static_assert(serializable_aggregate<LineScanView>);
+static_assert(serializable_aggregate<LineScanCalibrationResult>);
+static_assert(serializable_aggregate<LineScanPlaneFitOptions>);
+
 inline void validate_observations(const std::vector<LineScanView>& views) {
     if (views.size() < 2) {
         throw std::invalid_argument("At least 2 views are required");
@@ -87,11 +91,10 @@ std::vector<Eigen::Vector3d> points_from_view(LineScanView view, const CameraT& 
 }
 
 inline double plane_rms(const std::vector<Eigen::Vector3d>& pts, const Eigen::Vector4d& plane) {
-    double ss = 0.0;
-    for (const auto& p : pts) {
+    const double ss = std::accumulate(pts.begin(), pts.end(), 0.0, [&](double acc, const auto& p) {
         double r = plane.head<3>().dot(p) + plane[3];
-        ss += r * r;
-    }
+        return acc + r * r;
+    });
     return std::sqrt(ss / static_cast<double>(pts.size()));
 }
 

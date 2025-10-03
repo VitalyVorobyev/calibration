@@ -1,5 +1,3 @@
-#include "calib/pipeline/facades/intrinsics.h"
-
 #include <CLI/CLI.hpp>
 #include <filesystem>
 #include <fstream>
@@ -11,6 +9,7 @@
 #include <vector>
 
 #include "calib/pipeline/dataset.h"
+#include "calib/pipeline/facades/intrinsics.h"
 
 using namespace calib::pipeline;
 

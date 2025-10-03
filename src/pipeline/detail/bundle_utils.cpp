@@ -166,7 +166,7 @@ auto compute_handeye_initialization(
 
         if (sensor_map != nullptr) {
             const auto he_it = sensor_map->find(sensor_id);
-            if (he_it != sensor_map->end() && he_it->second.success) {
+            if (he_it != sensor_map->end() && he_it->second.core.success) {
                 output.transforms[idx] = he_it->second.g_se3_c;
                 entry["source"] = "handeye";
                 entry["success"] = true;

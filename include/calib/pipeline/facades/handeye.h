@@ -45,7 +45,7 @@ struct HandEyeRigConfig final {
     std::string rig_id;
     std::vector<std::string> sensors;
     std::vector<HandEyeObservationConfig> observations;
-    HandeyeOptions options;
+    OptimOptions options;
     double min_angle_deg{1.0};
 };
 

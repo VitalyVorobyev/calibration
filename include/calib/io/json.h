@@ -10,12 +10,12 @@
 #endif
 #endif
 
+#include <concepts>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
-#include <concepts>
 
 namespace calib {
 

@@ -60,14 +60,14 @@ TEST(JsonSerialization, IntrinsicsResultRoundTrip) {
     IntrinsicsOptimizationResult<Camera<BrownConradyd>> res;
     res.camera.kmtx = CameraMatrix{100, 100, 0, 0, 0};
     res.camera.distortion.coeffs = Eigen::VectorXd::Zero(5);
-    res.covariance = Eigen::MatrixXd::Identity(5, 5);
+    res.core.covariance = Eigen::MatrixXd::Identity(5, 5);
     res.view_errors = {0.1, 0.2};
-    res.report = "ok";
+    res.core.report = "ok";
     res.c_se3_t = {Eigen::Isometry3d::Identity()};
     nlohmann::json j = res;
     auto r2 = j.get<IntrinsicsOptimizationResult<Camera<BrownConradyd>>>();
     EXPECT_NEAR(r2.camera.kmtx.fx, 100, 1e-9);
-    EXPECT_EQ(r2.report, "ok");
+    EXPECT_EQ(r2.core.report, "ok");
     EXPECT_EQ(r2.view_errors.size(), 2U);
 }
 
@@ -219,7 +219,7 @@ TEST(BundleJsonIo, BundleRigRoundTripAndOptionalTarget) {
     rig.options.optimize_skew = true;
     rig.options.optimize_target_pose = false;
     rig.options.optimize_hand_eye = false;
-    rig.options.verbose = true;
+    rig.options.core.verbose = true;
     rig.initial_target = makePose({0.4, -0.1, 0.6}, {0.0, 0.0, 1.0}, 0.2);
     rig.observations = {
         HandEyeObservationConfig{"bundle-view",
@@ -238,7 +238,7 @@ TEST(BundleJsonIo, BundleRigRoundTripAndOptionalTarget) {
     EXPECT_TRUE(parsed.options.optimize_skew);
     EXPECT_FALSE(parsed.options.optimize_target_pose);
     EXPECT_FALSE(parsed.options.optimize_hand_eye);
-    EXPECT_TRUE(parsed.options.verbose);
+    EXPECT_TRUE(parsed.options.core.verbose);
 
     nlohmann::json legacy = node;
     legacy.erase("initial_target");

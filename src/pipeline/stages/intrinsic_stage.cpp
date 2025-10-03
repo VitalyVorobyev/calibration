@@ -1,8 +1,7 @@
-#include "calib/pipeline/stages.h"
-
+#include "calib/pipeline/detail/planar_utils.h"
 #include "calib/pipeline/facades/intrinsics.h"
 #include "calib/pipeline/reports/intrinsics.h"
-#include "calib/pipeline/detail/planar_utils.h"
+#include "calib/pipeline/stages.h"
 
 namespace calib::pipeline {
 
@@ -31,7 +30,7 @@ SensorCalibrationResult calibrate_sensor(const PlanarIntrinsicCalibrationFacade&
     }
 
     try {
-        auto run = facade.calibrate(cfg, *cam_cfg, detections, detections.source_file);
+        auto run = facade.calibrate(cfg, *cam_cfg, detections);
         context.intrinsic_results[sensor_id] = run;
 
         const auto report = build_planar_intrinsics_report(cfg, *cam_cfg, detections, run);

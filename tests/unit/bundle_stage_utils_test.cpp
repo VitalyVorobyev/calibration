@@ -6,8 +6,8 @@
 #include <vector>
 
 #include "calib/pipeline/dataset.h"
-#include "calib/pipeline/facades/intrinsics.h"
 #include "calib/pipeline/detail/bundle_utils.h"
+#include "calib/pipeline/facades/intrinsics.h"
 
 namespace calib::pipeline::detail {
 namespace {
@@ -24,13 +24,12 @@ auto make_camera() -> PinholeCamera<BrownConradyd> {
 
 IntrinsicCalibrationOutputs make_intrinsics_result() {
     IntrinsicCalibrationOutputs intrinsics;
-    intrinsics.refine_result.success = true;
+    intrinsics.refine_result.core.success = true;
     intrinsics.refine_result.camera = make_camera();
     return intrinsics;
 }
 
-PlanarDetections make_detections(const std::string& sensor_id,
-                                         const std::string& image_file) {
+PlanarDetections make_detections(const std::string& sensor_id, const std::string& image_file) {
     PlanarDetections detections;
     detections.sensor_id = sensor_id;
     PlanarImageDetections image;
@@ -136,7 +135,7 @@ TEST(BundleStageUtilsTest, HandeyeInitializationPrefersExistingResults) {
     rig.sensors = {"cam0"};
 
     HandeyeResult handeye;
-    handeye.success = true;
+    handeye.core.success = true;
     handeye.g_se3_c = Eigen::Translation3d(1.0, 0.0, 0.0) * Eigen::Isometry3d::Identity();
 
     std::unordered_map<std::string, std::unordered_map<std::string, HandeyeResult>> handeye_results;

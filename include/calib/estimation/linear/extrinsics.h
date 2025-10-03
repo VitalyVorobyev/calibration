@@ -77,4 +77,6 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
     return ExtrinsicPoses{c_se3_r, r_se3_t};
 }
 
+static_assert(serializable_aggregate<ExtrinsicPoses>);
+
 }  // namespace calib

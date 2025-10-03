@@ -1,6 +1,6 @@
-#include "calib/pipeline/stages.h"
-#include "calib/pipeline/facades/extrinsics.h"
 #include "calib/pipeline/detail/planar_utils.h"
+#include "calib/pipeline/facades/extrinsics.h"
+#include "calib/pipeline/stages.h"
 
 namespace calib::pipeline {
 
@@ -8,7 +8,8 @@ namespace {
 
 using detail::build_sensor_index;
 
-auto build_detection_lookup(const std::vector<PlanarDetections>& detections) -> std::unordered_map<std::string, const PlanarDetections*> {
+auto build_detection_lookup(const std::vector<PlanarDetections>& detections)
+    -> std::unordered_map<std::string, const PlanarDetections*> {
     std::unordered_map<std::string, const PlanarDetections*> lookup;
     for (const auto& det : detections) {
         if (!det.sensor_id.empty()) {
@@ -125,7 +126,7 @@ auto StereoCalibrationStage::run(PipelineContext& context) -> PipelineStageResul
             pair_json["used_views"] = pair_result.used_views;
             pair_json["success"] = pair_result.success;
             pair_json["status"] = pair_result.success ? "ok" : "failed";
-            pair_json["final_cost"] = pair_result.optimization.final_cost;
+            pair_json["final_cost"] = pair_result.optimization.core.final_cost;
 
             if (pair_result.success) {
                 any_success = true;
@@ -148,7 +149,7 @@ auto StereoCalibrationStage::run(PipelineContext& context) -> PipelineStageResul
             artifact["initial_guess"] = std::move(initial_guess_json);
             artifact["views"] = pair_json["views"];
             artifact["optimization"] = pair_result.optimization;
-            artifact["final_cost"] = pair_result.optimization.final_cost;
+            artifact["final_cost"] = pair_result.optimization.core.final_cost;
             stereo_artifacts["pairs"][pair_cfg.pair_id] = std::move(artifact);
         } catch (const std::exception& ex) {
             pair_json["status"] = "calibration_error";

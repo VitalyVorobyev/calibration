@@ -133,7 +133,7 @@ Most workflows live in `calib::estimation` and `calib::pipeline`:
 ```cpp
 #include <calib/estimation/handeye.h>
 
-HandeyeOptions opts;
+OptimOptions opts;
 auto result = calib::optimize_handeye(base_gripper_poses,
                                       camera_target_poses,
                                       initial_guess,

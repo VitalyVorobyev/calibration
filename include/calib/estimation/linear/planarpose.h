@@ -25,6 +25,8 @@ struct PlanarObservation {
 };
 using PlanarView = std::vector<PlanarObservation>;
 
+static_assert(serializable_aggregate<PlanarObservation>);
+
 // Decompose homography in normalized camera coords: H = [r1 r2 t]
 auto pose_from_homography_normalized(const Eigen::Matrix3d& hmtx) -> Eigen::Isometry3d;
 

@@ -91,10 +91,10 @@ void append_view(PlanarDetections& detections, const std::string& file_name,
     data.pair_config.pair_id = "rig";
     data.pair_config.options.optimize_intrinsics = false;
 
-    data.reference_intrinsics.refine_result.success = true;
+    data.reference_intrinsics.refine_result.core.success = true;
     data.reference_intrinsics.refine_result.camera = camera_model;
 
-    data.target_intrinsics.refine_result.success = true;
+    data.target_intrinsics.refine_result.core.success = true;
     data.target_intrinsics.refine_result.camera = camera_model;
 
     return data;

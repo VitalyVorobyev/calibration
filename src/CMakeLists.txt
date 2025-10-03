@@ -7,7 +7,6 @@ add_library(calib INTERFACE)
 target_link_libraries(calib INTERFACE
     calib_models
     calib_estimation
-    calib_reports
     calib_pipeline
     calib_io)
 add_library(calib::calib ALIAS calib)

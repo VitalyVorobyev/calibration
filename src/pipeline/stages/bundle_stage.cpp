@@ -1,7 +1,7 @@
-#include "calib/pipeline/stages.h"
-#include "calib/pipeline/facades/handeye.h"
 #include "calib/pipeline/detail/bundle_utils.h"
 #include "calib/pipeline/detail/planar_utils.h"
+#include "calib/pipeline/facades/handeye.h"
+#include "calib/pipeline/stages.h"
 
 namespace calib::pipeline {
 
@@ -119,23 +119,23 @@ auto BundleAdjustmentStage::run(PipelineContext& context) -> PipelineStageResult
                                 handeye_init.transforms, target_init.pose, options);
 
             nlohmann::json result_json;
-            result_json["success"] = bundle_result.success;
-            result_json["final_cost"] = bundle_result.final_cost;
-            result_json["report"] = bundle_result.report;
+            result_json["success"] = bundle_result.core.success;
+            result_json["final_cost"] = bundle_result.core.final_cost;
+            result_json["report"] = bundle_result.core.report;
             result_json["b_se3_t"] = bundle_result.b_se3_t;
             result_json["g_se3_c"] = bundle_result.g_se3_c;
             result_json["cameras"] = bundle_result.cameras;
-            if (bundle_result.covariance.size() > 0) {
-                result_json["covariance"] = bundle_result.covariance;
+            if (bundle_result.core.covariance.size() > 0) {
+                result_json["covariance"] = bundle_result.core.covariance;
             }
 
             rig_artifact["result"] = result_json;
             rig_artifact["views"] = rig_json["views"];
 
-            rig_json["success"] = bundle_result.success;
-            rig_json["final_cost"] = bundle_result.final_cost;
+            rig_json["success"] = bundle_result.core.success;
+            rig_json["final_cost"] = bundle_result.core.final_cost;
 
-            if (bundle_result.success) {
+            if (bundle_result.core.success) {
                 rig_json["status"] = "ok";
                 any_success = true;
                 context.bundle_results[rig.rig_id] = bundle_result;

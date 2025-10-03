@@ -6,8 +6,8 @@
 
 #include "calib/estimation/optim/bundle.h"
 #include "calib/estimation/optim/handeye.h"
-#include "calib/pipeline/facades/handeye.h"
 #include "calib/pipeline/detail/planar_utils.h"
+#include "calib/pipeline/facades/handeye.h"
 
 namespace calib::pipeline::detail {
 

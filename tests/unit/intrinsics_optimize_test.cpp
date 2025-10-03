@@ -59,7 +59,7 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     EXPECT_NEAR(k_final.cx, k_gt.cx, 1e-6);
     EXPECT_NEAR(k_final.cy, k_gt.cy, 1e-6);
     EXPECT_NEAR(k_final.skew, k_gt.skew, 1e-9);
-    EXPECT_LT(res.final_cost, 1e-6);
+    EXPECT_LT(res.core.final_cost, 1e-6);
 }
 
 TEST(OptimizeIntrinsics, RecoversSkew) {
@@ -99,9 +99,8 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
 
     // Estimate initial poses for each view
     std::vector<Eigen::Isometry3d> init_poses(views.size());
-    std::transform(views.begin(), views.end(), init_poses.begin(), [&](const auto& view) {
-        return estimate_planar_pose(view, guess_cam.kmtx);
-    });
+    std::transform(views.begin(), views.end(), init_poses.begin(),
+                   [&](const auto& view) { return estimate_planar_pose(view, guess_cam.kmtx); });
 
     IntrinsicsOptimOptions opts;
     opts.num_radial = 0;
