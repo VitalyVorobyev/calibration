@@ -177,9 +177,8 @@ auto compute_handeye_initialization(
 
         if (idx < accumulators.size() && accumulators[idx].cam.size() >= 2U) {
             try {
-                output.transforms[idx] = estimate_handeye_dlt(accumulators[idx].base,
-                                                              accumulators[idx].cam,
-                                                              rig.min_angle_deg);
+                output.transforms[idx] = estimate_handeye_dlt(
+                    accumulators[idx].base, accumulators[idx].cam, rig.min_angle_deg);
                 entry["source"] = "dlt";
                 entry["success"] = true;
             } catch (const std::exception& ex) {

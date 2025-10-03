@@ -51,29 +51,7 @@ auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const Ca
                                     const PlanarDetections& detections,
                                     const CalibrationOutputs& outputs,
                                     const std::filesystem::path& /*features_path*/)
-    -> PlanarIntrinsicsReport {
-    PlanarIntrinsicsReport report;
-    report.session = SessionReport{.id = cfg.session.id,
-                                   .description = cfg.session.description,
-                                   .timestamp_utc = iso_timestamp_utc()};
-
-    PlanarIntrinsicsOptionsReport options;
-    options.min_corners_per_view = cfg.options.min_corners_per_view;
-    options.refine = cfg.options.refine;
-    options.optimize_skew = cfg.options.optimize_skew;
-    options.num_radial = cfg.options.num_radial;
-    options.huber_delta = cfg.options.huber_delta;
-    options.max_iterations = cfg.options.max_iterations;
-    options.epsilon = cfg.options.epsilon;
-    options.point_scale = cfg.options.point_scale;
-    options.auto_center_points = cfg.options.auto_center;
-    options.fixed_distortion_indices = cfg.options.fixed_distortion_indices;
-    options.fixed_distortion_values = cfg.options.fixed_distortion_values;
-    if (cfg.options.point_center_override.has_value()) {
-        options.point_center = cfg.options.point_center_override.value();
-    }
-    options.homography_ransac = cfg.options.homography_ransac;
-
+    -> CalibrationReport {
     CameraReport camera;
     camera.camera_id = cam_cfg.camera_id;
     camera.model = cam_cfg.model;
@@ -112,7 +90,7 @@ auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const Ca
     CalibrationReport calibration;
     calibration.type = "intrinsics";
     calibration.algorithm = cfg.algorithm;
-    calibration.options = std::move(options);
+    calibration.options = cfg.options;
     if (!detections.metadata.is_null() && detections.metadata.contains("detector")) {
         calibration.detector = detections.metadata.at("detector");
     } else {
@@ -120,9 +98,7 @@ auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const Ca
     }
     calibration.cameras.push_back(std::move(camera));
 
-    report.calibrations.push_back(std::move(calibration));
-
-    return report;
+    return calibration;
 }
 
 }  // namespace calib::planar

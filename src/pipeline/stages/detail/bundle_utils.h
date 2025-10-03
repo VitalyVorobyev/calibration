@@ -1,11 +1,10 @@
 #pragma once
 
 #include <Eigen/Geometry>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include <nlohmann/json.hpp>
 
 #include "calib/estimation/optim/bundle.h"
 #include "calib/estimation/optim/handeye.h"

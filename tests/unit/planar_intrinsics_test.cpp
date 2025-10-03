@@ -210,8 +210,6 @@ TEST(PlanarIntrinsicsUtils, PrintCalibrationSummaryIncludesKeyData) {
 
 TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
     PlanarCalibrationConfig cfg;
-    cfg.session.id = "session";
-    cfg.session.description = "test";
     cfg.algorithm = "planar";
     cfg.options.fixed_distortion_indices = {0, 2};
     cfg.options.fixed_distortion_values = {0.1, 0.05};
@@ -399,8 +397,6 @@ TEST(PlanarIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
     }
 
     PlanarCalibrationConfig cfg;
-    cfg.session.id = "session";
-    cfg.session.description = "synthetic";
     cfg.algorithm = "planar";
     cfg.options.min_corners_per_view = 20;
     cfg.options.refine = true;
@@ -438,7 +434,6 @@ TEST(PlanarIntrinsicConfig, LoadConfigParsesOptions) {
         tests_dir.parent_path() / "apps" / "examples" / "planar_intrinsics_config.json";
     auto cfg = load_calibration_config(config_path);
 
-    EXPECT_EQ(cfg.session.id, "default_planar_session");
     EXPECT_FALSE(cfg.cameras.empty());
     EXPECT_EQ(cfg.cameras[0].camera_id, "cam0");
     EXPECT_TRUE(cfg.options.homography_ransac.has_value());

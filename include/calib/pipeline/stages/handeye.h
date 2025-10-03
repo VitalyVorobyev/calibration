@@ -69,19 +69,4 @@ struct BundlePipelineConfig final {
     std::vector<BundleRigConfig> rigs;
 };
 
-void to_json(nlohmann::json& j, const HandEyeObservationConfig& cfg);
-void from_json(const nlohmann::json& j, HandEyeObservationConfig& cfg);
-
-void to_json(nlohmann::json& j, const HandEyeRigConfig& cfg);
-void from_json(const nlohmann::json& j, HandEyeRigConfig& cfg);
-
-void to_json(nlohmann::json& j, const HandEyePipelineConfig& cfg);
-void from_json(const nlohmann::json& j, HandEyePipelineConfig& cfg);
-
-void to_json(nlohmann::json& j, const BundleRigConfig& cfg);
-void from_json(const nlohmann::json& j, BundleRigConfig& cfg);
-
-void to_json(nlohmann::json& j, const BundlePipelineConfig& cfg);
-void from_json(const nlohmann::json& j, BundlePipelineConfig& cfg);
-
 }  // namespace calib::pipeline

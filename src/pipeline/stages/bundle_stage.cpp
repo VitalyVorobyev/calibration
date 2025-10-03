@@ -74,7 +74,8 @@ auto BundleAdjustmentStage::run(PipelineContext& context) -> PipelineStageResult
 
         const auto sensor_setup =
             detail::collect_bundle_sensor_setup(rig, context.intrinsic_results);
-        if (!sensor_setup.missing_sensors.empty() || sensor_setup.cameras.size() != rig.sensors.size()) {
+        if (!sensor_setup.missing_sensors.empty() ||
+            sensor_setup.cameras.size() != rig.sensors.size()) {
             rig_json["status"] = "missing_intrinsics";
             rig_json["observations"] =
                 nlohmann::json::object({{"requested", requested_views}, {"used", 0}});
@@ -87,9 +88,8 @@ auto BundleAdjustmentStage::run(PipelineContext& context) -> PipelineStageResult
             *observations, rig.sensors, sensor_setup.sensor_to_index, sensor_index,
             context.intrinsic_results);
 
-        rig_json["observations"] =
-            nlohmann::json::object(
-                {{"requested", requested_views}, {"used", view_result.observations.size()}});
+        rig_json["observations"] = nlohmann::json::object(
+            {{"requested", requested_views}, {"used", view_result.observations.size()}});
         rig_json["views"] = view_result.views;
 
         if (view_result.observations.empty()) {
@@ -99,12 +99,12 @@ auto BundleAdjustmentStage::run(PipelineContext& context) -> PipelineStageResult
             continue;
         }
 
-        auto handeye_init = detail::compute_handeye_initialization(
-            rig, context.handeye_results, view_result.accumulators);
+        auto handeye_init = detail::compute_handeye_initialization(rig, context.handeye_results,
+                                                                   view_result.accumulators);
         rig_json["handeye_initialization"] = handeye_init.report;
 
-        auto target_init = detail::choose_initial_target(rig, view_result.accumulators,
-                                                        handeye_init.transforms);
+        auto target_init =
+            detail::choose_initial_target(rig, view_result.accumulators, handeye_init.transforms);
         rig_json["initial_target_source"] = target_init.source;
 
         rig_artifact["initial_hand_eye"] = handeye_init.report;
@@ -116,8 +116,9 @@ auto BundleAdjustmentStage::run(PipelineContext& context) -> PipelineStageResult
 
         BundleOptions options = rig.options;
         try {
-            auto bundle_result = optimize_bundle(view_result.observations, sensor_setup.cameras,
-                                                 handeye_init.transforms, target_init.pose, options);
+            auto bundle_result =
+                optimize_bundle(view_result.observations, sensor_setup.cameras,
+                                handeye_init.transforms, target_init.pose, options);
 
             nlohmann::json result_json;
             result_json["success"] = bundle_result.success;

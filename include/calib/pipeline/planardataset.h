@@ -7,8 +7,7 @@
 #include <string>
 #include <vector>
 
-// nlohmann
-#include <nlohmann/json.hpp>
+#include "calib/io/json.h"
 
 namespace calib::planar {
 
@@ -37,14 +36,5 @@ struct PlanarDetections final {
     std::filesystem::path source_file;
     std::vector<PlanarImageDetections> images;
 };
-
-void to_json(nlohmann::json& json, const PlanarTargetPoint& point);
-void from_json(const nlohmann::json& json, PlanarTargetPoint& point);
-
-void to_json(nlohmann::json& json, const PlanarImageDetections& detections);
-void from_json(const nlohmann::json& json, PlanarImageDetections& detections);
-
-void to_json(nlohmann::json& json, const PlanarDetections& detections);
-void from_json(const nlohmann::json& json, PlanarDetections& detections);
 
 }  // namespace calib::planar

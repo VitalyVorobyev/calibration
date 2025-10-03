@@ -36,38 +36,9 @@ namespace {
 
 }  // namespace
 
-auto determine_point_center(const PlanarDetections& detections,
-                            const IntrinsicCalibrationOptions& opts) -> std::array<double, 2> {
-    if (opts.point_center_override.has_value()) {
-        return opts.point_center_override.value();
-    }
-    if (!opts.auto_center) {
-        return {0.0, 0.0};
-    }
-
-    double min_x = std::numeric_limits<double>::max();
-    double min_y = std::numeric_limits<double>::max();
-    double max_x = std::numeric_limits<double>::lowest();
-    double max_y = std::numeric_limits<double>::lowest();
-    bool has_points = false;
-    for (const auto& img : detections.images) {
-        for (const auto& pt : img.points) {
-            min_x = std::min(min_x, pt.local_x);
-            max_x = std::max(max_x, pt.local_x);
-            min_y = std::min(min_y, pt.local_y);
-            max_y = std::max(max_y, pt.local_y);
-            has_points = true;
-        }
-    }
-    if (!has_points) {
-        return {0.0, 0.0};
-    }
-    return {0.5 * (min_x + max_x), 0.5 * (min_y + max_y)};
-}
-
 auto collect_planar_views(const PlanarDetections& detections,
                           const IntrinsicCalibrationOptions& opts,
-                          const std::array<double, 2>& point_center, std::vector<ActiveView>& views)
+                          std::vector<ActiveView>& views)
     -> std::vector<PlanarView> {
     std::vector<PlanarView> planar_views;
     views.clear();
@@ -76,15 +47,13 @@ auto collect_planar_views(const PlanarDetections& detections,
         if (img.points.size() < opts.min_corners_per_view) {
             continue;
         }
-        PlanarView view;
-        view.reserve(img.points.size());
-        for (const auto& pt : img.points) {
+        PlanarView view(img.points.size());
+        std::transform(img.points.begin(), img.points.end(), view.begin(), [&](const auto& pt) {
             PlanarObservation obs;
-            obs.object_xy = Eigen::Vector2d((pt.local_x - point_center[0]) * opts.point_scale,
-                                            (pt.local_y - point_center[1]) * opts.point_scale);
+            obs.object_xy = Eigen::Vector2d(pt.local_x, pt.local_y);
             obs.image_uv = Eigen::Vector2d(pt.x, pt.y);
-            view.push_back(std::move(obs));
-        }
+            return obs;
+        });
         views.push_back({img.file, view.size()});
         planar_views.push_back(std::move(view));
     }
@@ -189,7 +158,8 @@ auto PlanarIntrinsicCalibrationFacade::calibrate(const PlanarCalibrationConfig& 
 
     IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> refine;
     if (cfg.options.refine) {
-        refine = optimize_intrinsics_semidlt(planar_views, linear.kmtx, refine_opts);
+        PinholeCamera<BrownConradyd> init_camera(linear.kmtx, Eigen::VectorXd::Zero(5));
+        refine = optimize_intrinsics(planar_views, init_camera, refine_opts);
         if (!refine.success) {
             std::cerr << "Warning: Non-linear refinement did not converge. Using linear result."
                       << '\n';
@@ -248,102 +218,23 @@ void print_calibration_summary(std::ostream& out, const CameraConfig& cam_cfg,
     out << "\n";
 }
 
-auto load_calibration_config(const std::filesystem::path& path) -> PlanarCalibrationConfig {
+auto load_calibration_config_impl(const std::filesystem::path& path) -> PlanarCalibrationConfig {
     std::ifstream stream(path);
-    if (!stream) {
-        throw std::runtime_error("Failed to open config: " + path.string());
-    }
-
     nlohmann::json json_cfg;
     stream >> json_cfg;
 
-    PlanarCalibrationConfig cfg;
-    const auto& session = json_cfg.at("session");
-    cfg.session.id = session.value("id", "planar_session");
-    cfg.session.description = session.value("description", "");
-
-    const auto& calibration = json_cfg.at("calibration");
-    const auto type = calibration.value("type", "intrinsics");
-    if (type != "intrinsics") {
-        throw std::runtime_error("Planar calibration example only supports intrinsics, got: " +
-                                 type);
-    }
-    cfg.algorithm = calibration.value("algorithm", cfg.algorithm);
-
-    const auto& opts_json = calibration.value("options", nlohmann::json::object());
-    cfg.options.min_corners_per_view =
-        opts_json.value("min_corners_per_view", cfg.options.min_corners_per_view);
-    cfg.options.refine = opts_json.value("refine", cfg.options.refine);
-    cfg.options.optimize_skew = opts_json.value("optimize_skew", cfg.options.optimize_skew);
-    cfg.options.num_radial = opts_json.value("num_radial", cfg.options.num_radial);
-    cfg.options.huber_delta = opts_json.value("huber_delta", cfg.options.huber_delta);
-    cfg.options.max_iterations = opts_json.value("max_iterations", cfg.options.max_iterations);
-    cfg.options.epsilon = opts_json.value("epsilon", cfg.options.epsilon);
-    cfg.options.verbose = opts_json.value("verbose", cfg.options.verbose);
-    cfg.options.point_scale = opts_json.value("point_scale", cfg.options.point_scale);
-    cfg.options.auto_center = opts_json.value("auto_center_points", cfg.options.auto_center);
-    if (opts_json.contains("point_center")) {
-        const auto& arr = opts_json.at("point_center");
-        if (!arr.is_array() || arr.size() != 2) {
-            throw std::runtime_error("options.point_center must be an array [x, y].");
-        }
-        cfg.options.point_center_override =
-            std::array<double, 2>{arr[0].get<double>(), arr[1].get<double>()};
-        cfg.options.auto_center = false;
-    }
-    if (opts_json.contains("fixed_distortion_indices")) {
-        const auto& arr = opts_json.at("fixed_distortion_indices");
-        if (!arr.is_array()) {
-            throw std::runtime_error("options.fixed_distortion_indices must be an array.");
-        }
-        cfg.options.fixed_distortion_indices.clear();
-        for (const auto& v : arr) {
-            cfg.options.fixed_distortion_indices.push_back(v.get<int>());
-        }
-    }
-    if (opts_json.contains("fixed_distortion_values")) {
-        const auto& arr = opts_json.at("fixed_distortion_values");
-        if (!arr.is_array()) {
-            throw std::runtime_error("options.fixed_distortion_values must be an array.");
-        }
-        cfg.options.fixed_distortion_values.clear();
-        for (const auto& v : arr) {
-            cfg.options.fixed_distortion_values.push_back(v.get<double>());
-        }
-    }
-
-    if (opts_json.contains("homography_ransac")) {
-        const auto& r = opts_json.at("homography_ransac");
-        HomographyRansacConfig ransac_cfg;
-        ransac_cfg.max_iters = r.value("max_iters", ransac_cfg.max_iters);
-        ransac_cfg.thresh = r.value("thresh", ransac_cfg.thresh);
-        ransac_cfg.min_inliers = r.value("min_inliers", ransac_cfg.min_inliers);
-        ransac_cfg.confidence = r.value("confidence", ransac_cfg.confidence);
-        cfg.options.homography_ransac = ransac_cfg;
-    }
-
-    const auto& cameras_json = json_cfg.at("cameras");
-    if (!cameras_json.is_array() || cameras_json.empty()) {
-        throw std::runtime_error("Config must list at least one camera under 'cameras'.");
-    }
-
-    cfg.cameras.clear();
-    cfg.cameras.reserve(cameras_json.size());
-    for (const auto& cam_json : cameras_json) {
-        CameraConfig cam;
-        cam.camera_id = cam_json.at("camera_id").get<std::string>();
-        cam.model = cam_json.value("model", cam.model);
-        if (cam_json.contains("image_size")) {
-            const auto& arr = cam_json.at("image_size");
-            if (!arr.is_array() || arr.size() != 2) {
-                throw std::runtime_error("camera.image_size must be an array of [width, height].");
-            }
-            cam.image_size = std::array<int, 2>{arr[0].get<int>(), arr[1].get<int>()};
-        }
-        cfg.cameras.push_back(cam);
-    }
-
+    PlanarCalibrationConfig cfg = json_cfg;
     return cfg;
+}
+
+auto load_calibration_config(const std::filesystem::path& path) -> std::optional<PlanarCalibrationConfig> {
+    try {
+        return load_calibration_config_impl(path);
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to load calibration config from " << path << ": " << e.what()
+                  << std::endl;
+        return std::nullopt;
+    }
 }
 
 }  // namespace calib::planar

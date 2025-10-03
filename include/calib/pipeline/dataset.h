@@ -13,7 +13,7 @@ namespace calib::pipeline {
 /**
  * @brief Aggregated dataset consumed by the calibration pipeline.
  */
-struct CalibrationDataset {
+struct CalibrationDataset final {
     int schema_version{1};
     nlohmann::json metadata;
     std::vector<planar::PlanarDetections> planar_cameras;

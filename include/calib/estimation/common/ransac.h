@@ -61,45 +61,6 @@ inline auto rms(const std::vector<double>& vals) -> double {
     return std::sqrt(ss / static_cast<double>(vals.size()));
 }
 
-template <typename RNG>
-inline void sample_k_unique(size_t k, size_t size, RNG& rng, std::vector<int>& out) {
-    if (k > size) {
-        std::cerr << "Warning: sample_k_unique called with k > size\n";
-        k = size;
-    }
-
-    out.clear();
-    out.reserve(k);
-    if (k == 0 || size == 0) {
-        return;
-    }
-
-    std::unordered_map<std::size_t, std::size_t> remap;
-    remap.reserve(k);
-
-    for (std::size_t i = 0; i < k; ++i) {
-        const std::size_t range = size - i;
-        std::uniform_int_distribution<std::size_t> dist(0, range - 1);
-        const std::size_t r = dist(rng);
-
-        const auto it_pick = remap.find(r);
-        const std::size_t picked = (it_pick != remap.end()) ? it_pick->second : r;
-
-        const std::size_t last = range - 1;
-        const auto it_last = remap.find(last);
-        const std::size_t mapped_last = (it_last != remap.end()) ? it_last->second : last;
-
-        remap[r] = mapped_last;
-        if (it_last != remap.end()) {
-            remap.erase(it_last);
-        } else if (r == last) {
-            remap.erase(r);
-        }
-
-        out.push_back(static_cast<int>(picked));
-    }
-}
-
 inline int calculate_iterations(double confidence, double inlier_ratio, int min_samples,
                                 int iters_so_far, int max_iters) {
     if (confidence <= 0.0 || inlier_ratio <= 0.0) {
@@ -155,6 +116,7 @@ inline auto is_better_model(bool has_current_best, size_t new_inlier_count, doub
            (new_inlier_count == best_inlier_count && new_inlier_rms < best_inlier_rms);
 }
 
+
 }  // namespace detail
 
 template <class Estimator>
@@ -167,17 +129,21 @@ auto ransac(const std::vector<typename Estimator::Datum>& data, const RansacOpti
         return best;
     }
 
+    std::vector<int> all_indices(data.size());
+    std::vector<int> idxs(Estimator::k_min_samples);
+    std::iota(all_indices.begin(), all_indices.end(), 0);
+
     std::mt19937_64 rng(opts.seed);
 
     int dynamic_max_iters = opts.max_iters;
-    std::vector<int> idxs;
     std::vector<int> inliers;
     std::vector<double> inlier_residuals;
     std::vector<int> refined_inliers;
     std::vector<double> refined_residuals;
 
     for (int it = 0; it < dynamic_max_iters; ++it) {
-        detail::sample_k_unique(Estimator::k_min_samples, data.size(), rng, idxs);
+        std::sample(all_indices.begin(), all_indices.end(), idxs.begin(),
+                    Estimator::k_min_samples, rng);
 
         if constexpr (detail::HasDegeneracyCheck<Estimator>) {
             if (Estimator::is_degenerate(data, std::span<const int>(idxs))) {
