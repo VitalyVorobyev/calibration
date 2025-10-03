@@ -19,14 +19,6 @@ auto build_detection_lookup(const std::vector<PlanarDetections>& detections)
     return lookup;
 }
 
-nlohmann::json build_missing_list(const std::vector<std::string>& ids) {
-    nlohmann::json arr = nlohmann::json::array();
-    for (const auto& id : ids) {
-        arr.push_back(id);
-    }
-    return arr;
-}
-
 }  // namespace
 
 // TODO: 1. refactor, 2. support multi-camera rigs
@@ -91,7 +83,7 @@ auto StereoCalibrationStage::run(PipelineContext& context) -> PipelineStageResul
             if (tgt_intr_it == context.intrinsic_results.end())
                 missing.push_back(pair_cfg.target_sensor);
             pair_json["status"] = "missing_intrinsics";
-            pair_json["missing"] = build_missing_list(missing);
+            pair_json["missing"] = missing;
             pair_json["success"] = false;
             all_success = false;
             pairs_summary.push_back(std::move(pair_json));
@@ -106,7 +98,7 @@ auto StereoCalibrationStage::run(PipelineContext& context) -> PipelineStageResul
                 missing.push_back(pair_cfg.reference_sensor);
             if (tgt_det_it == detections_by_sensor.end()) missing.push_back(pair_cfg.target_sensor);
             pair_json["status"] = "missing_detections";
-            pair_json["missing"] = build_missing_list(missing);
+            pair_json["missing"] = missing;
             pair_json["success"] = false;
             all_success = false;
             pairs_summary.push_back(std::move(pair_json));
@@ -117,12 +109,7 @@ auto StereoCalibrationStage::run(PipelineContext& context) -> PipelineStageResul
             auto pair_result = facade.calibrate(pair_cfg, *ref_det_it->second, *tgt_det_it->second,
                                                 ref_intr_it->second, tgt_intr_it->second);
 
-            nlohmann::json views_json = nlohmann::json::array();
-            for (const auto& view : pair_result.view_summaries) {
-                views_json.push_back(view);
-            }
-
-            pair_json["views"] = views_json;
+            pair_json["views"] = pair_result.view_summaries;
             pair_json["used_views"] = pair_result.used_views;
             pair_json["success"] = pair_result.success;
             pair_json["status"] = pair_result.success ? "ok" : "failed";
