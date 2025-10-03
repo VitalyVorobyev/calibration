@@ -62,7 +62,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
 
 template <camera_model CameraT>
 static ceres::Problem build_problem(const std::vector<PlanarView>& views,
-                                    const IntrinsicsOptions& opts,
+                                    const IntrinsicsOptimOptions& opts,
                                     IntrinsicBlocks<CameraT>& blocks) {
     ceres::Problem p;
     for (size_t view_idx = 0; view_idx < views.size(); ++view_idx) {
@@ -97,7 +97,7 @@ static void validate_input(const std::vector<PlanarView>& views) {
 template <camera_model CameraT>
 IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(
     const std::vector<PlanarView>& views, const CameraT& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts) {
+    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptimOptions& opts) {
     validate_input(views);
 
     auto blocks = IntrinsicBlocks<CameraT>::create(init_camera, init_c_se3_t);
@@ -119,11 +119,11 @@ IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(
 
 template IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> optimize_intrinsics(
     const std::vector<PlanarView>& views, const PinholeCamera<BrownConradyd>& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
+    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptimOptions& opts);
 
 template IntrinsicsOptimizationResult<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>
 optimize_intrinsics(const std::vector<PlanarView>& views,
                     const ScheimpflugCamera<PinholeCamera<BrownConradyd>>& init_camera,
-                    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
+                    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptimOptions& opts);
 
 }  // namespace calib

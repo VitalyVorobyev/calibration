@@ -1,8 +1,6 @@
-#include <nlohmann/json.hpp>
-
-#include "calib/pipeline/facades/extrinsics.h"
 #include "calib/pipeline/stages.h"
-#include "stages/detail/planar_utils.h"
+#include "calib/pipeline/facades/extrinsics.h"
+#include "calib/pipeline/detail/planar_utils.h"
 
 namespace calib::pipeline {
 
@@ -10,9 +8,8 @@ namespace {
 
 using detail::build_sensor_index;
 
-std::unordered_map<std::string, const planar::PlanarDetections*> build_detection_lookup(
-    const std::vector<planar::PlanarDetections>& detections) {
-    std::unordered_map<std::string, const planar::PlanarDetections*> lookup;
+auto build_detection_lookup(const std::vector<PlanarDetections>& detections) -> std::unordered_map<std::string, const PlanarDetections*> {
+    std::unordered_map<std::string, const PlanarDetections*> lookup;
     for (const auto& det : detections) {
         if (!det.sensor_id.empty()) {
             lookup.emplace(det.sensor_id, &det);
@@ -31,6 +28,7 @@ nlohmann::json build_missing_list(const std::vector<std::string>& ids) {
 
 }  // namespace
 
+// TODO: 1. refactor, 2. support multi-camera rigs
 auto StereoCalibrationStage::run(PipelineContext& context) -> PipelineStageResult {
     PipelineStageResult result;
     result.name = name();

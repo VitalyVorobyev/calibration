@@ -11,6 +11,9 @@
 
 namespace calib::pipeline {
 
+using calib::from_json;
+using calib::to_json;
+
 struct StereoViewSelection final {
     std::string reference_image;
     std::string target_image;
@@ -22,8 +25,6 @@ struct StereoPairConfig final {
     std::string target_sensor;
     std::vector<StereoViewSelection> views;
     ExtrinsicOptions options;
-
-    StereoPairConfig();
 };
 
 struct StereoCalibrationConfig final {

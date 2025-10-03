@@ -47,7 +47,7 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
         init_poses.push_back(pose);
     }
 
-    IntrinsicsOptions opts;
+    IntrinsicsOptimOptions opts;
     opts.num_radial = 3;
     opts.optimize_skew = false;
     auto res = optimize_intrinsics(views, guess_cam, init_poses, opts);
@@ -98,14 +98,12 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     guess_cam.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Estimate initial poses for each view
-    std::vector<Eigen::Isometry3d> init_poses;
-    init_poses.reserve(views.size());
-    for (const auto& view : views) {
-        auto pose = estimate_planar_pose(view, guess_cam.kmtx);
-        init_poses.push_back(pose);
-    }
+    std::vector<Eigen::Isometry3d> init_poses(views.size());
+    std::transform(views.begin(), views.end(), init_poses.begin(), [&](const auto& view) {
+        return estimate_planar_pose(view, guess_cam.kmtx);
+    });
 
-    IntrinsicsOptions opts;
+    IntrinsicsOptimOptions opts;
     opts.num_radial = 0;
     opts.optimize_skew = true;
     auto res = optimize_intrinsics(views, guess_cam, init_poses, opts);

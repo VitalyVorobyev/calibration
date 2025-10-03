@@ -1,7 +1,6 @@
 add_subdirectory(models)
 add_subdirectory(io)
 add_subdirectory(estimation)
-add_subdirectory(reports)
 add_subdirectory(pipeline)
 
 add_library(calib INTERFACE)

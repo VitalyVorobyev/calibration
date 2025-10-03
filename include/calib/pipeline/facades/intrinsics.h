@@ -18,17 +18,10 @@
 namespace calib::pipeline {
 
 struct IntrinsicCalibrationOptions final {
+    IntrinsicsOptimOptions optim_options;
+    IntrinsicsEstimOptions estim_options;
     std::size_t min_corners_per_view = 80;
     bool refine = true;
-    bool optimize_skew = false;
-    int num_radial = 3;
-    double huber_delta = 2.0;
-    int max_iterations = 200;
-    double epsilon = OptimOptions::k_default_epsilon;
-    bool verbose = false;
-    std::vector<int> fixed_distortion_indices;
-    std::vector<double> fixed_distortion_values;
-    std::optional<RansacOptions> homography_ransac;
 };
 
 struct CameraConfig final {
@@ -36,6 +29,10 @@ struct CameraConfig final {
     std::string model = "pinhole_brown_conrady";
     std::optional<std::array<int, 2>> image_size;
 };
+
+// TODO: make it configurable
+[[nodiscard]] auto bounds_from_image_size(const std::array<int, 2>& image_size)
+    -> CalibrationBounds;
 
 struct IntrinsicCalibrationConfig final {
     std::string algorithm = "planar";

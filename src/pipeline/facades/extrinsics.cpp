@@ -36,12 +36,6 @@ namespace {
 
 }  // namespace
 
-StereoPairConfig::StereoPairConfig() {
-    options.optimize_intrinsics = false;
-    options.optimize_extrinsics = true;
-    options.optimize_skew = false;
-}
-
 [[nodiscard]] auto compute_views(const StereoPairConfig& cfg,
                                  const PlanarDetections& reference_detections,
                                  const PlanarDetections& target_detections,
@@ -212,7 +206,7 @@ auto MultiCameraCalibrationFacade::calibrate(
         }
     }
 
-    const auto views = compute_views(cfg, detections_by_sensor, intrinsics_by_sensor, result);
+    const auto views = compute_views(cfg, detections_by_sensor, intrinsics_by_sensor);
     result.used_views = views.size();
     if (views.empty()) {
         result.success = false;

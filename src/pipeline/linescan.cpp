@@ -1,4 +1,4 @@
-#include "calib/pipeline/linescan.h"
+#include "calib/pipeline/facades/linescan.h"
 
 namespace calib::pipeline {
 

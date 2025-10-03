@@ -59,6 +59,26 @@ auto collect_planar_views(const PlanarDetections& detections,
     return planar_views;
 }
 
+auto bounds_from_image_size(const std::array<int, 2>& image_size)
+    -> CalibrationBounds {
+    const double width = static_cast<double>(image_size[0]);
+    const double height = static_cast<double>(image_size[1]);
+    const double short_side = std::min(width, height);
+    const double long_side = std::max(width, height);
+
+    CalibrationBounds b;
+    b.fx_min = b.fy_min = std::max(1.0, 0.25 * short_side);
+    b.fx_max = b.fy_max = std::numeric_limits<double>::max();
+    b.cx_min = 0.05 * width;
+    b.cx_max = 0.95 * width;
+    b.cy_min = 0.05 * height;
+    b.cy_max = 0.95 * height;
+    const double skew_limit = 0.05 * long_side;
+    b.skew_min = -skew_limit;
+    b.skew_max = skew_limit;
+    return b;
+}
+
 auto PlanarIntrinsicCalibrationFacade::calibrate(const IntrinsicCalibrationConfig& cfg,
                                                  const CameraConfig& cam_cfg,
                                                  const PlanarDetections& detections,
@@ -79,36 +99,11 @@ auto PlanarIntrinsicCalibrationFacade::calibrate(const IntrinsicCalibrationConfi
         throw std::runtime_error(oss.str());
     }
 
-    IntrinsicsEstimateOptions estimate_opts;
-    estimate_opts.use_skew = false;
-    estimate_opts.homography_ransac = cfg.options.homography_ransac;
-
-    std::optional<CalibrationBounds> bounds;
-    if (cam_cfg.image_size.has_value()) {
-        const double width = static_cast<double>((*cam_cfg.image_size)[0]);
-        const double height = static_cast<double>((*cam_cfg.image_size)[1]);
-        const double short_side = std::min(width, height);
-        const double long_side = std::max(width, height);
-
-        CalibrationBounds b;
-        b.fx_min = b.fy_min = std::max(1.0, 0.25 * short_side);
-        b.fx_max = b.fy_max = std::numeric_limits<double>::max();
-        b.cx_min = 0.05 * width;
-        b.cx_max = 0.95 * width;
-        b.cy_min = 0.05 * height;
-        b.cy_max = 0.95 * height;
-        const double skew_limit = 0.05 * long_side;
-        b.skew_min = -skew_limit;
-        b.skew_max = skew_limit;
-        bounds = b;
-    }
-    estimate_opts.bounds = bounds;
-
     IntrinsicsEstimateResult linear;
     std::string captured_warnings;
     {
         StreamCapture capture(std::cerr);
-        linear = estimate_intrinsics(planar_views, estimate_opts);
+        linear = estimate_intrinsics(planar_views, cfg.options.estim_options);
         captured_warnings = capture.str();
     }
     output.invalid_k_warnings = count_occurrences(captured_warnings, "Invalid camera matrix K");
@@ -129,21 +124,16 @@ auto PlanarIntrinsicCalibrationFacade::calibrate(const IntrinsicCalibrationConfi
         linear_view_indices.push_back(v.view_index);
     }
 
-    IntrinsicsOptions refine_opts;
-    refine_opts.optimize_skew = cfg.options.optimize_skew;
-    refine_opts.num_radial = cfg.options.num_radial;
-    refine_opts.huber_delta = cfg.options.huber_delta;
-    refine_opts.max_iterations = cfg.options.max_iterations;
-    refine_opts.epsilon = cfg.options.epsilon;
-    refine_opts.verbose = cfg.options.verbose;
-    refine_opts.bounds = bounds;
-    refine_opts.fixed_distortion_indices = cfg.options.fixed_distortion_indices;
-    refine_opts.fixed_distortion_values = cfg.options.fixed_distortion_values;
-
     IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> refine;
     if (cfg.options.refine) {
+        // Estimate initial poses for each view
+        std::vector<Eigen::Isometry3d> init_c_se3_t(planar_views.size());
+        std::transform(planar_views.begin(), planar_views.end(), init_c_se3_t.begin(), [&](const auto& view) {
+            return estimate_planar_pose(view, linear.kmtx);
+        });
+
         PinholeCamera<BrownConradyd> init_camera(linear.kmtx, Eigen::VectorXd::Zero(5));
-        refine = optimize_intrinsics(planar_views, init_camera, refine_opts);
+        refine = optimize_intrinsics(planar_views, init_camera, init_c_se3_t, cfg.options.optim_opts);
         if (!refine.success) {
             std::cerr << "Warning: Non-linear refinement did not converge. Using linear result."
                       << '\n';
@@ -168,19 +158,12 @@ auto PlanarIntrinsicCalibrationFacade::calibrate(const IntrinsicCalibrationConfi
         output.total_points_used += v.corner_count;
     }
 
-    IntrinsicCalibrationOutputs result;
-    result.outputs = std::move(output);
-    result.report =
-        build_planar_intrinsics_report(cfg, cam_cfg, detections, result.outputs, features_path);
-    return result;
+    return output;
 }
 
 void print_calibration_summary(std::ostream& out, const CameraConfig& cam_cfg,
-                               const CalibrationOutputs& outputs) {
+                               const IntrinsicCalibrationOutputs& outputs) {
     out << "== Camera " << cam_cfg.camera_id << " ==\n";
-    out << "Point scale applied to board coordinates: " << outputs.point_scale << '\n';
-    out << "Point center removed before scaling: [" << outputs.point_center[0] << ", "
-        << outputs.point_center[1] << "]\n";
     if (outputs.invalid_k_warnings > 0 || outputs.pose_warnings > 0) {
         out << "Linear stage warnings: " << outputs.invalid_k_warnings
             << " invalid camera matrices, " << outputs.pose_warnings

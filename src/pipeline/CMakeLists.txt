@@ -1,16 +1,16 @@
 set(SOURCES
     pipeline.cpp
     loaders.cpp
-    intrinsics.cpp
-    extrinsics.cpp
+    facades/intrinsics.cpp
+    facades/extrinsics.cpp
     linescan.cpp
-    handeye.cpp
     stages/intrinsic_stage.cpp
     stages/stereo_stage.cpp
     stages/handeye_stage.cpp
     stages/bundle_stage.cpp
-    stages/detail/bundle_utils.cpp
-    stages/detail/planar_utils.cpp
+    detail/bundle_utils.cpp
+    detail/planar_utils.cpp
+    reports/intrinsics.cpp
 )
 
 add_library(calib_pipeline STATIC ${SOURCES})
@@ -28,8 +28,6 @@ target_link_libraries(calib_pipeline
     PUBLIC
         calib_models
         calib_estimation_optim
-        calib_datasets
-        calib_reports
         calib_io
         Ceres::ceres)
 

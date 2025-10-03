@@ -1,9 +1,7 @@
-#include <nlohmann/json.hpp>
-
+#include "calib/pipeline/stages.h"
 #include "calib/estimation/linear/handeye.h"
 #include "calib/pipeline/detail/planar_utils.h"
 #include "calib/pipeline/facades/handeye.h"
-#include "calib/pipeline/stages.h"
 
 namespace calib::pipeline {
 

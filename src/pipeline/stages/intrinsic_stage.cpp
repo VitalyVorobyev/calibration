@@ -1,7 +1,7 @@
-#include <nlohmann/json.hpp>
+#include "calib/pipeline/stages.h"
 
 #include "calib/pipeline/facades/intrinsics.h"
-#include "calib/pipeline/stages.h"
+#include "calib/pipeline/reports/intrinsics.h"
 #include "calib/pipeline/detail/planar_utils.h"
 
 namespace calib::pipeline {
@@ -34,7 +34,9 @@ SensorCalibrationResult calibrate_sensor(const PlanarIntrinsicCalibrationFacade&
         auto run = facade.calibrate(cfg, *cam_cfg, detections, detections.source_file);
         context.intrinsic_results[sensor_id] = run;
 
-        nlohmann::json entry = run.report;
+        const auto report = build_planar_intrinsics_report(cfg, *cam_cfg, detections, run);
+
+        nlohmann::json entry = report;
         entry["sensor_id"] = sensor_id;
         nlohmann::json tags = nlohmann::json::array();
         std::copy(detections.tags.begin(), detections.tags.end(), std::back_inserter(tags));

@@ -75,7 +75,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
 };
 
 static auto solve_full(const std::vector<PlanarView>& views, const IntrinsicBlocks& blocks,
-                       const IntrinsicsOptions& opts)
+                       const IntrinsicsOptimOptions& opts)
     -> std::optional<DistortionWithResiduals<double>> {
     std::vector<Observation<double>> obs;
     for (size_t i = 0; i < views.size(); ++i) {
@@ -93,7 +93,7 @@ static auto solve_full(const std::vector<PlanarView>& views, const IntrinsicBloc
 
 // Set up the Ceres optimization problem
 static ceres::Problem build_problem(const std::vector<PlanarView>& obs_views,
-                                    IntrinsicBlocks& blocks, const IntrinsicsOptions& opts) {
+                                    IntrinsicBlocks& blocks, const IntrinsicsOptimOptions& opts) {
     ceres::Problem problem;
     auto* cost = CalibVPResidual::create(obs_views, opts.num_radial);
 
@@ -154,7 +154,7 @@ static void compute_per_view_errors(
 
 IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> optimize_intrinsics_semidlt(
     const std::vector<PlanarView>& views, const CameraMatrix& initial_guess,
-    const IntrinsicsOptions& opts) {
+    const IntrinsicsOptimOptions& opts) {
     IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> result;
 
     // Prepare observations per view
