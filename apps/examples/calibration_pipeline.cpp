@@ -8,9 +8,9 @@
 #include <vector>
 
 #include "calib/pipeline/dataset.h"
+#include "calib/pipeline/facades/intrinsics.h"
 #include "calib/pipeline/loaders.h"
 #include "calib/pipeline/stages.h"
-#include "calib/pipeline/facades/intrinsics.h"
 
 namespace {
 

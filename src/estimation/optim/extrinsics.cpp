@@ -94,8 +94,9 @@ static void set_residual_blocks(ceres::Problem& problem,
             if (multicam_view[cam_index].empty()) {
                 continue;
             }
-            auto* loss =
-                options.core.huber_delta > 0 ? new ceres::HuberLoss(options.core.huber_delta) : nullptr;
+            auto* loss = options.core.huber_delta > 0
+                             ? new ceres::HuberLoss(options.core.huber_delta)
+                             : nullptr;
             problem.AddResidualBlock(
                 ExtrinsicResidual<CameraT>::create(multicam_view[cam_index]), loss,
                 blocks.cam_quat_ref[cam_index].data(), blocks.cam_tran_ref[cam_index].data(),

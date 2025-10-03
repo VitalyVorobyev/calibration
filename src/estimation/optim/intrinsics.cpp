@@ -67,7 +67,8 @@ static ceres::Problem build_problem(const std::vector<PlanarView>& views,
     ceres::Problem p;
     for (size_t view_idx = 0; view_idx < views.size(); ++view_idx) {
         const auto& view = views[view_idx];
-        auto* loss = opts.core.huber_delta > 0 ? new ceres::HuberLoss(opts.core.huber_delta) : nullptr;
+        auto* loss =
+            opts.core.huber_delta > 0 ? new ceres::HuberLoss(opts.core.huber_delta) : nullptr;
         p.AddResidualBlock(IntrinsicResidual<CameraT>::create(view), loss,
                            blocks.c_quat_t[view_idx].data(), blocks.c_tra_t[view_idx].data(),
                            blocks.intr.data());

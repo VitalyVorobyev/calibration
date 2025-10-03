@@ -183,8 +183,9 @@ IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> optimize_intrinsics_s
 
     double sum_squared_residuals = dr_opt->residuals.squaredNorm();
     size_t total_residuals = total_obs * 2;
-    result.core.covariance = compute_covariance(blocks, problem, sum_squared_residuals, total_residuals)
-                            .value_or(Eigen::MatrixXd{});
+    result.core.covariance =
+        compute_covariance(blocks, problem, sum_squared_residuals, total_residuals)
+            .value_or(Eigen::MatrixXd{});
 
     return result;
 }

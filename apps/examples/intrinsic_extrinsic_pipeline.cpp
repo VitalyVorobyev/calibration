@@ -114,8 +114,8 @@ int main(int argc, char** argv) {
             for (const auto& det : context.dataset.planar_cameras) {
                 if (!det.sensor_id.empty()) det_by_sensor.emplace(det.sensor_id, det);
             }
-            std::unordered_map<std::string, calib::pipeline::IntrinsicCalibrationOutputs> intr_by_sensor(
-                context.intrinsic_results.begin(), context.intrinsic_results.end());
+            std::unordered_map<std::string, calib::pipeline::IntrinsicCalibrationOutputs>
+                intr_by_sensor(context.intrinsic_results.begin(), context.intrinsic_results.end());
 
             calib::pipeline::MultiCameraCalibrationFacade mc_facade;
             nlohmann::json multicam_artifacts;

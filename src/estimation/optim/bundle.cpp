@@ -6,11 +6,10 @@
 #include <iterator>
 #include <numeric>
 
-#include "calib/models/distortion.h"
-#include "calib/models/scheimpflug.h"
-#include "calib/models/pinhole.h"
-
 #include "calib/estimation/linear/planarpose.h"
+#include "calib/models/distortion.h"
+#include "calib/models/pinhole.h"
+#include "calib/models/scheimpflug.h"
 #include "detail/ceresutils.h"
 #include "detail/observationutils.h"
 #include "residuals/bundleresidual.h"
@@ -88,7 +87,8 @@ static auto build_problem(const std::vector<BundleObservation>& observations,
     ceres::Problem problem;
     for (const auto& obs : observations) {
         const size_t cam_idx = obs.camera_index;
-        auto* loss = opts.core.huber_delta > 0 ? new ceres::HuberLoss(opts.core.huber_delta) : nullptr;
+        auto* loss =
+            opts.core.huber_delta > 0 ? new ceres::HuberLoss(opts.core.huber_delta) : nullptr;
         problem.AddResidualBlock(BundleReprojResidual<CameraT>::create(obs.view, obs.b_se3_g), loss,
                                  blocks.b_quat_t.data(), blocks.b_tra_t.data(),
                                  blocks.g_quat_c[cam_idx].data(), blocks.g_tra_c[cam_idx].data(),
