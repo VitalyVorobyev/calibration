@@ -22,7 +22,7 @@ struct InputData final {
     PlanarView correspondences;
     std::optional<RansacOptions> ransac;
     bool optimize{true};
-    HomographyOptions options;
+    OptimOptions options;
 };
 
 struct OutputData final {

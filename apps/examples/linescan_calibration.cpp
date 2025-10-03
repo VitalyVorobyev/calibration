@@ -6,7 +6,7 @@
 
 #include "calib/estimation/linear/linescan.h"
 #include "calib/io/serialization.h"
-#include "calib/pipeline/linescan.h"
+#include "calib/pipeline/facades/linescan.h"
 
 int main(int argc, char** argv) {
     CLI::App app{"Line-scan laser plane calibration (linear)"};

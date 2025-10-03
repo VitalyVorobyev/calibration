@@ -7,10 +7,10 @@
 #include <utility>
 #include <vector>
 
-#include "calib/datasets/planar.h"
+#include "calib/pipeline/dataset.h"
 #include "calib/pipeline/loaders.h"
-#include "calib/pipeline/planar_intrinsics.h"
 #include "calib/pipeline/stages.h"
+#include "calib/pipeline/facades/intrinsics.h"
 
 namespace {
 
@@ -46,7 +46,10 @@ int main(int argc, char** argv) {
     CLI11_PARSE(app, argc, argv);
 
     try {
-        const auto config = calib::planar::load_calibration_config(config_path);
+        const auto config = calib::pipeline::load_calibration_config(config_path);
+        if (!config.has_value()) {
+            throw std::runtime_error("Failed to load calibration config from " + config_path);
+        }
 
         calib::pipeline::JsonPlanarDatasetLoader loader;
         for (const auto& entry : feature_args) {
@@ -58,7 +61,7 @@ int main(int argc, char** argv) {
         }
 
         calib::pipeline::PipelineContext context;
-        context.set_intrinsics_config(config);
+        context.set_intrinsics_config(config.value());
 
         calib::pipeline::CalibrationPipeline pipeline;
         if (verbose) {

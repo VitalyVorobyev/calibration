@@ -7,7 +7,7 @@
 #include <string>
 
 #include "calib/io/serialization.h"
-#include "calib/pipeline/extrinsics.h"
+#include "calib/pipeline/facades/extrinsics.h"
 #include "calib/pipeline/loaders.h"
 #include "calib/pipeline/pipeline.h"
 #include "calib/pipeline/stages.h"
@@ -53,7 +53,11 @@ int main(int argc, char** argv) {
 
         const auto intrinsics_path =
             resolve_path(base_dir, config_json.at("planar_intrinsics_config").get<std::string>());
-        const auto planar_cfg = calib::planar::load_calibration_config(intrinsics_path);
+        const auto planar_cfg = calib::pipeline::load_calibration_config(intrinsics_path);
+        if (!planar_cfg.has_value()) {
+            throw std::runtime_error("Failed to load planar intrinsics config from " +
+                                     intrinsics_path.string());
+        }
 
         calib::pipeline::JsonPlanarDatasetLoader loader;
         for (const auto& entry : config_json.at("planar_detections")) {
@@ -63,7 +67,7 @@ int main(int argc, char** argv) {
         }
 
         calib::pipeline::PipelineContext context;
-        context.set_intrinsics_config(planar_cfg);
+        context.set_intrinsics_config(planar_cfg.value());
 
         if (config_json.contains("stereo")) {
             auto stereo_cfg =
@@ -106,11 +110,11 @@ int main(int argc, char** argv) {
             }
 
             // Build detections and intrinsics lookup by sensor id from context
-            std::unordered_map<std::string, calib::PlanarDetections> det_by_sensor;
+            std::unordered_map<std::string, calib::pipeline::PlanarDetections> det_by_sensor;
             for (const auto& det : context.dataset.planar_cameras) {
                 if (!det.sensor_id.empty()) det_by_sensor.emplace(det.sensor_id, det);
             }
-            std::unordered_map<std::string, calib::IntrinsicCalibrationOutputs> intr_by_sensor(
+            std::unordered_map<std::string, calib::pipeline::IntrinsicCalibrationOutputs> intr_by_sensor(
                 context.intrinsic_results.begin(), context.intrinsic_results.end());
 
             calib::pipeline::MultiCameraCalibrationFacade mc_facade;

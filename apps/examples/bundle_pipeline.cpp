@@ -7,8 +7,8 @@
 #include <string>
 
 #include "calib/io/serialization.h"
-#include "calib/pipeline/extrinsics.h"
-#include "calib/pipeline/handeye.h"
+#include "calib/pipeline/facades/extrinsics.h"
+#include "calib/pipeline/facades/handeye.h"
 #include "calib/pipeline/loaders.h"
 #include "calib/pipeline/pipeline.h"
 #include "calib/pipeline/stages.h"
@@ -34,38 +34,6 @@ namespace {
     return json_data;
 }
 
-[[nodiscard]] auto as_handeye_config(const nlohmann::json& node)
-    -> calib::pipeline::HandEyePipelineConfig {
-    calib::pipeline::HandEyePipelineConfig cfg;
-    if (node.is_null()) {
-        return cfg;
-    }
-    if (node.is_array()) {
-        cfg.rigs = node.get<std::vector<calib::pipeline::HandEyeRigConfig>>();
-    } else if (node.is_object() && node.contains("rigs")) {
-        cfg = node.get<calib::pipeline::HandEyePipelineConfig>();
-    } else {
-        cfg.rigs.push_back(node.get<calib::pipeline::HandEyeRigConfig>());
-    }
-    return cfg;
-}
-
-[[nodiscard]] auto as_bundle_config(const nlohmann::json& node)
-    -> calib::pipeline::BundlePipelineConfig {
-    calib::pipeline::BundlePipelineConfig cfg;
-    if (node.is_null()) {
-        return cfg;
-    }
-    if (node.is_array()) {
-        cfg.rigs = node.get<std::vector<calib::pipeline::BundleRigConfig>>();
-    } else if (node.is_object() && node.contains("rigs")) {
-        cfg = node.get<calib::pipeline::BundlePipelineConfig>();
-    } else {
-        cfg.rigs.push_back(node.get<calib::pipeline::BundleRigConfig>());
-    }
-    return cfg;
-}
-
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -89,7 +57,11 @@ int main(int argc, char** argv) {
 
         const auto intrinsics_cfg_path =
             resolve_path(base_dir, config_json.at("planar_intrinsics_config").get<std::string>());
-        const auto planar_cfg = calib::planar::load_calibration_config(intrinsics_cfg_path);
+        const auto planar_cfg = calib::pipeline::load_calibration_config(intrinsics_cfg_path);
+        if (!planar_cfg.has_value()) {
+            throw std::runtime_error("Failed to load planar intrinsics config from " +
+                                     intrinsics_cfg_path.string());
+        }
 
         calib::pipeline::JsonPlanarDatasetLoader loader;
         for (const auto& entry : config_json.at("planar_detections")) {
@@ -99,7 +71,7 @@ int main(int argc, char** argv) {
         }
 
         calib::pipeline::PipelineContext context;
-        context.set_intrinsics_config(planar_cfg);
+        context.set_intrinsics_config(planar_cfg.value());
 
         if (config_json.contains("stereo")) {
             auto stereo_cfg =
@@ -108,14 +80,14 @@ int main(int argc, char** argv) {
         }
 
         if (config_json.contains("hand_eye")) {
-            auto he_cfg = as_handeye_config(config_json.at("hand_eye"));
+            calib::pipeline::HandEyePipelineConfig he_cfg = config_json.at("hand_eye");
             if (!he_cfg.rigs.empty()) {
                 context.set_handeye_config(std::move(he_cfg));
             }
         }
 
         if (config_json.contains("bundle")) {
-            auto bundle_cfg = as_bundle_config(config_json.at("bundle"));
+            calib::pipeline::BundlePipelineConfig bundle_cfg = config_json.at("bundle");
             if (!bundle_cfg.rigs.empty()) {
                 context.set_bundle_config(std::move(bundle_cfg));
             }
