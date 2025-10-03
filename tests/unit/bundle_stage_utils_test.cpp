@@ -22,8 +22,8 @@ auto make_camera() -> PinholeCamera<BrownConradyd> {
     return camera;
 }
 
-planar::CalibrationRunResult make_intrinsics_result() {
-    planar::CalibrationRunResult intrinsics;
+IntrinsicCalibrationOutputs make_intrinsics_result() {
+    IntrinsicCalibrationOutputs intrinsics;
     intrinsics.outputs.point_scale = 1.0;
     intrinsics.outputs.point_center = {0.0, 0.0};
     intrinsics.outputs.refine_result.success = true;
@@ -85,7 +85,7 @@ TEST(BundleStageUtilsTest, CollectSensorSetupReportsMissingSensors) {
     BundleRigConfig rig;
     rig.sensors = {"cam0", "cam1"};
 
-    std::unordered_map<std::string, planar::CalibrationRunResult> intrinsics;
+    std::unordered_map<std::string, IntrinsicCalibrationOutputs> intrinsics;
     intrinsics.emplace("cam0", make_intrinsics_result());
 
     const auto setup = collect_bundle_sensor_setup(rig, intrinsics);
@@ -106,7 +106,7 @@ TEST(BundleStageUtilsTest, CollectBundleObservationsBuildsViewSummaries) {
     std::unordered_map<std::string, detail::SensorDetectionsIndex> sensor_index;
     sensor_index.emplace(sensor_id, index_entry);
 
-    std::unordered_map<std::string, planar::CalibrationRunResult> intrinsics;
+    std::unordered_map<std::string, IntrinsicCalibrationOutputs> intrinsics;
     intrinsics.emplace(sensor_id, make_intrinsics_result());
 
     HandEyeObservationConfig observation;

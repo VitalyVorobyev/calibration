@@ -1,6 +1,5 @@
 set(SOURCES
-    planar_intrinsics.cpp
-    planar_intrinsics_types.cpp
+    intrinsics.cpp
 )
 
 add_library(calib_reports STATIC ${SOURCES})

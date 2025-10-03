@@ -1,6 +1,6 @@
 #include <nlohmann/json.hpp>
 
-#include "calib/pipeline/extrinsics.h"
+#include "calib/pipeline/facades/extrinsics.h"
 #include "calib/pipeline/stages.h"
 #include "stages/detail/planar_utils.h"
 

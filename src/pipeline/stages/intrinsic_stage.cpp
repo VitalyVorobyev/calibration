@@ -1,8 +1,8 @@
 #include <nlohmann/json.hpp>
 
-#include "calib/pipeline/planar_intrinsics.h"
+#include "calib/pipeline/facades/intrinsics.h"
 #include "calib/pipeline/stages.h"
-#include "stages/detail/planar_utils.h"
+#include "calib/pipeline/detail/planar_utils.h"
 
 namespace calib::pipeline {
 
@@ -15,9 +15,9 @@ struct SensorCalibrationResult {
     nlohmann::json summary;
 };
 
-SensorCalibrationResult calibrate_sensor(const planar::PlanarIntrinsicCalibrationFacade& facade,
-                                         const planar::PlanarCalibrationConfig& cfg,
-                                         const planar::PlanarDetections& detections,
+SensorCalibrationResult calibrate_sensor(const PlanarIntrinsicCalibrationFacade& facade,
+                                         const IntrinsicCalibrationConfig& cfg,
+                                         const PlanarDetections& detections,
                                          PipelineContext& context) {
     SensorCalibrationResult result;
     const std::string sensor_id = !detections.sensor_id.empty() ? detections.sensor_id : "cam0";
@@ -49,7 +49,7 @@ SensorCalibrationResult calibrate_sensor(const planar::PlanarIntrinsicCalibratio
     return result;
 }
 
-void collect_gating_flags(const std::vector<planar::PlanarDetections>& detections, bool& has_synth,
+void collect_gating_flags(const std::vector<PlanarDetections>& detections, bool& has_synth,
                           bool& has_recorded) {
     has_synth = false;
     has_recorded = false;
@@ -81,7 +81,7 @@ auto IntrinsicStage::run(PipelineContext& context) -> PipelineStageResult {
     }
 
     const auto& cfg = context.intrinsics_config();
-    planar::PlanarIntrinsicCalibrationFacade facade;
+    PlanarIntrinsicCalibrationFacade facade;
 
     bool overall_success = true;
     nlohmann::json cameras = nlohmann::json::array();

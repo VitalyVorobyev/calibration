@@ -5,12 +5,9 @@
 #include <unordered_map>
 #include <vector>
 
-// third-party
-#include <nlohmann/json.hpp>
-
-#include "calib/estimation/optim/extrinsics.h"
 #include "calib/io/serialization.h"
-#include "calib/pipeline/stages/intrinsics.h"
+#include "calib/estimation/optim/extrinsics.h"
+#include "calib/pipeline/facades/intrinsics.h"
 
 namespace calib::pipeline {
 
@@ -53,8 +50,8 @@ struct StereoCalibrationRunResult final {
 class StereoCalibrationFacade {
   public:
     [[nodiscard]] auto calibrate(const StereoPairConfig& cfg,
-                                 const planar::PlanarDetections& reference_detections,
-                                 const planar::PlanarDetections& target_detections,
+                                 const PlanarDetections& reference_detections,
+                                 const PlanarDetections& target_detections,
                                  const IntrinsicCalibrationOutputs& reference_intrinsics,
                                  const IntrinsicCalibrationOutputs& target_intrinsics) const
         -> StereoCalibrationRunResult;
@@ -87,7 +84,7 @@ class MultiCameraCalibrationFacade {
   public:
     [[nodiscard]] auto calibrate(
         const MultiCameraRigConfig& cfg,
-        const std::unordered_map<std::string, planar::PlanarDetections>& detections_by_sensor,
+        const std::unordered_map<std::string, PlanarDetections>& detections_by_sensor,
         const std::unordered_map<std::string, IntrinsicCalibrationOutputs>& intrinsics_by_sensor)
         const -> MultiCameraCalibrationRunResult;
 };

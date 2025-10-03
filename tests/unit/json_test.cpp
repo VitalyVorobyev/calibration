@@ -22,8 +22,7 @@ using calib::pipeline::HandEyeRigConfig;
 
 namespace {
 
-Eigen::Isometry3d makePose(const Eigen::Vector3d& translation,
-                           const Eigen::Vector3d& axis,
+Eigen::Isometry3d makePose(const Eigen::Vector3d& translation, const Eigen::Vector3d& axis,
                            double angle) {
     Eigen::Isometry3d T = Eigen::Isometry3d::Identity();
     if (axis.norm() > 0.0) {
@@ -193,8 +192,7 @@ TEST(HandEyeJsonIo, PipelineRoundTrip) {
     rig_a.sensors = {"cam0"};
     rig_a.observations = {
         HandEyeObservationConfig{
-            "view-A0", makePose({0.1, 0.2, 0.3}, {1.0, 0.0, 0.0}, 0.05),
-            {{"cam0", "img.png"}}},
+            "view-A0", makePose({0.1, 0.2, 0.3}, {1.0, 0.0, 0.0}, 0.05), {{"cam0", "img.png"}}},
     };
 
     HandEyeRigConfig rig_b;
@@ -225,9 +223,9 @@ TEST(BundleJsonIo, BundleRigRoundTripAndOptionalTarget) {
     rig.options.verbose = true;
     rig.initial_target = makePose({0.4, -0.1, 0.6}, {0.0, 0.0, 1.0}, 0.2);
     rig.observations = {
-        HandEyeObservationConfig{
-            "bundle-view", makePose({0.0, 0.0, 0.1}, {0.0, 1.0, 0.0}, 0.3),
-            {{"cam0", "bundle.png"}}},
+        HandEyeObservationConfig{"bundle-view",
+                                 makePose({0.0, 0.0, 0.1}, {0.0, 1.0, 0.0}, 0.3),
+                                 {{"cam0", "bundle.png"}}},
     };
 
     const nlohmann::json node = rig;

@@ -105,7 +105,7 @@ TEST(IntrinsicStageTest, FailsWhenConfigMissing) {
 TEST(IntrinsicStageTest, FailsWhenDatasetMissing) {
     PipelineContext context;
 
-    planar::PlanarCalibrationConfig cfg;
+    planar::IntrinsicCalibrationConfig cfg;
     planar::CameraConfig cam_cfg;
     cam_cfg.camera_id = "cam0";
     cfg.cameras.push_back(cam_cfg);
@@ -124,7 +124,7 @@ TEST(IntrinsicStageTest, FailsWhenDatasetMissing) {
 TEST(IntrinsicStageTest, ReportsMissingCameraConfigAndTagSummary) {
     PipelineContext context;
 
-    planar::PlanarCalibrationConfig cfg;
+    planar::IntrinsicCalibrationConfig cfg;
     // Configure a different camera id so the lookup fails for cam0.
     planar::CameraConfig other_cam_cfg;
     other_cam_cfg.camera_id = "cam1";
@@ -155,7 +155,7 @@ TEST(IntrinsicStageTest, ReportsMissingCameraConfigAndTagSummary) {
 TEST(IntrinsicStageTest, CapturesCalibrationFailure) {
     PipelineContext context;
 
-    planar::PlanarCalibrationConfig cfg;
+    planar::IntrinsicCalibrationConfig cfg;
     cfg.options.min_corners_per_view = 1;
     planar::CameraConfig cam_cfg;
     cam_cfg.camera_id = "cam0";
@@ -191,7 +191,7 @@ TEST(IntrinsicStageTest, CapturesCalibrationFailure) {
 
 TEST(StereoCalibrationStageTest, MissingConfigFails) {
     PipelineContext context;
-    context.intrinsic_results.emplace("cam0", planar::CalibrationRunResult{});
+    context.intrinsic_results.emplace("cam0", IntrinsicCalibrationOutputs{});
 
     StereoCalibrationStage stage;
     const auto result = stage.run(context);
@@ -209,7 +209,7 @@ TEST(StereoCalibrationStageTest, WaitsForMultipleIntrinsicResults) {
     pair.views.push_back({"ref.json", "tgt.json"});
     cfg.pairs.push_back(pair);
     context.set_stereo_config(cfg);
-    context.intrinsic_results.emplace("cam0", planar::CalibrationRunResult{});
+    context.intrinsic_results.emplace("cam0", IntrinsicCalibrationOutputs{});
 
     StereoCalibrationStage stage;
     const auto result = stage.run(context);
@@ -234,7 +234,7 @@ TEST(HandEyeCalibrationStageTest, WaitsForIntrinsicResults) {
 
 TEST(HandEyeCalibrationStageTest, RequiresConfigurationWhenIntrinsicsReady) {
     PipelineContext context;
-    context.intrinsic_results.emplace("cam0", planar::CalibrationRunResult{});
+    context.intrinsic_results.emplace("cam0", IntrinsicCalibrationOutputs{});
 
     HandEyeCalibrationStage stage;
     const auto result = stage.run(context);
@@ -256,7 +256,7 @@ TEST(BundleAdjustmentStageTest, WaitsForIntrinsicResults) {
 
 TEST(BundleAdjustmentStageTest, RequiresConfigurationWhenIntrinsicsReady) {
     PipelineContext context;
-    context.intrinsic_results.emplace("cam0", planar::CalibrationRunResult{});
+    context.intrinsic_results.emplace("cam0", IntrinsicCalibrationOutputs{});
 
     BundleAdjustmentStage stage;
     const auto result = stage.run(context);
@@ -274,7 +274,7 @@ TEST(HandEyeCalibrationStageTest, CalibratesSyntheticHandEye) {
     PipelineContext context;
     context.dataset.planar_cameras.push_back(make_planar_detections(sensor_id, data.observations));
 
-    planar::CalibrationRunResult intrinsics_result;
+    IntrinsicCalibrationOutputs intrinsics_result;
     intrinsics_result.outputs.point_scale = 1.0;
     intrinsics_result.outputs.point_center = {0.0, 0.0};
     intrinsics_result.outputs.refine_result.success = true;
@@ -321,7 +321,7 @@ TEST(BundleAdjustmentStageTest, CalibratesSyntheticBundle) {
     PipelineContext context;
     context.dataset.planar_cameras.push_back(make_planar_detections(sensor_id, data.observations));
 
-    planar::CalibrationRunResult intrinsics_result;
+    IntrinsicCalibrationOutputs intrinsics_result;
     intrinsics_result.outputs.point_scale = 1.0;
     intrinsics_result.outputs.point_center = {0.0, 0.0};
     intrinsics_result.outputs.refine_result.success = true;

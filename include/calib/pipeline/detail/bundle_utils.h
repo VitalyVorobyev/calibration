@@ -1,15 +1,13 @@
 #pragma once
 
-#include <Eigen/Geometry>
-#include <nlohmann/json.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "calib/estimation/optim/bundle.h"
 #include "calib/estimation/optim/handeye.h"
-#include "calib/pipeline/handeye.h"
-#include "planar_utils.h"
+#include "calib/pipeline/facades/handeye.h"
+#include "calib/pipeline/detail/planar_utils.h"
 
 namespace calib::pipeline::detail {
 
@@ -21,7 +19,7 @@ struct BundleSensorSetup final {
 
 auto collect_bundle_sensor_setup(
     const BundleRigConfig& rig,
-    const std::unordered_map<std::string, planar::CalibrationRunResult>& intrinsics)
+    const std::unordered_map<std::string, IntrinsicCalibrationOutputs>& intrinsics)
     -> BundleSensorSetup;
 
 const std::vector<HandEyeObservationConfig>* select_bundle_observations(
@@ -44,7 +42,7 @@ auto collect_bundle_observations(
     const std::vector<std::string>& sensors,
     const std::unordered_map<std::string, std::size_t>& sensor_to_index,
     const std::unordered_map<std::string, SensorDetectionsIndex>& sensor_index,
-    const std::unordered_map<std::string, planar::CalibrationRunResult>& intrinsics)
+    const std::unordered_map<std::string, IntrinsicCalibrationOutputs>& intrinsics)
     -> BundleViewProcessingResult;
 
 struct HandeyeInitializationResult final {

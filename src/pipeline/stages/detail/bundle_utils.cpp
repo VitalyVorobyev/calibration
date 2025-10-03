@@ -10,7 +10,7 @@ namespace calib::pipeline::detail {
 
 auto collect_bundle_sensor_setup(
     const BundleRigConfig& rig,
-    const std::unordered_map<std::string, planar::CalibrationRunResult>& intrinsics)
+    const std::unordered_map<std::string, IntrinsicCalibrationOutputs>& intrinsics)
     -> BundleSensorSetup {
     BundleSensorSetup setup;
     setup.cameras.reserve(rig.sensors.size());
@@ -48,7 +48,7 @@ auto collect_bundle_observations(
     const std::vector<std::string>& sensors,
     const std::unordered_map<std::string, std::size_t>& sensor_to_index,
     const std::unordered_map<std::string, SensorDetectionsIndex>& sensor_index,
-    const std::unordered_map<std::string, planar::CalibrationRunResult>& intrinsics)
+    const std::unordered_map<std::string, IntrinsicCalibrationOutputs>& intrinsics)
     -> BundleViewProcessingResult {
     BundleViewProcessingResult output;
     output.views = nlohmann::json::array();
@@ -107,7 +107,7 @@ auto collect_bundle_observations(
             const auto& camera = intrinsics_it->second.outputs.refine_result.camera;
 
             const auto* image_det = lookup_it->second;
-            auto planar_view = make_planar_view(*image_det, intrinsics_it->second.outputs);
+            auto planar_view = make_planar_view(*image_det);
 
             sensor_entry["image"] = image_it->second;
             sensor_entry["points"] = planar_view.size();

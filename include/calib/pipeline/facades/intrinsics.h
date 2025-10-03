@@ -9,7 +9,7 @@
 #include <utility>
 #include <vector>
 
-#include "calib/pipeline/planardataset.h"
+#include "calib/pipeline/dataset.h"
 #include "calib/estimation/common/ransac.h"
 #include "calib/estimation/linear/planarpose.h"
 #include "calib/estimation/optim/intrinsics.h"
@@ -37,7 +37,7 @@ struct CameraConfig final {
     std::optional<std::array<int, 2>> image_size;
 };
 
-struct PlanarCalibrationConfig final {
+struct IntrinsicCalibrationConfig final {
     std::string algorithm = "planar";
     IntrinsicCalibrationOptions options;
     std::vector<CameraConfig> cameras;
@@ -64,18 +64,18 @@ struct IntrinsicCalibrationOutputs final {
 
 class PlanarIntrinsicCalibrationFacade {
   public:
-    [[nodiscard]] auto calibrate(const PlanarCalibrationConfig& cfg, const CameraConfig& cam_cfg,
-                                 const planar::PlanarDetections& detections,
+    [[nodiscard]] auto calibrate(const IntrinsicCalibrationConfig& cfg, const CameraConfig& cam_cfg,
+                                 const PlanarDetections& detections,
                                  const std::filesystem::path& features_path) const
         -> IntrinsicCalibrationOutputs;
 };
 
-[[nodiscard]] auto collect_planar_views(const planar::PlanarDetections& detections,
+[[nodiscard]] auto collect_planar_views(const PlanarDetections& detections,
                                         const IntrinsicCalibrationOptions& opts,
                                         std::vector<ActiveView>& views) -> std::vector<PlanarView>;
 
 [[nodiscard]] auto load_calibration_config(const std::filesystem::path& path)
-    -> std::optional<PlanarCalibrationConfig>;
+    -> std::optional<IntrinsicCalibrationConfig>;
 
 void print_calibration_summary(std::ostream& out, const CameraConfig& cam_cfg,
                                const IntrinsicCalibrationOutputs& outputs);

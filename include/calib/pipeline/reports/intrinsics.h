@@ -4,9 +4,9 @@
 
 #include "calib/io/json.h"
 #include "calib/models/camera_matrix.h"
-#include "calib/pipeline/stages/intrinsics.h"
+#include "calib/pipeline/facades/intrinsics.h"
 
-namespace calib::planar {
+namespace calib::pipeline {
 
 using calib::from_json;
 using calib::to_json;
@@ -53,11 +53,10 @@ struct CalibrationReport final {
     std::vector<CameraReport> cameras;
 };
 
-[[nodiscard]] auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg,
+[[nodiscard]] auto build_planar_intrinsics_report(const IntrinsicCalibrationConfig& cfg,
                                                   const CameraConfig& cam_cfg,
                                                   const PlanarDetections& detections,
-                                                  const CalibrationOutputs& outputs,
-                                                  const std::filesystem::path& features_path)
+                                                  const IntrinsicCalibrationOutputs& outputs)
     -> CalibrationReport;
 
-}  // namespace calib::planar
+}  // namespace calib::pipeline

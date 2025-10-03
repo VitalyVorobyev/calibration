@@ -1,4 +1,4 @@
-#include "calib/pipeline/planar_intrinsics.h"
+#include "calib/pipeline/facades/intrinsics.h"
 
 #include <fstream>
 #include <iostream>
@@ -7,12 +7,11 @@
 #include <sstream>
 #include <stdexcept>
 
-#include "calib/datasets/planar.h"
+#include "calib/pipeline/dataset.h"
 #include "calib/estimation/optim/planarpose.h"
 #include "calib/io/stream_capture.h"
-#include "calib/reports/planar_intrinsics.h"
 
-namespace calib::planar {
+namespace calib::pipeline {
 
 namespace {
 
@@ -60,30 +59,17 @@ auto collect_planar_views(const PlanarDetections& detections,
     return planar_views;
 }
 
-auto build_ransac_options(const HomographyRansacConfig& cfg) -> RansacOptions {
-    RansacOptions opts;
-    opts.max_iters = cfg.max_iters;
-    opts.thresh = cfg.thresh;
-    opts.min_inliers = cfg.min_inliers;
-    opts.confidence = cfg.confidence;
-    return opts;
-}
-
-auto PlanarIntrinsicCalibrationFacade::calibrate(const PlanarCalibrationConfig& cfg,
+auto PlanarIntrinsicCalibrationFacade::calibrate(const IntrinsicCalibrationConfig& cfg,
                                                  const CameraConfig& cam_cfg,
                                                  const PlanarDetections& detections,
                                                  const std::filesystem::path& features_path) const
-    -> CalibrationRunResult {
-    CalibrationOutputs output;
+    -> IntrinsicCalibrationOutputs {
+    IntrinsicCalibrationOutputs output;
     output.total_input_views = detections.images.size();
     output.min_corner_threshold = cfg.options.min_corners_per_view;
-    output.point_scale = cfg.options.point_scale;
-
-    const auto point_center = determine_point_center(detections, cfg.options);
-    output.point_center = point_center;
 
     std::vector<ActiveView> active_views;
-    auto planar_views = collect_planar_views(detections, cfg.options, point_center, active_views);
+    auto planar_views = collect_planar_views(detections, cfg.options, active_views);
     output.accepted_views = planar_views.size();
 
     if (planar_views.size() < 4) {
@@ -95,9 +81,7 @@ auto PlanarIntrinsicCalibrationFacade::calibrate(const PlanarCalibrationConfig& 
 
     IntrinsicsEstimateOptions estimate_opts;
     estimate_opts.use_skew = false;
-    if (cfg.options.homography_ransac.has_value()) {
-        estimate_opts.homography_ransac = build_ransac_options(*cfg.options.homography_ransac);
-    }
+    estimate_opts.homography_ransac = cfg.options.homography_ransac;
 
     std::optional<CalibrationBounds> bounds;
     if (cam_cfg.image_size.has_value()) {
@@ -184,7 +168,7 @@ auto PlanarIntrinsicCalibrationFacade::calibrate(const PlanarCalibrationConfig& 
         output.total_points_used += v.corner_count;
     }
 
-    CalibrationRunResult result;
+    IntrinsicCalibrationOutputs result;
     result.outputs = std::move(output);
     result.report =
         build_planar_intrinsics_report(cfg, cam_cfg, detections, result.outputs, features_path);
@@ -218,16 +202,15 @@ void print_calibration_summary(std::ostream& out, const CameraConfig& cam_cfg,
     out << "\n";
 }
 
-auto load_calibration_config_impl(const std::filesystem::path& path) -> PlanarCalibrationConfig {
+auto load_calibration_config_impl(const std::filesystem::path& path) -> IntrinsicCalibrationConfig {
     std::ifstream stream(path);
     nlohmann::json json_cfg;
     stream >> json_cfg;
-
-    PlanarCalibrationConfig cfg = json_cfg;
+    IntrinsicCalibrationConfig cfg = json_cfg;
     return cfg;
 }
 
-auto load_calibration_config(const std::filesystem::path& path) -> std::optional<PlanarCalibrationConfig> {
+auto load_calibration_config(const std::filesystem::path& path) -> std::optional<IntrinsicCalibrationConfig> {
     try {
         return load_calibration_config_impl(path);
     } catch (const std::exception& e) {
@@ -237,4 +220,4 @@ auto load_calibration_config(const std::filesystem::path& path) -> std::optional
     }
 }
 
-}  // namespace calib::planar
+}  // namespace calib::pipeline

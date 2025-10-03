@@ -8,6 +8,10 @@
 namespace calib {
 
 class StreamCapture {
+    std::ostream& stream_;
+    std::ostringstream buffer_;
+    std::streambuf* old_buf_;
+
   public:
     explicit StreamCapture(std::ostream& stream)
         : stream_(stream), old_buf_(stream.rdbuf(buffer_.rdbuf())) {}
@@ -16,11 +20,6 @@ class StreamCapture {
     ~StreamCapture() { stream_.rdbuf(old_buf_); }
 
     [[nodiscard]] auto str() const -> std::string { return buffer_.str(); }
-
-  private:
-    std::ostream& stream_;
-    std::ostringstream buffer_;
-    std::streambuf* old_buf_;
 };
 
 }  // namespace calib

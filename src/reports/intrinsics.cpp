@@ -1,4 +1,4 @@
-#include "calib/reports/planar_intrinsics.h"
+#include "calib/pipeline/reports/intrinsics.h"
 
 #include <algorithm>
 #include <chrono>
@@ -6,7 +6,8 @@
 #include <iomanip>
 #include <sstream>
 #include <vector>
-namespace calib::planar {
+
+namespace calib::pipeline {
 
 namespace {
 
@@ -26,7 +27,7 @@ namespace {
 
 }  // namespace
 
-[[nodiscard]] auto compute_global_rms(const CalibrationOutputs& out) -> double {
+[[nodiscard]] auto compute_global_rms(const IntrinsicCalibrationOutputs& out) -> double {
     const auto& refine = out.refine_result;
     if (refine.view_errors.empty()) {
         return 0.0;
@@ -47,10 +48,9 @@ namespace {
     return std::sqrt(sum_sq / static_cast<double>(total_measurements));
 }
 
-auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const CameraConfig& cam_cfg,
+auto build_planar_intrinsics_report(const IntrinsicCalibrationConfig& cfg, const CameraConfig& cam_cfg,
                                     const PlanarDetections& detections,
-                                    const CalibrationOutputs& outputs,
-                                    const std::filesystem::path& /*features_path*/)
+                                    const IntrinsicCalibrationOutputs& outputs)
     -> CalibrationReport {
     CameraReport camera;
     camera.camera_id = cam_cfg.camera_id;
@@ -101,4 +101,4 @@ auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const Ca
     return calibration;
 }
 
-}  // namespace calib::planar
+}  // namespace calib::pipeline

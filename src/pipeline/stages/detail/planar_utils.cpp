@@ -1,4 +1,4 @@
-#include "planar_utils.h"
+#include "calib/pipeline/detail/planar_utils.h"
 
 #include <algorithm>
 
@@ -6,19 +6,19 @@
 
 namespace calib::pipeline::detail {
 
-const planar::CameraConfig* find_camera_config(const planar::PlanarCalibrationConfig& cfg,
-                                               const std::string& camera_id) {
+const CameraConfig* find_camera_config(const IntrinsicCalibrationConfig& cfg,
+                                       const std::string& camera_id) {
     const auto it =
         std::find_if(cfg.cameras.begin(), cfg.cameras.end(),
-                     [&](const planar::CameraConfig& cam) { return cam.camera_id == camera_id; });
+                     [&](const CameraConfig& cam) { return cam.camera_id == camera_id; });
     return it == cfg.cameras.end() ? nullptr : &(*it);
 }
 
 namespace {
 
-std::unordered_map<std::string, const planar::PlanarImageDetections*> build_point_lookup(
-    const planar::PlanarDetections& detections) {
-    std::unordered_map<std::string, const planar::PlanarImageDetections*> lookup;
+std::unordered_map<std::string, const PlanarImageDetections*> build_point_lookup(
+    const PlanarDetections& detections) {
+    std::unordered_map<std::string, const PlanarImageDetections*> lookup;
     for (const auto& image : detections.images) {
         lookup.emplace(image.file, &image);
     }
@@ -28,7 +28,7 @@ std::unordered_map<std::string, const planar::PlanarImageDetections*> build_poin
 }  // namespace
 
 std::unordered_map<std::string, SensorDetectionsIndex> build_sensor_index(
-    const std::vector<planar::PlanarDetections>& detections) {
+    const std::vector<PlanarDetections>& detections) {
     std::unordered_map<std::string, SensorDetectionsIndex> index;
     for (const auto& det : detections) {
         if (det.sensor_id.empty()) {
@@ -42,18 +42,12 @@ std::unordered_map<std::string, SensorDetectionsIndex> build_sensor_index(
     return index;
 }
 
-PlanarView make_planar_view(const planar::PlanarImageDetections& detections,
-                            const planar::CalibrationOutputs& outputs) {
-    PlanarView view;
-    view.reserve(detections.points.size());
-    for (const auto& point : detections.points) {
-        PlanarObservation obs;
-        obs.object_xy =
-            Eigen::Vector2d((point.local_x - outputs.point_center[0]) * outputs.point_scale,
-                            (point.local_y - outputs.point_center[1]) * outputs.point_scale);
-        obs.image_uv = Eigen::Vector2d(point.x, point.y);
-        view.push_back(std::move(obs));
-    }
+auto make_planar_view(const PlanarImageDetections& detections) -> PlanarView {
+    PlanarView view(detections.points.size());
+    std::transform(detections.points.begin(), detections.points.end(), view.begin(),
+                   [&](const auto& point) -> PlanarObservation {
+                       return {{point.local_x, point.local_y}, {point.x, point.y}};
+                   });
     return view;
 }
 

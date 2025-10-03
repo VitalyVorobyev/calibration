@@ -12,8 +12,8 @@ namespace {
 struct SyntheticStereoData {
     planar::PlanarDetections reference_detections;
     planar::PlanarDetections target_detections;
-    planar::CalibrationRunResult reference_intrinsics;
-    planar::CalibrationRunResult target_intrinsics;
+    IntrinsicCalibrationOutputs reference_intrinsics;
+    IntrinsicCalibrationOutputs target_intrinsics;
     StereoPairConfig pair_config;
     std::vector<Eigen::Isometry3d> camera_poses;
     std::vector<Eigen::Isometry3d> target_poses;

@@ -116,7 +116,6 @@ inline auto is_better_model(bool has_current_best, size_t new_inlier_count, doub
            (new_inlier_count == best_inlier_count && new_inlier_rms < best_inlier_rms);
 }
 
-
 }  // namespace detail
 
 template <class Estimator>
@@ -142,8 +141,8 @@ auto ransac(const std::vector<typename Estimator::Datum>& data, const RansacOpti
     std::vector<double> refined_residuals;
 
     for (int it = 0; it < dynamic_max_iters; ++it) {
-        std::sample(all_indices.begin(), all_indices.end(), idxs.begin(),
-                    Estimator::k_min_samples, rng);
+        std::sample(all_indices.begin(), all_indices.end(), idxs.begin(), Estimator::k_min_samples,
+                    rng);
 
         if constexpr (detail::HasDegeneracyCheck<Estimator>) {
             if (Estimator::is_degenerate(data, std::span<const int>(idxs))) {

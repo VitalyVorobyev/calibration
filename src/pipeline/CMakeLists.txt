@@ -1,7 +1,7 @@
 set(SOURCES
     pipeline.cpp
     loaders.cpp
-    planar_intrinsics.cpp
+    intrinsics.cpp
     extrinsics.cpp
     linescan.cpp
     handeye.cpp

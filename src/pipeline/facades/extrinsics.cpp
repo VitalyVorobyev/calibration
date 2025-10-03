@@ -1,4 +1,4 @@
-#include "calib/pipeline/extrinsics.h"
+#include "calib/pipeline/facades/extrinsics.h"
 
 // std
 #include <Eigen/Geometry>
@@ -9,33 +9,21 @@
 
 #include "calib/io/serialization.h"
 #include "calib/models/distortion.h"
+#include "calib/pipeline/detail/planar_utils.h"  // for make_planar_view
 
 namespace calib::pipeline {
 
+using detail::make_planar_view;
+
 namespace {
 
-[[nodiscard]] auto build_point_lookup(const planar::PlanarDetections& detections)
-    -> std::unordered_map<std::string, const planar::PlanarImageDetections*> {
-    std::unordered_map<std::string, const planar::PlanarImageDetections*> lookup;
+[[nodiscard]] auto build_point_lookup(const PlanarDetections& detections)
+    -> std::unordered_map<std::string, const PlanarImageDetections*> {
+    std::unordered_map<std::string, const PlanarImageDetections*> lookup;
     for (const auto& image : detections.images) {
         lookup.emplace(image.file, &image);
     }
     return lookup;
-}
-
-[[nodiscard]] auto make_planar_view(const planar::PlanarImageDetections& detections,
-                                    const planar::CalibrationOutputs& outputs) -> PlanarView {
-    PlanarView view;
-    view.reserve(detections.points.size());
-    for (const auto& point : detections.points) {
-        PlanarObservation obs;
-        obs.object_xy =
-            Eigen::Vector2d((point.local_x - outputs.point_center[0]) * outputs.point_scale,
-                            (point.local_y - outputs.point_center[1]) * outputs.point_scale);
-        obs.image_uv = Eigen::Vector2d(point.x, point.y);
-        view.push_back(std::move(obs));
-    }
-    return view;
 }
 
 [[nodiscard]] auto to_dual_camera(const PinholeCamera<BrownConradyd>& cam)
@@ -55,10 +43,10 @@ StereoPairConfig::StereoPairConfig() {
 }
 
 [[nodiscard]] auto compute_views(const StereoPairConfig& cfg,
-                                 const planar::PlanarDetections& reference_detections,
-                                 const planar::PlanarDetections& target_detections,
-                                 const planar::CalibrationRunResult& reference_intrinsics,
-                                 const planar::CalibrationRunResult& target_intrinsics,
+                                 const PlanarDetections& reference_detections,
+                                 const PlanarDetections& target_detections,
+                                 const IntrinsicCalibrationOutputs& reference_intrinsics,
+                                 const IntrinsicCalibrationOutputs& target_intrinsics,
                                  StereoCalibrationRunResult& result)
     -> std::vector<MulticamPlanarView> {
     const auto reference_lookup = build_point_lookup(reference_detections);
@@ -86,8 +74,8 @@ StereoPairConfig::StereoPairConfig() {
             continue;
         }
 
-        auto reference_view = make_planar_view(*ref_it->second, reference_intrinsics.outputs);
-        auto target_view = make_planar_view(*tgt_it->second, target_intrinsics.outputs);
+        auto reference_view = make_planar_view(*ref_it->second);
+        auto target_view = make_planar_view(*tgt_it->second);
         summary.reference_points = reference_view.size();
         summary.target_points = target_view.size();
 
@@ -109,16 +97,16 @@ StereoPairConfig::StereoPairConfig() {
 }
 
 auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
-                                        const planar::PlanarDetections& reference_detections,
-                                        const planar::PlanarDetections& target_detections,
-                                        const planar::CalibrationRunResult& reference_intrinsics,
-                                        const planar::CalibrationRunResult& target_intrinsics) const
+                                        const PlanarDetections& reference_detections,
+                                        const PlanarDetections& target_detections,
+                                        const IntrinsicCalibrationOutputs& reference_intrinsics,
+                                        const IntrinsicCalibrationOutputs& target_intrinsics) const
     -> StereoCalibrationRunResult {
     StereoCalibrationRunResult result;
     result.requested_views = cfg.views.size();
 
-    if (reference_intrinsics.outputs.refine_result.camera.distortion.coeffs.size() == 0 ||
-        target_intrinsics.outputs.refine_result.camera.distortion.coeffs.size() == 0) {
+    if (reference_intrinsics.refine_result.camera.distortion.coeffs.size() == 0 ||
+        target_intrinsics.refine_result.camera.distortion.coeffs.size() == 0) {
         throw std::runtime_error("StereoCalibrationFacade: camera intrinsics are not available.");
     }
 
@@ -133,8 +121,8 @@ auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
     }
 
     std::vector<PinholeCamera<BrownConradyd>> init_cameras = {
-        reference_intrinsics.outputs.refine_result.camera,
-        target_intrinsics.outputs.refine_result.camera};
+        reference_intrinsics.refine_result.camera,
+        target_intrinsics.refine_result.camera};
 
     std::vector<PinholeCamera<DualDistortion>> dlt_cameras;
     dlt_cameras.reserve(init_cameras.size());
@@ -154,16 +142,15 @@ auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
 
 // ---- Multicam generalization implementations ----
 static auto compute_views(const MultiCameraRigConfig& cfg,
-                          const std::unordered_map<std::string, planar::PlanarDetections>& dets,
-                          const std::unordered_map<std::string, planar::CalibrationRunResult>& intr,
-                          MultiCameraCalibrationRunResult& /*result*/)
+                          const std::unordered_map<std::string, PlanarDetections>& dets,
+                          const std::unordered_map<std::string, IntrinsicCalibrationOutputs>& intr)
     -> std::vector<MulticamPlanarView> {
     // Build lookup tables for each sensor
     std::unordered_map<std::string,
-                       std::unordered_map<std::string, const planar::PlanarImageDetections*>>
+                       std::unordered_map<std::string, const PlanarImageDetections*>>
         lookup;
     for (const auto& [sid, d] : dets) {
-        std::unordered_map<std::string, const planar::PlanarImageDetections*> map;
+        std::unordered_map<std::string, const PlanarImageDetections*> map;
         for (const auto& img : d.images) map.emplace(img.file, &img);
         lookup.emplace(sid, std::move(map));
     }
@@ -192,7 +179,7 @@ static auto compute_views(const MultiCameraRigConfig& cfg,
                 ok = false;
                 break;
             }
-            auto view = make_planar_view(*img_det_it->second, intr.at(sid).outputs);
+            auto view = make_planar_view(*img_det_it->second);
             if (view.size() < 4U) {
                 ok = false;
                 break;
@@ -208,8 +195,8 @@ static auto compute_views(const MultiCameraRigConfig& cfg,
 
 auto MultiCameraCalibrationFacade::calibrate(
     const MultiCameraRigConfig& cfg,
-    const std::unordered_map<std::string, planar::PlanarDetections>& detections_by_sensor,
-    const std::unordered_map<std::string, planar::CalibrationRunResult>& intrinsics_by_sensor) const
+    const std::unordered_map<std::string, PlanarDetections>& detections_by_sensor,
+    const std::unordered_map<std::string, IntrinsicCalibrationOutputs>& intrinsics_by_sensor) const
     -> MultiCameraCalibrationRunResult {
     MultiCameraCalibrationRunResult result;
     result.requested_views = cfg.views.size();
@@ -219,7 +206,7 @@ auto MultiCameraCalibrationFacade::calibrate(
     for (const auto& sid : cfg.sensors) {
         auto it = intrinsics_by_sensor.find(sid);
         if (it == intrinsics_by_sensor.end() ||
-            it->second.outputs.refine_result.camera.distortion.coeffs.size() == 0) {
+            it->second.refine_result.camera.distortion.coeffs.size() == 0) {
             throw std::runtime_error(
                 "MultiCameraCalibrationFacade: intrinsics not available for sensor: " + sid);
         }
@@ -236,7 +223,7 @@ auto MultiCameraCalibrationFacade::calibrate(
     std::vector<PinholeCamera<BrownConradyd>> init_cameras;
     init_cameras.reserve(cfg.sensors.size());
     for (const auto& sid : cfg.sensors) {
-        init_cameras.push_back(intrinsics_by_sensor.at(sid).outputs.refine_result.camera);
+        init_cameras.push_back(intrinsics_by_sensor.at(sid).refine_result.camera);
     }
 
     std::vector<PinholeCamera<DualDistortion>> dlt_cameras;

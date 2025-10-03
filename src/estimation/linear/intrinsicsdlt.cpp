@@ -10,11 +10,11 @@
 #include <span>
 #include <utility>
 
+#include "calib/estimation/common/intrinsics_utils.h"  // for sanitize_intrinsics
 #include "calib/estimation/common/ransac.h"
 #include "calib/estimation/linear/posefromhomography.h"  // for pose_from_homography
 #include "calib/estimation/linear/zhang.h"               // for zhang_intrinsics_from_hs
 #include "detail/homographyestimator.h"
-#include "calib/estimation/common/intrinsics_utils.h"  // for sanitize_intrinsics
 
 namespace calib {
 

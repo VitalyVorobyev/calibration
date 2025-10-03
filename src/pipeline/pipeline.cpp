@@ -5,7 +5,7 @@
 
 namespace calib::pipeline {
 
-void PipelineContext::set_intrinsics_config(planar::PlanarCalibrationConfig cfg) {
+void PipelineContext::set_intrinsics_config(planar::IntrinsicCalibrationConfig cfg) {
     intrinsics_config_ = std::move(cfg);
     has_intrinsics_config_ = true;
 }

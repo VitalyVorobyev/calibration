@@ -209,7 +209,7 @@ TEST(PlanarIntrinsicsUtils, PrintCalibrationSummaryIncludesKeyData) {
 }
 
 TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
-    PlanarCalibrationConfig cfg;
+    IntrinsicCalibrationConfig cfg;
     cfg.algorithm = "planar";
     cfg.options.fixed_distortion_indices = {0, 2};
     cfg.options.fixed_distortion_values = {0.1, 0.05};
@@ -396,7 +396,7 @@ TEST(PlanarIntrinsicCalibrationFacadeTest, CalibratesSyntheticData) {
         detections.images.push_back(std::move(image));
     }
 
-    PlanarCalibrationConfig cfg;
+    IntrinsicCalibrationConfig cfg;
     cfg.algorithm = "planar";
     cfg.options.min_corners_per_view = 20;
     cfg.options.refine = true;

@@ -1,9 +1,9 @@
 #include <nlohmann/json.hpp>
 
 #include "calib/estimation/linear/handeye.h"
-#include "calib/pipeline/handeye.h"
+#include "calib/pipeline/detail/planar_utils.h"
+#include "calib/pipeline/facades/handeye.h"
 #include "calib/pipeline/stages.h"
-#include "stages/detail/planar_utils.h"
 
 namespace calib::pipeline {
 
@@ -109,7 +109,7 @@ auto HandEyeCalibrationStage::run(PipelineContext& context) -> PipelineStageResu
 
             const auto& intrinsics = intrinsics_it->second;
             const auto& detection_index = index_it->second;
-            const auto& camera = intrinsics.outputs.refine_result.camera;
+            const auto& camera = intrinsics.refine_result.camera;
 
             nlohmann::json view_reports = nlohmann::json::array();
             SensorAccumulators accum;
@@ -136,7 +136,7 @@ auto HandEyeCalibrationStage::run(PipelineContext& context) -> PipelineStageResu
                 }
 
                 const auto* image_det = det_it->second;
-                auto planar_view = make_planar_view(*image_det, intrinsics.outputs);
+                auto planar_view = make_planar_view(*image_det);
                 view_json["points"] = planar_view.size();
 
                 if (planar_view.size() < 4U) {
