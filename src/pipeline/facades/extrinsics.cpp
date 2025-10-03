@@ -39,8 +39,6 @@ namespace {
 [[nodiscard]] auto compute_views(const StereoPairConfig& cfg,
                                  const PlanarDetections& reference_detections,
                                  const PlanarDetections& target_detections,
-                                 const IntrinsicCalibrationOutputs& reference_intrinsics,
-                                 const IntrinsicCalibrationOutputs& target_intrinsics,
                                  StereoCalibrationRunResult& result)
     -> std::vector<MulticamPlanarView> {
     const auto reference_lookup = build_point_lookup(reference_detections);
@@ -104,8 +102,7 @@ auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
         throw std::runtime_error("StereoCalibrationFacade: camera intrinsics are not available.");
     }
 
-    const auto views = compute_views(cfg, reference_detections, target_detections,
-                                     reference_intrinsics, target_intrinsics, result);
+    const auto views = compute_views(cfg, reference_detections, target_detections, result);
 
     result.used_views = views.size();
     if (views.empty()) {

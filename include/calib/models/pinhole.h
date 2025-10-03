@@ -72,13 +72,13 @@ class PinholeCamera final {
     template <typename T>
     [[nodiscard]]
     auto apply_intrinsics(const Eigen::Matrix<T, 2, 1>& pixel) const -> Eigen::Matrix<T, 2, 1> {
-        return kmtx.template normalize<T>(pixel);
+        return normalize<T>(kmtx, pixel);
     }
 
     template <typename T>
     [[nodiscard]]
     auto remove_intrinsics(const Eigen::Matrix<T, 2, 1>& norm_xy) const -> Eigen::Matrix<T, 2, 1> {
-        return kmtx.template denormalize<T>(norm_xy);
+        return denormalize<T>(kmtx, norm_xy);
     }
 
     template <typename T>
@@ -149,14 +149,14 @@ struct CameraTraits<PinholeCamera<DistortionT>> {
     static Eigen::Matrix<T, 2, 1> apply_linear_intrinsics(const PinholeCamera<DistortionT>& cam,
                                                           const Eigen::Matrix<T, 2, 1>& mx_my) {
         CameraMatrixT<T> kmtx{T(cam.kmtx.fx), T(cam.kmtx.fy), T(0), T(0), T(cam.kmtx.skew)};
-        return kmtx.template denormalize<T>(mx_my);
+        return denormalize<T>(kmtx, mx_my);
     }
 
     template <typename T>
     static Eigen::Matrix<T, 2, 1> remove_linear_intrinsics(const PinholeCamera<DistortionT>& cam,
                                                            const Eigen::Matrix<T, 2, 1>& px_py) {
         CameraMatrixT<T> kmtx{T(cam.kmtx.fx), T(cam.kmtx.fy), T(0), T(0), T(cam.kmtx.skew)};
-        return kmtx.template normalize<T>(px_py);
+        return normalize<T>(kmtx, px_py);
     }
 };
 

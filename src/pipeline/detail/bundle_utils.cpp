@@ -1,4 +1,4 @@
-#include "bundle_utils.h"
+#include "calib/pipeline/detail/bundle_utils.h"
 
 #include <algorithm>
 #include <stdexcept>
@@ -22,7 +22,7 @@ auto collect_bundle_sensor_setup(
             continue;
         }
         setup.sensor_to_index.emplace(sensor_id, idx);
-        setup.cameras.push_back(intrinsics_it->second.outputs.refine_result.camera);
+        setup.cameras.push_back(intrinsics_it->second.refine_result.camera);
     }
     return setup;
 }
@@ -104,7 +104,7 @@ auto collect_bundle_observations(
                 sensor_reports.push_back(std::move(sensor_entry));
                 continue;
             }
-            const auto& camera = intrinsics_it->second.outputs.refine_result.camera;
+            const auto& camera = intrinsics_it->second.refine_result.camera;
 
             const auto* image_det = lookup_it->second;
             auto planar_view = make_planar_view(*image_det);

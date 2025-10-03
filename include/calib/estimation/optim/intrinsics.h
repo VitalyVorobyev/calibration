@@ -6,10 +6,12 @@
 
 #include "calib/estimation/linear/intrinsics.h"
 #include "calib/estimation/optim/optimize.h"
+#include "calib/io/serialization.h"
 
 namespace calib {
 
-struct IntrinsicsOptimOptions final : public OptimOptions {
+struct IntrinsicsOptimOptions final {
+    OptimOptions core;       ///< Non-linear optimization options
     int num_radial = 2;          ///< Number of radial distortion coefficients
     bool optimize_skew = false;  ///< Estimate skew parameter
     std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Parameter bounds
@@ -17,8 +19,11 @@ struct IntrinsicsOptimOptions final : public OptimOptions {
     std::vector<double> fixed_distortion_values;             ///< Assigned fixed values
 };
 
+static_assert(serializable_aggregate<IntrinsicsOptimOptions>);
+
 template <camera_model CameraT>
-struct IntrinsicsOptimizationResult final : public OptimResult {
+struct IntrinsicsOptimizationResult final {
+    OptimResult core;        ///< Optimization result details
     CameraT camera;                          ///< Estimated camera parameters
     std::vector<Eigen::Isometry3d> c_se3_t;  ///< Estimated pose of each view
     std::vector<double> view_errors;         ///< Per-view reprojection errors
@@ -35,6 +40,7 @@ auto optimize_intrinsics(const std::vector<PlanarView>& views, const CameraT& in
                          const IntrinsicsOptimOptions& opts = {})
     -> IntrinsicsOptimizationResult<CameraT>;
 
+#if 0
 template <camera_model CameraT>
 inline void to_json(nlohmann::json& j, const IntrinsicsOptimizationResult<CameraT>& r) {
     j = {{"camera", r.camera},           {"poses", r.c_se3_t},         {"covariance", r.covariance},
@@ -50,5 +56,6 @@ inline void from_json(const nlohmann::json& j, IntrinsicsOptimizationResult<Came
     r.final_cost = j.value("final_cost", 0.0);
     r.report = j.value("report", std::string{});
 }
+#endif
 
 }  // namespace calib

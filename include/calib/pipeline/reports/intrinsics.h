@@ -59,4 +59,11 @@ struct CalibrationReport final {
                                                   const IntrinsicCalibrationOutputs& outputs)
     -> CalibrationReport;
 
+static_assert(serializable_aggregate<CalibrationReport>);
+static_assert(serializable_aggregate<CameraReport>);
+static_assert(serializable_aggregate<InitialGuessReport>);
+static_assert(serializable_aggregate<InitialGuessWarningCounts>);
+static_assert(serializable_aggregate<IntrinsicsResultReport>);
+static_assert(serializable_aggregate<PlanarViewReport>);
+
 }  // namespace calib::pipeline

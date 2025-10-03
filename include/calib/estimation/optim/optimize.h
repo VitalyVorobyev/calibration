@@ -21,7 +21,7 @@ NLOHMANN_JSON_SERIALIZE_ENUM(OptimizerType, {{OptimizerType::DEFAULT, "default"}
                                              {OptimizerType::DENSE_SCHUR, "dense_schur"},
                                              {OptimizerType::DENSE_QR, "dense_qr"}})
 
-struct OptimOptions {
+struct OptimOptions final {
     OptimizerType optimizer = OptimizerType::DEFAULT;
     double huber_delta = 1.0;
     static constexpr double k_default_epsilon = 1e-9;
@@ -32,11 +32,14 @@ struct OptimOptions {
     bool verbose = false;
 };
 
-struct OptimResult {
+struct OptimResult final {
     bool success = false;
     Eigen::MatrixXd covariance;
     std::string report = "Empty";
     double final_cost = 0.0;
 };
+
+static_assert(serializable_aggregate<OptimOptions>);
+static_assert(serializable_aggregate<OptimResult>);
 
 }  // namespace calib

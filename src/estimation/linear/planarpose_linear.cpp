@@ -57,7 +57,7 @@ auto estimate_planar_pose(PlanarView view, const CameraMatrix& intrinsics) -> Ei
     }
 
     std::for_each(view.begin(), view.end(), [&intrinsics](PlanarObservation& obs) {
-        obs.image_uv = intrinsics.normalize(obs.image_uv);
+        obs.image_uv = normalize(intrinsics, obs.image_uv);
     });
 
     std::vector<int> sample(view.size());

@@ -81,8 +81,7 @@ auto bounds_from_image_size(const std::array<int, 2>& image_size)
 
 auto PlanarIntrinsicCalibrationFacade::calibrate(const IntrinsicCalibrationConfig& cfg,
                                                  const CameraConfig& cam_cfg,
-                                                 const PlanarDetections& detections,
-                                                 const std::filesystem::path& features_path) const
+                                                 const PlanarDetections& detections) const
     -> IntrinsicCalibrationOutputs {
     IntrinsicCalibrationOutputs output;
     output.total_input_views = detections.images.size();
@@ -134,13 +133,13 @@ auto PlanarIntrinsicCalibrationFacade::calibrate(const IntrinsicCalibrationConfi
 
         PinholeCamera<BrownConradyd> init_camera(linear.kmtx, Eigen::VectorXd::Zero(5));
         refine = optimize_intrinsics(planar_views, init_camera, init_c_se3_t, cfg.options.optim_options);
-        if (!refine.success) {
+        if (!refine.core.success) {
             std::cerr << "Warning: Non-linear refinement did not converge. Using linear result."
                       << '\n';
             refine.camera = PinholeCamera<BrownConradyd>(linear.kmtx, Eigen::VectorXd::Zero(5));
         }
     } else {
-        refine.success = true;
+        refine.core.success = true;
         refine.camera = PinholeCamera<BrownConradyd>(linear.kmtx, Eigen::VectorXd::Zero(5));
     }
 

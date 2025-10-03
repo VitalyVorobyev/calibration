@@ -35,8 +35,8 @@ SensorCalibrationResult calibrate_sensor(const PlanarIntrinsicCalibrationFacade&
         context.intrinsic_results[sensor_id] = run;
 
         const auto report = build_planar_intrinsics_report(cfg, *cam_cfg, detections, run);
-
-        nlohmann::json entry = report;
+        nlohmann::json entry;
+        to_json(entry, report);
         entry["sensor_id"] = sensor_id;
         nlohmann::json tags = nlohmann::json::array();
         std::copy(detections.tags.begin(), detections.tags.end(), std::back_inserter(tags));

@@ -66,8 +66,7 @@ struct IntrinsicCalibrationOutputs final {
 class PlanarIntrinsicCalibrationFacade {
   public:
     [[nodiscard]] auto calibrate(const IntrinsicCalibrationConfig& cfg, const CameraConfig& cam_cfg,
-                                 const PlanarDetections& detections,
-                                 const std::filesystem::path& features_path) const
+                                 const PlanarDetections& detections) const
         -> IntrinsicCalibrationOutputs;
 };
 
