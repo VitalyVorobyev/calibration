@@ -27,7 +27,7 @@ auto create_synthetic_planar_data(const Eigen::Isometry3d& pose, const CameraMat
             Eigen::Vector2d point_camera = (pose * point_3d).hnormalized();
 
             // Apply camera intrinsics
-            Eigen::Vector2d pixel = intrinsics.denormalize(point_camera);
+            Eigen::Vector2d pixel = denormalize(intrinsics, point_camera);
             view.emplace_back(PlanarObservation{obj_pt, pixel});
         }
     }
@@ -167,9 +167,9 @@ TEST(PlanarPoseTest, OptimizePlanarPoseWithDistortion) {
     brownconrady.coeffs = Eigen::Vector2d(0.1, 0);
 
     std::for_each(view.begin(), view.end(), [&brownconrady, &intrinsics](PlanarObservation& item) {
-        auto norm_pix = intrinsics.normalize(item.image_uv);
+        auto norm_pix = normalize(intrinsics, item.image_uv);
         auto distorted_norm = brownconrady.distort(norm_pix);
-        item.image_uv = intrinsics.denormalize(distorted_norm);
+        item.image_uv = denormalize(intrinsics, distorted_norm);
     });
 
     // Make pose estimate

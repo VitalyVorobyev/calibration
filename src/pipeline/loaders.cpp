@@ -34,7 +34,7 @@ auto JsonPlanarDatasetLoader::load() -> CalibrationDataset {
         nlohmann::json json_data;
         stream >> json_data;
 
-        auto detections = json_data.get<planar::PlanarDetections>();
+        auto detections = json_data.get<PlanarDetections>();
         detections.source_file = entry.path;
 
         if (entry.sensor_id.has_value() && detections.sensor_id != *entry.sensor_id) {

@@ -9,6 +9,9 @@
 
 namespace calib::pipeline {
 
+using calib::from_json;
+using calib::to_json;
+
 struct PlanarTargetPoint final {
     double x = 0.0;
     double y = 0.0;
@@ -44,5 +47,10 @@ struct CalibrationDataset final {
     std::vector<PlanarDetections> planar_cameras;
     nlohmann::json raw_json;  ///< Original dataset payload for downstream consumers.
 };
+
+static_assert(serializable_aggregate<PlanarTargetPoint>);
+static_assert(serializable_aggregate<PlanarImageDetections>);
+static_assert(serializable_aggregate<PlanarDetections>);
+static_assert(serializable_aggregate<CalibrationDataset>);
 
 }  // namespace calib::pipeline

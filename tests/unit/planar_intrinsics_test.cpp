@@ -1,4 +1,4 @@
-#include "calib/pipeline/planar_intrinsics.h"
+#include "calib/pipeline/facades/intrinsics.h"
 
 #include <gtest/gtest.h>
 
@@ -10,42 +10,14 @@
 #include <string>
 #include <vector>
 
-#include "calib/datasets/planar.h"
-#include "calib/reports/planar_intrinsics.h"
-#include "calib/reports/planar_intrinsics_types.h"
+#include "calib/pipeline/dataset.h"
+#include "calib/pipeline/reports/intrinsics.h"
 #include "utils.h"
 
 using namespace calib;
-using namespace calib::planar;
+using namespace calib::pipeline;
 
-TEST(PlanarIntrinsicsUtils, DeterminePointCenterOverrideWins) {
-    PlanarDetections detections;
-    IntrinsicCalibrationOptions opts;
-    opts.auto_center = false;
-    opts.point_center_override = std::array<double, 2>{10.0, -5.0};
-
-    auto center = determine_point_center(detections, opts);
-    EXPECT_DOUBLE_EQ(center[0], 10.0);
-    EXPECT_DOUBLE_EQ(center[1], -5.0);
-}
-
-TEST(PlanarIntrinsicsUtils, DeterminePointCenterAutoFromPoints) {
-    PlanarDetections detections;
-    PlanarImageDetections img;
-    img.points.push_back(PlanarTargetPoint{.local_x = -2.0, .local_y = 1.0});
-    img.points.push_back(PlanarTargetPoint{.local_x = 4.0, .local_y = -3.0});
-    detections.images.push_back(img);
-
-    IntrinsicCalibrationOptions opts;
-    opts.auto_center = true;
-    opts.point_scale = 1.0;
-
-    auto center = determine_point_center(detections, opts);
-    EXPECT_DOUBLE_EQ(center[0], 1.0);
-    EXPECT_DOUBLE_EQ(center[1], -1.0);
-}
-
-TEST(PlanarIntrinsicsUtils, CollectPlanarViewsRespectsThresholdAndScaling) {
+TEST(PlanarIntrinsicsUtils, CollectPlanarViewsRespectsThreshold) {
     PlanarDetections detections;
     PlanarImageDetections accepted;
     accepted.file = "view0.png";
@@ -60,11 +32,9 @@ TEST(PlanarIntrinsicsUtils, CollectPlanarViewsRespectsThresholdAndScaling) {
 
     IntrinsicCalibrationOptions opts;
     opts.min_corners_per_view = 3;
-    opts.point_scale = 2.0;
 
     std::vector<ActiveView> views;
-    const std::array<double, 2> center{1.0, 1.0};
-    auto planar_views = collect_planar_views(detections, opts, center, views);
+    auto planar_views = collect_planar_views(detections, opts, views);
 
     ASSERT_EQ(planar_views.size(), 1);
     ASSERT_EQ(views.size(), 1);
@@ -79,22 +49,6 @@ TEST(PlanarIntrinsicsUtils, CollectPlanarViewsRespectsThresholdAndScaling) {
     EXPECT_DOUBLE_EQ(view[1].object_xy.y(), 0.0);
     EXPECT_DOUBLE_EQ(view[2].object_xy.x(), 0.0);
     EXPECT_DOUBLE_EQ(view[2].object_xy.y(), 4.0);
-}
-
-TEST(PlanarIntrinsicsUtils, BuildRansacOptionsMatchesConfig) {
-    HomographyRansacConfig cfg;
-    cfg.max_iters = 50;
-    cfg.thresh = 0.25;
-    cfg.min_inliers = 12;
-    cfg.confidence = 0.85;
-
-    const auto opts = build_ransac_options(cfg);
-    EXPECT_EQ(opts.max_iters, cfg.max_iters);
-    EXPECT_DOUBLE_EQ(opts.thresh, cfg.thresh);
-    EXPECT_EQ(opts.min_inliers, cfg.min_inliers);
-    EXPECT_DOUBLE_EQ(opts.confidence, cfg.confidence);
-    EXPECT_EQ(opts.seed, RansacOptions{}.seed);
-    EXPECT_TRUE(opts.refit_on_inliers);
 }
 
 TEST(PlanarIntrinsicsUtils, LoadPlanarObservationsParsesDetectorMetadata) {
@@ -180,9 +134,7 @@ TEST(PlanarIntrinsicsUtils, PrintCalibrationSummaryIncludesKeyData) {
     CameraConfig cam_cfg;
     cam_cfg.camera_id = "cam_test";
 
-    CalibrationOutputs outputs;
-    outputs.point_scale = 2.0;
-    outputs.point_center = {1.5, -0.5};
+    IntrinsicCalibrationOutputs outputs;
     outputs.invalid_k_warnings = 1;
     outputs.pose_warnings = 2;
     outputs.linear_kmtx = CameraMatrix{900.0, 910.0, 320.0, 240.0, 0.05};
@@ -211,9 +163,9 @@ TEST(PlanarIntrinsicsUtils, PrintCalibrationSummaryIncludesKeyData) {
 TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
     IntrinsicCalibrationConfig cfg;
     cfg.algorithm = "planar";
-    cfg.options.fixed_distortion_indices = {0, 2};
-    cfg.options.fixed_distortion_values = {0.1, 0.05};
-    cfg.options.num_radial = 3;
+    cfg.options.optim_options.fixed_distortion_indices = {0, 2};
+    cfg.options.optim_options.fixed_distortion_values = {0.1, 0.05};
+    cfg.options.optim_options.num_radial = 3;
     cfg.options.min_corners_per_view = 20;
 
     CameraConfig cam_cfg;
@@ -226,12 +178,10 @@ TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
     detections.algo_version = "v1";
     detections.params_hash = "hash";
 
-    CalibrationOutputs outputs;
+    IntrinsicCalibrationOutputs outputs;
     outputs.total_input_views = 5;
     outputs.accepted_views = 3;
     outputs.min_corner_threshold = 20;
-    outputs.point_scale = 1.5;
-    outputs.point_center = {0.2, -0.3};
     outputs.total_points_used = 60;
     outputs.invalid_k_warnings = 1;
     outputs.pose_warnings = 2;
@@ -243,8 +193,7 @@ TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
         CameraMatrix{805.0, 815.0, 322.0, 241.0, 0.4}, Eigen::VectorXd::Constant(5, 0.01));
     outputs.refine_result.view_errors = {0.5, 0.7};
 
-    const auto report = build_planar_intrinsics_report(cfg, cam_cfg, detections, outputs,
-                                                       std::filesystem::path{"feat.json"});
+    const auto report = build_planar_intrinsics_report(cfg, cam_cfg, detections, outputs);
     const nlohmann::json json = report;
 
     ASSERT_TRUE(json.contains("calibrations"));
@@ -274,11 +223,8 @@ TEST(PlanarIntrinsicsUtils, BuildOutputJsonIncludesFixedDistortionMetadata) {
 }
 
 TEST(PlanarIntrinsicsReport, JsonRoundTripPreservesData) {
-    PlanarIntrinsicsReport report;
-    report.session = SessionReport{
-        .id = "session", .description = "desc", .timestamp_utc = "2024-01-02T03:04:05Z"};
-
-    PlanarIntrinsicsOptionsReport options;
+    CalibrationReport report;
+    IntrinsicCalibrationOptions options;
     options.min_corners_per_view = 10;
     options.refine = true;
     options.optimize_skew = true;
@@ -291,7 +237,7 @@ TEST(PlanarIntrinsicsReport, JsonRoundTripPreservesData) {
     options.point_center = std::array<double, 2>{0.1, -0.2};
     options.fixed_distortion_indices = {0, 2};
     options.fixed_distortion_values = {0.01, -0.02};
-    options.homography_ransac = HomographyRansacConfig{
+    options.homography_ransac = RansacConfig{
         .max_iters = 500, .thresh = 0.5, .min_inliers = 20, .confidence = 0.85};
 
     InitialGuessReport guess;

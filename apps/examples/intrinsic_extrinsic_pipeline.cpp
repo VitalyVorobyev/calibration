@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
             }
 
             // Build detections and intrinsics lookup by sensor id from context
-            std::unordered_map<std::string, calib::planar::PlanarDetections> det_by_sensor;
+            std::unordered_map<std::string, calib::PlanarDetections> det_by_sensor;
             for (const auto& det : context.dataset.planar_cameras) {
                 if (!det.sensor_id.empty()) det_by_sensor.emplace(det.sensor_id, det);
             }

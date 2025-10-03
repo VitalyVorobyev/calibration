@@ -15,8 +15,15 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <concepts>
 
 namespace calib {
+
+template <class T>
+concept serializable_aggregate = std::is_aggregate_v<T> && requires(T a, nlohmann::json j) {
+    { to_json(j, a) } -> std::same_as<void>;
+    { from_json(j, a) } -> std::same_as<void>;
+};
 
 namespace detail {
 template <class T>

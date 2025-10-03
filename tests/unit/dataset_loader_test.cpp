@@ -3,11 +3,10 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
-#include <nlohmann/json.hpp>
 
-#include "calib/datasets/planar.h"
+#include "calib/pipeline/dataset.h"
 
-using namespace calib::planar;
+using namespace calib::pipeline;
 
 namespace {
 

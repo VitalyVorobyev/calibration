@@ -47,7 +47,7 @@ targets the format is intentionally lightweight: the structures exposed by
 
 ## Runtime Validation
 
-`calib::planar::PlanarDetections` integrates with *nlohmann::json* via
+`calib::PlanarDetections` integrates with *nlohmann::json* via
 `from_json`/`to_json` specialisations.  The conversion simply maps struct
 members to JSON fields, relying on nlohmann's built-in error handling—missing or
 type-mismatched fields raise `nlohmann::json::exception` automatically.

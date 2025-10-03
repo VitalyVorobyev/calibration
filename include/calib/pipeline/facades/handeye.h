@@ -16,14 +16,14 @@
 // eigen
 #include <Eigen/Geometry>
 
-// third-party
-#include <nlohmann/json.hpp>
-
 #include "calib/estimation/optim/bundle.h"
 #include "calib/estimation/optim/handeye.h"
 #include "calib/io/serialization.h"
 
 namespace calib::pipeline {
+
+using calib::from_json;
+using calib::to_json;
 
 /**
  * @brief Per-observation specification consumed by the hand-eye pipeline stage.
@@ -68,5 +68,11 @@ struct BundleRigConfig final {
 struct BundlePipelineConfig final {
     std::vector<BundleRigConfig> rigs;
 };
+
+static_assert(serializable_aggregate<HandEyeObservationConfig>);
+static_assert(serializable_aggregate<HandEyeRigConfig>);
+static_assert(serializable_aggregate<HandEyePipelineConfig>);
+static_assert(serializable_aggregate<BundleRigConfig>);
+static_assert(serializable_aggregate<BundlePipelineConfig>);
 
 }  // namespace calib::pipeline

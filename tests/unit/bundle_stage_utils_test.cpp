@@ -5,9 +5,9 @@
 #include <unordered_map>
 #include <vector>
 
-#include "calib/datasets/planar.h"
-#include "calib/pipeline/planar_intrinsics.h"
-#include "pipeline/stages/detail/bundle_utils.h"
+#include "calib/pipeline/dataset.h"
+#include "calib/pipeline/facades/intrinsics.h"
+#include "calib/pipeline/detail/bundle_utils.h"
 
 namespace calib::pipeline::detail {
 namespace {
@@ -24,21 +24,19 @@ auto make_camera() -> PinholeCamera<BrownConradyd> {
 
 IntrinsicCalibrationOutputs make_intrinsics_result() {
     IntrinsicCalibrationOutputs intrinsics;
-    intrinsics.outputs.point_scale = 1.0;
-    intrinsics.outputs.point_center = {0.0, 0.0};
-    intrinsics.outputs.refine_result.success = true;
-    intrinsics.outputs.refine_result.camera = make_camera();
+    intrinsics.refine_result.success = true;
+    intrinsics.refine_result.camera = make_camera();
     return intrinsics;
 }
 
-planar::PlanarDetections make_detections(const std::string& sensor_id,
+PlanarDetections make_detections(const std::string& sensor_id,
                                          const std::string& image_file) {
-    planar::PlanarDetections detections;
+    PlanarDetections detections;
     detections.sensor_id = sensor_id;
-    planar::PlanarImageDetections image;
+    PlanarImageDetections image;
     image.file = image_file;
     for (int idx = 0; idx < 4; ++idx) {
-        planar::PlanarTargetPoint pt;
+        PlanarTargetPoint pt;
         pt.x = static_cast<double>(idx);
         pt.y = static_cast<double>(idx);
         pt.local_x = static_cast<double>(idx);

@@ -3,14 +3,13 @@
 #include <gtest/gtest.h>
 
 #include <Eigen/Geometry>
-#include <nlohmann/json.hpp>
 #include <stdexcept>
 
 #include "calib/estimation/common/ransac.h"
 #include "calib/estimation/linear/planarpose.h"
 #include "calib/estimation/optim/intrinsics.h"
 #include "calib/estimation/optim/optimize.h"
-#include "calib/pipeline/handeye.h"
+#include "calib/pipeline/facades/handeye.h"
 
 using namespace calib;
 

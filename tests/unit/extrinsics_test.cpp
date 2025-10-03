@@ -50,7 +50,7 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
-                Eigen::Vector2d pix = cameras[c].kmtx.denormalize(norm);
+                Eigen::Vector2d pix = denormalize(cameras[c].kmtx, norm);
                 view[c].push_back({xy, pix});
             }
         }
@@ -102,7 +102,7 @@ TEST(Extrinsics, RecoverAllParameters) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
-                Eigen::Vector2d pix = cameras_gt[c].kmtx.denormalize(norm);
+                Eigen::Vector2d pix = denormalize(cameras_gt[c].kmtx, norm);
                 view[c].push_back({xy, pix});
             }
         }
@@ -167,7 +167,7 @@ TEST(Extrinsics, FirstTargetPoseFixed) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
-                Eigen::Vector2d pix = cameras_gt[c].kmtx.denormalize(norm);
+                Eigen::Vector2d pix = denormalize(cameras_gt[c].kmtx, norm);
                 view[c].push_back({xy, pix});
             }
         }

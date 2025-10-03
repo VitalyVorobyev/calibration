@@ -15,19 +15,19 @@ namespace {
 
 [[nodiscard]] auto make_planar_detections(const std::string& sensor_id,
                                           const std::vector<BundleObservation>& observations)
-    -> planar::PlanarDetections {
-    planar::PlanarDetections detections;
+    -> PlanarDetections {
+    PlanarDetections detections;
     detections.sensor_id = sensor_id;
     detections.feature_type = "synthetic";
     detections.algo_version = "test";
 
     for (std::size_t idx = 0; idx < observations.size(); ++idx) {
         const auto& obs = observations[idx];
-        planar::PlanarImageDetections image;
+        PlanarImageDetections image;
         image.file = image_name_for(sensor_id, idx);
         int point_id = 0;
         for (const auto& point : obs.view) {
-            planar::PlanarTargetPoint target;
+            PlanarTargetPoint target;
             target.id = point_id++;
             target.local_x = point.object_xy.x();
             target.local_y = point.object_xy.y();
@@ -105,8 +105,8 @@ TEST(IntrinsicStageTest, FailsWhenConfigMissing) {
 TEST(IntrinsicStageTest, FailsWhenDatasetMissing) {
     PipelineContext context;
 
-    planar::IntrinsicCalibrationConfig cfg;
-    planar::CameraConfig cam_cfg;
+    IntrinsicCalibrationConfig cfg;
+    CameraConfig cam_cfg;
     cam_cfg.camera_id = "cam0";
     cfg.cameras.push_back(cam_cfg);
     context.set_intrinsics_config(cfg);
@@ -124,14 +124,14 @@ TEST(IntrinsicStageTest, FailsWhenDatasetMissing) {
 TEST(IntrinsicStageTest, ReportsMissingCameraConfigAndTagSummary) {
     PipelineContext context;
 
-    planar::IntrinsicCalibrationConfig cfg;
+    IntrinsicCalibrationConfig cfg;
     // Configure a different camera id so the lookup fails for cam0.
-    planar::CameraConfig other_cam_cfg;
+    CameraConfig other_cam_cfg;
     other_cam_cfg.camera_id = "cam1";
     cfg.cameras.push_back(other_cam_cfg);
     context.set_intrinsics_config(cfg);
 
-    planar::PlanarDetections detections;
+    PlanarDetections detections;
     detections.tags.insert("synthetic");
     detections.tags.insert("recorded");
     context.dataset.planar_cameras.push_back(detections);
@@ -155,18 +155,18 @@ TEST(IntrinsicStageTest, ReportsMissingCameraConfigAndTagSummary) {
 TEST(IntrinsicStageTest, CapturesCalibrationFailure) {
     PipelineContext context;
 
-    planar::IntrinsicCalibrationConfig cfg;
+    IntrinsicCalibrationConfig cfg;
     cfg.options.min_corners_per_view = 1;
-    planar::CameraConfig cam_cfg;
+    CameraConfig cam_cfg;
     cam_cfg.camera_id = "cam0";
     cfg.cameras.push_back(cam_cfg);
     context.set_intrinsics_config(cfg);
 
-    planar::PlanarDetections detections;
+    PlanarDetections detections;
     detections.sensor_id = "cam0";
-    planar::PlanarImageDetections image;
+    PlanarImageDetections image;
     image.file = "view0.png";
-    planar::PlanarTargetPoint point;
+    PlanarTargetPoint point;
     point.x = 10.0;
     point.y = 12.0;
     point.local_x = 1.0;
@@ -275,10 +275,8 @@ TEST(HandEyeCalibrationStageTest, CalibratesSyntheticHandEye) {
     context.dataset.planar_cameras.push_back(make_planar_detections(sensor_id, data.observations));
 
     IntrinsicCalibrationOutputs intrinsics_result;
-    intrinsics_result.outputs.point_scale = 1.0;
-    intrinsics_result.outputs.point_center = {0.0, 0.0};
-    intrinsics_result.outputs.refine_result.success = true;
-    intrinsics_result.outputs.refine_result.camera = data.camera;
+    intrinsics_result.refine_result.success = true;
+    intrinsics_result.refine_result.camera = data.camera;
     context.intrinsic_results.emplace(sensor_id, intrinsics_result);
 
     HandEyeRigConfig rig;
@@ -322,10 +320,8 @@ TEST(BundleAdjustmentStageTest, CalibratesSyntheticBundle) {
     context.dataset.planar_cameras.push_back(make_planar_detections(sensor_id, data.observations));
 
     IntrinsicCalibrationOutputs intrinsics_result;
-    intrinsics_result.outputs.point_scale = 1.0;
-    intrinsics_result.outputs.point_center = {0.0, 0.0};
-    intrinsics_result.outputs.refine_result.success = true;
-    intrinsics_result.outputs.refine_result.camera = data.camera;
+    intrinsics_result.refine_result.success = true;
+    intrinsics_result.refine_result.camera = data.camera;
     context.intrinsic_results.emplace(sensor_id, intrinsics_result);
 
     HandEyeRigConfig he_rig;
