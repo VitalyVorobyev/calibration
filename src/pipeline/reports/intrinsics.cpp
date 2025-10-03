@@ -9,24 +9,6 @@
 
 namespace calib::pipeline {
 
-namespace {
-
-[[nodiscard]] auto iso_timestamp_utc() -> std::string {
-    const auto now = std::chrono::system_clock::now();
-    const std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm{};
-#ifdef _WIN32
-    gmtime_s(&tm, &t);
-#else
-    gmtime_r(&t, &tm);
-#endif
-    std::ostringstream oss;
-    oss << std::put_time(&tm, "%FT%TZ");
-    return oss.str();
-}
-
-}  // namespace
-
 [[nodiscard]] auto compute_global_rms(const IntrinsicCalibrationOutputs& out) -> double {
     const auto& refine = out.refine_result;
     if (refine.view_errors.empty()) {

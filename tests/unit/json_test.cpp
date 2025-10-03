@@ -121,7 +121,7 @@ TEST(HandEyeJsonIo, ObservationRoundTrip) {
     cfg.images = {{"cam_left", "left.png"}, {"cam_right", "right.png"}};
 
     const nlohmann::json node = cfg;
-    ASSERT_TRUE(node.contains("id"));
+    ASSERT_TRUE(node.contains("view_id"));
     ASSERT_TRUE(node.contains("base_se3_gripper"));
     ASSERT_TRUE(node.contains("images"));
 

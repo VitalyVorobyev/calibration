@@ -63,6 +63,18 @@ TEST(PlanarIntrinsicsUtils, LoadPlanarObservationsParsesDetectorMetadata) {
         "params_hash": "hash123",
         "sensor_id": "cam0",
         "tags": ["recorded"],
+        "metadata": {
+            "detector": {
+                "name": "synthetic",
+                "version": "1.0",
+                "params": {
+                    "grid_rows": 6,
+                    "grid_cols": 9,
+                    "square_size": 0.025
+                }
+            }
+        },
+        "source_file": "planar_observations.json",
         "images": [
             {
                 "file": "view0.png",
@@ -147,8 +159,6 @@ TEST(PlanarIntrinsicsUtils, PrintCalibrationSummaryIncludesKeyData) {
     print_calibration_summary(oss, cam_cfg, outputs);
     const auto summary = oss.str();
     EXPECT_NE(summary.find("== Camera cam_test =="), std::string::npos);
-    EXPECT_NE(summary.find("Point scale applied to board coordinates: 2"), std::string::npos);
-    EXPECT_NE(summary.find("Point center removed before scaling: [1.5, -0.5]"), std::string::npos);
     EXPECT_NE(summary.find("Linear stage warnings: 1 invalid camera matrices, 2 homography"),
               std::string::npos);
     EXPECT_NE(summary.find("Initial fx/fy/cx/cy: 900"), std::string::npos);

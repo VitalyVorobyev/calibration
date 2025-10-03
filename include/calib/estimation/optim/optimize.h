@@ -22,11 +22,11 @@ NLOHMANN_JSON_SERIALIZE_ENUM(OptimizerType, {{OptimizerType::DEFAULT, "default"}
                                              {OptimizerType::DENSE_QR, "dense_qr"}})
 
 struct OptimOptions final {
+    static constexpr double k_default_epsilon = 1e-9;
+    static constexpr int k_default_max_iterations = 1000;
     OptimizerType optimizer = OptimizerType::DEFAULT;
     double huber_delta = 1.0;
-    static constexpr double k_default_epsilon = 1e-9;
     double epsilon = k_default_epsilon;
-    static constexpr int k_default_max_iterations = 1000;
     int max_iterations = k_default_max_iterations;
     bool compute_covariance = true;
     bool verbose = false;

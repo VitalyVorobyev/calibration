@@ -132,8 +132,7 @@ auto StereoCalibrationFacade::calibrate(const StereoPairConfig& cfg,
 
 // ---- Multicam generalization implementations ----
 static auto compute_views(const MultiCameraRigConfig& cfg,
-                          const std::unordered_map<std::string, PlanarDetections>& dets,
-                          const std::unordered_map<std::string, IntrinsicCalibrationOutputs>& intr)
+                          const std::unordered_map<std::string, PlanarDetections>& dets)
     -> std::vector<MulticamPlanarView> {
     // Build lookup tables for each sensor
     std::unordered_map<std::string, std::unordered_map<std::string, const PlanarImageDetections*>>
@@ -201,7 +200,7 @@ auto MultiCameraCalibrationFacade::calibrate(
         }
     }
 
-    const auto views = compute_views(cfg, detections_by_sensor, intrinsics_by_sensor);
+    const auto views = compute_views(cfg, detections_by_sensor);
     result.used_views = views.size();
     if (views.empty()) {
         result.success = false;

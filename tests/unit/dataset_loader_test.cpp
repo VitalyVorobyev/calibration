@@ -21,6 +21,7 @@ auto make_temp_json_path(std::string_view stem) -> std::filesystem::path {
 TEST(PlanarDataset, ValidateAndLoadNewFormat) {
     nlohmann::json dataset = {
         {"image_directory", "./images"},
+        {"source_file", "./dataset.json"},
         {"feature_type", "planar"},
         {"algo_version", "1.0"},
         {"params_hash", "deadbeef"},
@@ -71,7 +72,14 @@ TEST(PlanarDataset, ValidateAndLoadNewFormat) {
 TEST(PlanarDataset, MissingImagesFieldThrows) {
     nlohmann::json invalid = {{"image_directory", "./images"},
                               {"sensor_id", "cam0"},
-                              {"images", nlohmann::json::array()}};
+                              {"images", nlohmann::json::array()},
+                              {"algo_version", "1.0"},
+                              {"params_hash", "deadbeef"},
+                              {"feature_type", "planar"},
+                              {"tags", nlohmann::json::array({"synthetic"})},
+                              {"source_file", "./dataset.json"},
+                              {"metadata", nlohmann::json::object()}
+                            };
     EXPECT_NO_THROW({ (void)invalid.get<PlanarDetections>(); });
 
     nlohmann::json missing_images = {{"image_directory", "./images"}, {"sensor_id", "cam0"}};
