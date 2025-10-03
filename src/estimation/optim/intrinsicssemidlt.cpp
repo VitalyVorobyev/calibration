@@ -75,7 +75,7 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
 };
 
 static auto solve_full(const std::vector<PlanarView>& views, const IntrinsicBlocks& blocks,
-                       const IntrinsicsOptions& opts)
+                       const IntrinsicsOptimOptions& opts)
     -> std::optional<DistortionWithResiduals<double>> {
     std::vector<Observation<double>> obs;
     for (size_t i = 0; i < views.size(); ++i) {
@@ -93,7 +93,7 @@ static auto solve_full(const std::vector<PlanarView>& views, const IntrinsicBloc
 
 // Set up the Ceres optimization problem
 static ceres::Problem build_problem(const std::vector<PlanarView>& obs_views,
-                                    IntrinsicBlocks& blocks, const IntrinsicsOptions& opts) {
+                                    IntrinsicBlocks& blocks, const IntrinsicsOptimOptions& opts) {
     ceres::Problem problem;
     auto* cost = CalibVPResidual::create(obs_views, opts.num_radial);
 
@@ -104,7 +104,7 @@ static ceres::Problem build_problem(const std::vector<PlanarView>& obs_views,
         param_blocks.push_back(blocks.c_quat_t[i].data());
         param_blocks.push_back(blocks.c_tra_t[i].data());
     }
-    auto* loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
+    auto* loss = opts.core.huber_delta > 0 ? new ceres::HuberLoss(opts.core.huber_delta) : nullptr;
     problem.AddResidualBlock(cost, loss, param_blocks);
 
     for (auto& i : blocks.c_quat_t) {
@@ -154,7 +154,7 @@ static void compute_per_view_errors(
 
 IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> optimize_intrinsics_semidlt(
     const std::vector<PlanarView>& views, const CameraMatrix& initial_guess,
-    const IntrinsicsOptions& opts) {
+    const IntrinsicsOptimOptions& opts) {
     IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> result;
 
     // Prepare observations per view
@@ -169,7 +169,7 @@ IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> optimize_intrinsics_s
     // Set up and solve the optimization problem
     ceres::Problem problem = build_problem(views, blocks, opts);
 
-    solve_problem(problem, opts, &result);
+    solve_problem(problem, opts.core, &result.core);
 
     auto dr_opt = solve_full(views, blocks, opts);
     if (!dr_opt.has_value()) {
@@ -183,8 +183,9 @@ IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> optimize_intrinsics_s
 
     double sum_squared_residuals = dr_opt->residuals.squaredNorm();
     size_t total_residuals = total_obs * 2;
-    result.covariance = compute_covariance(blocks, problem, sum_squared_residuals, total_residuals)
-                            .value_or(Eigen::MatrixXd{});
+    result.core.covariance =
+        compute_covariance(blocks, problem, sum_squared_residuals, total_residuals)
+            .value_or(Eigen::MatrixXd{});
 
     return result;
 }

@@ -25,11 +25,9 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     sim.make_target_grid(8, 11, 0.02);
     sim.render_pixels();
 
-    std::vector<PlanarView> views;
-    views.reserve(sim.observations.size());
-    for (const auto& ob : sim.observations) {
-        views.push_back(ob.view);
-    }
+    std::vector<PlanarView> views(sim.observations.size());
+    std::transform(sim.observations.begin(), sim.observations.end(), views.begin(),
+                   [](const auto& ob) { return ob.view; });
 
     // Create initial camera guess
     Camera<BrownConradyd> guess_cam = cam_gt;
@@ -47,7 +45,7 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
         init_poses.push_back(pose);
     }
 
-    IntrinsicsOptions opts;
+    IntrinsicsOptimOptions opts;
     opts.num_radial = 3;
     opts.optimize_skew = false;
     auto res = optimize_intrinsics(views, guess_cam, init_poses, opts);
@@ -59,7 +57,7 @@ TEST(OptimizeIntrinsics, RecoversIntrinsicsNoSkew) {
     EXPECT_NEAR(k_final.cx, k_gt.cx, 1e-6);
     EXPECT_NEAR(k_final.cy, k_gt.cy, 1e-6);
     EXPECT_NEAR(k_final.skew, k_gt.skew, 1e-9);
-    EXPECT_LT(res.final_cost, 1e-6);
+    EXPECT_LT(res.core.final_cost, 1e-6);
 }
 
 TEST(OptimizeIntrinsics, RecoversSkew) {
@@ -82,11 +80,9 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     sim.make_target_grid(8, 11, 0.02);
     sim.render_pixels();
 
-    std::vector<PlanarView> views;
-    views.reserve(sim.observations.size());
-    for (const auto& ob : sim.observations) {
-        views.push_back(ob.view);
-    }
+    std::vector<PlanarView> views(sim.observations.size());
+    std::transform(sim.observations.begin(), sim.observations.end(), views.begin(),
+                   [](const auto& ob) { return ob.view; });
 
     // Create initial camera guess
     Camera<BrownConradyd> guess_cam = cam_gt;
@@ -98,14 +94,11 @@ TEST(OptimizeIntrinsics, RecoversSkew) {
     guess_cam.distortion.coeffs = Eigen::VectorXd::Zero(5);
 
     // Estimate initial poses for each view
-    std::vector<Eigen::Isometry3d> init_poses;
-    init_poses.reserve(views.size());
-    for (const auto& view : views) {
-        auto pose = estimate_planar_pose(view, guess_cam.kmtx);
-        init_poses.push_back(pose);
-    }
+    std::vector<Eigen::Isometry3d> init_poses(views.size());
+    std::transform(views.begin(), views.end(), init_poses.begin(),
+                   [&](const auto& view) { return estimate_planar_pose(view, guess_cam.kmtx); });
 
-    IntrinsicsOptions opts;
+    IntrinsicsOptimOptions opts;
     opts.num_radial = 0;
     opts.optimize_skew = true;
     auto res = optimize_intrinsics(views, guess_cam, init_poses, opts);

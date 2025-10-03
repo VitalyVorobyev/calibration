@@ -27,9 +27,9 @@ TEST(EstimateIntrinsics, RecoversCameraMatrix) {
     sim.make_target_grid(6, 9, 0.03);
     sim.render_pixels();
 
-    std::vector<PlanarView> views;
-    views.reserve(sim.observations.size());
-    for (const auto& ob : sim.observations) views.push_back(ob.view);
+    std::vector<PlanarView> views(sim.observations.size());
+    std::transform(sim.observations.begin(), sim.observations.end(), views.begin(),
+                   [](const auto& ob) { return ob.view; });
 
     auto res = estimate_intrinsics(views);
     ASSERT_TRUE(res.success);

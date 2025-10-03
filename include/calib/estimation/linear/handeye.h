@@ -17,6 +17,7 @@
 #include <Eigen/Geometry>
 
 #include "calib/estimation/linear/planarpose.h"
+#include "calib/io/serialization.h"
 
 namespace calib {
 
@@ -87,5 +88,7 @@ auto build_all_pairs(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
 auto estimate_handeye_dlt(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
                           const std::vector<Eigen::Isometry3d>& camera_se3_target,
                           double min_angle_deg = 1.0) -> Eigen::Isometry3d;
+
+static_assert(serializable_aggregate<MotionPair>);
 
 }  // namespace calib

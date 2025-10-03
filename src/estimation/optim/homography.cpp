@@ -128,7 +128,7 @@ struct HomographyResidual final {
     }
 };
 
-static ceres::Problem build_problem(const PlanarView& data, const HomographyOptions& options,
+static ceres::Problem build_problem(const PlanarView& data, const OptimOptions& options,
                                     HomographyBlocks& blocks) {
     ceres::Problem problem;
     std::for_each(data.begin(), data.end(), [&](const auto& obs) {
@@ -142,7 +142,7 @@ static ceres::Problem build_problem(const PlanarView& data, const HomographyOpti
 }
 
 OptimizeHomographyResult optimize_homography(const PlanarView& data, const Eigen::Matrix3d& init_h,
-                                             const HomographyOptions& options) {
+                                             const OptimOptions& options) {
     if (data.size() < 4) {
         throw std::invalid_argument("At least 4 correspondences are required.");
     }
@@ -151,7 +151,7 @@ OptimizeHomographyResult optimize_homography(const PlanarView& data, const Eigen
     ceres::Problem problem = build_problem(data, options, blocks);
 
     OptimizeHomographyResult result;
-    solve_problem(problem, options, &result);
+    solve_problem(problem, options, &result.core);
 
     Mat3 hmtx = params_to_h(blocks.params);
     if (std::abs(hmtx(2, 2)) > 1e-15) {
@@ -167,7 +167,7 @@ OptimizeHomographyResult optimize_homography(const PlanarView& data, const Eigen
                                            [](double sum, double r) { return sum + r * r; });
         auto optcov = compute_covariance(blocks, problem, ssr, residuals.size());
         if (optcov.has_value()) {
-            result.covariance = std::move(optcov.value());
+            result.core.covariance = std::move(optcov.value());
         }
     }
 

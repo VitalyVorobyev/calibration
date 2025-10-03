@@ -38,7 +38,7 @@ std::vector<Observation<double>> generate_synthetic_data(const std::vector<doubl
         Eigen::Vector2d xy{dist(rng), dist(rng)};
 
         auto distorted = apply_distortion(xy, coeffs);
-        auto uv = camera.denormalize(distorted);
+        auto uv = denormalize(camera, distorted);
         uv.x() += noise(rng);
         uv.y() += noise(rng);
 

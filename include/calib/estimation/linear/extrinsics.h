@@ -9,6 +9,7 @@
 // eigen
 #include <Eigen/Geometry>
 
+#include "calib/estimation/common/se3_utils.h"
 #include "calib/estimation/linear/planarpose.h"
 #include "calib/models/cameramodel.h"
 #include "calib/models/pinhole.h"
@@ -32,25 +33,6 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
 
     const size_t num_cameras = cameras.size();
     const size_t num_views = views.size();
-
-    // Helper: average a set of SE3 poses (translation + quaternion averaging)
-    auto average_affines_local = [](const std::vector<Eigen::Isometry3d>& poses) {
-        if (poses.empty()) return Eigen::Isometry3d::Identity();
-        Eigen::Vector3d t = Eigen::Vector3d::Zero();
-        Eigen::Quaterniond qsum(0, 0, 0, 0);
-        for (const auto& p : poses) {
-            t += p.translation();
-            Eigen::Quaterniond q(p.linear());
-            if (qsum.coeffs().dot(q.coeffs()) < 0.0) q.coeffs() *= -1.0;
-            qsum.coeffs() += q.coeffs();
-        }
-        t /= static_cast<double>(poses.size());
-        qsum.normalize();
-        Eigen::Isometry3d avg = Eigen::Isometry3d::Identity();
-        avg.linear() = qsum.toRotationMatrix();
-        avg.translation() = t;
-        return avg;
-    };
 
     // Step 1: Per-view camera poses relative to a transient reference (the target)
     std::vector<std::vector<Eigen::Isometry3d>> cam_se3_ref(
@@ -78,7 +60,7 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
             if (obs_ref.size() < 4 || obs_cam.size() < 4) continue;
             rels.push_back(cam_se3_ref[view_idx][cam_idx] * cam_se3_ref[view_idx][0].inverse());
         }
-        if (!rels.empty()) c_se3_r[cam_idx] = average_affines_local(rels);
+        if (!rels.empty()) c_se3_r[cam_idx] = average_isometries(rels);
     }
 
     // Step 3: Compute target poses r_se3_t per view
@@ -89,10 +71,12 @@ auto estimate_extrinsic_dlt(const std::vector<MulticamPlanarView>& views,
             if (views[view_idx][cam_idx].size() < 4) continue;
             tposes.push_back(c_se3_r[cam_idx].inverse() * cam_se3_ref[view_idx][cam_idx]);
         }
-        if (!tposes.empty()) r_se3_t[view_idx] = average_affines_local(tposes);
+        if (!tposes.empty()) r_se3_t[view_idx] = average_isometries(tposes);
     }
 
     return ExtrinsicPoses{c_se3_r, r_se3_t};
 }
+
+static_assert(serializable_aggregate<ExtrinsicPoses>);
 
 }  // namespace calib

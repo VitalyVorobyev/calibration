@@ -13,9 +13,8 @@
 
 namespace calib {
 
-struct HandeyeOptions final : public OptimOptions {};
-
-struct HandeyeResult final : public OptimResult {
+struct HandeyeResult final {
+    OptimResult core;           ///< Core optimization result
     Eigen::Isometry3d g_se3_c;  ///< Estimated hand-eye transform (gripper -> camera)
 };
 
@@ -41,7 +40,7 @@ struct HandeyeResult final : public OptimResult {
 auto optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
                       const std::vector<Eigen::Isometry3d>& camera_se3_target,
                       const Eigen::Isometry3d& init_gripper_se3_ref,
-                      const HandeyeOptions& options = {}) -> HandeyeResult;
+                      const OptimOptions& options = {}) -> HandeyeResult;
 
 /**
  * @brief Estimates and refines the hand-eye transformation.
@@ -64,7 +63,7 @@ auto optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
  */
 auto estimate_and_optimize_handeye(const std::vector<Eigen::Isometry3d>& base_se3_gripper,
                                    const std::vector<Eigen::Isometry3d>& camera_se3_target,
-                                   double min_angle_deg = 1.0, const HandeyeOptions& options = {})
+                                   double min_angle_deg = 1.0, const OptimOptions& options = {})
     -> HandeyeResult;
 
 }  // namespace calib

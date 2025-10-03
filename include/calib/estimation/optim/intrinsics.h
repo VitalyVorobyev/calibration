@@ -6,10 +6,12 @@
 
 #include "calib/estimation/linear/intrinsics.h"
 #include "calib/estimation/optim/optimize.h"
+#include "calib/io/serialization.h"
 
 namespace calib {
 
-struct IntrinsicsOptions final : public OptimOptions {
+struct IntrinsicsOptimOptions final {
+    OptimOptions core;           ///< Non-linear optimization options
     int num_radial = 2;          ///< Number of radial distortion coefficients
     bool optimize_skew = false;  ///< Estimate skew parameter
     std::optional<CalibrationBounds> bounds = std::nullopt;  ///< Parameter bounds
@@ -18,7 +20,8 @@ struct IntrinsicsOptions final : public OptimOptions {
 };
 
 template <camera_model CameraT>
-struct IntrinsicsOptimizationResult final : public OptimResult {
+struct IntrinsicsOptimizationResult final {
+    OptimResult core;                        ///< Optimization result details
     CameraT camera;                          ///< Estimated camera parameters
     std::vector<Eigen::Isometry3d> c_se3_t;  ///< Estimated pose of each view
     std::vector<double> view_errors;         ///< Per-view reprojection errors
@@ -26,13 +29,15 @@ struct IntrinsicsOptimizationResult final : public OptimResult {
 
 auto optimize_intrinsics_semidlt(const std::vector<PlanarView>& views,
                                  const CameraMatrix& initial_guess,
-                                 const IntrinsicsOptions& opts = {})
+                                 const IntrinsicsOptimOptions& opts = {})
     -> IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>>;
 
 template <camera_model CameraT>
 auto optimize_intrinsics(const std::vector<PlanarView>& views, const CameraT& init_camera,
                          std::vector<Eigen::Isometry3d> init_c_se3_t,
-                         const IntrinsicsOptions& opts = {})
+                         const IntrinsicsOptimOptions& opts = {})
     -> IntrinsicsOptimizationResult<CameraT>;
+
+static_assert(serializable_aggregate<IntrinsicsOptimOptions>);
 
 }  // namespace calib

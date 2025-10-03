@@ -4,8 +4,11 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
+#include "calib/io/serialization.h"
+
 namespace calib {
 
+// keep it simple aggregate for json io
 template <typename Scalar>
 struct CameraMatrixT final {
     Scalar fx = Scalar(0);
@@ -13,32 +16,34 @@ struct CameraMatrixT final {
     Scalar cx = Scalar(0);
     Scalar cy = Scalar(0);
     Scalar skew = Scalar(0);
-
-    [[nodiscard]] auto matrix() const -> Eigen::Matrix<Scalar, 3, 3> {
-        Eigen::Matrix<Scalar, 3, 3> kmtx = Eigen::Matrix<Scalar, 3, 3>::Zero();
-        kmtx(0, 0) = fx;
-        kmtx(1, 1) = fy;
-        kmtx(0, 1) = skew;
-        kmtx(0, 2) = cx;
-        kmtx(1, 2) = cy;
-        kmtx(2, 2) = Scalar(1);
-        return kmtx;
-    }
-
-    template <typename T>
-    [[nodiscard]] auto normalize(const Eigen::Matrix<T, 2, 1>& pixel) const
-        -> Eigen::Matrix<T, 2, 1> {
-        T y_coord = (pixel.y() - T(cy)) / T(fy);
-        T x_coord = (pixel.x() - T(cx) - T(skew) * y_coord) / T(fx);
-        return {x_coord, y_coord};
-    }
-
-    template <typename T>
-    [[nodiscard]] auto denormalize(const Eigen::Matrix<T, 2, 1>& norm_xy) const
-        -> Eigen::Matrix<T, 2, 1> {
-        return {T(fx) * norm_xy.x() + T(skew) * norm_xy.y() + T(cx), T(fy) * norm_xy.y() + T(cy)};
-    }
 };
+
+template <typename Scalar>
+[[nodiscard]] auto matrix(const CameraMatrixT<Scalar>& cam) -> Eigen::Matrix<Scalar, 3, 3> {
+    Eigen::Matrix<Scalar, 3, 3> kmtx = Eigen::Matrix<Scalar, 3, 3>::Zero();
+    kmtx(0, 0) = cam.fx;
+    kmtx(1, 1) = cam.fy;
+    kmtx(0, 1) = cam.skew;
+    kmtx(0, 2) = cam.cx;
+    kmtx(1, 2) = cam.cy;
+    kmtx(2, 2) = Scalar(1);
+    return kmtx;
+}
+
+template <typename T, typename Scalar>
+[[nodiscard]] auto normalize(const CameraMatrixT<Scalar>& cam, const Eigen::Matrix<T, 2, 1>& pixel)
+    -> Eigen::Matrix<T, 2, 1> {
+    T y_coord = (pixel.y() - T(cam.cy)) / T(cam.fy);
+    T x_coord = (pixel.x() - T(cam.cx) - T(cam.skew) * y_coord) / T(cam.fx);
+    return {x_coord, y_coord};
+}
+
+template <typename T, typename Scalar>
+[[nodiscard]] auto denormalize(const CameraMatrixT<Scalar>& cam,
+                               const Eigen::Matrix<T, 2, 1>& norm_xy) -> Eigen::Matrix<T, 2, 1> {
+    return {T(cam.fx) * norm_xy.x() + T(cam.skew) * norm_xy.y() + T(cam.cx),
+            T(cam.fy) * norm_xy.y() + T(cam.cy)};
+}
 
 using CameraMatrix = CameraMatrixT<double>;
 

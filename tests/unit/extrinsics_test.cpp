@@ -50,7 +50,7 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
-                Eigen::Vector2d pix = cameras[c].kmtx.denormalize(norm);
+                Eigen::Vector2d pix = denormalize(cameras[c].kmtx, norm);
                 view[c].push_back({xy, pix});
             }
         }
@@ -61,7 +61,7 @@ TEST(Extrinsics, RecoverCameraAndTargetPoses) {
     opts.optimize_intrinsics = false;
     auto result = optimize_extrinsics(views, cameras, cam_init, target_init, opts);
 
-    EXPECT_LT(result.final_cost, 1e-6);
+    EXPECT_LT(result.core.final_cost, 1e-6);
     ASSERT_EQ(result.c_se3_r.size(), static_cast<size_t>(kCams));
     ASSERT_EQ(result.r_se3_t.size(), target_gt.size());
     EXPECT_TRUE(result.c_se3_r[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
@@ -102,7 +102,7 @@ TEST(Extrinsics, RecoverAllParameters) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
-                Eigen::Vector2d pix = cameras_gt[c].kmtx.denormalize(norm);
+                Eigen::Vector2d pix = denormalize(cameras_gt[c].kmtx, norm);
                 view[c].push_back({xy, pix});
             }
         }
@@ -126,17 +126,17 @@ TEST(Extrinsics, RecoverAllParameters) {
     guess.r_se3_t[0] = target_gt[0];
 
     ExtrinsicOptions opts;
-    opts.verbose = false;
+    opts.core.verbose = false;
     auto res = optimize_extrinsics(views, cam_init, guess.c_se3_r, guess.r_se3_t, opts);
-    std::cout << res.report << std::endl;
+    std::cout << res.core.report << std::endl;
 
-    EXPECT_LT(res.final_cost, 1e-6);
+    EXPECT_LT(res.core.final_cost, 1e-6);
     ASSERT_EQ(res.cameras.size(), static_cast<size_t>(kCams));
     EXPECT_NEAR(res.cameras[0].kmtx.fx, 100.0, 1e-3);
     EXPECT_NEAR(res.cameras[0].kmtx.fy, 100.0, 1e-3);
     EXPECT_TRUE(res.c_se3_r[1].translation().isApprox(cam_gt[1].translation(), 1e-3));
     EXPECT_TRUE(res.r_se3_t[0].translation().isApprox(target_gt[0].translation(), 1e-3));
-    EXPECT_GT(res.covariance.trace(), 0.0);
+    EXPECT_GT(res.core.covariance.trace(), 0.0);
 }
 
 TEST(Extrinsics, FirstTargetPoseFixed) {
@@ -167,7 +167,7 @@ TEST(Extrinsics, FirstTargetPoseFixed) {
             for (const auto& xy : points) {
                 Eigen::Vector3d P = T * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
                 Eigen::Vector2d norm(P.x() / P.z(), P.y() / P.z());
-                Eigen::Vector2d pix = cameras_gt[c].kmtx.denormalize(norm);
+                Eigen::Vector2d pix = denormalize(cameras_gt[c].kmtx, norm);
                 view[c].push_back({xy, pix});
             }
         }
@@ -191,9 +191,9 @@ TEST(Extrinsics, FirstTargetPoseFixed) {
     guess.r_se3_t[0].translation() = Eigen::Vector3d(0.0, 0.0, 3.0);
 
     ExtrinsicOptions opts;
-    opts.verbose = false;
+    opts.core.verbose = false;
     auto res = optimize_extrinsics(views, cam_init, guess.c_se3_r, guess.r_se3_t, opts);
 
     EXPECT_TRUE(res.r_se3_t[0].translation().isApprox(guess.r_se3_t[0].translation(), 1e-12));
-    EXPECT_GT(res.final_cost, 0.1);
+    EXPECT_GT(res.core.final_cost, 0.1);
 }

@@ -15,7 +15,7 @@ auto pose_from_homography(const CameraMatrix& kmtx, const Eigen::Matrix3d& hmtx)
 
     // Basic checks
     if (!std::isfinite(kmtx.fx) || !std::isfinite(kmtx.fy) || kmtx.cx <= 0 || kmtx.cy <= 0) {
-        std::cerr << "Invalid camera matrix K:\n" << kmtx.matrix() << "\n";
+        std::cerr << "Invalid camera matrix K:\n" << matrix(kmtx) << "\n";
         out.message = "Invalid camera matrix K";
         return out;
     }
@@ -25,7 +25,7 @@ auto pose_from_homography(const CameraMatrix& kmtx, const Eigen::Matrix3d& hmtx)
     }
 
     // 1) Remove intrinsics
-    const Eigen::Matrix3d hnorm = kmtx.matrix().inverse() * hmtx;
+    const Eigen::Matrix3d hnorm = matrix(kmtx).inverse() * hmtx;
 
     // 2) Compute scale from first two columns
     const double n1 = hnorm.col(0).norm();
@@ -46,7 +46,7 @@ auto pose_from_homography(const CameraMatrix& kmtx, const Eigen::Matrix3d& hmtx)
     rotation.col(0) = scale * hnorm.col(0);
     rotation.col(1) = scale * hnorm.col(1);
     rotation.col(2) = rotation.col(0).cross(rotation.col(1));
-    project_to_so3(rotation);
+    rotation = project_to_so3(rotation);
 
     Eigen::Vector3d translation = scale * hnorm.col(2);
 
@@ -72,7 +72,7 @@ auto homography_consistency_fro(const CameraMatrix& kmtx, const Eigen::Isometry3
     hrt.col(0) = c_se3_t.linear().col(0);
     hrt.col(1) = c_se3_t.linear().col(1);
     hrt.col(2) = c_se3_t.translation();
-    const Eigen::Matrix3d hmtx_hat = kmtx.matrix() * hrt;
+    const Eigen::Matrix3d hmtx_hat = matrix(kmtx) * hrt;
 
     const double num = (hmtx_hat - hmtx).norm();
     const double den = hmtx.norm();

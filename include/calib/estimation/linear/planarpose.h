@@ -7,11 +7,13 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <stdexcept>
 #include <vector>
 
 // eigen
 #include <Eigen/Geometry>
 
+#include "calib/io/serialization.h"
 #include "calib/models/camera_matrix.h"
 #include "calib/models/cameramodel.h"
 
@@ -22,6 +24,8 @@ struct PlanarObservation {
     Eigen::Vector2d image_uv;   // Corresponding pixel measurements
 };
 using PlanarView = std::vector<PlanarObservation>;
+
+static_assert(serializable_aggregate<PlanarObservation>);
 
 // Decompose homography in normalized camera coords: H = [r1 r2 t]
 auto pose_from_homography_normalized(const Eigen::Matrix3d& hmtx) -> Eigen::Isometry3d;

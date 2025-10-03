@@ -2,7 +2,7 @@
 
 #include <Eigen/Geometry>
 
-#include "calib/pipeline/extrinsics.h"
+#include "calib/pipeline/facades/extrinsics.h"
 #include "calib/pipeline/pipeline.h"
 #include "calib/pipeline/stages.h"
 
@@ -10,10 +10,10 @@ namespace calib::pipeline {
 namespace {
 
 struct SyntheticStereoData {
-    planar::PlanarDetections reference_detections;
-    planar::PlanarDetections target_detections;
-    planar::CalibrationRunResult reference_intrinsics;
-    planar::CalibrationRunResult target_intrinsics;
+    PlanarDetections reference_detections;
+    PlanarDetections target_detections;
+    IntrinsicCalibrationOutputs reference_intrinsics;
+    IntrinsicCalibrationOutputs target_intrinsics;
     StereoPairConfig pair_config;
     std::vector<Eigen::Isometry3d> camera_poses;
     std::vector<Eigen::Isometry3d> target_poses;
@@ -25,18 +25,18 @@ struct SyntheticStereoData {
     return PinholeCamera<BrownConradyd>(kmtx, dist);
 }
 
-void append_view(planar::PlanarDetections& detections, const std::string& file_name,
+void append_view(PlanarDetections& detections, const std::string& file_name,
                  const std::vector<Eigen::Vector2d>& object_points,
                  const Eigen::Isometry3d& cam_pose, const PinholeCamera<BrownConradyd>& camera) {
-    planar::PlanarImageDetections image;
+    PlanarImageDetections image;
     image.file = file_name;
     int point_id = 0;
     for (const auto& xy : object_points) {
         const Eigen::Vector3d P = cam_pose * Eigen::Vector3d(xy.x(), xy.y(), 0.0);
         const Eigen::Vector2d norm_xy(P.x() / P.z(), P.y() / P.z());
-        const Eigen::Vector2d pixels = camera.kmtx.denormalize(norm_xy);
+        const Eigen::Vector2d pixels = denormalize(camera.kmtx, norm_xy);
 
-        planar::PlanarTargetPoint pt;
+        PlanarTargetPoint pt;
         pt.id = point_id++;
         pt.local_x = xy.x();
         pt.local_y = xy.y();
@@ -91,15 +91,11 @@ void append_view(planar::PlanarDetections& detections, const std::string& file_n
     data.pair_config.pair_id = "rig";
     data.pair_config.options.optimize_intrinsics = false;
 
-    data.reference_intrinsics.outputs.point_scale = 1.0;
-    data.reference_intrinsics.outputs.point_center = {0.0, 0.0};
-    data.reference_intrinsics.outputs.refine_result.success = true;
-    data.reference_intrinsics.outputs.refine_result.camera = camera_model;
+    data.reference_intrinsics.refine_result.core.success = true;
+    data.reference_intrinsics.refine_result.camera = camera_model;
 
-    data.target_intrinsics.outputs.point_scale = 1.0;
-    data.target_intrinsics.outputs.point_center = {0.0, 0.0};
-    data.target_intrinsics.outputs.refine_result.success = true;
-    data.target_intrinsics.outputs.refine_result.camera = camera_model;
+    data.target_intrinsics.refine_result.core.success = true;
+    data.target_intrinsics.refine_result.camera = camera_model;
 
     return data;
 }

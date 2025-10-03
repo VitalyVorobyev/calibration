@@ -22,4 +22,10 @@ class HandEyeCalibrationStage final : public CalibrationStage {
     [[nodiscard]] auto run(PipelineContext& context) -> PipelineStageResult override;
 };
 
+class BundleAdjustmentStage final : public CalibrationStage {
+  public:
+    [[nodiscard]] auto name() const -> std::string override { return "bundle"; }
+    [[nodiscard]] auto run(PipelineContext& context) -> PipelineStageResult override;
+};
+
 }  // namespace calib::pipeline

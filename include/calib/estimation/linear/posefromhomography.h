@@ -37,6 +37,8 @@ struct PoseFromHResult final {
     std::string message;
 };
 
+static_assert(serializable_aggregate<PoseFromHResult>);
+
 /**
  * @brief Estimates the camera pose from a homography matrix.
  *

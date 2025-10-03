@@ -23,7 +23,7 @@ namespace calib {
  * Controls bounds and whether skew is estimated when computing the
  * initial camera matrix from a collection of @ref PlanarView observations.
  */
-struct IntrinsicsEstimateOptions final {
+struct IntrinsicsEstimOptions final {
     std::optional<CalibrationBounds> bounds = std::nullopt;         ///< Optional parameter bounds
     std::optional<RansacOptions> homography_ransac = std::nullopt;  ///< Optional RANSAC opts
     bool use_skew = false;                                          ///< Estimate skew parameter
@@ -55,7 +55,7 @@ struct IntrinsicsEstimateResult final {
 
 /** Estimate camera intrinsics from planar views using a linear method */
 auto estimate_intrinsics(const std::vector<PlanarView>& views,
-                         const IntrinsicsEstimateOptions& opts = {}) -> IntrinsicsEstimateResult;
+                         const IntrinsicsEstimOptions& opts = {}) -> IntrinsicsEstimateResult;
 
 /** Linear estimate with normalized observations */
 auto estimate_intrinsics_linear(const std::vector<Observation<double>>& observations,
@@ -69,5 +69,9 @@ auto estimate_intrinsics_linear_iterative(const std::vector<Observation<double>>
                                           int max_iterations = k_default_max_iterations,
                                           bool use_skew = false)
     -> std::optional<PinholeCamera<BrownConradyd>>;
+
+static_assert(serializable_aggregate<IntrinsicsEstimateResult>);
+static_assert(serializable_aggregate<IntrinsicsEstimOptions>);
+static_assert(serializable_aggregate<ViewEstimateData>);
 
 }  // namespace calib

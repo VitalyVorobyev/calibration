@@ -6,7 +6,7 @@
 
 #include "calib/estimation/linear/linescan.h"
 #include "calib/io/serialization.h"
-#include "calib/pipeline/linescan.h"
+#include "calib/pipeline/facades/linescan.h"
 
 int main(int argc, char** argv) {
     CLI::App app{"Line-scan laser plane calibration (linear)"};
@@ -41,14 +41,39 @@ int main(int argc, char** argv) {
             views.push_back(std::move(v));
         }
 
+        calib::pipeline::LinescanCalibrationOptions options;
+        if (j.contains("plane_fit")) {
+            const auto& pf = j.at("plane_fit");
+            const std::string method = pf.value("method", std::string("svd"));
+            if (method == "ransac" || method == "RANSAC") {
+                options.plane_fit.use_ransac = true;
+                if (pf.contains("ransac")) {
+                    const auto& ro = pf.at("ransac");
+                    auto& opts = options.plane_fit.ransac_options;
+                    if (ro.contains("max_iters")) opts.max_iters = ro.at("max_iters").get<int>();
+                    if (ro.contains("thresh")) opts.thresh = ro.at("thresh").get<double>();
+                    if (ro.contains("min_inliers"))
+                        opts.min_inliers = ro.at("min_inliers").get<int>();
+                    if (ro.contains("confidence"))
+                        opts.confidence = ro.at("confidence").get<double>();
+                    if (ro.contains("seed")) opts.seed = ro.at("seed").get<uint64_t>();
+                    if (ro.contains("refit_on_inliers")) {
+                        opts.refit_on_inliers = ro.at("refit_on_inliers").get<bool>();
+                    }
+                }
+            }
+        }
+
         calib::pipeline::LinescanCalibrationFacade facade;
-        auto run = facade.calibrate(camera, views);
+        auto run = facade.calibrate(camera, views, options);
 
         nlohmann::json out;
         out["success"] = run.success;
         out["used_views"] = run.used_views;
         out["plane"] = {{"n", {run.result.plane[0], run.result.plane[1], run.result.plane[2]}},
-                        {"d", run.result.plane[3]}};
+                        {"d", run.result.plane[3]},
+                        {"method", run.result.summary},
+                        {"inliers", run.result.inlier_count}};
         out["rms_error"] = run.result.rms_error;
         out["homography"] = run.result.homography;
 

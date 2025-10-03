@@ -23,4 +23,6 @@ auto estimate_homography(const PlanarView& data,
                          std::optional<RansacOptions> ransac_opts = std::nullopt)
     -> HomographyResult;
 
+static_assert(serializable_aggregate<HomographyResult>);
+
 }  // namespace calib

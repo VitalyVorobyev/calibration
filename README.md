@@ -15,7 +15,8 @@ Modern C++ utilities for camera calibration, geometric vision, and robot–senso
 - Intrinsic & extrinsic planar calibration with covariance estimation
 - Homography and planar pose estimation (DLT, RANSAC, non-linear refinement)
 - Hand-eye calibration starting from DLT seeds and refined via bundle adjustment
-- Line-scan / laser plane calibration pipeline components
+- Configurable pipeline stages (intrinsics, stereo, hand-eye, bundle) driven entirely by JSON
+- Line-scan / laser plane calibration pipeline components with optional RANSAC plane fitting
 - JSON configuration I/O helpers for reproducible calibration sessions
 
 ## Repository Layout
@@ -125,6 +126,17 @@ cmake --install build --prefix /desired/prefix
 
 The install exports `calibTargets.cmake` and a `calibConfig.cmake` package so downstream projects can simply call `find_package(calib CONFIG REQUIRED)` and link against the `calib::` targets they need.
 
+## Testing
+
+After configuring the project you can execute the full GoogleTest suite:
+
+```bash
+cmake --build build --target tests
+ctest --test-dir build --output-on-failure -j$(nproc)
+```
+
+These tests exercise the numerical solvers as well as higher level plumbing such as the JSON dataset loader. The latter now verifies that metadata from each JSON source is preserved, recorded in the pipeline summary and accessible through `CalibrationDataset::raw_json` for downstream tooling.
+
 ## Using the Library
 
 Most workflows live in `calib::estimation` and `calib::pipeline`:
@@ -132,7 +144,7 @@ Most workflows live in `calib::estimation` and `calib::pipeline`:
 ```cpp
 #include <calib/estimation/handeye.h>
 
-HandeyeOptions opts;
+OptimOptions opts;
 auto result = calib::optimize_handeye(base_gripper_poses,
                                       camera_target_poses,
                                       initial_guess,
@@ -186,6 +198,21 @@ and writes the full artifact bundle to disk:
 ```
 
 The resulting report lists accepted views, linear initialisation, refined statistics, and persists the outputs under a `calibrations` array to support multi-camera expansion.
+
+End-to-end hand-eye plus bundle adjustment calibration is demonstrated by
+`calib_example_bundle`, which ingests intrinsics, robot poses, and stage
+configuration from a single JSON file (see
+`apps/examples/bundle_pipeline_input.json`):
+
+```bash
+./build/apps/examples/calib_example_bundle \
+  --input apps/examples/bundle_pipeline_input.json \
+  --output bundle_artifacts.json --verbose
+```
+
+The example records the pipeline summary alongside detailed artefacts from the
+hand-eye and bundle stages, including initial guesses, refined poses, and
+covariances for downstream analysis.
 
 `PlanarIntrinsicCalibrationFacade` now returns a strongly typed `PlanarIntrinsicsReport`, so you can
 inspect the structured data directly or round-trip through JSON when you need a serialised payload:

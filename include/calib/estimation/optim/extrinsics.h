@@ -12,13 +12,15 @@
 namespace calib {
 
 template <camera_model CameraT>
-struct ExtrinsicOptimizationResult final : public OptimResult {
+struct ExtrinsicOptimizationResult final {
+    OptimResult core;                        // Core optimization result
     std::vector<CameraT> cameras;            // Optimized camera matrices
     std::vector<Eigen::Isometry3d> c_se3_r;  // reference->camera
     std::vector<Eigen::Isometry3d> r_se3_t;  // target->reference
 };
 
-struct ExtrinsicOptions final : public OptimOptions {
+struct ExtrinsicOptions final {
+    OptimOptions core;
     bool optimize_intrinsics = true;  ///< Solve for camera intrinsics
     bool optimize_skew = false;       ///< Solve for skew parameter
     bool optimize_extrinsics = true;  ///< Solve for camera and target extrinsics

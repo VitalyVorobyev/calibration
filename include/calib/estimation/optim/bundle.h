@@ -9,8 +9,6 @@
 #include "calib/estimation/linear/planarpose.h"  // PlanarObservation
 #include "calib/estimation/optim/optimize.h"
 #include "calib/models/cameramodel.h"
-#include "calib/models/pinhole.h"
-#include "calib/models/scheimpflug.h"
 
 namespace calib {
 
@@ -29,7 +27,8 @@ struct BundleObservation final {
 
 /** Options controlling the hand-eye calibration optimisation. */
 // TODO: add optimize_distortion
-struct BundleOptions final : public OptimOptions {
+struct BundleOptions final {
+    OptimOptions core;                 ///< Non-linear optimization options
     bool optimize_intrinsics = false;  ///< Solve for camera intrinsics
     bool optimize_skew = false;        ///< Solve for skew parameter
     bool optimize_target_pose = true;  ///< Solve for base->target pose
@@ -38,7 +37,8 @@ struct BundleOptions final : public OptimOptions {
 
 /** Result returned by hand-eye calibration. */
 template <camera_model CameraT>
-struct BundleResult final : public OptimResult {
+struct BundleResult final {
+    OptimResult core;                        ///< Optimization result details
     std::vector<CameraT> cameras;            ///< Estimated camera parameters per camera
     std::vector<Eigen::Isometry3d> g_se3_c;  ///< Estimated camera->gripper extrinsics
     Eigen::Isometry3d b_se3_t;               ///< Pose of target in base frame
@@ -61,5 +61,8 @@ auto optimize_bundle(const std::vector<BundleObservation>& observations,
                      const std::vector<Eigen::Isometry3d>& init_g_se3_c,
                      const Eigen::Isometry3d& init_b_se3_t, const BundleOptions& opts = {})
     -> BundleResult<CameraT>;
+
+static_assert(serializable_aggregate<BundleOptions>);
+static_assert(serializable_aggregate<BundleObservation>);
 
 }  // namespace calib

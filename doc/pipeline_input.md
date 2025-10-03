@@ -75,6 +75,57 @@ The pipeline filters each view to ensure both cameras provide at least four
 planar correspondences. Views with insufficient data are reported but ignored
 during optimisation.
 
+### `hand_eye`
+
+Optional configuration enabling the hand-eye calibration stage in the pipeline
+examples. The section accepts either a single rig definition or an object with
+`rigs`, mirroring the structures in `include/calib/pipeline/handeye.h`:
+
+```json
+"hand_eye": {
+  "rig_id": "arm",
+  "sensors": ["cam0"],
+  "min_angle_deg": 1.0,
+  "options": {
+    "max_iterations": 80,
+    "huber_delta": 1.0,
+    "compute_covariance": true
+  },
+  "observations": [
+    {
+      "id": "pose0",
+      "base_se3_gripper": [[1,0,0,0],[0,1,0,0],[0,0,1,0.5],[0,0,0,1]],
+      "images": { "cam0": "cam0_pose0.json" }
+    }
+  ]
+}
+```
+
+Each observation links a robot pose (`base_se3_gripper`) with the image files
+containing planar detections for the participating sensors. The filenames must
+match the `file` entries stored in the planar detection datasets.
+
+### `bundle`
+
+Enables the bundle-adjustment refinement stage. The format mirrors the hand-eye
+configuration and reuses observations when the section omits them:
+
+```json
+"bundle": {
+  "rig_id": "arm",
+  "sensors": ["cam0", "cam1"],
+  "options": {
+    "optimize_intrinsics": false,
+    "optimize_target_pose": true,
+    "optimize_hand_eye": true,
+    "max_iterations": 80
+  }
+}
+```
+
+If `observations` is absent the pipeline falls back to the hand-eye rig with
+the same identifier, avoiding duplication of the robot pose metadata.
+
 ## Generated Artifacts
 
 The example application writes the full artifact bundle to the `--output`
@@ -87,7 +138,10 @@ location. The JSON contains:
 * `stereo.pairs.<pair_id>.initial_guess` – initial poses estimated by DLT.
 * `stereo.pairs.<pair_id>.views` – per-view bookkeeping (point counts and
   gating status).
+* `hand_eye.<rig_id>.result` – optimised hand-eye transform(s) and solver
+  diagnostics when the stage is enabled.
+* `bundle.<rig_id>.result` – bundle-adjustment output, including refined target
+  pose and per-sensor hand-eye transforms.
 
 These artifacts enable downstream tools to consume calibrated intrinsics and
 extrinsics without re-running the pipeline.
-

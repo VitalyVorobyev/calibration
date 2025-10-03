@@ -1,23 +1,56 @@
 #pragma once
 
 // std
+#include <set>
+#include <string>
 #include <vector>
 
-// third-party
-#include <nlohmann/json.hpp>
-
-#include "calib/datasets/planar.h"
+#include "calib/io/serialization.h"
 
 namespace calib::pipeline {
+
+using calib::from_json;
+using calib::to_json;
+
+struct PlanarTargetPoint final {
+    double x = 0.0;
+    double y = 0.0;
+    int id = -1;
+    double local_x = 0.0;
+    double local_y = 0.0;
+    double local_z = 0.0;
+};
+
+struct PlanarImageDetections final {
+    std::string file;
+    std::vector<PlanarTargetPoint> points;
+};
+
+struct PlanarDetections final {
+    std::string image_directory;
+    std::string feature_type;
+    std::string algo_version;
+    std::string params_hash;
+    std::string sensor_id;
+    std::set<std::string> tags;
+    nlohmann::json metadata = nlohmann::json::object();
+    std::filesystem::path source_file;
+    std::vector<PlanarImageDetections> images;
+};
 
 /**
  * @brief Aggregated dataset consumed by the calibration pipeline.
  */
-struct CalibrationDataset {
+struct CalibrationDataset final {
     int schema_version{1};
     nlohmann::json metadata;
-    std::vector<planar::PlanarDetections> planar_cameras;
-    nlohmann::json raw_json;  ///< Original dataset payload for downstream consumers.
+    std::vector<PlanarDetections> planar_cameras;
+    nlohmann::json raw_json;  ///< Original dataset payloads keyed by source path.
 };
+
+static_assert(serializable_aggregate<PlanarTargetPoint>);
+static_assert(serializable_aggregate<PlanarImageDetections>);
+static_assert(serializable_aggregate<PlanarDetections>);
+static_assert(serializable_aggregate<CalibrationDataset>);
 
 }  // namespace calib::pipeline

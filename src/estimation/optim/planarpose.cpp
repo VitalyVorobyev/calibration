@@ -98,10 +98,10 @@ auto optimize_planar_pose(const PlanarView& view, const CameraMatrix& intrinsics
 
     ceres::Problem problem;
     problem.AddResidualBlock(
-        cost, opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr,
+        cost, opts.core.huber_delta > 0 ? new ceres::HuberLoss(opts.core.huber_delta) : nullptr,
         blocks.pose6.data());
 
-    solve_problem(problem, opts, &result);
+    solve_problem(problem, opts.core, &result.core);
 
     // Compute residuals for statistics and covariance
     const int m = static_cast<int>(view.size()) * 2;
@@ -113,10 +113,10 @@ auto optimize_planar_pose(const PlanarView& view, const CameraMatrix& intrinsics
                                        [](double sum, double r) { return sum + r * r; });
     result.reprojection_error = std::sqrt(ssr / m);
 
-    if (opts.compute_covariance) {
+    if (opts.core.compute_covariance) {
         auto optcov = compute_covariance(blocks, problem, ssr, residuals.size());
         if (optcov.has_value()) {
-            result.covariance = std::move(optcov.value());
+            result.core.covariance = std::move(optcov.value());
         }
     }
 

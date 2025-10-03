@@ -4,6 +4,7 @@ function(calib_add_unit_test target)
     add_executable(${target} ${ARGN})
     target_link_libraries(${target} PRIVATE calib::calib GTest::gtest_main GTest::gmock_main)
     target_include_directories(${target} PRIVATE
+        ${PROJECT_SOURCE_DIR}/src
         ${PROJECT_SOURCE_DIR}/src/estimation/common
         ${PROJECT_SOURCE_DIR}/src/estimation/detail
         ${PROJECT_SOURCE_DIR}/src/estimation/residuals)
@@ -12,6 +13,7 @@ function(calib_add_unit_test target)
 endfunction()
 
 calib_add_unit_test(bundle_test bundle_test.cpp)
+calib_add_unit_test(bundle_stage_utils_test bundle_stage_utils_test.cpp)
 calib_add_unit_test(distortion_test distortion_test.cpp)
 calib_add_unit_test(extrinsics_test extrinsics_test.cpp)
 calib_add_unit_test(handeye_test handeye_test.cpp)
@@ -23,6 +25,7 @@ calib_add_unit_test(linescan_test linescan_test.cpp)
 calib_add_unit_test(linescan_facade_test linescan_facade_test.cpp)
 calib_add_unit_test(se3_utils_test se3_utils_test.cpp)
 calib_add_unit_test(linescan_utils_test linescan_utils_test.cpp)
+calib_add_unit_test(planefit_test planefit_test.cpp)
 calib_add_unit_test(planar_intrinsics_test planar_intrinsics_test.cpp)
 calib_add_unit_test(planarpose_test planarpose_test.cpp)
 calib_add_unit_test(posefromhomography_test posefromhomography_test.cpp)

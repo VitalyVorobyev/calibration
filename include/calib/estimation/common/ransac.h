@@ -10,8 +10,12 @@
 #include <optional>
 #include <random>
 #include <span>
+#include <stdexcept>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
+
+#include "calib/io/serialization.h"  // to_json/from_json
 
 namespace calib {
 
@@ -55,18 +59,6 @@ inline auto rms(const std::vector<double>& vals) -> double {
     double ss = std::accumulate(vals.begin(), vals.end(), 0.0,
                                 [](double acc, double v) { return acc + v * v; });
     return std::sqrt(ss / static_cast<double>(vals.size()));
-}
-
-template <typename RNG>
-inline void sample_k_unique(size_t k, size_t size, RNG& rng, std::vector<int>& out) {
-    if (k > size) {
-        std::cerr << "Warning: sample_k_unique called with k > size\n";
-        k = size;
-    }
-    out.resize(size);
-    std::iota(out.begin(), out.end(), 0);
-    std::shuffle(out.begin(), out.end(), rng);
-    out.resize(k);
 }
 
 inline int calculate_iterations(double confidence, double inlier_ratio, int min_samples,
@@ -136,17 +128,21 @@ auto ransac(const std::vector<typename Estimator::Datum>& data, const RansacOpti
         return best;
     }
 
+    std::vector<int> all_indices(data.size());
+    std::vector<int> idxs(Estimator::k_min_samples);
+    std::iota(all_indices.begin(), all_indices.end(), 0);
+
     std::mt19937_64 rng(opts.seed);
 
     int dynamic_max_iters = opts.max_iters;
-    std::vector<int> idxs;
     std::vector<int> inliers;
     std::vector<double> inlier_residuals;
     std::vector<int> refined_inliers;
     std::vector<double> refined_residuals;
 
     for (int it = 0; it < dynamic_max_iters; ++it) {
-        detail::sample_k_unique(Estimator::k_min_samples, data.size(), rng, idxs);
+        std::sample(all_indices.begin(), all_indices.end(), idxs.begin(), Estimator::k_min_samples,
+                    rng);
 
         if constexpr (detail::HasDegeneracyCheck<Estimator>) {
             if (Estimator::is_degenerate(data, std::span<const int>(idxs))) {

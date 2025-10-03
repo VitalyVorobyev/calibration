@@ -24,7 +24,8 @@ TEST(PoseFromHomography, RecoversPose) {
     H.col(0) = R.col(0);
     H.col(1) = R.col(1);
     H.col(2) = t;
-    H = K.matrix() * H;
+    const auto kmtx = matrix(K);
+    H = kmtx * H;
 
     auto res = pose_from_homography(K, H);
     ASSERT_TRUE(res.success);
@@ -51,7 +52,7 @@ TEST(PoseFromHomography, NegativeZFlipsPose) {
     H.col(0) = R.col(0);
     H.col(1) = R.col(1);
     H.col(2) = t;
-    H = K.matrix() * H;
+    H = matrix(K) * H;
 
     auto res = pose_from_homography(K, H);
     ASSERT_TRUE(res.success);

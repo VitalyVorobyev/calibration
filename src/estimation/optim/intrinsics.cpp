@@ -62,12 +62,13 @@ struct IntrinsicBlocks final : public ProblemParamBlocks {
 
 template <camera_model CameraT>
 static ceres::Problem build_problem(const std::vector<PlanarView>& views,
-                                    const IntrinsicsOptions& opts,
+                                    const IntrinsicsOptimOptions& opts,
                                     IntrinsicBlocks<CameraT>& blocks) {
     ceres::Problem p;
     for (size_t view_idx = 0; view_idx < views.size(); ++view_idx) {
         const auto& view = views[view_idx];
-        auto* loss = opts.huber_delta > 0 ? new ceres::HuberLoss(opts.huber_delta) : nullptr;
+        auto* loss =
+            opts.core.huber_delta > 0 ? new ceres::HuberLoss(opts.core.huber_delta) : nullptr;
         p.AddResidualBlock(IntrinsicResidual<CameraT>::create(view), loss,
                            blocks.c_quat_t[view_idx].data(), blocks.c_tra_t[view_idx].data(),
                            blocks.intr.data());
@@ -95,35 +96,39 @@ static void validate_input(const std::vector<PlanarView>& views) {
 }
 
 template <camera_model CameraT>
-IntrinsicsOptimizationResult<CameraT> optimize_intrinsics(
-    const std::vector<PlanarView>& views, const CameraT& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts) {
+auto optimize_intrinsics(const std::vector<PlanarView>& views, const CameraT& init_camera,
+                         std::vector<Eigen::Isometry3d> init_c_se3_t,
+                         const IntrinsicsOptimOptions& opts)
+    -> IntrinsicsOptimizationResult<CameraT> {
     validate_input(views);
 
     auto blocks = IntrinsicBlocks<CameraT>::create(init_camera, init_c_se3_t);
     ceres::Problem problem = build_problem(views, opts, blocks);
 
     IntrinsicsOptimizationResult<CameraT> result;
-    solve_problem(problem, opts, &result);
+    solve_problem(problem, opts.core, &result.core);
 
     blocks.populate_result(result);
-    if (opts.compute_covariance) {
+    if (opts.core.compute_covariance) {
         auto optcov = compute_covariance(blocks, problem);
         if (optcov.has_value()) {
-            result.covariance = std::move(optcov.value());
+            result.core.covariance = std::move(optcov.value());
         }
     }
 
     return result;
 }
 
-template IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> optimize_intrinsics(
-    const std::vector<PlanarView>& views, const PinholeCamera<BrownConradyd>& init_camera,
-    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
+template auto optimize_intrinsics(const std::vector<PlanarView>& views,
+                                  const PinholeCamera<BrownConradyd>& init_camera,
+                                  std::vector<Eigen::Isometry3d> init_c_se3_t,
+                                  const IntrinsicsOptimOptions& opts)
+    -> IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>>;
 
-template IntrinsicsOptimizationResult<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>
-optimize_intrinsics(const std::vector<PlanarView>& views,
-                    const ScheimpflugCamera<PinholeCamera<BrownConradyd>>& init_camera,
-                    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptions& opts);
+template auto optimize_intrinsics(
+    const std::vector<PlanarView>& views,
+    const ScheimpflugCamera<PinholeCamera<BrownConradyd>>& init_camera,
+    std::vector<Eigen::Isometry3d> init_c_se3_t, const IntrinsicsOptimOptions& opts)
+    -> IntrinsicsOptimizationResult<ScheimpflugCamera<PinholeCamera<BrownConradyd>>>;
 
 }  // namespace calib

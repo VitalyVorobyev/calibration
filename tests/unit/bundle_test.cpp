@@ -48,9 +48,9 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortion) {
     BundleOptions opts;
     opts.optimize_intrinsics = true;
     opts.optimize_skew = false;
-    opts.optimizer = OptimizerType::DENSE_QR;
-    opts.huber_delta = -1;  // no regularization
-    opts.verbose = false;
+    opts.core.optimizer = OptimizerType::DENSE_QR;
+    opts.core.huber_delta = -1;  // no regularization
+    opts.core.verbose = false;
 
     auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {g_se3_c0},
                                                          b_se3_t_gt, opts);
@@ -121,9 +121,9 @@ TEST(OptimizeBundle, RecoversXAndIntrinsics_NoDistortionSkew) {
     BundleOptions opts;
     opts.optimize_intrinsics = true;
     opts.optimize_skew = true;
-    opts.optimizer = OptimizerType::DENSE_QR;
-    opts.huber_delta = -1;  // no regularization
-    opts.verbose = false;
+    opts.core.optimizer = OptimizerType::DENSE_QR;
+    opts.core.huber_delta = -1;  // no regularization
+    opts.core.verbose = false;
 
     auto result = optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {g_se3_c0},
                                                          b_se3_t_gt, opts);
@@ -187,8 +187,8 @@ TEST(ReprojectionRefine, DistortionRecoveryOptional) {
     opts.optimize_intrinsics = true;
     opts.optimize_hand_eye = true;
     opts.optimize_target_pose = true;
-    opts.optimizer = OptimizerType::DENSE_QR;
-    opts.verbose = false;
+    opts.core.optimizer = OptimizerType::DENSE_QR;
+    opts.core.verbose = false;
 
     auto result =
         optimize_bundle<Camera<BrownConradyd>>(sim.observations, {cam0}, {X0}, b_se3_t_gt, opts);
@@ -253,12 +253,12 @@ TEST(OptimizeBundle, SingleCameraHandEye) {
 
     auto res =
         optimize_bundle<Camera<BrownConradyd>>(observations, cams, {init_g_se3_c}, b_se3_t, opts);
-    std::cout << res.report << std::endl;
+    std::cout << res.core.report << std::endl;
 
     EXPECT_LT((res.g_se3_c[0].translation() - g_se3_c.translation()).norm(), 1e-3);
     Eigen::AngleAxisd diff(res.g_se3_c[0].linear() * g_se3_c.linear().transpose());
     EXPECT_LT(diff.angle(), 1e-3);
-    EXPECT_LT(res.final_cost, 0.01);
+    EXPECT_LT(res.core.final_cost, 0.01);
 }
 
 TEST(OptimizeBundle, SingleCameraTargetPose) {

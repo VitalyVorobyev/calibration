@@ -1,5 +1,3 @@
-#include "calib/pipeline/planar_intrinsics.h"
-
 #include <CLI/CLI.hpp>
 #include <filesystem>
 #include <fstream>
@@ -10,9 +8,11 @@
 #include <string>
 #include <vector>
 
-#include "calib/datasets/planar.h"
+#include "calib/pipeline/dataset.h"
+#include "calib/pipeline/facades/intrinsics.h"
+#include "calib/pipeline/reports/intrinsics.h"
 
-using namespace calib::planar;
+using namespace calib::pipeline;
 
 int main(int argc, char** argv) {
     CLI::App app{"Intrinsic calibration from planar target detections"};
@@ -33,25 +33,31 @@ int main(int argc, char** argv) {
 
     try {
         const auto cfg = load_calibration_config(config_path);
-        if (cfg.cameras.size() != feature_paths.size()) {
-            if (feature_paths.size() == 1 && cfg.cameras.size() == 1) {
+        if (!cfg.has_value()) {
+            throw std::runtime_error("Failed to load calibration config");
+        }
+        if (cfg->cameras.size() != feature_paths.size()) {
+            if (feature_paths.size() == 1 && cfg->cameras.size() == 1) {
                 // ok
             } else {
                 std::ostringstream oss;
                 oss << "Number of feature files (" << feature_paths.size()
-                    << ") does not match cameras in config (" << cfg.cameras.size() << ").";
+                    << ") does not match cameras in config (" << cfg->cameras.size() << ").";
                 throw std::runtime_error(oss.str());
             }
         }
 
-        const std::size_t camera_count = cfg.cameras.size();
-        std::vector<PlanarIntrinsicsReport> camera_results;
-        camera_results.reserve(camera_count);
+        const std::size_t camera_count = cfg->cameras.size();
+        std::vector<CalibrationReport> all_reports;
+        all_reports.reserve(camera_count);
+
+        std::vector<IntrinsicCalibrationOutputs> all_results;
+        all_results.reserve(camera_count);
 
         PlanarIntrinsicCalibrationFacade facade;
 
         for (std::size_t cam_idx = 0; cam_idx < camera_count; ++cam_idx) {
-            const auto& cam_cfg = cfg.cameras[cam_idx];
+            const auto& cam_cfg = cfg->cameras[cam_idx];
             const std::filesystem::path features_path =
                 feature_paths.size() == 1 ? std::filesystem::path(feature_paths[0])
                                           : std::filesystem::path(feature_paths[cam_idx]);
@@ -71,10 +77,12 @@ int main(int argc, char** argv) {
             std::cerr << "[" << cam_cfg.camera_id << "] Found " << detections.images.size()
                       << " image detections" << '\n';
 
-            auto result = facade.calibrate(cfg, cam_cfg, detections, features_path);
-            print_calibration_summary(std::cout, cam_cfg, result.outputs);
+            auto result = facade.calibrate(cfg.value(), cam_cfg, detections);
+            print_calibration_summary(std::cout, cam_cfg, result);
 
-            camera_results.push_back(std::move(result.report));
+            auto report = build_planar_intrinsics_report(cfg.value(), cam_cfg, detections, result);
+            all_reports.push_back(std::move(report));
+            all_results.push_back(std::move(result));
 
             if (camera_count > 1) {
                 std::cout << std::string(40, '-') << "\n";
@@ -82,25 +90,8 @@ int main(int argc, char** argv) {
         }
 
         nlohmann::json final_json = nlohmann::json::object();
-        if (!camera_results.empty()) {
-            auto combined = camera_results.front();
-            if (combined.calibrations.empty()) {
-                final_json = combined;
-            } else if (camera_results.size() == 1) {
-                final_json = combined;
-            } else {
-                auto& base_calibration = combined.calibrations.front();
-                base_calibration.cameras.clear();
-                for (const auto& report : camera_results) {
-                    if (report.calibrations.empty() ||
-                        report.calibrations.front().cameras.empty()) {
-                        continue;
-                    }
-                    base_calibration.cameras.push_back(report.calibrations.front().cameras.front());
-                }
-                final_json = combined;
-            }
-        }
+        final_json["reports"] = all_reports;
+        final_json["results"] = all_results;
 
         if (!output_path.empty()) {
             std::ofstream out(output_path);

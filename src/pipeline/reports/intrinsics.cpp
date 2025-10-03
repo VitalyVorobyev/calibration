@@ -1,4 +1,4 @@
-#include "calib/reports/planar_intrinsics.h"
+#include "calib/pipeline/reports/intrinsics.h"
 
 #include <algorithm>
 #include <chrono>
@@ -6,27 +6,10 @@
 #include <iomanip>
 #include <sstream>
 #include <vector>
-namespace calib::planar {
 
-namespace {
+namespace calib::pipeline {
 
-[[nodiscard]] auto iso_timestamp_utc() -> std::string {
-    const auto now = std::chrono::system_clock::now();
-    const std::time_t t = std::chrono::system_clock::to_time_t(now);
-    std::tm tm{};
-#ifdef _WIN32
-    gmtime_s(&tm, &t);
-#else
-    gmtime_r(&t, &tm);
-#endif
-    std::ostringstream oss;
-    oss << std::put_time(&tm, "%FT%TZ");
-    return oss.str();
-}
-
-}  // namespace
-
-[[nodiscard]] auto compute_global_rms(const CalibrationOutputs& out) -> double {
+[[nodiscard]] auto compute_global_rms(const IntrinsicCalibrationOutputs& out) -> double {
     const auto& refine = out.refine_result;
     if (refine.view_errors.empty()) {
         return 0.0;
@@ -47,33 +30,10 @@ namespace {
     return std::sqrt(sum_sq / static_cast<double>(total_measurements));
 }
 
-auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const CameraConfig& cam_cfg,
-                                    const PlanarDetections& detections,
-                                    const CalibrationOutputs& outputs,
-                                    const std::filesystem::path& /*features_path*/)
-    -> PlanarIntrinsicsReport {
-    PlanarIntrinsicsReport report;
-    report.session = SessionReport{.id = cfg.session.id,
-                                   .description = cfg.session.description,
-                                   .timestamp_utc = iso_timestamp_utc()};
-
-    PlanarIntrinsicsOptionsReport options;
-    options.min_corners_per_view = cfg.options.min_corners_per_view;
-    options.refine = cfg.options.refine;
-    options.optimize_skew = cfg.options.optimize_skew;
-    options.num_radial = cfg.options.num_radial;
-    options.huber_delta = cfg.options.huber_delta;
-    options.max_iterations = cfg.options.max_iterations;
-    options.epsilon = cfg.options.epsilon;
-    options.point_scale = cfg.options.point_scale;
-    options.auto_center_points = cfg.options.auto_center;
-    options.fixed_distortion_indices = cfg.options.fixed_distortion_indices;
-    options.fixed_distortion_values = cfg.options.fixed_distortion_values;
-    if (cfg.options.point_center_override.has_value()) {
-        options.point_center = cfg.options.point_center_override.value();
-    }
-    options.homography_ransac = cfg.options.homography_ransac;
-
+auto build_planar_intrinsics_report(const IntrinsicCalibrationConfig& cfg,
+                                    const CameraConfig& cam_cfg, const PlanarDetections& detections,
+                                    const IntrinsicCalibrationOutputs& outputs)
+    -> CalibrationReport {
     CameraReport camera;
     camera.camera_id = cam_cfg.camera_id;
     camera.model = cam_cfg.model;
@@ -112,7 +72,7 @@ auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const Ca
     CalibrationReport calibration;
     calibration.type = "intrinsics";
     calibration.algorithm = cfg.algorithm;
-    calibration.options = std::move(options);
+    calibration.options = cfg.options;
     if (!detections.metadata.is_null() && detections.metadata.contains("detector")) {
         calibration.detector = detections.metadata.at("detector");
     } else {
@@ -120,9 +80,7 @@ auto build_planar_intrinsics_report(const PlanarCalibrationConfig& cfg, const Ca
     }
     calibration.cameras.push_back(std::move(camera));
 
-    report.calibrations.push_back(std::move(calibration));
-
-    return report;
+    return calibration;
 }
 
-}  // namespace calib::planar
+}  // namespace calib::pipeline
