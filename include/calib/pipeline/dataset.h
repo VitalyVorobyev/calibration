@@ -45,7 +45,7 @@ struct CalibrationDataset final {
     int schema_version{1};
     nlohmann::json metadata;
     std::vector<PlanarDetections> planar_cameras;
-    nlohmann::json raw_json;  ///< Original dataset payload for downstream consumers.
+    nlohmann::json raw_json;  ///< Original dataset payloads keyed by source path.
 };
 
 static_assert(serializable_aggregate<PlanarTargetPoint>);
