@@ -69,11 +69,8 @@ struct SyntheticHandEyeData final {
 
     std::vector<BundleObservation> observations;
     observations.reserve(sim.observations.size());
-    for (const auto& obs : sim.observations) {
-        if (obs.view.size() >= 16U) {
-            observations.push_back(obs);
-        }
-    }
+    std::copy_if(sim.observations.begin(), sim.observations.end(), std::back_inserter(observations),
+                 [](const auto& obs) { return obs.view.size() >= 16U; });
 
     SyntheticHandEyeData data;
     data.camera = cam_gt;

@@ -208,11 +208,11 @@ auto MultiCameraCalibrationFacade::calibrate(
         return result;
     }
 
-    std::vector<PinholeCamera<BrownConradyd>> init_cameras;
-    init_cameras.reserve(cfg.sensors.size());
-    for (const auto& sid : cfg.sensors) {
-        init_cameras.push_back(intrinsics_by_sensor.at(sid).refine_result.camera);
-    }
+    std::vector<PinholeCamera<BrownConradyd>> init_cameras(cfg.sensors.size());
+    std::transform(cfg.sensors.begin(), cfg.sensors.end(), init_cameras.begin(),
+                   [&intrinsics_by_sensor](const auto& sid) {
+                       return intrinsics_by_sensor.at(sid).refine_result.camera;
+                   });
 
     std::vector<PinholeCamera<DualDistortion>> dlt_cameras;
     dlt_cameras.reserve(init_cameras.size());

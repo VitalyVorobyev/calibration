@@ -123,11 +123,10 @@ LineScanCalibrationResult calibrate_laser_plane(const std::vector<LineScanView>&
         result.summary = "ransac";
         result.inlier_count = ransac_result.inliers.size();
         if (!ransac_result.inliers.empty()) {
-            std::vector<Eigen::Vector3d> inlier_points;
-            inlier_points.reserve(ransac_result.inliers.size());
-            for (int idx : ransac_result.inliers) {
-                inlier_points.push_back(all_points[static_cast<std::size_t>(idx)]);
-            }
+            std::vector<Eigen::Vector3d> inlier_points(ransac_result.inliers.size());
+            std::transform(
+                ransac_result.inliers.begin(), ransac_result.inliers.end(), inlier_points.begin(),
+                [&all_points](int idx) { return all_points[static_cast<std::size_t>(idx)]; });
             result.rms_error = plane_rms(inlier_points, result.plane);
         } else {
             result.rms_error = plane_rms(all_points, result.plane);

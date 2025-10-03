@@ -126,6 +126,17 @@ cmake --install build --prefix /desired/prefix
 
 The install exports `calibTargets.cmake` and a `calibConfig.cmake` package so downstream projects can simply call `find_package(calib CONFIG REQUIRED)` and link against the `calib::` targets they need.
 
+## Testing
+
+After configuring the project you can execute the full GoogleTest suite:
+
+```bash
+cmake --build build --target tests
+ctest --test-dir build --output-on-failure -j$(nproc)
+```
+
+These tests exercise the numerical solvers as well as higher level plumbing such as the JSON dataset loader. The latter now verifies that metadata from each JSON source is preserved, recorded in the pipeline summary and accessible through `CalibrationDataset::raw_json` for downstream tooling.
+
 ## Using the Library
 
 Most workflows live in `calib::estimation` and `calib::pipeline`:

@@ -88,13 +88,13 @@ TEST(CalibrationPipelineTest, AddDecoratorInvokesHooksAroundStageExecution) {
     {
         ::testing::InSequence seq;
         EXPECT_CALL(*decorator_ptr, before_stage(::testing::_, ::testing::Ref(context)))
-            .WillOnce([&](const CalibrationStage& stage, PipelineContext& ctx) {
+            .WillOnce([&](const CalibrationStage& stage, const PipelineContext& ctx) {
                 EXPECT_EQ(&stage, static_cast<const CalibrationStage*>(stage_ptr));
                 EXPECT_EQ(&ctx, &context);
             });
         EXPECT_CALL(*decorator_ptr,
                     after_stage(::testing::_, ::testing::Ref(context), ::testing::_))
-            .WillOnce([&](const CalibrationStage& stage, PipelineContext& ctx,
+            .WillOnce([&](const CalibrationStage& stage, const PipelineContext& ctx,
                           const PipelineStageResult& result) {
                 EXPECT_EQ(&stage, static_cast<const CalibrationStage*>(stage_ptr));
                 EXPECT_EQ(&ctx, &context);

@@ -129,16 +129,8 @@ int main(int argc, char** argv) {
                 rig_json["sensors"] = run.sensors;
 
                 nlohmann::json init_json;
-                nlohmann::json cams_json = nlohmann::json::array();
-                for (const auto& pose : run.initial_guess.c_se3_r) {
-                    cams_json.push_back(pose);
-                }
-                nlohmann::json targets_json = nlohmann::json::array();
-                for (const auto& pose : run.initial_guess.r_se3_t) {
-                    targets_json.push_back(pose);
-                }
-                init_json["c_se3_r"] = std::move(cams_json);
-                init_json["r_se3_t"] = std::move(targets_json);
+                init_json["c_se3_r"] = run.initial_guess.c_se3_r;
+                init_json["r_se3_t"] = run.initial_guess.r_se3_t;
                 rig_json["initial_guess"] = std::move(init_json);
                 rig_json["optimization"] = run.optimization;
 

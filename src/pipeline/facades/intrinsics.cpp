@@ -115,11 +115,9 @@ auto PlanarIntrinsicCalibrationFacade::calibrate(const IntrinsicCalibrationConfi
         throw std::runtime_error("Linear intrinsic estimation failed to converge.");
     }
 
-    std::vector<std::size_t> linear_view_indices;
-    linear_view_indices.reserve(linear.views.size());
-    for (const auto& v : linear.views) {
-        linear_view_indices.push_back(v.view_index);
-    }
+    std::vector<std::size_t> linear_view_indices(linear.views.size());
+    std::transform(linear.views.begin(), linear.views.end(), linear_view_indices.begin(),
+                   [](const auto& v) { return v.view_index; });
 
     IntrinsicsOptimizationResult<PinholeCamera<BrownConradyd>> refine;
     if (cfg.options.refine) {

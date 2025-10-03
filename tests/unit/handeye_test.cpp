@@ -84,8 +84,9 @@ TEST(TsaiLenzAllPairsWeighted, InvariantToBaseFrameLeftMultiply) {
     // Left-multiply base poses by a fixed transform
     Eigen::Isometry3d B = make_pose(Eigen::Vector3d(0.5, -0.1, 0.2),
                                     Eigen::Vector3d(0.3, 0.7, 0.2).normalized(), deg2rad(25));
-    std::vector<Eigen::Isometry3d> base_se3_gripper2 = base_se3_gripper;
-    for (auto& T : base_se3_gripper2) T = B * T;
+    std::vector<Eigen::Isometry3d> base_se3_gripper2(base_se3_gripper.size());
+    std::transform(base_se3_gripper.begin(), base_se3_gripper.end(), base_se3_gripper2.begin(),
+                   [&](const auto& T) { return B * T; });
 
     Eigen::Isometry3d X1 = estimate_handeye_dlt(base_se3_gripper, camera_se3_target, 1.0);
     Eigen::Isometry3d X2 = estimate_handeye_dlt(base_se3_gripper2, camera_se3_target, 1.0);
