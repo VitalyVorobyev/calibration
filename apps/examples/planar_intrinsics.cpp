@@ -1,4 +1,4 @@
-#include "calib/pipeline/planar_intrinsics.h"
+#include "calib/pipeline/facades/intrinsics.h"
 
 #include <CLI/CLI.hpp>
 #include <filesystem>
@@ -10,9 +10,9 @@
 #include <string>
 #include <vector>
 
-#include "calib/datasets/planar.h"
+#include "calib/pipeline/dataset.h"
 
-using namespace calib::planar;
+using namespace calib::pipeline;
 
 int main(int argc, char** argv) {
     CLI::App app{"Intrinsic calibration from planar target detections"};
@@ -33,25 +33,28 @@ int main(int argc, char** argv) {
 
     try {
         const auto cfg = load_calibration_config(config_path);
-        if (cfg.cameras.size() != feature_paths.size()) {
-            if (feature_paths.size() == 1 && cfg.cameras.size() == 1) {
+        if (!cfg.has_value()) {
+            throw std::runtime_error("Failed to load calibration config");
+        }
+        if (cfg->cameras.size() != feature_paths.size()) {
+            if (feature_paths.size() == 1 && cfg->cameras.size() == 1) {
                 // ok
             } else {
                 std::ostringstream oss;
                 oss << "Number of feature files (" << feature_paths.size()
-                    << ") does not match cameras in config (" << cfg.cameras.size() << ").";
+                    << ") does not match cameras in config (" << cfg->cameras.size() << ").";
                 throw std::runtime_error(oss.str());
             }
         }
 
-        const std::size_t camera_count = cfg.cameras.size();
+        const std::size_t camera_count = cfg->cameras.size();
         std::vector<PlanarIntrinsicsReport> camera_results;
         camera_results.reserve(camera_count);
 
         PlanarIntrinsicCalibrationFacade facade;
 
         for (std::size_t cam_idx = 0; cam_idx < camera_count; ++cam_idx) {
-            const auto& cam_cfg = cfg.cameras[cam_idx];
+            const auto& cam_cfg = cfg->cameras[cam_idx];
             const std::filesystem::path features_path =
                 feature_paths.size() == 1 ? std::filesystem::path(feature_paths[0])
                                           : std::filesystem::path(feature_paths[cam_idx]);

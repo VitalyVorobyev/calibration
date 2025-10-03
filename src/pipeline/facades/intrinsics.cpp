@@ -133,7 +133,7 @@ auto PlanarIntrinsicCalibrationFacade::calibrate(const IntrinsicCalibrationConfi
         });
 
         PinholeCamera<BrownConradyd> init_camera(linear.kmtx, Eigen::VectorXd::Zero(5));
-        refine = optimize_intrinsics(planar_views, init_camera, init_c_se3_t, cfg.options.optim_opts);
+        refine = optimize_intrinsics(planar_views, init_camera, init_c_se3_t, cfg.options.optim_options);
         if (!refine.success) {
             std::cerr << "Warning: Non-linear refinement did not converge. Using linear result."
                       << '\n';
